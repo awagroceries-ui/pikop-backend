@@ -7,17 +7,13 @@ const geminiService = require('../services/geminiService');
  */
 const getQuote = async (req, res) => {
   const { pickup_address, delivery_address, item_description } = req.body;
-  const userId = req.user?.id || 1; // In prod, get from JWT
+  const userId = req.user?.id || 1;
 
   try {
-    // 1. Classify size with Gemini
     const classification = await geminiService.classifyItemSize(item_description);
-
-    // 2. Map size to price
     const pricing = { 'SMALL': 500.00, 'MEDIUM': 1000.00, 'LARGE': 2000.00 };
     const fare = pricing[classification.size_tier] || 2000.00;
 
-    // 3. Save quote
     const { rows } = await db.query(
       `INSERT INTO quotes (user_id, pickup_address, delivery_address, item_description, size_tier, total_fare, confidence_score)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -49,7 +45,6 @@ const createOrder = async (req, res) => {
   const userId = req.user?.id || 1;
 
   try {
-    // 1. Fetch and validate quote
     const quoteRes = await db.query(
       "SELECT * FROM quotes WHERE id = $1 AND expires_at > CURRENT_TIMESTAMP",
       [quote_id]
@@ -60,12 +55,9 @@ const createOrder = async (req, res) => {
     }
 
     const quote = quoteRes.rows[0];
-
-    // 2. Generate random verification codes
     const pickupCode = Math.floor(1000 + Math.random() * 9000).toString();
     const deliveryCode = Math.floor(1000 + Math.random() * 9000).toString();
 
-    // 3. Create order (using mock points for geography columns in alpha)
     const { rows } = await db.query(
       `INSERT INTO orders (user_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code, delivery_code)
        VALUES ($1, ST_GeographyFromText('POINT(0 0)'), ST_GeographyFromText('POINT(0 0)'), $2, $3, 'SEARCHING', $4, $5, $6)
@@ -88,7 +80,55 @@ const createOrder = async (req, res) => {
  * Atomically accepts an order by a fulfiller.
  */
 const acceptOrder = async (req, res) => {
-  // ... (existing logic)
+  const { orderId } = req.params;
+  const { fulfillerId } = req.body;
+
+  const client = await db.pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const orderQuery = `
+      SELECT id, status
+      FROM orders
+      WHERE id = $1
+      FOR UPDATE
+    `;
+    const { rows } = await client.query(orderQuery, [orderId]);
+
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const order = rows[0];
+
+    if (order.status !== 'SEARCHING') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Order already accepted or cancelled' });
+    }
+
+    const updateQuery = `
+      UPDATE orders
+      SET fulfiller_id = $1, status = 'MATCHED'
+      WHERE id = $2
+    `;
+    await client.query(updateQuery, [fulfillerId, orderId]);
+
+    await client.query('COMMIT');
+
+    res.status(200).json({
+      message: 'Order accepted successfully',
+      orderId,
+      status: 'MATCHED'
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error accepting order:', error);
+    res.status(500).json({ error: 'Failed to accept order' });
+  } finally {
+    client.release();
+  }
 };
 
 /**
@@ -150,13 +190,11 @@ const verifyDelivery = async (req, res) => {
       return res.status(400).json({ error: 'Invalid delivery code' });
     }
 
-    // Mark as delivered
     await db.query(
       "UPDATE orders SET status = 'DELIVERED' WHERE id = $1",
       [orderId]
     );
 
-    // Trigger Wallet Payment Split (75/25)
     await walletService.processDeliveryPayment(orderId);
 
     res.status(200).json({ message: 'Delivery completed and payment processed', status: 'DELIVERED' });
@@ -167,6 +205,8 @@ const verifyDelivery = async (req, res) => {
 };
 
 module.exports = {
+  getQuote,
+  createOrder,
   acceptOrder,
   verifyPickup,
   verifyDelivery
