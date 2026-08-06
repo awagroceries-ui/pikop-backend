@@ -122,7 +122,7 @@ interface ApiService {
     suspend fun rateCustomer(@retrofit2.http.Path("id") id: String, @Body request: RatingRequest): OrderResponse
 
     companion object {
-        private const val BASE_URL = "https://awa.name.ng/"
+        private const val BASE_URL = "https://api.awa.name.ng/"
 
         fun create(): ApiService {
             val logger = HttpLoggingInterceptor().apply {
