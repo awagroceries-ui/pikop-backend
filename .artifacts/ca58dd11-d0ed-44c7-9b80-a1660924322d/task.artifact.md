@@ -1,0 +1,8 @@
+- [x] Milestone 10: Testing Pass
+    - [x] Add Jest and Supertest dependencies to `package.json`
+    - [x] Implement `tests/setup.js` and `tests/factories.js`
+    - [x] Implement `auth.test.js`
+    - [x] Implement `order.test.js` (State machine + Race condition)
+    - [x] Implement `wallet.test.js` (Financial splits)
+    - [x] Implement `admin.test.js` (RBAC verification)
+    - [ ] Verify all tests pass (Requires `npm install` on VPS)

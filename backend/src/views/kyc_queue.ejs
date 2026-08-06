@@ -1,0 +1,35 @@
+<h3>Pending KYC Submissions</h3>
+<p class="text-muted">Review and approve fulfiller documents to enable them for dispatch.</p>
+
+<div class="mt-4">
+    <table class="table table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Fulfiller Name</th>
+                <th>Doc Type</th>
+                <th>View Document</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (documents.length === 0) { %>
+                <tr>
+                    <td colspan="4" class="text-center">No pending KYC submissions.</td>
+                </tr>
+            <% } %>
+            <% documents.forEach(doc => { %>
+                <tr>
+                    <td><%= doc.full_name %></td>
+                    <td><%= doc.document_type %></td>
+                    <td><a href="<%= doc.document_url %>" target="_blank" class="btn btn-sm btn-outline-secondary">View Link</a></td>
+                    <td>
+                        <form action="/admin/kyc/<%= doc.id %>/approve" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                        </form>
+                        <button class="btn btn-sm btn-danger ml-1">Reject</button>
+                    </td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+</div>

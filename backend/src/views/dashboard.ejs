@@ -1,0 +1,56 @@
+<div class="row">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Active Orders</h5>
+                <p class="card-text fs-2"><%= stats.activeOrders %></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Online Fulfillers</h5>
+                <p class="card-text fs-2"><%= stats.onlineFulfillers %></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Total Platform Revenue</h5>
+                <p class="card-text fs-2">₦<%= stats.totalRevenue %></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <h3>System Status</h3>
+    <table class="table table-striped mt-3">
+        <thead>
+            <tr>
+                <th>Component</th>
+                <th>Status</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>PostGIS Dispatch Engine</td>
+                <td><span class="badge bg-success">ACTIVE</span></td>
+                <td>Spatial indexing optimized</td>
+            </tr>
+            <tr>
+                <td>Paystack Integration</td>
+                <td><span class="badge bg-success">CONNECTED</span></td>
+                <td>Ready for Transfers</td>
+            </tr>
+            <tr>
+                <td>Node.js API</td>
+                <td><span class="badge bg-success">HEALTHY</span></td>
+                <td>Single instance (fork mode)</td>
+            </tr>
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,101 @@
+package com.ng.pikop
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.ng.pikop.core.datastore.TokenManager
+import com.ng.pikop.feature.auth.EmailOtpScreen
+import com.ng.pikop.feature.auth.LoginScreen
+import com.ng.pikop.feature.auth.SignupScreen
+import com.ng.pikop.feature.auth.TermsScreen
+import com.ng.pikop.feature.fulfiller.ActiveOrderScreen
+import com.ng.pikop.feature.fulfiller.FulfillerDashboardScreen
+import com.ng.pikop.feature.order.OrderQuoteScreen
+import com.ng.pikop.ui.theme.PikopTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            PikopTheme {
+                PikopAppNavigation()
+            }
+        }
+    }
+}
+
+@Composable
+fun PikopAppNavigation() {
+    val navController = rememberNavController()
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val userEmail by tokenManager.userEmail.collectAsState(initial = null)
+
+    NavHost(navController = navController, startDestination = "login") {
+        composable("login") {
+            LoginScreen(
+                onLoginSuccess = { navController.navigate("order_quote") },
+                onGoToSignup = { navController.navigate("signup") }
+            )
+        }
+        composable("signup") {
+            SignupScreen(onSignupSuccess = { email ->
+                navController.navigate("email_otp/$email")
+            })
+        }
+        composable("email_otp/{email}") { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            EmailOtpScreen(
+                email = email,
+                onVerificationSuccess = { navController.navigate("terms") }
+            )
+        }
+        composable("terms") {
+            TermsScreen(onAccept = { navController.navigate("order_quote") })
+        }
+        composable("order_quote") {
+            Column {
+                Button(onClick = { navController.navigate("fulfiller_dashboard") }) {
+                    Text("Switch to Fulfiller")
+                }
+                OrderQuoteScreen(
+                    userEmail = userEmail ?: "",
+                    onOrderComplete = { reference ->
+                        // Handle order completion
+                    }
+                )
+            }
+        }
+        composable("fulfiller_dashboard") {
+            FulfillerDashboardScreen(
+                onAcceptOffer = { orderId ->
+                    navController.navigate("active_order/$orderId")
+                }
+            )
+        }
+        composable("active_order/{orderId}") { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+            ActiveOrderScreen(
+                orderId = orderId,
+                onOrderCompleted = {
+                    navController.navigate("fulfiller_dashboard") {
+                        popUpTo("fulfiller_dashboard") { inclusive = true }
+                    }
+                }
+            )
+        }
+    }
+}
