@@ -13,5 +13,6 @@ router.post('/', authenticateToken, requireEmailVerified, orderController.create
 router.post('/:orderId/accept', authenticateToken, orderController.acceptOrder);
 router.post('/:orderId/pickup', authenticateToken, orderController.verifyPickup);
 router.post('/:orderId/deliver', authenticateToken, orderController.verifyDelivery);
+router.post('/:orderId/cancel', authenticateToken, orderController.cancelOrder);
 
 module.exports = router;

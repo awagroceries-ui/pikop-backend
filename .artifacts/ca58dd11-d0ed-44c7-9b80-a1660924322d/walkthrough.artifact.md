@@ -1,35 +1,39 @@
-# Walkthrough - Live Order Status History
+# Walkthrough - Refined Admin Dashboard & Payments
 
-I have successfully implemented a real-time order tracking system that replaces the mock timeline with actual data from your backend. Customers can now see every milestone of their delivery (Assigned, Picked Up, Delivered) updated instantly as it happens.
+I have successfully enhanced the platform's operational and financial management by implementing Paystack webhooks, automated payout registrations, and expanding the Admin Dashboard with order and withdrawal management.
 
 ## Changes Made
 
-### Backend: Tracking Infrastructure
-- **Status History Table**: Created the `order_status_history` table to store an immutable log of every order state transition with detailed descriptions and timestamps.
-- **Enhanced `orderController.js`**:
-    - Integrated a `logStatusChange` helper that records status updates in the database and broadcasts them via WebSockets simultaneously.
-    - Updated `createOrder`, `acceptOrder`, `verifyPickup`, and `verifyDelivery` to automatically log their respective events (e.g., "Driver assigned", "Item in transit").
-- **Order Details API**: Added a `GET /api/v1/orders/:orderId` endpoint that returns the full order object along with its complete status history.
+### Financials & Payments
+- **Paystack Webhook Handler**: Implemented a secure handler in `paymentController.js` to receive real-time notifications from Paystack.
+    - Verifies the `x-paystack-signature` for security.
+    - Automatically updates withdrawal statuses (`SUCCESSFUL`, `FAILED`) based on Paystack transfer events.
+- **Automated Payout Registration**: Added `createTransferRecipient` to `paystackService.js`, allowing fulfillers to be registered on Paystack for seamless bank transfers.
+- **Platform Settings**: Created a new `settings` database table to manage global platform variables.
+    - Moved the **Platform Commission (25%)** to this table for dynamic adjustments.
 
-### Android: Real-time UI Integration
-- **Updated `ApiService.kt`**: Added models and the endpoint to fetch detailed order information and history.
-- **Dynamic Timeline**: Updated `TrackOrderScreen.kt` to:
-    - Automatically fetch the real history when the tracking screen opens.
-    - **WebSocket Listener**: Added a listener for the `status_updated` socket event. When the driver progresses the order (e.g., enters a pickup code), the user's timeline refreshes instantly without a page reload.
-- **Time Formatting**: Added a utility to convert UTC ISO timestamps into user-friendly formats (e.g., "1:45 PM").
+### Admin Dashboard Enhancements
+- **Live Order Board**: Created a new "Order Board" view (`orders.ejs`) that shows every delivery on the platform with its current status, customer name, and fare.
+- **Withdrawal Management**: Added a "Withdrawals" view (`withdrawals.ejs`) to track and manage fulfiller payout requests.
+- **Enhanced UI**: Updated the admin sidebar layout to include quick links to these new sections.
+- **Backend Controllers**: Expanded `adminController.js` with logic to fetch and display orders and withdrawals with full user/fulfiller context.
+
+### Android UX Refinement
+- **Payment Success Path**: Updated `OrderQuoteScreen.kt` to show a "Payment processing..." message immediately after a successful Paystack transaction, improving user feedback while the backend finalizes the order.
 
 ## Verification Results
 
+### Backend Integrity
+- Verified the `paymentRoutes.js` registration in `app.js`.
+- Confirmed the migration for `platform_settings` correctly seeds the default commission.
+- Verified that `logStatusChange` correctly emits socket events and saves to history.
+
 ### Automated Tests
 - Ran `./gradlew :app:assembleDebug` and the build finished successfully.
-- Verified that the `SocketManager` correctly registers and deregisters the `status_updated` listener to prevent memory leaks.
-
-### Manual Verification
-- **Creation**: Verified that placing an order correctly inserts the "Searching" status into the history.
-- **Verification**: Confirmed that the `logStatusChange` helper correctly handles the database transaction to ensure history is never lost if an order update succeeds.
 
 > [!IMPORTANT]
-> To enable live history on your VPS:
-> 1. Push these changes and run `git pull origin main`.
-> 2. Run the migration: `npm run migrate:up`.
-> 3. Restart the API: `pm2 restart pikop-api`.
+> To enable these refinements on your VPS:
+> 1. Run `git pull origin main` in `/var/www/pikop-api`.
+> 2. Run the new migration: `npm run migrate:up` inside the `backend` folder.
+> 3. **Set Webhook**: Ensure your Paystack Dashboard points to `https://api.awa.name.ng/api/v1/payments/webhook`.
+> 4. Restart the API: `pm2 restart pikop-api`.

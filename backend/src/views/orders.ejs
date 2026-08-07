@@ -1,0 +1,35 @@
+<h3>Live Order Board</h3>
+<p class="text-muted">Real-time view of all platform activity.</p>
+
+<div class="mt-4">
+    <table class="table table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Status</th>
+                <th>Fare</th>
+                <th>Pickup</th>
+                <th>Delivery</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% orders.forEach(order => { %>
+                <tr>
+                    <td><code>#<%= order.id %></code></td>
+                    <td><%= order.customer_name %></td>
+                    <td>
+                        <span class="badge <%= order.status === 'DELIVERED' ? 'bg-success' : 'bg-primary' %>">
+                            <%= order.status %>
+                        </span>
+                    </td>
+                    <td>₦<%= order.total_fare %></td>
+                    <td><small><%= order.pickup_address %></small></td>
+                    <td><small><%= order.delivery_address %></small></td>
+                    <td><%= new Date(order.created_at).toLocaleString() %></td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+</div>

@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,11 +18,15 @@ import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.OrderDetailsResponse
 
+import androidx.compose.material.icons.filled.LocationOn
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrdersDashboardScreen(
     onNewDelivery: () -> Unit,
-    onTrackOrder: (String) -> Unit
+    onTrackOrder: (String) -> Unit,
+    onManageAddresses: () -> Unit,
+    onGoToWallet: () -> Unit
 ) {
     var orders by remember { mutableStateOf<List<OrderDetailsResponse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -42,6 +48,12 @@ fun OrdersDashboardScreen(
             TopAppBar(
                 title = { Text("My Deliveries") },
                 actions = {
+                    IconButton(onClick = onGoToWallet) {
+                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = "Wallet")
+                    }
+                    IconButton(onClick = onManageAddresses) {
+                        Icon(Icons.Default.LocationOn, contentDescription = "Saved Addresses")
+                    }
                     IconButton(onClick = { /* Refresh */ }) {
                         Icon(Icons.Default.History, contentDescription = "History")
                     }

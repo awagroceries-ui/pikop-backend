@@ -199,6 +199,28 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp), thickness = 0.5.dp)
 
+        // Cancel Order Button (Only if not delivered/picked up)
+        val canCancel = history.none { it.status == "PICKED_UP" || it.status == "DELIVERED" }
+        if (canCancel) {
+            val scope = rememberCoroutineScope()
+            val apiService = remember { ApiService.create() }
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        try {
+                            apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation"))
+                            // Handle navigation back or success state
+                        } catch (e: Exception) {}
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
+            ) {
+                Text("Cancel Delivery")
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         Text(text = "Delivery Progress", style = MaterialTheme.typography.titleMedium)
         
         Spacer(modifier = Modifier.height(16.dp))

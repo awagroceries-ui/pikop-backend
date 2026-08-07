@@ -23,9 +23,13 @@ import com.ng.pikop.feature.auth.SignupScreen
 import com.ng.pikop.feature.auth.TermsScreen
 import com.ng.pikop.feature.fulfiller.ActiveOrderScreen
 import com.ng.pikop.feature.fulfiller.FulfillerDashboardScreen
+import com.ng.pikop.feature.fulfiller.FulfillerOrdersScreen
+import com.ng.pikop.feature.fulfiller.KycUploadScreen
 import com.ng.pikop.feature.order.OrderQuoteScreen
 import com.ng.pikop.feature.order.OrdersDashboardScreen
+import com.ng.pikop.feature.order.SavedAddressesScreen
 import com.ng.pikop.feature.order.TrackOrderScreen
+import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.ui.theme.PikopTheme
 
 class MainActivity : ComponentActivity() {
@@ -72,7 +76,19 @@ fun PikopAppNavigation() {
         composable("orders_dashboard") {
             OrdersDashboardScreen(
                 onNewDelivery = { navController.navigate("order_quote") },
-                onTrackOrder = { orderId -> navController.navigate("track_order/$orderId") }
+                onTrackOrder = { orderId -> navController.navigate("track_order/$orderId") },
+                onManageAddresses = { navController.navigate("saved_addresses") },
+                onGoToWallet = { navController.navigate("wallet/false") }
+            )
+        }
+        composable("saved_addresses") {
+            SavedAddressesScreen(onBack = { navController.popBackStack() })
+        }
+        composable("wallet/{isFulfiller}") { backStackEntry ->
+            val isFulfiller = backStackEntry.arguments?.getString("isFulfiller")?.toBoolean() ?: false
+            WalletScreen(
+                onBack = { navController.popBackStack() },
+                isFulfiller = isFulfiller
             )
         }
         composable("order_quote") {
@@ -94,8 +110,20 @@ fun PikopAppNavigation() {
             FulfillerDashboardScreen(
                 onAcceptOffer = { orderId ->
                     navController.navigate("active_order/$orderId")
+                },
+                onGoToWallet = {
+                    navController.navigate("wallet/true")
+                },
+                onGoToKyc = {
+                    navController.navigate("kyc_upload")
                 }
             )
+        }
+        composable("kyc_upload") {
+            KycUploadScreen(onBack = { navController.popBackStack() })
+        }
+        composable("fulfiller_history") {
+            FulfillerOrdersScreen(onBack = { navController.popBackStack() })
         }
         composable("active_order/{orderId}") { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""

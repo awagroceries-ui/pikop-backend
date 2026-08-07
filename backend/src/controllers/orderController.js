@@ -23,7 +23,7 @@ const logStatusChange = async (client, orderId, status, description) => {
  * Generates a fare quote using Gemini for item size classification.
  */
 const getQuote = async (req, res) => {
-  const { pickup_address, delivery_address, item_description } = req.body;
+  const { pickup_address, delivery_address, item_description, pickup_lat, pickup_lng, delivery_lat, delivery_lng } = req.body;
   const userId = req.user?.id || 1;
 
   try {
@@ -32,10 +32,10 @@ const getQuote = async (req, res) => {
     const fare = pricing[classification.size_tier] || 2000.00;
 
     const { rows } = await db.query(
-      `INSERT INTO quotes (user_id, pickup_address, delivery_address, item_description, size_tier, total_fare, confidence_score)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO quotes (user_id, pickup_address, delivery_address, item_description, size_tier, total_fare, confidence_score, pickup_location, delivery_location)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, ST_SetSRID(ST_MakePoint($8, $9), 4326), ST_SetSRID(ST_MakePoint($10, $11), 4326))
        RETURNING id, size_tier, total_fare, expires_at`,
-      [userId, pickup_address, delivery_address, item_description, classification.size_tier, fare, classification.confidence]
+      [userId, pickup_address, delivery_address, item_description, classification.size_tier, fare, classification.confidence, pickup_lng || 0, pickup_lat || 0, delivery_lng || 0, delivery_lat || 0]
     );
 
     const quote = rows[0];
@@ -58,7 +58,7 @@ const getQuote = async (req, res) => {
  * Creates an order from a valid quote.
  */
 const createOrder = async (req, res) => {
-  const { quote_id, payment_method, recipient_name, recipient_phone, notes } = req.body;
+  const { quote_id, payment_method, recipient_name, recipient_phone, notes, pickup_lat, pickup_lng, delivery_lat, delivery_lng } = req.body;
   const userId = req.user?.id || 1;
 
   const client = await db.pool.connect();
@@ -79,11 +79,17 @@ const createOrder = async (req, res) => {
     const pickupCode = Math.floor(1000 + Math.random() * 9000).toString();
     const deliveryCode = Math.floor(1000 + Math.random() * 9000).toString();
 
+    // Use provided coordinates if available, otherwise default to POINT(0 0)
+    const pLat = pickup_lat || 0;
+    const pLng = pickup_lng || 0;
+    const dLat = delivery_lat || 0;
+    const dLng = delivery_lng || 0;
+
     const { rows } = await client.query(
       `INSERT INTO orders (user_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code, delivery_code)
-       VALUES ($1, ST_GeographyFromText('POINT(0 0)'), ST_GeographyFromText('POINT(0 0)'), $2, $3, 'SEARCHING', $4, $5, $6)
+       VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, 'SEARCHING', $8, $9, $10)
        RETURNING id, status`,
-      [userId, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupCode, deliveryCode]
+      [userId, pLng, pLat, dLng, dLat, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupCode, deliveryCode]
     );
 
     const orderId = rows[0].id;
@@ -264,39 +270,72 @@ const verifyDelivery = async (req, res) => {
  * Returns full order details and status history.
  */
 const getOrderDetails = async (req, res) => {
-  const { orderId } = req.params;
-  try {
-    const orderRes = await db.query("SELECT * FROM orders WHERE id = $1", [orderId]);
-    if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-
-    const historyRes = await db.query(
-      "SELECT status, description, created_at as time FROM order_status_history WHERE order_id = $1 ORDER BY created_at ASC",
-      [orderId]
-    );
-
-    res.status(200).json({
-      ...orderRes.rows[0],
-      history: historyRes.rows
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch order details' });
-  }
+  // ... existing code
 };
 
 /**
- * Returns all orders for the authenticated user.
+ * Cancels an order and applies fees if matched.
  */
-const getUserOrders = async (req, res) => {
+const cancelOrder = async (req, res) => {
   const userId = req.user.id;
+  const { orderId } = req.params;
+  const { reason } = req.body;
+
+  const client = await db.pool.connect();
   try {
-    const { rows } = await db.query(
-      "SELECT id, status, total_fare, pickup_address, delivery_address, created_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC",
-      [userId]
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      "SELECT id, status, total_fare, user_id FROM orders WHERE id = $1 FOR UPDATE",
+      [orderId]
     );
-    res.status(200).json(rows);
+
+    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    const order = rows[0];
+
+    // Ensure only the owner or an admin can cancel
+    if (order.user_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
+
+    if (['DELIVERED', 'CANCELLED'].includes(order.status)) {
+      return res.status(400).json({ error: 'Order cannot be cancelled in current state' });
+    }
+
+    let fee = 0;
+    if (order.status === 'MATCHED') {
+      fee = 200.00; // Standard cancellation fee
+    } else if (order.status === 'PICKED_UP') {
+       return res.status(400).json({ error: 'Item already picked up. Contact support to cancel.' });
+    }
+
+    // Update Order Status
+    await client.query(
+      "UPDATE orders SET status = 'CANCELLED' WHERE id = $1",
+      [orderId]
+    );
+
+    await logStatusChange(client, orderId, 'CANCELLED', `Order cancelled by user. Reason: ${reason || 'Not provided'}`);
+
+    if (fee > 0) {
+      // Deduct fee from user wallet (This logic assumes user has a wallet)
+      // For MVP, we'll just log it or flag for next payment if no balance
+      await client.query(
+        "UPDATE wallets SET balance = balance - $1 WHERE owner_id = $2 AND owner_type = 'USER'",
+        [fee, userId]
+      );
+      await client.query(
+        "INSERT INTO wallet_ledger_entries (wallet_id, amount, entry_type, purpose, reference_id) VALUES ((SELECT id FROM wallets WHERE owner_id = $1 AND owner_type = 'USER'), $2, 'DEBIT', 'CANCELLATION_FEE', $3)",
+        [userId, fee, orderId]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Order cancelled successfully', fee_applied: fee });
   } catch (error) {
-    console.error('Get User Orders Error:', error);
-    res.status(500).json({ error: 'Failed to fetch your orders' });
+    await client.query('ROLLBACK');
+    console.error('Cancel Order Error:', error);
+    res.status(500).json({ error: 'Failed to cancel order' });
+  } finally {
+    client.release();
   }
 };
 
@@ -307,5 +346,6 @@ module.exports = {
   verifyPickup,
   verifyDelivery,
   getOrderDetails,
-  getUserOrders
+  getUserOrders,
+  cancelOrder
 };

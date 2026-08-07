@@ -1,0 +1,42 @@
+<h3>Withdrawal Management</h3>
+<p class="text-muted">Review and process fulfiller payout requests.</p>
+
+<div class="mt-4">
+    <table class="table table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Fulfiller</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Reference</th>
+                <th>Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (withdrawals.length === 0) { %>
+                <tr><td colspan="6" class="text-center">No withdrawal requests found.</td></tr>
+            <% } %>
+            <% withdrawals.forEach(wd => { %>
+                <tr>
+                    <td><%= wd.full_name %></td>
+                    <td>₦<%= wd.amount %></td>
+                    <td>
+                        <span class="badge <%= wd.status === 'SUCCESSFUL' ? 'bg-success' : (wd.status === 'FAILED' ? 'bg-danger' : 'bg-warning') %>">
+                            <%= wd.status %>
+                        </span>
+                    </td>
+                    <td><small><%= wd.paystack_reference %></small></td>
+                    <td><%= new Date(wd.created_at).toLocaleDateString() %></td>
+                    <td>
+                        <% if (wd.status === 'PENDING') { %>
+                            <button class="btn btn-sm btn-primary">Process Manually</button>
+                        <% } else { %>
+                            -
+                        <% } %>
+                    </td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+</div>

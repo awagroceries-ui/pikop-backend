@@ -14,6 +14,9 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.set('layout', 'layout');
 
+// Static Files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Disable for alpha/bootstrap CDN
@@ -38,8 +41,12 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/v1/auth', require('./routes/authRoutes'));
+app.use('/api/v1/payments', require('./routes/paymentRoutes'));
 app.use('/api/v1/orders', require('./routes/orderRoutes'));
+app.use('/api/v1/fulfillers', require('./routes/fulfillerRoutes'));
 app.use('/api/v1/withdrawals', require('./routes/withdrawalRoutes'));
+app.use('/api/v1/addresses', require('./routes/addressRoutes'));
+app.use('/api/v1/wallets', require('./routes/walletRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
 
 // Error handling middleware

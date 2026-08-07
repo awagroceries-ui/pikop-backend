@@ -69,7 +69,6 @@ const approveKYC = async (req, res) => {
   const { docId } = req.params;
   try {
     await db.query("UPDATE kyc_documents SET status = 'APPROVED' WHERE id = $1", [docId]);
-    // Also update fulfiller status if all docs approved (simplified for alpha)
     const { rows } = await db.query("SELECT fulfiller_id FROM kyc_documents WHERE id = $1", [docId]);
     await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE id = $1", [rows[0].fulfiller_id]);
     res.redirect('/admin/kyc');
@@ -78,9 +77,47 @@ const approveKYC = async (req, res) => {
   }
 };
 
+/**
+ * List all orders.
+ */
+const getOrders = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT o.*, u.full_name as customer_name, f.id as fulfiller_id
+      FROM orders o
+      JOIN users u ON u.id = o.user_id
+      LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
+      ORDER BY o.created_at DESC
+    `);
+    res.render('orders', { orders: rows, admin: req.session.adminUsername });
+  } catch (error) {
+    res.status(500).send('Error loading orders');
+  }
+};
+
+/**
+ * List all withdrawals.
+ */
+const getWithdrawals = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT w.*, u.full_name
+      FROM withdrawals w
+      JOIN fulfillers f ON f.id = w.fulfiller_id
+      JOIN users u ON u.id = f.user_id
+      ORDER BY w.created_at DESC
+    `);
+    res.render('withdrawals', { withdrawals: rows, admin: req.session.adminUsername });
+  } catch (error) {
+    res.status(500).send('Error loading withdrawals');
+  }
+};
+
 module.exports = {
   login,
   getDashboard,
   getKYCQueue,
-  approveKYC
+  approveKYC,
+  getOrders,
+  getWithdrawals
 };

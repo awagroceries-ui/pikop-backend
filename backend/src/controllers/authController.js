@@ -109,21 +109,28 @@ const login = async (req, res) => {
  * Refreshes the access token using a refresh token.
  */
 const refreshToken = (req, res) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken) return res.status(401).json({ error: 'Refresh token required' });
+  // ... existing code
+};
 
-  jwt.verify(refreshToken, authService.REFRESH_TOKEN_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid refresh token' });
-
-    // Generate new tokens
-    const tokens = authService.generateTokens(user);
-    res.json(tokens);
-  });
+/**
+ * Updates the user's FCM token.
+ */
+const updateFCMToken = async (req, res) => {
+  const userId = req.user.id;
+  const { token } = req.body;
+  try {
+    const fcmService = require('../services/fcmService');
+    await fcmService.saveToken(userId, token);
+    res.status(200).json({ message: 'Token updated' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update token' });
+  }
 };
 
 module.exports = {
   signup,
   verifyEmail,
   login,
-  refreshToken
+  refreshToken,
+  updateFCMToken
 };

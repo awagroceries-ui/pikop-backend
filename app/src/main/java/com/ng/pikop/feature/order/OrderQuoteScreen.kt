@@ -1,27 +1,42 @@
 package com.ng.pikop.feature.order
 
 import android.app.Activity
-import co.paystack.android.Transaction
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.SavedAddress
 import com.ng.pikop.core.network.QuoteRequest
 import com.ng.pikop.core.network.FareBreakdown
 import com.ng.pikop.core.network.CreateOrderRequest
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Work
 
 @Composable
 fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
-    var pickup by remember { mutableStateOf("") }
-    var delivery by remember { mutableStateOf("") }
+    var pickupAddress by remember { mutableStateOf("") }
+    var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
+    
+    var deliveryAddress by remember { mutableStateOf("") }
+    var deliveryLatLng by remember { mutableStateOf<LatLng?>(null) }
+    
+    var savedAddresses by remember { mutableStateOf<List<SavedAddress>>(emptyList()) }
+    
     var description by remember { mutableStateOf("") }
     
+    // UI State for Map Picker
+    var showMapPickerFor by remember { mutableStateOf<String?>(null) } // "pickup" or "delivery"
+
     // Recipient Details
     var recipientName by remember { mutableStateOf("") }
     var recipientPhone by remember { mutableStateOf("") }
@@ -37,31 +52,77 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create() }
 
+    // Fetch Saved Addresses
+    LaunchedEffect(Unit) {
+        try {
+            savedAddresses = apiService.getSavedAddresses()
+        } catch (e: Exception) {}
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Top
     ) {
         Text("Request a Delivery", style = MaterialTheme.typography.headlineMedium)
         
+        if (savedAddresses.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Quick Select", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                savedAddresses.forEach { addr ->
+                    AssistChip(
+                        onClick = {
+                            if (pickupAddress.isBlank()) {
+                                pickupAddress = addr.address_text
+                                pickupLatLng = LatLng(addr.lat, addr.lng)
+                            } else {
+                                deliveryAddress = addr.address_text
+                                deliveryLatLng = LatLng(addr.lat, addr.lng)
+                            }
+                        },
+                        label = { Text(addr.label) },
+                        leadingIcon = {
+                            Icon(
+                                if (addr.label.lowercase() == "home") Icons.Default.Home else Icons.Default.Work,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedTextField(
-            value = pickup,
-            onValueChange = { pickup = it },
-            label = { Text("Pickup Location") },
-            modifier = Modifier.fillMaxWidth()
+        AddressAutocompleteField(
+            label = "Pickup Location",
+            value = pickupAddress,
+            onValueChange = { address, latLng ->
+                pickupAddress = address
+                if (latLng != null) pickupLatLng = latLng
+            },
+            onOpenMap = { showMapPickerFor = "pickup" }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = delivery,
-            onValueChange = { delivery = it },
-            label = { Text("Delivery Location") },
-            modifier = Modifier.fillMaxWidth()
+        AddressAutocompleteField(
+            label = "Delivery Location",
+            value = deliveryAddress,
+            onValueChange = { address, latLng ->
+                deliveryAddress = address
+                if (latLng != null) deliveryLatLng = latLng
+            },
+            onOpenMap = { showMapPickerFor = "delivery" }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -130,7 +191,17 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                         isLoading = true
                         errorMessage = null
                         try {
-                            val response = apiService.getQuote(QuoteRequest(pickup, delivery, description))
+                            val response = apiService.getQuote(
+                                QuoteRequest(
+                                    pickup_address = pickupAddress,
+                                    delivery_address = deliveryAddress,
+                                    item_description = description,
+                                    pickup_lat = pickupLatLng?.latitude ?: 0.0,
+                                    pickup_lng = pickupLatLng?.longitude ?: 0.0,
+                                    delivery_lat = deliveryLatLng?.latitude ?: 0.0,
+                                    delivery_lng = deliveryLatLng?.longitude ?: 0.0
+                                )
+                            )
                             quoteId = response.quote_id
                             quoteResult = response.fare_breakdown
                         } catch (e: Exception) {
@@ -141,7 +212,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && pickup.isNotBlank() && delivery.isNotBlank()
+                enabled = !isLoading && pickupAddress.isNotBlank() && deliveryAddress.isNotBlank()
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
@@ -161,13 +232,20 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                             onSuccess = { transaction ->
                                 coroutineScope.launch {
                                     isLoading = true
+                                    // Show temporary message while we finalize
+                                    Toast.makeText(context, "Payment processing... please wait.", Toast.LENGTH_LONG).show()
+                                    
                                     val success = finalizeOrderAfterPayment(
                                         apiService = apiService,
                                         quoteId = quoteId!!,
                                         paymentReference = transaction.reference,
                                         recipientName = recipientName,
                                         recipientPhone = recipientPhone,
-                                        notes = if (notes.isBlank()) null else notes
+                                        notes = if (notes.isBlank()) null else notes,
+                                        pLat = pickupLatLng?.latitude ?: 0.0,
+                                        pLng = pickupLatLng?.longitude ?: 0.0,
+                                        dLat = deliveryLatLng?.latitude ?: 0.0,
+                                        dLng = deliveryLatLng?.longitude ?: 0.0
                                     )
                                     if (success) {
                                         onOrderComplete(transaction.reference)
@@ -195,6 +273,23 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         }
         Spacer(modifier = Modifier.height(24.dp))
     }
+
+    // Map Picker Sheet
+    if (showMapPickerFor != null) {
+        MapPickerSheet(
+            onDismiss = { showMapPickerFor = null },
+            onLocationSelected = { address, latLng ->
+                if (showMapPickerFor == "pickup") {
+                    pickupAddress = address
+                    pickupLatLng = latLng
+                } else {
+                    deliveryAddress = address
+                    deliveryLatLng = latLng
+                }
+                showMapPickerFor = null
+            }
+        )
+    }
 }
 
 suspend fun finalizeOrderAfterPayment(
@@ -203,7 +298,11 @@ suspend fun finalizeOrderAfterPayment(
     paymentReference: String,
     recipientName: String,
     recipientPhone: String,
-    notes: String?
+    notes: String?,
+    pLat: Double,
+    pLng: Double,
+    dLat: Double,
+    dLng: Double
 ): Boolean {
     return try {
         val request = CreateOrderRequest(
@@ -211,7 +310,11 @@ suspend fun finalizeOrderAfterPayment(
             payment_method = "card",
             recipient_name = recipientName,
             recipient_phone = recipientPhone,
-            notes = notes
+            notes = notes,
+            pickup_lat = pLat,
+            pickup_lng = pLng,
+            delivery_lat = dLat,
+            delivery_lng = dLng
         )
         val response = apiService.createOrder(request)
         response.status == "SEARCHING" || response.status == "MATCHED"

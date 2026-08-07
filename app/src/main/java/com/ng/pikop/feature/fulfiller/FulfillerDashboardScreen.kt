@@ -8,31 +8,45 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.FulfillerOrderResponse
 import com.ng.pikop.core.network.FulfillerStatusRequest
 import com.ng.pikop.core.network.OfferResponse
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun FulfillerDashboardScreen(onAcceptOffer: (String) -> Unit) {
+fun FulfillerDashboardScreen(
+    onAcceptOffer: (String) -> Unit, 
+    onGoToWallet: () -> Unit,
+    onGoToKyc: () -> Unit
+) {
     var isOnline by remember { mutableStateOf(false) }
     var offers by remember { mutableStateOf<List<OfferResponse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var history by remember { mutableStateOf<List<FulfillerOrderResponse>>(emptyList()) }
+    var kycStatus by remember { mutableStateOf("PENDING") }
     
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create() }
+
+    // Initial Fetch: history and profile
+    LaunchedEffect(Unit) {
+        try {
+            history = apiService.getFulfillerOrders()
+            // In a real app, fetch profile for kycStatus
+        } catch (e: Exception) {}
+    }
 
     // Polling for offers when online
     LaunchedEffect(isOnline) {
         while (isOnline) {
             try {
                 offers = apiService.getOffers()
-            } catch (e: Exception) {
-                // Silently handle polling errors in dashboard
-            }
-            delay(5000) // Poll every 5 seconds
+            } catch (e: Exception) {}
+            delay(5000)
         }
     }
 
@@ -52,6 +66,47 @@ fun FulfillerDashboardScreen(onAcceptOffer: (String) -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // KYC Warning
+            if (kycStatus != "VERIFIED") {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    onClick = onGoToKyc
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Account Not Verified", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                            Text("Upload documents to start delivering.", style = MaterialTheme.typography.bodySmall)
+                        }
+                        TextButton(onClick = onGoToKyc) {
+                            Text("Verify Now")
+                        }
+                    }
+                }
+            }
+
+            // Earnings Summary Card (Clickable to Wallet)
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                onClick = onGoToWallet,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Total Earnings", style = MaterialTheme.typography.labelSmall)
+                        val total = history.sumOf { it.earnings }
+                        Text("₦${"%,.2f".format(total)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
+                    TextButton(onClick = onGoToWallet) {
+                        Text("Wallet", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+
+            // Online/Offline Toggle Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -76,11 +131,9 @@ fun FulfillerDashboardScreen(onAcceptOffer: (String) -> Unit) {
                             coroutineScope.launch {
                                 isLoading = true
                                 try {
-                                    val status = if (checked) "ONLINE" else "OFFLINE"
-                                    apiService.updateStatus(FulfillerStatusRequest(status))
+                                    apiService.updateStatus(FulfillerStatusRequest(if (checked) "ONLINE" else "OFFLINE"))
                                     isOnline = checked
                                 } catch (e: Exception) {
-                                    // Handle error
                                 } finally {
                                     isLoading = false
                                 }
@@ -102,10 +155,7 @@ fun FulfillerDashboardScreen(onAcceptOffer: (String) -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (offers.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("Searching for nearby orders...")
                     }
                 } else {
@@ -114,16 +164,13 @@ fun FulfillerDashboardScreen(onAcceptOffer: (String) -> Unit) {
                             IncomingOfferComponent(
                                 offer = offer,
                                 onAccept = { onAcceptOffer(offer.id) },
-                                onDecline = { /* Handle decline locally or via API */ }
+                                onDecline = { /* Handle decline */ }
                             )
                         }
                     }
                 }
             } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Go online to start receiving delivery offers.")
                 }
             }

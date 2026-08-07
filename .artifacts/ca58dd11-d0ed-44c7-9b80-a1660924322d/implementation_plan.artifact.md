@@ -1,51 +1,56 @@
-# Implementation Plan - Milestone 12: Customer Orders Dashboard
+# Implementation Plan - Advanced Features Bundle
 
-Create a central dashboard for customers to manage their delivery requests, view order history, and access real-time tracking for active deliveries.
+Implement a suite of advanced features to make Pikop production-ready: Wallet UI, KYC Upload, Order Cancellations, and Push Notifications.
 
 ## User Review Required
 
-> [!NOTE]
-> - **Navigation Change**: The `OrderQuoteScreen` will no longer be the primary screen after login. Instead, users will land on the **Orders Dashboard**.
-> - **Real-time Status**: The dashboard will poll the order status to keep the list updated as fulfillers accept and progress orders.
+> [!IMPORTANT]
+> - **Firebase Setup**: You will need to create a project in the [Firebase Console](https://console.firebase.google.com/) and provide the `google-services.json` file for the Android app.
+> - **File Storage**: For KYC uploads, I will store files in a `uploads/` directory on your VPS. In production, you might eventually want an S3-compatible bucket.
+> - **Cancellation Fees**: I will implement a standard ₦200 cancellation fee if a driver has already been matched and has arrived/is nearby.
 
 ## Proposed Changes
 
-### Backend: Order Management
+### Phase 1: Wallet & Withdrawal UI (Android)
+- **Backend**: Add `GET /api/v1/wallets/me` to fetch current balance and recent transactions.
+- **Android**:
+    - Create `WalletScreen.kt` with balance card and transaction list.
+    - Implement "Request Payout" dialog for fulfillers.
+    - Link to `OrdersDashboardScreen` and `FulfillerDashboardScreen`.
 
-#### [MODIFY] `backend/src/controllers/orderController.js`
-- Implement `getUserOrders`: Returns a list of all orders placed by the authenticated user, sorted by the most recent.
+### Phase 2: Fulfiller KYC Upload (Full Stack)
+- **Backend**:
+    - Add `multer` for multipart/form-data handling.
+    - Implement `POST /api/v1/fulfillers/kyc` to save document paths to the database.
+- **Android**:
+    - Create `KycUploadScreen.kt`.
+    - Implement image selection and uploading logic for ID cards and licenses.
 
-#### [MODIFY] `backend/src/routes/orderRoutes.js`
-- Expose `GET /api/v1/orders` (Secured with `authenticateToken`).
+### Phase 3: Order Cancellations & Fees
+- **Backend**:
+    - Implement `POST /api/v1/orders/:id/cancel`.
+    - Logic: If status is `MATCHED`, apply a cancellation fee to the user's wallet (or flag for next payment) and notify the fulfiller.
+- **Android**:
+    - Add "Cancel Order" buttons to `TrackOrderScreen` (User) and `ActiveOrderScreen` (Fulfiller).
 
----
-
-### Android: UI Layer
-
-#### [MODIFY] `app/src/main/java/com/ng/pikop/core/network/ApiService.kt`
-- Add `suspend fun getUserOrders(): List<OrderDetailsResponse>`.
-
-#### [NEW] `OrdersDashboardScreen.kt` (in `com.ng.pikop.feature.order`)
-- A clean list of orders showing:
-    - Order ID.
-    - Status Badge (e.g., Searching, Matched, In Transit).
-    - Pickup/Delivery address summary.
-    - "Track" button for active orders.
-- A **Floating Action Button (FAB)** to "Request a Delivery" (navigates to `OrderQuoteScreen`).
-
-#### [MODIFY] `MainActivity.kt`
-- Add the `orders_dashboard` route.
-- Set `orders_dashboard` as the `startDestination` for authenticated users.
-- Update navigation logic so that successful login/signup leads to the Dashboard.
+### Phase 4: Push Notifications (FCM)
+- **Infrastructure**:
+    - Add `firebase-admin` to backend and Firebase SDK to Android.
+- **Backend**:
+    - Implement `POST /api/v1/auth/fcm-token` to store device tokens.
+    - Trigger notifications for: "New Offer Nearby" (Fulfiller) and "Driver Arrived/Delivered" (User).
+- **Android**:
+    - Implement `PikopMessagingService` to handle incoming messages.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Integration test: Create multiple orders for a user and verify that `GET /api/v1/orders` returns them in descending chronological order.
+- Integration tests for wallet balance deductions during cancellation.
+- API tests for file upload endpoints.
 
 ### Manual Verification
-- Log in and verify the empty state of the dashboard.
-- Create a new delivery request and verify it appears in the list with the "SEARCHING" status.
-- Confirm that clicking "Track" opens the correct tracking screen for that specific order.
+- Upload a test ID card and verify it appears in the Admin Dashboard KYC queue.
+- Request a payout and verify a `PENDING` withdrawal record appears in the DB.
+- Trigger a mock FCM message to the device.
