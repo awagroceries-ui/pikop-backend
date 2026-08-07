@@ -66,6 +66,21 @@ data class OrderResponse(
     val message: String?
 )
 
+data class StatusHistoryItem(
+    val status: String,
+    val description: String,
+    val time: String
+)
+
+data class OrderDetailsResponse(
+    val id: String,
+    val status: String,
+    val total_fare: Double,
+    val pickup_address: String,
+    val delivery_address: String,
+    val history: List<StatusHistoryItem>
+)
+
 data class FulfillerStatusRequest(
     val online_status: String
 )
@@ -102,6 +117,9 @@ interface ApiService {
 
     @POST("api/v1/orders")
     suspend fun createOrder(@Body request: CreateOrderRequest): OrderResponse
+
+    @GET("api/v1/orders/{orderId}")
+    suspend fun getOrderDetails(@retrofit2.http.Path("orderId") orderId: String): OrderDetailsResponse
 
     @PATCH("api/v1/fulfillers/status")
     suspend fun updateStatus(@Body request: FulfillerStatusRequest): AuthResponse

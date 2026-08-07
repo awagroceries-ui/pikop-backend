@@ -1,6 +1,23 @@
 const db = require('../config/db');
 const walletService = require('../services/walletService');
 const geminiService = require('../services/geminiService');
+const socketService = require('../services/socketService');
+
+/**
+ * Helper to log status history and emit socket events.
+ */
+const logStatusChange = async (client, orderId, status, description) => {
+  await client.query(
+    "INSERT INTO order_status_history (order_id, status, description) VALUES ($1, $2, $3)",
+    [orderId, status, description]
+  );
+  try {
+    const io = socketService.getIO();
+    io.to(`order_${orderId}`).emit("status_updated", { status, description, timestamp: new Date().toISOString() });
+  } catch (e) {
+    console.error("Socket emission failed:", e.message);
+  }
+};
 
 /**
  * Generates a fare quote using Gemini for item size classification.
@@ -44,13 +61,17 @@ const createOrder = async (req, res) => {
   const { quote_id, payment_method, recipient_name, recipient_phone, notes } = req.body;
   const userId = req.user?.id || 1;
 
+  const client = await db.pool.connect();
   try {
-    const quoteRes = await db.query(
+    await client.query('BEGIN');
+
+    const quoteRes = await client.query(
       "SELECT * FROM quotes WHERE id = $1 AND expires_at > CURRENT_TIMESTAMP",
       [quote_id]
     );
 
     if (quoteRes.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Quote expired or not found' });
     }
 
@@ -58,21 +79,28 @@ const createOrder = async (req, res) => {
     const pickupCode = Math.floor(1000 + Math.random() * 9000).toString();
     const deliveryCode = Math.floor(1000 + Math.random() * 9000).toString();
 
-    const { rows } = await db.query(
+    const { rows } = await client.query(
       `INSERT INTO orders (user_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code, delivery_code)
        VALUES ($1, ST_GeographyFromText('POINT(0 0)'), ST_GeographyFromText('POINT(0 0)'), $2, $3, 'SEARCHING', $4, $5, $6)
        RETURNING id, status`,
       [userId, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupCode, deliveryCode]
     );
 
+    const orderId = rows[0].id;
+    await logStatusChange(client, orderId, 'SEARCHING', 'Order placed and searching for nearby fulfillers');
+
+    await client.query('COMMIT');
     res.status(201).json({
-      order_id: rows[0].id,
+      order_id: orderId,
       status: rows[0].status,
       message: 'Order created and searching for fulfillers'
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Create Order Error:', error);
     res.status(500).json({ error: 'Failed to create order' });
+  } finally {
+    client.release();
   }
 };
 
@@ -115,6 +143,8 @@ const acceptOrder = async (req, res) => {
     `;
     await client.query(updateQuery, [fulfillerId, orderId]);
 
+    await logStatusChange(client, orderId, 'MATCHED', 'Driver assigned and heading to pickup');
+
     await client.query('COMMIT');
 
     res.status(200).json({
@@ -138,31 +168,44 @@ const verifyPickup = async (req, res) => {
   const { orderId } = req.params;
   const { code } = req.body;
 
+  const client = await db.pool.connect();
   try {
-    const { rows } = await db.query(
-      "SELECT id, pickup_code, status FROM orders WHERE id = $1",
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      "SELECT id, pickup_code, status FROM orders WHERE id = $1 FOR UPDATE",
       [orderId]
     );
 
-    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
     const order = rows[0];
 
     if (order.status !== 'MATCHED') {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Order is not in a state for pickup' });
     }
 
     if (order.pickup_code !== code) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Invalid pickup code' });
     }
 
-    await db.query(
+    await client.query(
       "UPDATE orders SET status = 'PICKED_UP' WHERE id = $1",
       [orderId]
     );
 
+    await logStatusChange(client, orderId, 'PICKED_UP', 'Item picked up and in transit to destination');
+
+    await client.query('COMMIT');
     res.status(200).json({ message: 'Pickup verified', status: 'PICKED_UP' });
   } catch (error) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: 'Failed to verify pickup' });
+  } finally {
+    client.release();
   }
 };
 
@@ -173,34 +216,70 @@ const verifyDelivery = async (req, res) => {
   const { orderId } = req.params;
   const { code } = req.body;
 
+  const client = await db.pool.connect();
   try {
-    const { rows } = await db.query(
-      "SELECT id, delivery_code, status FROM orders WHERE id = $1",
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      "SELECT id, delivery_code, status FROM orders WHERE id = $1 FOR UPDATE",
       [orderId]
     );
 
-    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
     const order = rows[0];
 
     if (order.status !== 'PICKED_UP') {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Order has not been picked up yet' });
     }
 
     if (order.delivery_code !== code) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Invalid delivery code' });
     }
 
-    await db.query(
+    await client.query(
       "UPDATE orders SET status = 'DELIVERED' WHERE id = $1",
       [orderId]
     );
 
+    await logStatusChange(client, orderId, 'DELIVERED', 'Item delivered successfully');
+
     await walletService.processDeliveryPayment(orderId);
 
+    await client.query('COMMIT');
     res.status(200).json({ message: 'Delivery completed and payment processed', status: 'DELIVERED' });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Verify Delivery Error:', error);
     res.status(500).json({ error: 'Failed to verify delivery' });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Returns full order details and status history.
+ */
+const getOrderDetails = async (req, res) => {
+  const { orderId } = req.params;
+  try {
+    const orderRes = await db.query("SELECT * FROM orders WHERE id = $1", [orderId]);
+    if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+
+    const historyRes = await db.query(
+      "SELECT status, description, created_at as time FROM order_status_history WHERE order_id = $1 ORDER BY created_at ASC",
+      [orderId]
+    );
+
+    res.status(200).json({
+      ...orderRes.rows[0],
+      history: historyRes.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch order details' });
   }
 };
 
@@ -209,5 +288,6 @@ module.exports = {
   createOrder,
   acceptOrder,
   verifyPickup,
-  verifyDelivery
+  verifyDelivery,
+  getOrderDetails
 };

@@ -11,15 +11,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.SocketManager
 import com.ng.pikop.core.network.VerifyCodeRequest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 @Composable
 fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
-    // In a real app, you'd fetch the order details from the API here
-    // For alpha, we'll assume some static data or pass it in
-    var orderStatus by remember { mutableStateOf("MATCHED") } // MATCHED -> PICKED_UP -> DELIVERED
+    var orderStatus by remember { mutableStateOf("MATCHED") }
     var pickupCode by remember { mutableStateOf("") }
     var deliveryCode by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -28,6 +31,36 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create() }
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    // Socket Connection & Location Tracking
+    DisposableEffect(Unit) {
+        SocketManager.connect()
+        onDispose {
+            SocketManager.disconnect()
+        }
+    }
+
+    LaunchedEffect(orderStatus) {
+        if (orderStatus == "MATCHED" || orderStatus == "PICKED_UP") {
+            while (true) {
+                try {
+                    fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                        .addOnSuccessListener { location ->
+                            if (location != null) {
+                                val data = JSONObject().apply {
+                                    put("orderId", orderId)
+                                    put("lat", location.latitude)
+                                    put("lng", location.longitude)
+                                }
+                                SocketManager.emit("update_location", data)
+                            }
+                        }
+                } catch (e: SecurityException) {}
+                delay(10000)
+            }
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -45,11 +78,10 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Pickup Phase
             if (orderStatus == "MATCHED") {
                 PhaseCard(
                     title = "Phase 1: Pickup",
-                    address = "User's Pickup Address", // Replace with real data
+                    address = "User's Pickup Address",
                     buttonText = "Navigate to Pickup",
                     onNavigate = { navigateToAddress(context, "User's Pickup Address") }
                 )
@@ -70,7 +102,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                         coroutineScope.launch {
                             isLoading = true
                             try {
-                                val response = apiService.verifyPickup(orderId, VerifyCodeRequest(pickupCode))
+                                apiService.verifyPickup(orderId, VerifyCodeRequest(pickupCode))
                                 orderStatus = "PICKED_UP"
                                 Toast.makeText(context, "Pickup Verified!", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
@@ -87,12 +119,11 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                 }
             }
 
-            // Delivery Phase
             if (orderStatus == "PICKED_UP") {
                 PhaseCard(
                     title = "Phase 2: Delivery",
-                    address = "User's Delivery Address", // Replace with real data
-                    recipientPhone = "+234 812 345 6789", // Visible now!
+                    address = "User's Delivery Address",
+                    recipientPhone = "+234 812 345 6789",
                     buttonText = "Navigate to Delivery",
                     onNavigate = { navigateToAddress(context, "User's Delivery Address") }
                 )
@@ -113,7 +144,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                         coroutineScope.launch {
                             isLoading = true
                             try {
-                                val response = apiService.verifyDelivery(orderId, VerifyCodeRequest(deliveryCode))
+                                apiService.verifyDelivery(orderId, VerifyCodeRequest(deliveryCode))
                                 orderStatus = "DELIVERED"
                                 showRatingDialog = true
                             } catch (e: Exception) {

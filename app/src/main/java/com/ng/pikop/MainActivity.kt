@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.feature.auth.EmailOtpScreen
 import com.ng.pikop.feature.auth.LoginScreen
@@ -23,6 +24,7 @@ import com.ng.pikop.feature.auth.TermsScreen
 import com.ng.pikop.feature.fulfiller.ActiveOrderScreen
 import com.ng.pikop.feature.fulfiller.FulfillerDashboardScreen
 import com.ng.pikop.feature.order.OrderQuoteScreen
+import com.ng.pikop.feature.order.TrackOrderScreen
 import com.ng.pikop.ui.theme.PikopTheme
 
 class MainActivity : ComponentActivity() {
@@ -74,7 +76,7 @@ fun PikopAppNavigation() {
                 OrderQuoteScreen(
                     userEmail = userEmail ?: "",
                     onOrderComplete = { reference ->
-                        // Handle order completion
+                        navController.navigate("track_order/temp_order_id")
                     }
                 )
             }
@@ -95,6 +97,14 @@ fun PikopAppNavigation() {
                         popUpTo("fulfiller_dashboard") { inclusive = true }
                     }
                 }
+            )
+        }
+        composable("track_order/{orderId}") { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+            TrackOrderScreen(
+                orderId = orderId,
+                pickup = LatLng(6.5244, 3.3792),
+                delivery = LatLng(6.4281, 3.4219)
             )
         }
     }

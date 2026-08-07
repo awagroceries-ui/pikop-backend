@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -15,6 +17,14 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        manifestPlaceholders["googleMapsApiKey"] = project.rootProject.file("local.properties").let {
+            if (it.exists()) {
+                val props = Properties()
+                props.load(it.inputStream())
+                props.getProperty("googleMapsApiKey") ?: ""
+            } else ""
+        }
     }
 
     buildTypes {
@@ -46,6 +56,10 @@ dependencies {
     // Lifecycle & ViewModel for Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
     implementation("androidx.navigation:navigation-compose:2.8.0")
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
+    implementation(libs.socket.io.client)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
