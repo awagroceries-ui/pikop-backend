@@ -24,7 +24,7 @@ exports.up = (pgm) => {
     name: { type: 'varchar(100)', notNull: true },
     boundary: { type: 'geography(polygon, 4326)', notNull: true },
     base_fare: { type: 'numeric(10, 2)', notNull: true },
-    is_active: { type: 'boolean', notNull: true, defaultValue: true },
+    is_active: { type: 'boolean', notNull: true, default: true },
     created_at: {
       type: 'timestamp',
       notNull: true,
@@ -42,7 +42,7 @@ exports.up = (pgm) => {
     status: {
       type: 'varchar(20)',
       notNull: true,
-      defaultValue: 'OPEN',
+      default: 'OPEN',
       check: "status IN ('OPEN', 'INVESTIGATING', 'RESOLVED', 'CLOSED')"
     },
     resolution_notes: { type: 'text' },
@@ -62,7 +62,7 @@ exports.up = (pgm) => {
     status: {
       type: 'varchar(20)',
       notNull: true,
-      defaultValue: 'PENDING',
+      default: 'PENDING',
       check: "status IN ('PENDING', 'APPROVED', 'REJECTED')"
     },
     rejection_reason: { type: 'text' },

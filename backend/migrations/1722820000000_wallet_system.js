@@ -6,8 +6,8 @@ exports.up = (pgm) => {
     id: 'id',
     owner_id: { type: 'integer' }, // Can be user_id, fulfiller_id, or null for platform
     owner_type: { type: 'varchar(20)', notNull: true }, // 'USER', 'FULFILLER', 'PLATFORM'
-    balance: { type: 'numeric(12, 2)', notNull: true, defaultValue: 0 },
-    currency: { type: 'varchar(3)', notNull: true, defaultValue: 'NGN' },
+    balance: { type: 'numeric(12, 2)', notNull: true, default: 0 },
+    currency: { type: 'varchar(3)', notNull: true, default: 'NGN' },
     created_at: {
       type: 'timestamp',
       notNull: true,
@@ -54,7 +54,7 @@ exports.up = (pgm) => {
       references: '"wallets"',
     },
     amount: { type: 'numeric(12, 2)', notNull: true },
-    status: { type: 'varchar(20)', notNull: true, defaultValue: 'PENDING' }, // 'PENDING', 'SUCCESSFUL', 'FAILED'
+    status: { type: 'varchar(20)', notNull: true, default: 'PENDING' }, // 'PENDING', 'SUCCESSFUL', 'FAILED'
     paystack_transfer_code: { type: 'varchar(255)' },
     paystack_reference: { type: 'varchar(255)' },
     created_at: {

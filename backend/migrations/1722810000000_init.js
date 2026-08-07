@@ -8,7 +8,7 @@ exports.up = (pgm) => {
     email: { type: 'varchar(255)', notNull: true, unique: true },
     phone: { type: 'varchar(20)', notNull: true, unique: true },
     password_hash: { type: 'text', notNull: true },
-    status: { type: 'varchar(50)', notNull: true, defaultValue: 'ACTIVE' },
+    status: { type: 'varchar(50)', notNull: true, default: 'ACTIVE' },
     created_at: {
       type: 'timestamp',
       notNull: true,
@@ -30,8 +30,8 @@ exports.up = (pgm) => {
       references: '"users"',
       onDelete: 'cascade',
     },
-    online_status: { type: 'varchar(20)', notNull: true, defaultValue: 'OFFLINE' },
-    kyc_status: { type: 'varchar(20)', notNull: true, defaultValue: 'PENDING' },
+    online_status: { type: 'varchar(20)', notNull: true, default: 'OFFLINE' },
+    kyc_status: { type: 'varchar(20)', notNull: true, default: 'PENDING' },
     location: { type: 'geography(point, 4326)' },
     last_ping_at: { type: 'timestamp' },
     created_at: {
@@ -58,7 +58,7 @@ exports.up = (pgm) => {
     delivery_location: { type: 'geography(point, 4326)', notNull: true },
     pickup_address: { type: 'text', notNull: true },
     delivery_address: { type: 'text', notNull: true },
-    status: { type: 'varchar(50)', notNull: true, defaultValue: 'SEARCHING' },
+    status: { type: 'varchar(50)', notNull: true, default: 'SEARCHING' },
     total_fare: { type: 'numeric(10, 2)', notNull: true },
     created_at: {
       type: 'timestamp',
