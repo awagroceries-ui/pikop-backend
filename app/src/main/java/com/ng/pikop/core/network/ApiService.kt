@@ -121,6 +121,9 @@ interface ApiService {
     @GET("api/v1/orders/{orderId}")
     suspend fun getOrderDetails(@retrofit2.http.Path("orderId") orderId: String): OrderDetailsResponse
 
+    @GET("api/v1/orders")
+    suspend fun getUserOrders(): List<OrderDetailsResponse>
+
     @PATCH("api/v1/fulfillers/status")
     suspend fun updateStatus(@Body request: FulfillerStatusRequest): AuthResponse
 

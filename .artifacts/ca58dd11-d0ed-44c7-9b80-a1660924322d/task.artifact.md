@@ -1,7 +1,7 @@
-- [x] Live Order Status History
-    - [x] Create `order_status_history` migration
-    - [x] Update `orderController.js` (History logging + Socket emission)
-    - [x] Update `orderRoutes.js` (Add GET order details)
-    - [x] Update `ApiService.kt` (Add models and getOrderDetails)
-    - [x] Update `TrackOrderScreen.kt` (Fetch real history + listen for updates)
-    - [x] Verify build and flow
+- [/] Milestone 12: Customer Orders Dashboard
+    - [ ] Backend: Implement `getUserOrders` in `orderController.js`
+    - [ ] Backend: Add route `GET /api/v1/orders`
+    - [ ] Android: Add `getUserOrders` to `ApiService.kt`
+    - [ ] Android: Create `OrdersDashboardScreen.kt`
+    - [ ] Android: Update `MainActivity.kt` navigation flow
+    - [ ] Verify build and dashboard functionality

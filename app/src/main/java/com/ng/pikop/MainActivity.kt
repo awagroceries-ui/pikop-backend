@@ -24,6 +24,7 @@ import com.ng.pikop.feature.auth.TermsScreen
 import com.ng.pikop.feature.fulfiller.ActiveOrderScreen
 import com.ng.pikop.feature.fulfiller.FulfillerDashboardScreen
 import com.ng.pikop.feature.order.OrderQuoteScreen
+import com.ng.pikop.feature.order.OrdersDashboardScreen
 import com.ng.pikop.feature.order.TrackOrderScreen
 import com.ng.pikop.ui.theme.PikopTheme
 
@@ -49,7 +50,7 @@ fun PikopAppNavigation() {
     NavHost(navController = navController, startDestination = "login") {
         composable("login") {
             LoginScreen(
-                onLoginSuccess = { navController.navigate("order_quote") },
+                onLoginSuccess = { navController.navigate("orders_dashboard") },
                 onGoToSignup = { navController.navigate("signup") }
             )
         }
@@ -66,7 +67,13 @@ fun PikopAppNavigation() {
             )
         }
         composable("terms") {
-            TermsScreen(onAccept = { navController.navigate("order_quote") })
+            TermsScreen(onAccept = { navController.navigate("orders_dashboard") })
+        }
+        composable("orders_dashboard") {
+            OrdersDashboardScreen(
+                onNewDelivery = { navController.navigate("order_quote") },
+                onTrackOrder = { orderId -> navController.navigate("track_order/$orderId") }
+            )
         }
         composable("order_quote") {
             Column {
@@ -76,7 +83,9 @@ fun PikopAppNavigation() {
                 OrderQuoteScreen(
                     userEmail = userEmail ?: "",
                     onOrderComplete = { reference ->
-                        navController.navigate("track_order/temp_order_id")
+                        navController.navigate("orders_dashboard") {
+                            popUpTo("orders_dashboard") { inclusive = true }
+                        }
                     }
                 )
             }

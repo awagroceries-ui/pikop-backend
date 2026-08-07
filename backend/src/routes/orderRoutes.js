@@ -7,6 +7,7 @@ const { authenticateToken, requireEmailVerified } = require('../middleware/authM
 router.post('/quote', authenticateToken, orderController.getQuote);
 
 // Order Lifecycle (Requires verified email)
+router.get('/', authenticateToken, orderController.getUserOrders);
 router.get('/:orderId', authenticateToken, orderController.getOrderDetails);
 router.post('/', authenticateToken, requireEmailVerified, orderController.createOrder);
 router.post('/:orderId/accept', authenticateToken, orderController.acceptOrder);
