@@ -1,9 +1,6 @@
 exports.shorthands = undefined;
 
 exports.up = (pgm) => {
-  // Enable PostGIS extension
-  pgm.sql('CREATE EXTENSION IF NOT EXISTS postgis');
-
   // Users Table
   pgm.createTable('users', {
     id: 'id',
@@ -76,5 +73,4 @@ exports.down = (pgm) => {
   pgm.dropTable('orders');
   pgm.dropTable('fulfillers');
   pgm.dropTable('users');
-  pgm.sql('DROP EXTENSION IF EXISTS postgis');
 };
