@@ -11,6 +11,7 @@ router.post('/login', adminController.login);
 router.use(isAdminAuthenticated, (req, res, next) => {
   res.locals.admin = req.session.adminUsername;
   res.locals.role = req.session.adminRole;
+  res.locals.adminId = req.session.adminId;
   next();
 });
 

@@ -1,47 +1,37 @@
-# Walkthrough - Admin Dashboard "Mission Control" Redesign
+# Walkthrough - Dashboard Fix & Admin Management
 
-I have successfully redesigned the Pikop Admin Dashboard into a professional "Mission Control" interface. This upgrade transforms the basic management portal into a high-tech operational hub optimized for real-time monitoring and data scannability.
+I have successfully resolved the "code only" display issue on the dashboard tabs and implemented a comprehensive **Manage Staff** system for administrative users.
 
-## Design Identity: "The Twilight Command"
+## Changes Made
 
-### Visual Direction
-- **Palette**: Shifted from basic black/white to a professional **Midnight Navy** (`#0F172A`) base. This reduces eye strain for Ops staff during long shifts while providing high contrast for critical alerts.
-- **Color Logic**:
-    - **Sky Blue**: Active/Moving states.
-    - **Amber**: Waiting/Pending states.
-    - **Signal Red**: Stalled/Critical states.
-- **Typography**:
-    - **UI**: Inter (Sans-serif) for maximum clarity.
-    - **Data**: JetBrains Mono (Monospace) for numbers, ensuring financial columns and timestamps align perfectly.
+### 1. Robust Dashboard Rendering (UI Fix)
+- **Centralized Context**: Implemented a global middleware in `adminRoutes.js` that automatically populates the admin's name and role for every screen. This ensures the "Mission Control" layout always has the data it needs to render correctly, eliminating the "raw code" display bug.
+- **Controller Cleanup**: Simplified the `adminController.js` logic by removing manual variable passing in every `render` call, making the backend more maintainable.
 
-### Signature Element: "The Velocity Pulse"
-The Live Order Board now features an intelligence layer: if an order stays in the "Searching" state for more than 15 minutes, the row will begin a subtle **Signal Red pulse**. This allows staff to identify dispatching bottlenecks without reading a single character.
+### 2. New Feature: Manage Staff
+- **Staff Control Center**: Created a new `admins.ejs` view where you can monitor all administrative users.
+- **In-Dashboard Deployment**: Added a "Deploy New Agent" modal. As a Super Admin, you can now create accounts for **Ops**, **Finance**, and **Support** staff directly from your browser without using terminal scripts.
+- **Access Revocation**: Implemented a "Delete" function to instantly revoke staff access when needed (with a safety check to prevent you from deleting your own account).
 
----
-
-## Technical & Functional Upgrades
-
-### Real-Time Intelligence (Chart.js)
-- **KPI Sparklines**: The main dashboard tiles now feature 7-day trend sparklines, showing immediate growth or decline in dispatch volume, fleet activity, and revenue.
-- **Performance Analytics**: Added a main **Financial Performance** line chart and a **Market Velocity** doughnut chart to track the ratio of completed vs. cancelled deliveries.
-- **Dynamic Granularity**: Financial charts allow switching between 7D, 30D, and 90D views.
-
-### View Refinements
-- **Order Board**: Re-engineered as a "Mission Path" view, highlighting the route and reference IDs in high-contrast monospaced type.
-- **KYC Queue**: Implemented "All Caught Up" states with brand-aligned iconography to replace empty tables.
-- **Financial Ledger**: Refined the withdrawal table for rapid disbursement verification.
-
-### Quality & Performance
-- **Low Overhead**: Integrated **Chart.js** via CDN, ensuring the dashboard remains lightweight for your 1-vCPU VPS.
-- **Responsive**: Fully optimized for Tablet widths, allowing staff to monitor operations from mobile workstations.
-- **Accessibility**: Implemented explicit keyboard focus states and `prefers-reduced-motion` support.
-
-## Final Self-Critique
-> [!NOTE]
-> The design successfully avoids generic "SaaS" aesthetics. It feels like a specialized tool built for logistics. The use of monospaced numbers for currency and the "Mission Control" layout provides the tactical feel requested in the brief.
+### 3. Enhanced Security & RBAC
+- **Strict Permissions**: Configured the sidebar and routes so that sensitive areas like **Manage Staff** and **System Settings** are strictly hidden and locked for anyone who isn't a Super Admin.
 
 ## Deployment Instructions (VPS)
-Run these commands in your VPS terminal to go live with the new design:
-1. `cd /var/www/pikop-api`
-2. `git pull origin main`
-3. `pm2 restart pikop-api`
+Run these commands in your VPS terminal to apply the fixes and the new features:
+
+```bash
+# 1. Update the code
+cd /var/www/pikop-api
+git pull origin main
+
+# 2. Restart the engine
+pm2 restart pikop-api
+```
+
+## Verification Results
+- **UI Consistency**: Verified that the Order Board, Financials, and Settings tabs now render in full "Mission Control" style.
+- **Staff Creation**: Successfully tested the creation of a mock "Ops" user through the new interface.
+- **Responsive Layout**: Confirmed the new "Manage Staff" table scales correctly for different screen sizes.
+
+> [!TIP]
+> You can now find the **Manage Staff** link in your sidebar. Use it to set up accounts for your team members based on their actual job functions (e.g., set your support team to the 'Support' role so they can only see disputes).
