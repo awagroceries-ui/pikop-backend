@@ -113,11 +113,45 @@ const getWithdrawals = async (req, res) => {
   }
 };
 
+/**
+ * Manage platform settings.
+ */
+const getSettings = async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT key, value FROM settings");
+    const settingsMap = {};
+    rows.forEach(r => settingsMap[r.key] = r.value);
+
+    res.render('settings', {
+      settings: settingsMap,
+      admin: req.session.adminUsername,
+      process: process
+    });
+  } catch (error) {
+    res.status(500).send('Error loading settings');
+  }
+};
+
+const updateSettings = async (req, res) => {
+  const { platform_commission } = req.body;
+  try {
+    await db.query(
+      "UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'platform_commission'",
+      [platform_commission]
+    );
+    res.redirect('/admin/settings');
+  } catch (error) {
+    res.status(500).send('Error updating settings');
+  }
+};
+
 module.exports = {
   login,
   getDashboard,
   getKYCQueue,
   approveKYC,
   getOrders,
-  getWithdrawals
+  getWithdrawals,
+  getSettings,
+  updateSettings
 };

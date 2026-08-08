@@ -1,0 +1,38 @@
+<h3>Platform Settings</h3>
+<p class="text-muted">Manage global configuration for the Pikop platform.</p>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Financial Settings</h5>
+                <hr class="border-secondary">
+
+                <form action="/admin/settings" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Platform Commission (Current: <%= settings.platform_commission * 100 %>%)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" name="platform_commission" class="form-control" value="<%= settings.platform_commission %>" required>
+                            <span class="input-group-text">Ratio (0.25 = 25%)</span>
+                        </div>
+                        <div class="form-text text-muted">This defines how much Awa Foods & Groceries keeps from every delivery.</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Update Settings</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-primary">System Info</h5>
+                <hr class="border-secondary">
+                <p><strong>Environment:</strong> <span class="badge bg-secondary">Production</span></p>
+                <p><strong>Node Version:</strong> <code><%= process.version %></code></p>
+                <p><strong>Database:</strong> <code>PostgreSQL 16</code></p>
+            </div>
+        </div>
+    </div>
+</div>

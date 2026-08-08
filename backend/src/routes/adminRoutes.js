@@ -14,6 +14,10 @@ router.get('/dashboard', isAdminAuthenticated, adminController.getDashboard);
 router.get('/orders', isAdminAuthenticated, adminController.getOrders);
 router.get('/withdrawals', isAdminAuthenticated, adminController.getWithdrawals);
 
+// Settings
+router.get('/settings', isAdminAuthenticated, hasRole(['super_admin']), adminController.getSettings);
+router.post('/settings', isAdminAuthenticated, hasRole(['super_admin']), adminController.updateSettings);
+
 // KYC Queue (Ops and Super Admin)
 router.get('/kyc', isAdminAuthenticated, hasRole(['ops', 'super_admin']), adminController.getKYCQueue);
 router.post('/kyc/:docId/approve', isAdminAuthenticated, hasRole(['ops', 'super_admin']), adminController.approveKYC);
