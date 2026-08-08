@@ -214,5 +214,7 @@ module.exports = {
   getOrders,
   getWithdrawals,
   getSettings,
-  updateSettings
+  updateSettings,
+  getRevenueReport,
+  getOrderReport
 };
