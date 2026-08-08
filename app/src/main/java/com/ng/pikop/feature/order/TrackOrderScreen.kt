@@ -15,9 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.*
 import com.google.maps.android.compose.*
+import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.SocketManager
 import kotlinx.coroutines.launch
@@ -40,8 +42,10 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
     var etaMinutes by remember { mutableStateOf<Int?>(null) }
     var history by remember { mutableStateOf<List<OrderStatusStep>>(emptyList()) }
     
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
     val coroutineScope = rememberCoroutineScope()
-    val apiService = remember { ApiService.create() }
+    val apiService = remember { ApiService.create(tokenManager) }
     val scaffoldState = rememberBottomSheetScaffoldState()
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(pickup, 14f)
@@ -108,7 +112,7 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
         sheetPeekHeight = 140.dp,
         sheetContainerColor = MaterialTheme.colorScheme.surface,
         sheetContent = {
-            TrackingBottomSheetContent(orderId, etaMinutes, history, fetchHistory)
+            TrackingBottomSheetContent(orderId, etaMinutes, history, tokenManager, fetchHistory)
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
@@ -148,7 +152,13 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
 }
 
 @Composable
-fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>, onRefresh: () -> Unit) {
+fun TrackingBottomSheetContent(
+    orderId: String,
+    eta: Int?,
+    history: List<OrderStatusStep>,
+    tokenManager: TokenManager,
+    onRefresh: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -203,7 +213,7 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
         
         if (canCancel) {
             val scope = rememberCoroutineScope()
-            val apiService = remember { ApiService.create() }
+            val apiService = remember { ApiService.create(tokenManager) }
             var showCancelConfirm by remember { mutableStateOf(false) }
 
             OutlinedButton(

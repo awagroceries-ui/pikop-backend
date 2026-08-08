@@ -1,5 +1,76 @@
 const db = require('../config/db');
 const dispatchService = require('../services/dispatchService');
+const diditService = require('../services/diditService');
+
+/**
+ * Initializes a Didit KYC session for the fulfiller.
+ */
+const startDiditVerification = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const session = await diditService.createSession(userId);
+
+    await db.query(
+      "UPDATE fulfillers SET didit_session_id = $1, didit_verification_status = 'pending' WHERE user_id = $2",
+      [session.session_id, userId]
+    );
+
+    res.status(200).json({
+      url: session.url,
+      session_token: session.session_token,
+      session_id: session.session_id
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Handles signed decision webhooks from Didit.
+ */
+const handleDiditWebhook = async (req, res) => {
+  const raw = JSON.stringify(req.body); // For alpha, if rawBody not middleware-attached
+  const sig = req.headers['x-signature-v2'];
+  const ts = req.headers['x-timestamp'];
+
+  if (!diditService.verifyWebhookSignature(raw, sig, ts)) {
+    return res.status(401).send('Invalid signature');
+  }
+
+  const event = req.body;
+  const userId = event.vendor_data;
+  const statusMap = {
+    'Approved': 'approved',
+    'Declined': 'declined',
+    'In Review': 'needs_review'
+  };
+
+  const newStatus = statusMap[event.status] || 'pending';
+
+  try {
+    await db.query(
+      "UPDATE fulfillers SET didit_verification_status = $1, didit_verified_at = CURRENT_TIMESTAMP WHERE user_id = $2",
+      [newStatus, userId]
+    );
+
+    if (newStatus === 'approved') {
+      const { rows } = await db.query(`
+        SELECT COUNT(*) FROM kyc_documents
+        WHERE fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1)
+        AND status != 'APPROVED'`, [userId]);
+
+      if (rows[0].count === "0") {
+        await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE id = $1", [userId]);
+      }
+    }
+
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Didit Webhook Update Error:', error);
+    res.status(500).send('Internal Error');
+  }
+};
 
 /**
  * Updates fulfiller status and current location.
@@ -102,7 +173,7 @@ const getProfile = async (req, res) => {
   const userId = req.user.id;
   try {
     const { rows } = await db.query(
-      "SELECT id, online_status, kyc_status FROM fulfillers WHERE user_id = $1",
+      "SELECT id, online_status, kyc_status, didit_verification_status FROM fulfillers WHERE user_id = $1",
       [userId]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Fulfiller profile not found' });
@@ -144,6 +215,8 @@ const uploadKYC = async (req, res) => {
 };
 
 module.exports = {
+  startDiditVerification,
+  handleDiditWebhook,
   updateStatus,
   getOffers,
   getFulfillerOrders,

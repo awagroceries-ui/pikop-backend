@@ -44,6 +44,7 @@ router.post('/settings', hasRole(['super_admin']), adminController.updateSetting
 // KYC Queue (Ops and Super Admin)
 router.get('/kyc', hasRole(['ops', 'super_admin']), adminController.getKYCQueue);
 router.post('/kyc/:docId/approve', hasRole(['ops', 'super_admin']), adminController.approveKYC);
+router.post('/kyc/fulfiller/:id/verify', hasRole(['ops', 'super_admin']), adminController.verifyFulfiller);
 
 // Placeholders for Zones and Disputes
 router.get('/zones', isAdminAuthenticated, hasRole(['ops', 'super_admin']), (req, res) => res.render('error', { message: 'Zone Editor coming soon', admin: req.session.adminUsername }));

@@ -7,7 +7,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.VerifyEmailRequest
 import kotlinx.coroutines.launch
@@ -18,8 +20,10 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
     val coroutineScope = rememberCoroutineScope()
-    val apiService = remember { ApiService.create() }
+    val apiService = remember { ApiService.create(tokenManager) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),

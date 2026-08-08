@@ -29,7 +29,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit, onGoToSignup: () -> Unit) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     val coroutineScope = rememberCoroutineScope()
-    val apiService = remember { ApiService.create() }
+    val apiService = remember { ApiService.create(tokenManager) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),

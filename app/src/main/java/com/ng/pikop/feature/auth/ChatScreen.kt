@@ -12,8 +12,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ChatMessage
 import com.ng.pikop.core.network.SocketManager
@@ -32,7 +34,9 @@ fun ChatScreen(
     var inputText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
 
-    val apiService = remember { ApiService.create() }
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val apiService = remember { ApiService.create(tokenManager) }
 
     // Fetch History
     LaunchedEffect(conversationId) {

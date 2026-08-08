@@ -24,6 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.R
+import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.SavedAddress
 import com.ng.pikop.core.network.QuoteRequest
@@ -66,7 +67,8 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
     val context = LocalContext.current
     val activity = context as? Activity
     val coroutineScope = rememberCoroutineScope()
-    val apiService = remember { ApiService.create() }
+    val tokenManager = remember { TokenManager(context) }
+    val apiService = remember { ApiService.create(tokenManager) }
 
     val photoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()

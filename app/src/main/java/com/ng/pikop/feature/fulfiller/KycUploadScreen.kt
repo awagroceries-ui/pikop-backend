@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.ng.pikop.R
+import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -27,22 +29,34 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
+import me.didit.sdk.DiditSdk
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KycUploadScreen(onBack: () -> Unit) {
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
-    var docType by remember { mutableStateOf("ID_CARD") }
+    var docType by remember { mutableStateOf("DRIVING_LICENSE") }
     var isUploading by remember { mutableStateOf(false) }
     
+    var diditStatus by remember { mutableStateOf("not_started") }
+    
     val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
     val scope = rememberCoroutineScope()
-    val apiService = remember { ApiService.create() }
+    val apiService = remember { ApiService.create(tokenManager) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         selectedUri = uri
+    }
+
+    // Polling for Didit Status
+    LaunchedEffect(Unit) {
+        try {
+            val profile = apiService.getFulfillerProfile()
+            diditStatus = profile.didit_verification_status
+        } catch (e: Exception) {}
     }
 
     Scaffold(
@@ -71,50 +85,87 @@ fun KycUploadScreen(onBack: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Upload Documents",
+                text = "Account Verification",
                 style = MaterialTheme.typography.headlineSmall
             )
-            Text(
-                text = "To start delivering, we need to verify your identity.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray,
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Doc Type Selection
-            Text("Document Type", style = MaterialTheme.typography.labelMedium, modifier = Modifier.align(Alignment.Start))
+            // Step 1: Identity Verification (Didit)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    if (diditStatus == "not_started" || diditStatus == "declined") {
+                        scope.launch {
+                            try {
+                                val session = apiService.startDiditVerification()
+                                DiditSdk.startVerification(token = session.session_token) { result ->
+                                    // result.status: COMPLETED, CANCELLED, FAILED
+                                    diditStatus = "pending"
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Failed to start verification", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            ) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Fingerprint, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Identity Verification", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = when(diditStatus) {
+                                "approved" -> "Verified ✅"
+                                "pending" -> "Processing... Please wait."
+                                "needs_review" -> "Under manual review"
+                                "declined" -> "Failed. Tap to retry."
+                                else -> "Tap to verify ID & Liveness"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Step 2: Vehicle Documents (Manual)
+            Text("Vehicle Documents", style = MaterialTheme.typography.labelMedium, modifier = Modifier.align(Alignment.Start))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = docType == "ID_CARD",
-                    onClick = { docType = "ID_CARD" },
-                    label = { Text("ID Card") }
-                )
                 FilterChip(
                     selected = docType == "DRIVING_LICENSE",
                     onClick = { docType = "DRIVING_LICENSE" },
                     label = { Text("License") }
                 )
+                FilterChip(
+                    selected = docType == "VEHICLE_INSURANCE",
+                    onClick = { docType = "VEHICLE_INSURANCE" },
+                    label = { Text("Insurance") }
+                )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Upload Box
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(120.dp),
                 onClick = { launcher.launch("image/*") }
             ) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     if (selectedUri != null) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Text("Image Selected", style = MaterialTheme.typography.bodySmall)
                         }
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(48.dp), tint = Color.Gray)
-                            Text("Tap to select image", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            Icon(Icons.Default.CloudUpload, contentDescription = null, tint = Color.Gray)
+                            Text("Tap to upload ${docType.lowercase().replace('_', ' ')}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                         }
                     }
                 }
@@ -135,7 +186,7 @@ fun KycUploadScreen(onBack: () -> Unit) {
                             
                             apiService.uploadKYC(type, body)
                             Toast.makeText(context, "Upload Successful!", Toast.LENGTH_SHORT).show()
-                            onBack()
+                            selectedUri = null
                         } catch (e: Exception) {
                             Toast.makeText(context, "Upload Failed: ${e.message}", Toast.LENGTH_SHORT).show()
                         } finally {
@@ -149,7 +200,7 @@ fun KycUploadScreen(onBack: () -> Unit) {
                 if (isUploading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                 } else {
-                    Text("Submit for Verification")
+                    Text("Submit Document")
                 }
             }
         }

@@ -113,13 +113,19 @@ const getOrderReport = async (req, res) => {
 const getKYCQueue = async (req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT k.*, f.user_id, u.full_name
-      FROM kyc_documents k
-      JOIN fulfillers f ON f.id = k.fulfiller_id
+      SELECT f.id as fulfiller_id, f.didit_verification_status, f.didit_session_id, u.full_name, u.email
+      FROM fulfillers f
       JOIN users u ON u.id = f.user_id
-      WHERE k.status = 'PENDING'
+      WHERE f.kyc_status = 'PENDING'
     `);
-    res.render('kyc_queue', { documents: rows });
+
+    // For each fulfiller, also get their manual documents
+    for (let f of rows) {
+      const docs = await db.query("SELECT * FROM kyc_documents WHERE fulfiller_id = $1", [f.fulfiller_id]);
+      f.documents = docs.rows;
+    }
+
+    res.render('kyc_queue', { fulfillers: rows });
   } catch (error) {
     res.status(500).send('Error loading KYC queue');
   }
@@ -129,17 +135,24 @@ const approveKYC = async (req, res) => {
   const { docId } = req.params;
   try {
     await db.query("UPDATE kyc_documents SET status = 'APPROVED' WHERE id = $1", [docId]);
-    const { rows } = await db.query("SELECT fulfiller_id FROM kyc_documents WHERE id = $1", [docId]);
-    const fulfillerId = rows[0].fulfiller_id;
-    await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE id = $1", [fulfillerId]);
+    res.redirect('/admin/kyc');
+  } catch (error) {
+    res.status(500).send('Error approving document');
+  }
+};
 
-    // Send Approval Email (Background)
-    notificationService.sendFulfillerApprovedEmail(fulfillerId);
+const verifyFulfiller = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE id = $1", [id]);
+
+    // Get Fulfiller User ID for the email
+    const { rows } = await db.query("SELECT user_id FROM fulfillers WHERE id = $1", [id]);
+    notificationService.sendFulfillerApprovedEmail(id);
 
     res.redirect('/admin/kyc');
   } catch (error) {
-    console.error('Approve KYC Error:', error);
-    res.status(500).send('Error approving KYC');
+    res.status(500).send('Error verifying fulfiller');
   }
 };
 
@@ -314,6 +327,7 @@ module.exports = {
   getDashboard,
   getKYCQueue,
   approveKYC,
+  verifyFulfiller,
   getOrders,
   getWithdrawals,
   getDisputes,

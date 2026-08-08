@@ -138,7 +138,6 @@ fun PikopAppNavigation() {
         composable("about_pikop/{isFulfiller}") { backStackEntry ->
             val isFulfiller = backStackEntry.arguments?.getString("isFulfiller")?.toBoolean() ?: false
             val coroutineScope = rememberCoroutineScope()
-            val apiService = remember { ApiService.create() }
             
             AboutPikopScreen(
                 onBack = { navController.popBackStack() },
@@ -147,7 +146,8 @@ fun PikopAppNavigation() {
                 onContactSupport = {
                     coroutineScope.launch {
                         try {
-                            val conv = apiService.getOrCreateSupportConversation()
+                            val apiServiceWithAuth = ApiService.create(tokenManager)
+                            val conv = apiServiceWithAuth.getOrCreateSupportConversation()
                             navController.navigate("chat/${conv.id}")
                         } catch (e: Exception) {}
                     }

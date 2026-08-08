@@ -28,6 +28,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.*
+import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.IncidentRequest
 import com.ng.pikop.core.network.OfferResponse
@@ -61,8 +62,9 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
     var showIncidentDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
     val coroutineScope = rememberCoroutineScope()
-    val apiService = remember { ApiService.create() }
+    val apiService = remember { ApiService.create(tokenManager) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     
     val cameraPositionState = rememberCameraPositionState()

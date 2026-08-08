@@ -1,5 +1,9 @@
 package com.ng.pikop.core.network
 
+import com.ng.pikop.core.datastore.TokenManager
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -101,7 +105,14 @@ data class OrderDetailsResponse(
 data class FulfillerProfileResponse(
     val id: Int,
     val online_status: String,
-    val kyc_status: String
+    val kyc_status: String,
+    val didit_verification_status: String
+)
+
+data class DiditSessionResponse(
+    val url: String,
+    val session_token: String,
+    val session_id: String
 )
 
 data class FulfillerStatusRequest(
@@ -220,6 +231,9 @@ interface ApiService {
     @PATCH("api/v1/fulfillers/status")
     suspend fun updateStatus(@Body request: FulfillerStatusRequest): AuthResponse
 
+    @POST("api/v1/fulfillers/kyc/start-verification")
+    suspend fun startDiditVerification(): DiditSessionResponse
+
     @GET("api/v1/fulfillers/profile")
     suspend fun getFulfillerProfile(): FulfillerProfileResponse
 
@@ -290,13 +304,26 @@ interface ApiService {
     companion object {
         private const val BASE_URL = "https://api.awa.name.ng/"
 
-        fun create(): ApiService {
+        fun create(tokenManager: TokenManager): ApiService {
             val logger = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             }
 
+            val authInterceptor = Interceptor { chain ->
+                val token = runBlocking {
+                    tokenManager.accessToken.first()
+                }
+                val request = chain.request().newBuilder().apply {
+                    if (token != null) {
+                        addHeader("Authorization", "Bearer $token")
+                    }
+                }.build()
+                chain.proceed(request)
+            }
+
             val client = OkHttpClient.Builder()
                 .addInterceptor(logger)
+                .addInterceptor(authInterceptor)
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()

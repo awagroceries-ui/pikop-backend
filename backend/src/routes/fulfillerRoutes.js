@@ -21,5 +21,7 @@ router.get('/profile', authenticateToken, fulfillerController.getProfile);
 router.get('/offers', authenticateToken, fulfillerController.getOffers);
 router.get('/orders', authenticateToken, fulfillerController.getFulfillerOrders);
 router.post('/kyc', authenticateToken, upload.single('document'), fulfillerController.uploadKYC);
+router.post('/kyc/start-verification', authenticateToken, fulfillerController.startDiditVerification);
+router.post('/kyc/webhook', fulfillerController.handleDiditWebhook); // Public webhook
 
 module.exports = router;

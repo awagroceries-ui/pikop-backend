@@ -46,7 +46,7 @@ fun SignupScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     val coroutineScope = rememberCoroutineScope()
-    val apiService = remember { ApiService.create() }
+    val apiService = remember { ApiService.create(tokenManager) }
 
     val isFulfiller = role == "FULFILLER"
 
