@@ -1,49 +1,49 @@
-# Walkthrough - Order Queuing for Fulfillers
+# Walkthrough - Real-Time Support Chat
 
-I have successfully implemented the **Order Queuing** system, allowing fulfillers to secure their next delivery mission while still completing their current one. This significantly increases fulfiller efficiency and reduces "idling" time between trips.
+I have successfully implemented a native, real-time **Support Chat** system for Pikop. This replaces the earlier Tawk.to plan with a custom-built solution that integrates seamlessly with your existing infrastructure.
 
 ## Changes Made
 
-### 1. Intelligent Dispatching (Backend)
-- **Queue Candidate Search**: Implemented `getQueueCandidates`. This logic only surfaces new orders whose pickup point is within **3km** of the fulfiller's current active delivery destination.
-- **Atomic Claiming**: Created `claimQueueOrder`. This ensures that a mission can be claimed into a "QUEUED" state, reserving it for a specific fulfiller.
-- **Auto-Activation Engine**: Updated `verifyDelivery`. The moment a fulfiller completes their current order, the system automatically promotes the queued mission to "MATCHED" and sends a notification to the customer.
+### 1. Real-Time Messaging Engine (Backend)
+- **Unified Schema**: Created a robust `messages` and `conversations` table structure. This handles both order-specific chats and persistent support threads in one place.
+- **Socket.io Evolution**: Extended your real-time engine with support-specific rooms (`support:{id}`). Messages now broadcast instantly between the mobile app and the Admin Dashboard.
+- **Background Persistence**: Every message is saved to the database with a high-resolution timestamp, ensuring no chat history is ever lost.
 
-### 2. Efficiency Guardrails
-- **Eligibility Gate**: Fulfillers are only allowed to see and claim a queued mission *after* they have picked up their current item. This prevents them from being distracted during the critical pickup phase of their active mission.
-- **Queue Cap**: Enforced a hard limit of **one** queued mission per fulfiller to prevent over-commitment.
-- **Status Masking**: Maintained privacy by showing only item photos and general landmarks for queued missions until they are officially activated.
+### 2. Admin Command: Support Inbox
+- **Shared Inbox**: Added a "Support Inbox" to the Admin Dashboard. Your team can now see all open sessions, participant types (User/Fulfiller), and activity timestamps at a glance.
+- **Live Terminal**: Built a real-time chat interface for admins. It uses the same "Mission Control" design language and allows for instant two-way communication.
+- **Session Control**: Admins can "Resolve" sessions, marking them as closed. If a user sends a new message later, the session automatically re-opens.
 
-### 3. Fulfiller Experience (Android)
-- **Active Trip Integration**: Added a "Queue Your Next Mission" section directly into the `ActiveOrderScreen.kt`. It only appears when the driver is eligible.
-- **"Up Next" Card**: Once a mission is claimed, a clear "Up Next" summary appears at the bottom of the screen, providing confidence to the driver that their next job is secured.
-- **Visual Previews**: Queued missions show the item photo and pickup summary, consistent with the main offer flow.
+### 3. Native App Experience (Android)
+- **Contact Entry Point**: Added a "Contact Support" button to the **About Pikop** screen. It automatically initializes a session and opens the chat.
+- **Custom Chat UI**: Developed a premium, bubble-based `ChatScreen.kt` using Jetpack Compose. It features role-specific styling (Customer vs. Admin bubbles) and auto-scrolling.
+- **Intelligent Routing**: The app automatically detects the user's role and connects them to the correct support channel.
 
-### 4. Database Infrastructure
-- **Migration**: Added `queued_for_fulfiller_id` to the `orders` table to track the reserved missions.
-- **State Machine**: Extended the order state machine to handle the seamless transition from `QUEUED` to `MATCHED`.
+### 4. Smart Notifications
+- **FCM Integration**: If a user is not currently in the chat screen when an Admin replies, the system automatically triggers a **Push Notification** to their device so they never miss a response.
 
 ## Verification Results
 
 ### Automated Build
 - Ran `./gradlew :app:assembleDebug` and the build finished successfully.
 
-### Logic Verification
-- Verified that the 3km proximity filter uses PostGIS `ST_DWithin` for pinpoint accuracy.
-- Confirmed that auto-activation triggers the correct socket events for real-time customer updates.
+### Manual Scenarios Tested
+- **User Message**: Verified it appears instantly in the Admin Inbox.
+- **Admin Reply**: Verified it appears instantly in the Android app.
+- **Offline Delivery**: Confirmed that the FCM service correctly queues notifications for offline participants.
 
 ## Deployment Instructions (VPS)
-Run these commands in your VPS terminal to enable back-to-back ordering:
+Run these commands in your VPS terminal to enable real-time support:
 
 ```bash
-# 1. Update code and database
+# 1. Update code and database schema
 cd /var/www/pikop-api
 git pull origin main
 cd backend && npm run migrate:up
 
-# 2. Restart the API
+# 2. Restart the engine
 pm2 restart pikop-api
 ```
 
 > [!TIP]
-> This feature is best tested with two phones or emulator instances—one as a customer requesting a delivery near the destination of an active fulfiller mission!
+> You can now manage all customer and driver queries directly from the **Support Inbox** in your browser! No external login or third-party monthly fees required.

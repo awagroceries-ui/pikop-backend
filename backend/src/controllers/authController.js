@@ -16,6 +16,7 @@ const signup = async (req, res) => {
 
     const passwordHash = await authService.hashPassword(password);
 
+    // Explicit Column check
     const userRes = await client.query(
       "INSERT INTO users (full_name, email, phone, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role",
       [full_name, email, phone, passwordHash, userRole]
@@ -55,7 +56,7 @@ const signup = async (req, res) => {
 
     // Send email with OTP (Background)
     notificationService.sendOTPEmail(user.id, email, otp).catch(e => {
-        console.error('CRITICAL: Initial OTP send failed:', e.message);
+        console.error('Initial OTP send failed:', e.message);
     });
 
     const tokens = authService.generateTokens(user);
@@ -68,14 +69,21 @@ const signup = async (req, res) => {
       ...tokens
     });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK');
+    console.error('SIGNUP CRASH DETECTED:', error);
+
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Email or phone already exists' });
     }
-    console.error('Signup Error:', error);
-    res.status(500).json({ error: 'Failed to register user' });
+
+    // Check for missing columns
+    if (error.message.includes('column "role" does not exist')) {
+        return res.status(500).json({ error: 'Database out of sync. Please run migrations.' });
+    }
+
+    res.status(500).json({ error: 'Internal Server Error: ' + error.message });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 
@@ -109,7 +117,7 @@ const verifyEmail = async (req, res) => {
     await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [userId]);
 
     // Send Welcome Email (Background)
-    notificationService.sendWelcomeEmail(userId);
+    notificationService.sendWelcomeEmail(userId).catch(e => console.error('Welcome email failed:', e.message));
 
     res.status(200).json({ message: 'Email verified successfully' });
   } catch (error) {
@@ -151,16 +159,16 @@ const login = async (req, res) => {
  * Refreshes the access token using a refresh token.
  */
 const refreshToken = (req, res) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken) return res.status(401).json({ error: 'Refresh token required' });
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(401).json({ error: 'Refresh token required' });
 
-  jwt.verify(refreshToken, authService.REFRESH_TOKEN_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid refresh token' });
+    jwt.verify(refreshToken, authService.REFRESH_TOKEN_SECRET, (err, user) => {
+      if (err) return res.status(403).json({ error: 'Invalid refresh token' });
 
-    // Generate new tokens
-    const tokens = authService.generateTokens(user);
-    res.json(tokens);
-  });
+      // Generate new tokens
+      const tokens = authService.generateTokens(user);
+      res.json(tokens);
+    });
 };
 
 /**
