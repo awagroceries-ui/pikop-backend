@@ -1,8 +1,9 @@
-# Milestone 18: Nationwide Expansion (Abuja & Lagos) [DONE]
+# Milestone 19: Admin Dashboard Branding & Account Creation
 
-- [x] Expand coverage to Abuja and Lagos
-    - [x] Update `MapPickerSheet.kt` with City Selector UI
-    - [x] Implement camera animation logic for city switching
-    - [x] Integrate User Current Location in Map Picker
-    - [x] Verify address selection in new cities
-    - [x] Final build and UI verification
+- [/] Professionalize Admin Dashboard
+    - [ ] Create `public/assets` directory and copy logo
+    - [ ] Update `app.js` to serve static files
+    - [ ] Brand `login.ejs` (Rich Black & Orange)
+    - [ ] Brand `layout.ejs` (Sidebar & Headers)
+    - [ ] Create `scratch/create_admin.js` script
+    - [ ] Verify UI and provide creation command

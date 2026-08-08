@@ -1,40 +1,46 @@
-# Implementation Plan - Final VPS Deployment & Synchronization
+# Implementation Plan - Admin Dashboard Branding & Creation
 
-Synchronize the live VPS environment with all newly implemented features, including branding, wallet systems, KYC processing, and push notifications.
+Professionalize the Admin Dashboard by applying the "Rich Black & Orange" brand theme and providing a secure method to create the initial administrative user.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Sensitive Data**: You have provided the live keys. I have formatted them into a single configuration block below.
-> - **Security**: Ensure that after copying these into your `.env` file, you do not share that file with anyone else.
-> - **Firebase**: The Service Account JSON must be pasted as a single-line string in the `.env` file for the current code to read it correctly.
+> - **Branding Consistency**: The Admin Dashboard will now match the Android app's premium theme (Black background, Orange accents).
+> - **Admin Creation**: I will provide a one-time script to create your admin account. You should run this on your VPS once.
 
-## Proposed Steps
+## Proposed Changes
 
-### 1. Update `.env` on VPS
-I have prepared the exact content for your `.env` file based on the keys you provided. This includes the database URL, JWT secrets, and the new service keys.
+### 1. Static Assets & Infrastructure (Backend)
 
-### 2. Database Migrations
-Run the latest migrations to create the following tables:
-- `saved_addresses`
-- `fcm_tokens`
-- `settings` (Platform commission)
-- Update `quotes` with coordinates.
+#### [MODIFY] [app.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/app.js)
+- Add middleware to serve static files from a new `public` directory.
+- This will allow the admin dashboard to load the brand logo.
 
-### 3. File System Setup
-Create the `uploads` directory to handle Fulfiller KYC document storage.
-
-### 4. Service Restart
-Restart the `pikop-api` process using PM2 to apply all environment variables and code changes.
+#### [NEW] `backend/public/assets`
+- I will create this directory and copy your brand logo (`pikop_logo.png`) into it.
 
 ---
+
+### 2. UI Branding (Admin Views)
+
+#### [MODIFY] [login.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/views/login.ejs)
+- Change background to `#0B0B0B`.
+- Style the login card with a dark surface and orange highlights.
+- Center the brand logo above the login form.
+
+#### [MODIFY] [layout.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/views/layout.ejs)
+- Update the sidebar and main area to match the brand theme.
+- Use Orange for active links and brand accents.
+
+---
+
+### 3. Admin Account Creation
+
+#### [NEW] `backend/scratch/create_admin.js`
+- A secure Node.js script that uses `bcrypt` to hash a password and insert a new admin user into the `admin_users` table.
 
 ## Verification Plan
 
 ### Manual Verification
-- **API Health**: Confirm `https://api.awa.name.ng/health` returns OK.
-- **Admin Dashboard**: Log in and verify the "Withdrawals" and "Order Board" are visible.
-- **Android App**:
-    - Perform a fresh signup.
-    - Test "Lagos" or "Abuja" address selection.
-    - Upload a test KYC document and see it appear in the Admin queue.
+- **Branding**: Open `https://api.awa.name.ng/admin/login` and verify it shows the new logo and theme.
+- **Account Creation**: Run the provided script on the VPS and attempt to log in with the new credentials.
