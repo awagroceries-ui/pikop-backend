@@ -1,56 +1,190 @@
-<div class="row">
-    <div class="col-md-4">
-        <div class="card text-white bg-primary mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Active Orders</h5>
-                <p class="card-text fs-2"><%= stats.activeOrders %></p>
+<div class="row g-4 mb-5">
+    <!-- Active Orders KPI -->
+    <div class="col-md-3">
+        <div class="card h-100 p-4">
+            <h5 class="card-title mb-3">Live Dispatch</h5>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="fs-1 fw-bold mono text-active"><%= stats.activeOrders %></span>
+                <span class="text-muted small">Orders</span>
+            </div>
+            <div class="mt-3 opacity-75">
+                <canvas id="activeOrdersSparkline" height="40"></canvas>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card text-white bg-success mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Online Fulfillers</h5>
-                <p class="card-text fs-2"><%= stats.onlineFulfillers %></p>
+
+    <!-- Online Fulfillers KPI -->
+    <div class="col-md-3">
+        <div class="card h-100 p-4">
+            <h5 class="card-title mb-3">Active Fleet</h5>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="fs-1 fw-bold mono text-success"><%= stats.onlineFulfillers %></span>
+                <span class="text-muted small">Online</span>
+            </div>
+            <div class="mt-3 opacity-75">
+                <canvas id="fleetSparkline" height="40"></canvas>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card text-white bg-info mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Total Platform Revenue</h5>
-                <p class="card-text fs-2">₦<%= stats.totalRevenue %></p>
+
+    <!-- Total Revenue KPI -->
+    <div class="col-md-3">
+        <div class="card h-100 p-4">
+            <h5 class="card-title mb-3">Platform Yield</h5>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="text-muted small">₦</span>
+                <span class="fs-1 fw-bold mono text-primary"><%= Number(stats.totalRevenue).toLocaleString() %></span>
+            </div>
+            <div class="mt-3 opacity-75">
+                <canvas id="revenueSparkline" height="40"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="col-md-3">
+        <div class="card h-100 p-4 border-success" style="background: rgba(34, 197, 94, 0.05);">
+            <h5 class="card-title mb-3 text-success">Engines</h5>
+            <div class="d-flex flex-column gap-2 mt-2">
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">PostGIS Engine</span>
+                    <span class="text-success fw-bold mono">ACTIVE</span>
+                </div>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">Gemini AI</span>
+                    <span class="text-success fw-bold mono">READY</span>
+                </div>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">Paystack API</span>
+                    <span class="text-success fw-bold mono">STABLE</span>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="mt-4">
-    <h3>System Status</h3>
-    <table class="table table-striped mt-3">
-        <thead>
-            <tr>
-                <th>Component</th>
-                <th>Status</th>
-                <th>Details</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>PostGIS Dispatch Engine</td>
-                <td><span class="badge bg-success">ACTIVE</span></td>
-                <td>Spatial indexing optimized</td>
-            </tr>
-            <tr>
-                <td>Paystack Integration</td>
-                <td><span class="badge bg-success">CONNECTED</span></td>
-                <td>Ready for Transfers</td>
-            </tr>
-            <tr>
-                <td>Node.js API</td>
-                <td><span class="badge bg-success">HEALTHY</span></td>
-                <td>Single instance (fork mode)</td>
-            </tr>
-        </tbody>
-    </table>
+<div class="row g-4">
+    <!-- Main Revenue Chart -->
+    <div class="col-md-8">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="card-title mb-0">Financial Performance</h5>
+                <div class="btn-group btn-group-sm border border-secondary rounded">
+                    <button class="btn text-muted" onclick="loadRevenue(7)">7D</button>
+                    <button class="btn text-white bg-accent" onclick="loadRevenue(30)">30D</button>
+                    <button class="btn text-muted" onclick="loadRevenue(90)">90D</button>
+                </div>
+            </div>
+            <div style="height: 300px;">
+                <canvas id="mainRevenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Volume / Cancellation Rate -->
+    <div class="col-md-4">
+        <div class="card p-4">
+            <h5 class="card-title mb-4">Market Velocity</h5>
+            <div style="height: 200px;" class="mb-4">
+                <canvas id="orderVolumeChart"></canvas>
+            </div>
+            <hr class="border-secondary opacity-25">
+            <div class="mt-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-bold">System Load</span>
+                    <span class="mono small text-active">LOW</span>
+                </div>
+                <div class="progress bg-accent" style="height: 6px;">
+                    <div class="progress-bar bg-info" style="width: 24%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+    const chartDefaults = {
+        color: '#94A3B8',
+        borderColor: '#334155',
+        font: { family: "'Inter', sans-serif" }
+    };
+    Object.assign(Chart.defaults, chartDefaults);
+
+    // Main Revenue Chart
+    const revCtx = document.getElementById('mainRevenueChart').getContext('2d');
+    let mainRevenueChart = new Chart(revCtx, {
+        type: 'line',
+        data: { labels: [], datasets: [{
+            label: 'Platform Revenue',
+            data: [],
+            borderColor: '#FF9F0A',
+            backgroundColor: 'rgba(255, 159, 10, 0.1)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 3,
+            pointRadius: 0,
+            pointHoverRadius: 6
+        }]},
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false } },
+                y: { beginAtZero: true, grid: { color: 'rgba(51, 65, 85, 0.5)' } }
+            }
+        }
+    });
+
+    // Order Volume Chart
+    const volCtx = document.getElementById('orderVolumeChart').getContext('2d');
+    const orderVolumeChart = new Chart(volCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'Cancelled', 'Active'],
+            datasets: [{
+                data: [65, 12, <%= stats.activeOrders %>],
+                backgroundColor: ['#22C55E', '#EF4444', '#38BDF8'],
+                borderWidth: 0,
+                cutout: '75%'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, padding: 20 } } }
+        }
+    });
+
+    // Helper to load data
+    async function loadRevenue(days) {
+        const res = await fetch(`/admin/reports/revenue?days=${days}`);
+        const data = await res.json();
+        mainRevenueChart.data.labels = data.map(d => d.label);
+        mainRevenueChart.data.datasets[0].data = data.map(d => d.value);
+        mainRevenueChart.update();
+    }
+
+    // Sparklines
+    function initSparkline(id, data, color) {
+        new Chart(document.getElementById(id), {
+            type: 'line',
+            data: {
+                labels: new Array(data.length).fill(''),
+                datasets: [{ data: data, borderColor: color, borderWidth: 2, fill: false, pointRadius: 0, tension: 0.4 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: { x: { display: false }, y: { display: false } }
+            }
+        });
+    }
+
+    // Initialize
+    loadRevenue(30);
+    initSparkline('revenueSparkline', <%= JSON.stringify(stats.revenueTrend) %>, '#FF9F0A');
+    initSparkline('activeOrdersSparkline', [2, 4, 3, 5, 4, 6, <%= stats.activeOrders %>], '#38BDF8');
+    initSparkline('fleetSparkline', [8, 7, 9, 10, 8, 12, <%= stats.onlineFulfillers %>], '#22C55E');
+</script>

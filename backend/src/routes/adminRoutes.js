@@ -10,6 +10,10 @@ router.post('/login', adminController.login);
 // Protected Routes
 router.get('/dashboard', isAdminAuthenticated, adminController.getDashboard);
 
+// Analytics and Reports
+router.get('/reports/revenue', isAdminAuthenticated, adminController.getRevenueReport);
+router.get('/reports/orders', isAdminAuthenticated, adminController.getOrderReport);
+
 // Orders and Withdrawals
 router.get('/orders', isAdminAuthenticated, adminController.getOrders);
 router.get('/withdrawals', isAdminAuthenticated, adminController.getWithdrawals);

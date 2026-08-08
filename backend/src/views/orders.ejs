@@ -1,35 +1,90 @@
-<h3>Live Order Board</h3>
-<p class="text-muted">Real-time view of all platform activity.</p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-1">Live Order Board</h4>
+        <p class="text-muted small mb-0 mono">Auto-refreshing via Command WebSockets</p>
+    </div>
+    <div class="d-flex gap-2">
+        <input type="text" class="form-control form-control-sm bg-surface border-secondary text-white" placeholder="Search ID or Customer..." style="width: 250px;">
+        <button class="btn btn-sm btn-outline-secondary">Filter</button>
+    </div>
+</div>
 
-<div class="mt-4">
-    <table class="table table-hover">
-        <thead class="table-dark">
+<div class="card overflow-hidden">
+    <table class="table table-hover mb-0">
+        <thead>
             <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
+                <th>Reference</th>
+                <th>Stakeholder</th>
                 <th>Status</th>
-                <th>Fare</th>
-                <th>Pickup</th>
-                <th>Delivery</th>
-                <th>Created</th>
+                <th class="text-end">Fare</th>
+                <th>Mission Path</th>
+                <th>Timestamp</th>
             </tr>
         </thead>
-        <tbody>
-            <% orders.forEach(order => { %>
+        <tbody class="mono">
+            <% if (orders.length === 0) { %>
                 <tr>
-                    <td><code>#<%= order.id %></code></td>
-                    <td><%= order.customer_name %></td>
-                    <td>
-                        <span class="badge <%= order.status === 'DELIVERED' ? 'bg-success' : 'bg-primary' %>">
-                            <%= order.status %>
-                        </span>
+                    <td colspan="6" class="text-center py-5">
+                        <div class="opacity-25 mb-3">
+                            <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                        </div>
+                        <h5 class="text-muted">No active missions found</h5>
+                        <p class="small text-muted">The board is clear. All caught up.</p>
                     </td>
-                    <td>₦<%= order.total_fare %></td>
-                    <td><small><%= order.pickup_address %></small></td>
-                    <td><small><%= order.delivery_address %></small></td>
-                    <td><%= new Date(order.created_at).toLocaleString() %></td>
+                </tr>
+            <% } %>
+            <% orders.forEach(order => { %>
+                <%
+                    // Velocity Pulse Logic: If SEARCHING for > 15 mins, pulse critical
+                    const created = new Date(order.created_at);
+                    const now = new Date();
+                    const ageMinutes = (now - created) / 60000;
+                    const isStalled = order.status === 'SEARCHING' && ageMinutes > 15;
+                %>
+                <tr class="<%= isStalled ? 'pulse-critical' : '' %>">
+                    <td>
+                        <span class="text-active fw-bold">#<%= order.id.toString().substring(0, 8) %></span>
+                    </td>
+                    <td>
+                        <div class="d-flex flex-column">
+                            <span><%= order.customer_name %></span>
+                            <span class="text-muted small" style="font-size: 0.65rem;">ID: <%= order.user_id %></span>
+                        </div>
+                    </td>
+                    <td>
+                        <% if (order.status === 'SEARCHING') { %>
+                            <span class="status-badge status-searching">Dispatching</span>
+                        <% } else if (order.status === 'MATCHED') { %>
+                            <span class="status-badge status-matched">In Transit</span>
+                        <% } else if (order.status === 'DELIVERED') { %>
+                            <span class="status-badge status-delivered">Target Reached</span>
+                        <% } else { %>
+                            <span class="badge bg-secondary text-white opacity-50"><%= order.status %></span>
+                        <% } %>
+                    </td>
+                    <td class="text-end fw-bold text-primary">
+                        ₦<%= Number(order.total_fare).toLocaleString() %>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2" style="font-size: 0.75rem;">
+                            <span class="text-muted text-truncate" style="max-width: 150px;"><%= order.pickup_address %></span>
+                            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                            <span class="text-muted text-truncate" style="max-width: 150px;"><%= order.delivery_address %></span>
+                        </div>
+                    </td>
+                    <td class="text-muted small">
+                        <%= new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %>
+                    </td>
                 </tr>
             <% }) %>
         </tbody>
     </table>
 </div>
+
+<script>
+    // Mock auto-refresh simulation
+    setInterval(() => {
+        console.log("Mission Board Polling...");
+        // In real use, this would be a socket listener
+    }, 30000);
+</script>

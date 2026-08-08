@@ -25,19 +25,29 @@ const login = async (req, res) => {
 };
 
 /**
- * Main dashboard stats.
+ * Main dashboard stats with trend data.
  */
 const getDashboard = async (req, res) => {
   try {
     const activeOrders = await db.query("SELECT COUNT(*) FROM orders WHERE status IN ('SEARCHING', 'MATCHED', 'PICKED_UP')");
     const onlineFulfillers = await db.query("SELECT COUNT(*) FROM fulfillers WHERE online_status = 'ONLINE'");
 
-    // Fix: Join with wallets to filter by owner_type
-    const totalRevenue = await db.query(`
+    const totalRevenueQuery = await db.query(`
       SELECT SUM(le.amount) as total
       FROM wallet_ledger_entries le
       JOIN wallets w ON le.wallet_id = w.id
       WHERE w.owner_type = 'PLATFORM' AND le.entry_type = 'CREDIT'
+    `);
+
+    // Fetch 7-day sparkline data for revenue
+    const sparklineRevenue = await db.query(`
+      SELECT DATE(le.created_at) as date, SUM(le.amount) as amount
+      FROM wallet_ledger_entries le
+      JOIN wallets w ON le.wallet_id = w.id
+      WHERE w.owner_type = 'PLATFORM' AND le.entry_type = 'CREDIT'
+      AND le.created_at >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY DATE(le.created_at)
+      ORDER BY date ASC
     `);
 
     res.render('dashboard', {
@@ -46,12 +56,55 @@ const getDashboard = async (req, res) => {
       stats: {
         activeOrders: activeOrders.rows[0].count,
         onlineFulfillers: onlineFulfillers.rows[0].count,
-        totalRevenue: totalRevenue.rows[0].total || 0
+        totalRevenue: totalRevenueQuery.rows[0].total || 0,
+        revenueTrend: sparklineRevenue.rows.map(r => r.amount)
       }
     });
   } catch (error) {
     console.error('Dashboard Stats Error:', error);
     res.status(500).send('Error loading dashboard: ' + error.message);
+  }
+};
+
+/**
+ * Daily revenue report for Chart.js.
+ */
+const getRevenueReport = async (req, res) => {
+  const days = req.query.days || 30;
+  try {
+    const { rows } = await db.query(`
+      SELECT TO_CHAR(le.created_at, 'Mon DD') as label, SUM(le.amount) as value
+      FROM wallet_ledger_entries le
+      JOIN wallets w ON le.wallet_id = w.id
+      WHERE w.owner_type = 'PLATFORM' AND le.entry_type = 'CREDIT'
+      AND le.created_at >= CURRENT_DATE - INTERVAL '${days} days'
+      GROUP BY DATE(le.created_at), label
+      ORDER BY DATE(le.created_at) ASC
+    `);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Daily order volume report for Chart.js.
+ */
+const getOrderReport = async (req, res) => {
+  const days = req.query.days || 30;
+  try {
+    const { rows } = await db.query(`
+      SELECT TO_CHAR(created_at, 'Mon DD') as label,
+             COUNT(*) FILTER (WHERE status = 'DELIVERED') as completed,
+             COUNT(*) FILTER (WHERE status = 'CANCELLED') as cancelled
+      FROM orders
+      WHERE created_at >= CURRENT_DATE - INTERVAL '${days} days'
+      GROUP BY DATE(created_at), label
+      ORDER BY DATE(created_at) ASC
+    `);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
