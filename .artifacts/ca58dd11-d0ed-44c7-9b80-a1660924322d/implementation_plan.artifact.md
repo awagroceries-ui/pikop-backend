@@ -1,64 +1,61 @@
-# Implementation Plan - Order Lifecycle Enhancements
+# Implementation Plan - Order Queuing for Fulfillers
 
-Implement item-photo preview, masked-location previews, no-free-cancellation policy, and an Incident Report flow to improve trust, security, and operational efficiency.
+Enable fulfillers to claim a second mission that automatically activates once their current delivery is completed. This creates a "back-to-back" workflow without concurrent routing.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Schema Migration**: I will add `item_photo_url` and `delivery_photo_url` to the `orders` table. `delivery_photo_url` will now be mandatory for completing a delivery.
-> - **Privacy**: Fulfillers will only see the `display_summary` (e.g., "Near UNIPORT Gate") before acceptance. Exact coordinates and addresses are revealed only after they accept.
-> - **Instant Fees**: Cancellations after `MATCHED` will immediately charge 25% of the fare. Waivers can be requested via the Incident flow and approved later by Ops.
+> - **Strict Eligibility**: Fulfillers can only browse and claim a queued order *after* they have successfully picked up their current item (Status: `PICKED_UP`).
+> - **Proximity Filter**: Candidates are filtered to have a pickup point within **3km** of the current order's delivery destination.
+> - **Hard Limit**: Fulfillers are limited to exactly **ONE** queued order at a time.
+> - **Auto-Activation**: The queued order will automatically transition to `MATCHED` and become the new active mission the moment the current order is marked as `DELIVERED`.
 
 ## Proposed Changes
 
 ### 1. Database & Schema (Backend)
 
-#### [NEW] `backend/migrations/1722950000000_order_lifecycle_ext.js`
-- **Orders**: Add `item_photo_url` (nullable/required by logic), `delivery_photo_url` (required at delivery), `cancellation_fee_waived` (bool, default false), `incident_dispute_id` (uuid, FK).
-- **Disputes**: Extend category enum and resolution options.
-- **Addresses**: (Since addresses are currently strings in the `orders` table, I will add `pickup_display_summary` and `delivery_display_summary` directly to the `orders` table for simplicity and alignment with the current schema).
+#### [NEW] `backend/migrations/1722960000000_order_queuing.js`
+- **Orders**: Add `queued_for_fulfiller_id` (integer, references fulfillers).
+- **Status**: Add logic support for `QUEUED` status.
 
 ---
 
-### 2. Pre-Acceptance Preview (Full Stack)
-
-#### [MODIFY] `OrderQuoteScreen.kt` (Android)
-- Add a required "Take Photo of Item" step before the final request.
-- Upload photo to `/uploads/items/` via a new endpoint.
-
-#### [MODIFY] `orderController.js` (Backend)
-- Update `getQuote`/`createOrder` to handle the `item_photo_url`.
-- Update `getOffers` to include `item_photo_url` and `pickup_display_summary`.
-
-#### [MODIFY] `IncomingOfferComponent.kt` (Android)
-- Display the item image and the masked pickup summary.
-
----
-
-### 3. Cancellation Policy & Incident Flow (Backend)
+### 2. Backend Logic (Lifecycle)
 
 #### [MODIFY] `orderController.js`
-- **User Cancellation**: Block free cancellation after `MATCHED`. Charge 25% fee (100% to platform wallet).
-- **New Endpoint**: `POST /orders/:id/incident`
-    - Logic for `HANDOFF`: Reset order to `SEARCHING`, keep original incident attached, show special message to user.
-    - Logic for `CANCEL_WITH_WAIVER`: Charge fee immediately, create Dispute.
-    - `security_risk` triggers auto-waiver.
+- **New Endpoint**: `GET /api/v1/fulfillers/me/queue-candidates`
+    - Logic: Find `SEARCHING` orders within 3km of the fulfiller's *active* delivery point.
+- **New Endpoint**: `POST /api/v1/orders/:orderId/queue/claim`
+    - Logic: Atomically claim an order into the `QUEUED` state.
+- **Update `verifyDelivery`**:
+    - After an order is marked `DELIVERED`, check for a matching `QUEUED` order.
+    - If found, promote it to `MATCHED`, assign the `fulfiller_id`, and emit a socket event to the User.
 
-#### [MODIFY] `walletService.js`
-- Implement `processCancellationFee(orderId)` to handle the 25% platform credit.
+#### [MODIFY] `fulfillerController.js`
+- Ensure `getProfile` or dashboard includes information about current queued missions.
 
 ---
 
-### 4. Admin Dashboard (UI)
+### 3. Fulfiller UI (Android)
 
-#### [MODIFY] `disputes.ejs`
-- Add filters for incident categories.
-- Add "Waive Fee" / "Deny Waiver" buttons.
+#### [MODIFY] `ActiveOrderScreen.kt`
+- **Queue Section**: When the status is `PICKED_UP`, show a "Queue Your Next Mission" section.
+- **Preview Card**: Reuse `IncomingOfferComponent` to show the item photo and masked summary of queue candidates.
+- **"Up Next" Display**: If an order is already queued, show a distinct "Up Next" summary card at the bottom of the screen.
+
+#### [MODIFY] `ApiService.kt`
+- Add `getQueueCandidates` and `claimQueueOrder` endpoints.
+
+---
+
+### 4. User Experience (Android)
+
+- Users with a `QUEUED` order will see their status as "Fulfiller Assigned," but real-time tracking will only activate once the driver completes their current mission and starts moving toward them.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Offer Preview**: As a Fulfiller, verify you can see the item photo and "Near [Landmark]" summary before accepting.
-2.  **User Cancellation**: As a Customer, cancel a matched order and verify 25% is deducted from the wallet.
-3.  **Incident Flow**: As a Fulfiller, file a `breakdown` incident with `handoff`. Verify the order returns to the search pool for other drivers.
-4.  **Auto-Waiver**: File a `security_risk` incident and verify the cancellation fee is waived immediately.
+1.  **Pickup Guardrail**: Verify that a fulfiller *cannot* see queue candidates before they have verified the pickup code for their first order.
+2.  **Radius Test**: Ensure only orders near the *destination* of the current mission appear in the queue list.
+3.  **Auto-Transition**: Complete a delivery and verify that the app instantly switches to the next mission's pickup instructions.
+4.  **Conflict Check**: Verify that a fulfiller cannot claim a second queued order.

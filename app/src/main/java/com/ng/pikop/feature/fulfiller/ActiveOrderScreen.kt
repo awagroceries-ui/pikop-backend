@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -28,6 +30,7 @@ import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.*
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.IncidentRequest
+import com.ng.pikop.core.network.OfferResponse
 import com.ng.pikop.core.network.OrderDetailsResponse
 import com.ng.pikop.core.network.SocketManager
 import com.ng.pikop.core.network.VerifyCodeRequest
@@ -45,6 +48,9 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
     var orderDetails by remember { mutableStateOf<OrderDetailsResponse?>(null) }
     var orderStatus by remember { mutableStateOf("MATCHED") }
     var fulfillerLocation by remember { mutableStateOf<LatLng?>(null) }
+    
+    var queueCandidates by remember { mutableStateOf<List<OfferResponse>>(emptyList()) }
+    var queuedOrder by remember { mutableStateOf<OfferResponse?>(null) }
     
     var pickupCode by remember { mutableStateOf("") }
     var deliveryCode by remember { mutableStateOf("") }
@@ -73,6 +79,11 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
             val response = apiService.getOrderDetails(orderId)
             orderDetails = response
             orderStatus = response.status
+            
+            // Fetch queue candidates if eligible
+            if (response.status == "PICKED_UP") {
+                queueCandidates = apiService.getQueueCandidates()
+            }
         } catch (e: Exception) {
             Toast.makeText(context, "Failed to load order info", Toast.LENGTH_SHORT).show()
         }
@@ -217,6 +228,8 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                                     apiService.verifyPickup(orderId, VerifyCodeRequest(pickupCode))
                                     orderStatus = "PICKED_UP"
                                     Toast.makeText(context, "Pickup Verified!", Toast.LENGTH_SHORT).show()
+                                    // Fetch queue candidates after pickup success
+                                    queueCandidates = apiService.getQueueCandidates()
                                 } catch (e: Exception) {
                                     Toast.makeText(context, "Invalid Pickup Code", Toast.LENGTH_SHORT).show()
                                 } finally {
@@ -241,6 +254,49 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // Queuing Section
+                    if (queuedOrder == null) {
+                        if (queueCandidates.isNotEmpty()) {
+                            Text(text = "Queue Your Next Mission", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            queueCandidates.forEach { candidate ->
+                                IncomingOfferComponent(
+                                    offer = candidate,
+                                    onAccept = {
+                                        coroutineScope.launch {
+                                            try {
+                                                apiService.claimQueueOrder(candidate.id)
+                                                queuedOrder = candidate
+                                                Toast.makeText(context, "Mission Queued!", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Failed to queue mission.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    onDecline = { queueCandidates = queueCandidates.filter { it.id != candidate.id } }
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+                    } else {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.AssignmentTurnedIn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text(text = "UP NEXT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    Text(text = "Mission Queued: ${queuedOrder!!.pickup_address}")
+                                    Text(text = "Starts automatically after current delivery.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
                     
                     // Mandatory Delivery Photo
                     Card(

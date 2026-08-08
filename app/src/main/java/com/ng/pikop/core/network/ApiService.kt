@@ -244,6 +244,12 @@ interface ApiService {
     @POST("api/v1/orders/{id}/incident")
     suspend fun fileIncident(@retrofit2.http.Path("id") id: String, @Body request: IncidentRequest): AuthResponse
 
+    @GET("api/v1/orders/me/queue-candidates")
+    suspend fun getQueueCandidates(): List<OfferResponse>
+
+    @POST("api/v1/orders/{id}/queue/claim")
+    suspend fun claimQueueOrder(@retrofit2.http.Path("id") id: String): AuthResponse
+
     @POST("api/v1/orders/{id}/rate")
     suspend fun rateCustomer(@retrofit2.http.Path("id") id: String, @Body request: RatingRequest): OrderResponse
 

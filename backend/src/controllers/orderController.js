@@ -259,12 +259,146 @@ const verifyDelivery = async (req, res) => {
 
     await walletService.processDeliveryPayment(orderId);
 
+    // 3. Auto-activation logic for queued orders
+    const { rows: queuedRows } = await client.query(
+      "SELECT id FROM orders WHERE status = 'QUEUED' AND queued_for_fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1) LIMIT 1",
+      [req.user.id]
+    );
+
+    if (queuedRows.length > 0) {
+      const nextOrderId = queuedRows[0].id;
+      const fulfillerIdRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1", [req.user.id]);
+      const fulfillerId = fulfillerIdRes.rows[0].id;
+
+      await client.query(
+        "UPDATE orders SET status = 'MATCHED', fulfiller_id = $1, queued_for_fulfiller_id = NULL WHERE id = $2",
+        [fulfillerId, nextOrderId]
+      );
+      await logStatusChange(client, nextOrderId, 'MATCHED', 'Your Fulfiller is now on the way to pick up your item');
+    }
+
     await client.query('COMMIT');
     res.status(200).json({ message: 'Delivery completed and payment processed', status: 'DELIVERED' });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Verify Delivery Error:', error);
     res.status(500).json({ error: 'Failed to verify delivery' });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Returns eligible queue candidates for a fulfiller.
+ */
+const getQueueCandidates = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    // 1. Check eligibility (Must have active order past pickup)
+    const activeOrderRes = await db.query(
+      `SELECT o.id, o.delivery_location
+       FROM orders o
+       JOIN fulfillers f ON f.id = o.fulfiller_id
+       WHERE f.user_id = $1 AND o.status = 'PICKED_UP' LIMIT 1`,
+      [userId]
+    );
+
+    if (activeOrderRes.rows.length === 0) return res.json([]); // Not eligible
+
+    const activeOrder = activeOrderRes.rows[0];
+
+    // 2. Check if already has a queued order (limit 1)
+    const existingQueueRes = await db.query(
+      "SELECT id FROM orders WHERE status = 'QUEUED' AND queued_for_fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1)",
+      [userId]
+    );
+    if (existingQueueRes.rows.length > 0) return res.json([]);
+
+    // 3. Find candidates within 3km of active delivery point
+    const { rows } = await db.query(
+      `SELECT o.id, o.total_fare, o.item_photo_url, o.pickup_display_summary, o.delivery_display_summary
+       FROM orders o
+       WHERE o.status = 'SEARCHING'
+       AND ST_DWithin(o.pickup_location, $1, 3000)
+       ORDER BY o.created_at DESC`,
+      [activeOrder.delivery_location]
+    );
+
+    const offers = rows.map(r => ({
+      id: r.id.toString(),
+      pickup_address: r.pickup_display_summary || 'Restricted Area',
+      delivery_address: 'Hidden until activated',
+      total_fare: parseFloat(r.total_fare),
+      item_photo_url: r.item_photo_url,
+      is_queued_candidate: true
+    }));
+
+    res.status(200).json(offers);
+  } catch (error) {
+    console.error('Get Queue Candidates Error:', error);
+    res.status(500).json({ error: 'Failed to fetch queue candidates' });
+  }
+};
+
+/**
+ * Claims a queue candidate.
+ */
+const claimQueueOrder = async (req, res) => {
+  const userId = req.user.id;
+  const { orderId } = req.params;
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verify eligibility
+    const activeOrderRes = await client.query(
+      `SELECT o.id, o.delivery_location
+       FROM orders o
+       JOIN fulfillers f ON f.id = o.fulfiller_id
+       WHERE f.user_id = $1 AND o.status = 'PICKED_UP' LIMIT 1`,
+      [userId]
+    );
+    if (activeOrderRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'You must complete pickup on your current order before queuing another.' });
+    }
+
+    const fulfillerRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
+    const fulfillerId = fulfillerRes.rows[0].id;
+
+    // 2. Check queue cap
+    const existingQueueRes = await client.query(
+      "SELECT id FROM orders WHERE status = 'QUEUED' AND queued_for_fulfiller_id = $1",
+      [fulfillerId]
+    );
+    if (existingQueueRes.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Queue full. Hard cap of 1 queued mission reached.' });
+    }
+
+    // 3. Atomically claim
+    const { rows } = await client.query(
+      `UPDATE orders
+       SET status = 'QUEUED', queued_for_fulfiller_id = $1
+       WHERE id = $2 AND status = 'SEARCHING'
+       RETURNING id`,
+      [fulfillerId, orderId]
+    );
+
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Order no longer available for queuing.' });
+    }
+
+    await logStatusChange(client, orderId, 'QUEUED', 'Fulfiller assigned and will activate after their current delivery');
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Mission claimed and queued.', orderId });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Claim Queue Order Error:', error);
+    res.status(500).json({ error: 'Failed to claim queued mission' });
   } finally {
     client.release();
   }
@@ -474,5 +608,8 @@ module.exports = {
   verifyDelivery,
   getOrderDetails,
   getUserOrders,
-  cancelOrder
+  cancelOrder,
+  fileIncident,
+  getQueueCandidates,
+  claimQueueOrder
 };

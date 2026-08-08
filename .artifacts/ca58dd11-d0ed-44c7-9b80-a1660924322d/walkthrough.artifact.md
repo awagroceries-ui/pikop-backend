@@ -1,49 +1,49 @@
-# Walkthrough - Enhanced Order Lifecycle & Security
+# Walkthrough - Order Queuing for Fulfillers
 
-I have successfully implemented significant enhancements to the Pikop order lifecycle, focusing on fulfiller trust, user accountability, and professional incident management.
+I have successfully implemented the **Order Queuing** system, allowing fulfillers to secure their next delivery mission while still completing their current one. This significantly increases fulfiller efficiency and reduces "idling" time between trips.
 
 ## Changes Made
 
-### 1. Visual & Privacy Guardrails
-- **Item Photo Requirement**: Users must now take a photo of the item before requesting a delivery. This photo is shared with fulfillers during the offer stage so they know exactly what they are delivering.
-- **Masked Previews**: Fulfillers now see a "Display Summary" (e.g., "Near UNIPORT Gate") instead of the exact address before they accept a mission, protecting user privacy while providing enough context for dispatch.
-- **Mandatory Delivery Proof**: Completing a delivery now requires a proof-of-delivery photo, which is stored securely on the VPS.
+### 1. Intelligent Dispatching (Backend)
+- **Queue Candidate Search**: Implemented `getQueueCandidates`. This logic only surfaces new orders whose pickup point is within **3km** of the fulfiller's current active delivery destination.
+- **Atomic Claiming**: Created `claimQueueOrder`. This ensures that a mission can be claimed into a "QUEUED" state, reserving it for a specific fulfiller.
+- **Auto-Activation Engine**: Updated `verifyDelivery`. The moment a fulfiller completes their current order, the system automatically promotes the queued mission to "MATCHED" and sends a notification to the customer.
 
-### 2. Fair Cancellation Policy
-- **No-Free Cancellation**: Once a Fulfiller is matched, the free cancellation window is closed. User-initiated cancellations now incur a **25% platform fee** to compensate for the operational overhead.
-- **Platform Revenue**: 100% of these cancellation fees are credited to your platform wallet.
+### 2. Efficiency Guardrails
+- **Eligibility Gate**: Fulfillers are only allowed to see and claim a queued mission *after* they have picked up their current item. This prevents them from being distracted during the critical pickup phase of their active mission.
+- **Queue Cap**: Enforced a hard limit of **one** queued mission per fulfiller to prevent over-commitment.
+- **Status Masking**: Maintained privacy by showing only item photos and general landmarks for queued missions until they are officially activated.
 
-### 3. Professional Incident Flow
-- **Incident Reporting**: Fulfillers can now report operational issues (Breakdowns, Accidents, Security Risks) directly through the app.
-- **Automated Handoffs**: If a driver reports an incident and requests a "Handoff", the order is automatically returned to the search pool for other drivers, while maintaining the original incident log for Admin review.
-- **Smart Waivers**: Security-risk incidents automatically waive cancellation fees for the user, while other categories require Ops approval via the Admin Dashboard.
+### 3. Fulfiller Experience (Android)
+- **Active Trip Integration**: Added a "Queue Your Next Mission" section directly into the `ActiveOrderScreen.kt`. It only appears when the driver is eligible.
+- **"Up Next" Card**: Once a mission is claimed, a clear "Up Next" summary appears at the bottom of the screen, providing confidence to the driver that their next job is secured.
+- **Visual Previews**: Queued missions show the item photo and pickup summary, consistent with the main offer flow.
 
-### 4. Admin Command Upgrades
-- **Conflict Resolution Center**: Redesigned the **Disputes** tab to handle these new incident categories.
-- **Fee Management**: Admins can now review incidents and "Waive Fees" with a single click for breakdowns or accidents.
+### 4. Database Infrastructure
+- **Migration**: Added `queued_for_fulfiller_id` to the `orders` table to track the reserved missions.
+- **State Machine**: Extended the order state machine to handle the seamless transition from `QUEUED` to `MATCHED`.
 
 ## Verification Results
 
 ### Automated Build
-- Ran `./gradlew :app:assembleDebug` and the build finished successfully, confirming all new photo-handling and navigation logic is stable.
+- Ran `./gradlew :app:assembleDebug` and the build finished successfully.
 
 ### Logic Verification
-- Verified the spatial summaries are correctly generated and masked in the Fulfiller offer broadcast.
-- Confirmed the 25% fee calculation logic in the `walletService.js`.
+- Verified that the 3km proximity filter uses PostGIS `ST_DWithin` for pinpoint accuracy.
+- Confirmed that auto-activation triggers the correct socket events for real-time customer updates.
 
 ## Deployment Instructions (VPS)
-Run these commands on your VPS to enable these professional enhancements:
+Run these commands in your VPS terminal to enable back-to-back ordering:
 
 ```bash
-# 1. Update code and schema
+# 1. Update code and database
 cd /var/www/pikop-api
 git pull origin main
-cd backend && npm install
-npm run migrate:up
+cd backend && npm run migrate:up
 
-# 2. Restart the Mission Engine
+# 2. Restart the API
 pm2 restart pikop-api
 ```
 
-> [!IMPORTANT]
-> The app now requires access to the **Camera**. Please ensure you grant this permission when testing the new photo-capture steps in the Order flow.
+> [!TIP]
+> This feature is best tested with two phones or emulator instances—one as a customer requesting a delivery near the destination of an active fulfiller mission!
