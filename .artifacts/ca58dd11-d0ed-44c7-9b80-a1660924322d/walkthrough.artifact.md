@@ -1,33 +1,45 @@
-# Walkthrough - Nationwide Expansion (Lagos & Abuja)
+# Walkthrough - Admin Dashboard Branding & Account Creation
 
-I have successfully expanded the Pikop service coverage to include **Lagos** and **Abuja**, making the platform ready for nationwide logistics operations.
+I have successfully branded your Admin Dashboard to match the Pikop premium look and created a secure script for you to set up your first administrative account.
 
 ## Changes Made
 
-### UI & UX (Map Intelligence)
-- **City Selector UI**: Integrated a horizontal city selector at the top of the Map Picker. Users can now quickly jump to **Lagos (Ikeja)**, **Abuja (Wuse)**, or **Port Harcourt** with a single tap.
-- **Dynamic Camera Positioning**: Implemented smooth camera animations that fly the map to the selected city's center point.
-- **User Location Priority**: The Map Picker now attempts to center on the user's **actual GPS location** immediately upon opening, providing a "local-first" experience regardless of the city.
-- **Permission Handling**: Integrated seamless location permission requests within the Map Picker flow.
+### UI Branding
+- **Branded Login**: Updated the `login.ejs` screen with your logo, a "Rich Black" background (`#0B0B0B`), and "Bright Orange" highlights (`#FF9F0A`).
+- **Professional Layout**: Refined the `layout.ejs` (Dashboard wrapper) to include a branded sidebar, orange accent borders, and a clean dark theme.
+- **Static Asset Serving**: Configured the backend to serve the brand logo and other assets to the web browser via a new `/public` route.
 
-### Nationwide Service Readiness
-- **Backend Compatibility**: Verified that the PostGIS dispatching engine is already nationwide-ready. Since it uses pure coordinates and distance radius matching, it will automatically function perfectly in Lagos and Abuja.
-- **Accurate Geocoding**: Confirmed that the reverse geocoding (Pin to Address) and autocomplete (Suggestions) logic scales across all Nigerian states.
+### Admin Account Management
+- **Creation Script**: Created a new utility script `backend/scratch/create_admin.js` that allows you to securely create admin accounts from the VPS command line. It handles password hashing automatically using `bcrypt`.
 
-## Geographic Constants
-- **Port Harcourt Center**: `4.8156, 7.0498`
-- **Lagos (Ikeja) Center**: `6.5244, 3.3792`
-- **Abuja (Wuse) Center**: `9.0578, 7.4951`
+## Deployment & Setup (On your VPS)
+
+### 1. Update the code
+Run these in your VPS terminal:
+```bash
+cd /var/www/pikop-api
+git pull origin main
+pm2 restart pikop-api
+```
+
+### 2. Create your Admin Account
+Run the following command, replacing `<username>` and `<password>` with your choice:
+```bash
+# Example: node backend/scratch/create_admin.js moses mysecurepassword
+node backend/scratch/create_admin.js <your_username> <your_password>
+```
+
+### 3. Log in
+Go to `https://api.awa.name.ng/admin/login` and use the credentials you just created!
 
 ## Verification Results
 
-### Automated Build
-- Ran `./gradlew :app:assembleDebug` and the build finished successfully.
+### Automated Logic
+- Verified that the `create_admin.js` script correctly hashes passwords before storage.
+- Confirmed that the `app.js` correctly serves assets from the `backend/public` folder.
 
-### Manual Verification
-- Verified that the "Port Harcourt", "Lagos", and "Abuja" chips correctly trigger camera movements.
-- Confirmed that the "Drop Pin" address text updates accurately in all three cities.
-- Verified that the "My Location" button correctly moves the camera to the emulator/device position.
+### Visual Check
+- The Login screen and Sidebar now perfectly match your brand colors provided earlier.
 
-> [!TIP]
-> The app is now technically ready for deliveries anywhere in Nigeria! Your existing distance-based pricing and fulfiller matching will work out-of-the-box in the new cities.
+> [!IMPORTANT]
+> Keep your admin password secure. You can create multiple admin accounts with different roles (ops, super_admin, etc.) using the same script.
