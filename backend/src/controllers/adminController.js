@@ -31,7 +31,14 @@ const getDashboard = async (req, res) => {
   try {
     const activeOrders = await db.query("SELECT COUNT(*) FROM orders WHERE status IN ('SEARCHING', 'MATCHED', 'PICKED_UP')");
     const onlineFulfillers = await db.query("SELECT COUNT(*) FROM fulfillers WHERE online_status = 'ONLINE'");
-    const totalRevenue = await db.query("SELECT SUM(amount) FROM wallet_ledger_entries WHERE owner_type = 'PLATFORM' AND entry_type = 'CREDIT'");
+
+    // Fix: Join with wallets to filter by owner_type
+    const totalRevenue = await db.query(`
+      SELECT SUM(le.amount) as total
+      FROM wallet_ledger_entries le
+      JOIN wallets w ON le.wallet_id = w.id
+      WHERE w.owner_type = 'PLATFORM' AND le.entry_type = 'CREDIT'
+    `);
 
     res.render('dashboard', {
       admin: req.session.adminUsername,
@@ -39,11 +46,12 @@ const getDashboard = async (req, res) => {
       stats: {
         activeOrders: activeOrders.rows[0].count,
         onlineFulfillers: onlineFulfillers.rows[0].count,
-        totalRevenue: totalRevenue.rows[0].sum || 0
+        totalRevenue: totalRevenue.rows[0].total || 0
       }
     });
   } catch (error) {
-    res.status(500).send('Error loading dashboard');
+    console.error('Dashboard Stats Error:', error);
+    res.status(500).send('Error loading dashboard: ' + error.message);
   }
 };
 
