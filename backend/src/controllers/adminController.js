@@ -241,8 +241,6 @@ const resolveSupport = async (req, res) => {
  * Manage platform settings.
  */
 const getSettings = async (req, res) => {
-// ... existing
-};
   try {
     const { rows } = await db.query("SELECT key, value FROM settings");
     const settingsMap = {};
