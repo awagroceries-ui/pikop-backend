@@ -28,7 +28,9 @@ const signup = async (req, res) => {
     );
 
     // Send email with OTP (Background)
-    notificationService.sendOTPEmail(user.id, email, otp);
+    notificationService.sendOTPEmail(user.id, email, otp).catch(e => {
+        console.error('CRITICAL: Initial OTP send failed:', e.message);
+    });
 
     const tokens = authService.generateTokens(user);
 

@@ -1,11 +1,8 @@
-# Milestone 17: Transactional Emails Implementation [DONE]
+# Email Delivery Debugging
 
-- [x] Implement Transactional Emails
-    - [x] Create `notification_logs` migration
-    - [x] Add `nodemailer` to `package.json`
-    - [x] Create `emailService.js` (Brevo SMTP integration)
-    - [x] Create `notificationService.js` with mjml-style responsive templates
-    - [x] Integrate OTP and Welcome emails in `authController.js`
-    - [x] Integrate Fulfiller Approval email in `adminController.js`
-    - [x] Add SMTP credentials to `.env` (User provided Brevo key)
-    - [x] Verify end-to-end email delivery
+- [/] Diagnose and Fix Email Issues
+    - [ ] Create `scratch/test_email.js` diagnostics script
+    - [ ] Update `emailService.js` with verbose logging
+    - [ ] Update `authController.js` with safer background execution
+    - [ ] Verify SMTP connection on VPS
+    - [ ] Final end-to-end signup test

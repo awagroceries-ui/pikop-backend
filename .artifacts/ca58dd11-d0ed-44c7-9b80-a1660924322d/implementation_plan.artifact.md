@@ -1,61 +1,38 @@
-# Implementation Plan - Transactional Email Notifications
+# Implementation Plan - Email Delivery Debug & Reliability
 
-Fix the OTP delivery issue and implement professional transactional emails for user welcoming and fulfiller approval, with a robust logging and duplicate-prevention system.
+Diagnose and resolve the email delivery issue by adding verbose logging, SMTP connection verification, and robust path handling for environment variables.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **SMTP Configuration**: I noticed that the backend is currently *not* configured for email sending (it's marked as a `TODO`). I will need you to provide your SMTP details (Host, Port, User, Password) to be added to the `.env` file on your VPS.
-> - **Email Templates**: I will implement high-quality, responsive HTML templates with inlined CSS (compatible with Gmail/Outlook/Apple Mail).
-> - **Duplicate Prevention**: I will create a `notification_logs` table to track every email sent, ensuring no user receives the same transactional email twice.
+> - **SMTP Diagnostics**: I will add a script that tests your Brevo connection directly and prints the exact error (e.g., "Connection Timeout" or "Invalid Credentials").
+> - **Path Standardization**: I will ensure all services look for the `.env` file in the same consistent location to prevent missing configuration bugs.
 
 ## Proposed Changes
 
-### 1. Database & Infrastructure (Backend)
+### 1. Enhanced Diagnostics (Backend)
 
-#### [NEW] `backend/migrations/1722930000000_notification_logs.js`
-- Create `notification_logs` table: `id`, `user_id`, `channel` (email), `template_name`, `sent_at`, `status` (success/failed).
+#### [NEW] `backend/scratch/test_email.js`
+- A standalone script to test the SMTP transporter.
+- It will attempt to send a test email and print the full error stack if it fails.
+- This will reveal if port `587` is blocked by your VPS provider (TrueHost).
 
-#### [MODIFY] `backend/package.json`
-- Add `nodemailer` as a dependency.
-
-#### [MODIFY] `backend/.env`
-- Add placeholders for `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `EMAIL_FROM`.
-
----
-
-### 2. Email Service & Templates (Backend)
-
-#### [NEW] `backend/src/services/emailService.js`
-- Initialize `nodemailer` transporter using environment variables.
-- Implement `sendMail` with retry logic and error logging.
-
-#### [NEW] `backend/src/services/notificationService.js`
-- `sendOTPEmail(email, otp)`: Sends the 6-digit verification code.
-- `sendWelcomeEmail(userId)`: Warm welcome for verified users.
-- `sendFulfillerApprovedEmail(fulfillerId)`: Confirmation with "Go Online" instructions and payout reminders.
-- Includes logic to check `notification_logs` before sending (guard against duplicates).
+#### [MODIFY] `backend/src/services/emailService.js`
+- Add `logger: true` and `debug: true` to the Nodemailer transporter (temporarily) to help identify handshaking issues.
+- Standardize the `.env` loading path across all services.
 
 ---
 
-### 3. Logic Integration
+### 2. Logic Robustness
 
 #### [MODIFY] `backend/src/controllers/authController.js`
-- **Signup**: Replace the `console.log` with a call to `notificationService.sendOTPEmail`.
-- **Verify Email**: After successful verification, trigger `notificationService.sendWelcomeEmail` (asynchronous, won't block response).
-
-#### [MODIFY] `backend/src/controllers/adminController.js`
-- **KYC Approval**: After marking a fulfiller as verified, trigger `notificationService.sendFulfillerApprovedEmail`.
+- Change `notificationService.sendOTPEmail` to a background promise with an error catcher, ensuring any failure to *start* the email process is caught and logged.
 
 ---
 
 ## Verification Plan
 
-### Automated Tests
-- **Integration Test**: Mock the email transporter and verify that `sendWelcomeEmail` is called exactly once after verification.
-- **Log Verification**: Ensure a record is created in `notification_logs` for every successful send.
-
-### Manual Verification
-- Sign up with a real email and verify the OTP arrives.
-- Verify the "Welcome" email arrives immediately after entering the correct OTP.
-- Approve a test Fulfiller in the Admin Dashboard and verify they receive the detailed approval instructions.
+### Manual Verification (Run on VPS)
+1.  **Test Script**: Run `node backend/scratch/test_email.js` and examine the output.
+2.  **Logs**: Check `pm2 logs pikop-api` during a signup attempt to see the new verbose email logs.
+3.  **Database Check**: Check the `notification_logs` table via SQL to see the `error_message` for failed attempts.
