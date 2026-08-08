@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
+const notificationService = require('../services/notificationService');
 
 /**
  * Handles admin login.
@@ -129,7 +130,12 @@ const approveKYC = async (req, res) => {
   try {
     await db.query("UPDATE kyc_documents SET status = 'APPROVED' WHERE id = $1", [docId]);
     const { rows } = await db.query("SELECT fulfiller_id FROM kyc_documents WHERE id = $1", [docId]);
-    await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE id = $1", [rows[0].fulfiller_id]);
+    const fulfillerId = rows[0].fulfiller_id;
+    await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE id = $1", [fulfillerId]);
+
+    // Send Approval Email (Background)
+    notificationService.sendFulfillerApprovedEmail(fulfillerId);
+
     res.redirect('/admin/kyc');
   } catch (error) {
     res.status(500).send('Error approving KYC');

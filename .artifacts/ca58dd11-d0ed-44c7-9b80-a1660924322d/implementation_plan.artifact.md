@@ -1,44 +1,61 @@
-# Implementation Plan - Admin Management & UI Bug Fix
+# Implementation Plan - Transactional Email Notifications
 
-Fix the "code only" display issue on dashboard tabs and implement a new feature to manage administrative users.
+Fix the OTP delivery issue and implement professional transactional emails for user welcoming and fulfiller approval, with a robust logging and duplicate-prevention system.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Fixing the UI**: The "code only" issue was likely caused by missing variables (like `role`) in the EJS templates, causing rendering failures. I will implement a centralized way to handle these variables.
-> - **Manage Admins**: This will allow Super Admins to create new accounts (Ops, Finance, etc.) directly from the dashboard instead of using terminal scripts.
+> - **SMTP Configuration**: I noticed that the backend is currently *not* configured for email sending (it's marked as a `TODO`). I will need you to provide your SMTP details (Host, Port, User, Password) to be added to the `.env` file on your VPS.
+> - **Email Templates**: I will implement high-quality, responsive HTML templates with inlined CSS (compatible with Gmail/Outlook/Apple Mail).
+> - **Duplicate Prevention**: I will create a `notification_logs` table to track every email sent, ensuring no user receives the same transactional email twice.
 
 ## Proposed Changes
 
-### 1. Fix Dashboard Rendering (Backend)
+### 1. Database & Infrastructure (Backend)
 
-#### [MODIFY] [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/routes/adminRoutes.js)
-- Add a middleware to automatically populate `res.locals.admin` and `res.locals.role` for all authenticated admin routes. This ensures EJS always has the required variables for the layout.
+#### [NEW] `backend/migrations/1722930000000_notification_logs.js`
+- Create `notification_logs` table: `id`, `user_id`, `channel` (email), `template_name`, `sent_at`, `status` (success/failed).
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/controllers/adminController.js)
-- Implement `getAdmins`: Fetch all administrative users.
-- Implement `addAdmin`: Create a new admin with a hashed password and selected role.
-- Implement `deleteAdmin`: Remove an admin account.
-- Clean up all `res.render` calls to remove redundant variable passing.
+#### [MODIFY] `backend/package.json`
+- Add `nodemailer` as a dependency.
+
+#### [MODIFY] `backend/.env`
+- Add placeholders for `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `EMAIL_FROM`.
 
 ---
 
-### 2. Admin Management Feature (UI)
+### 2. Email Service & Templates (Backend)
 
-#### [NEW] `backend/src/views/admins.ejs`
-- A professional table showing all admin users.
-- A "Add New Admin" form with role selection (super_admin, ops, finance, support).
-- "Delete" action for removing staff access.
+#### [NEW] `backend/src/services/emailService.js`
+- Initialize `nodemailer` transporter using environment variables.
+- Implement `sendMail` with retry logic and error logging.
 
-#### [MODIFY] [layout.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/views/layout.ejs)
-- Add "Manage Staff" link to the sidebar.
-- Ensure the `role` variable is safely handled if it's undefined (using `locals.role`).
+#### [NEW] `backend/src/services/notificationService.js`
+- `sendOTPEmail(email, otp)`: Sends the 6-digit verification code.
+- `sendWelcomeEmail(userId)`: Warm welcome for verified users.
+- `sendFulfillerApprovedEmail(fulfillerId)`: Confirmation with "Go Online" instructions and payout reminders.
+- Includes logic to check `notification_logs` before sending (guard against duplicates).
+
+---
+
+### 3. Logic Integration
+
+#### [MODIFY] `backend/src/controllers/authController.js`
+- **Signup**: Replace the `console.log` with a call to `notificationService.sendOTPEmail`.
+- **Verify Email**: After successful verification, trigger `notificationService.sendWelcomeEmail` (asynchronous, won't block response).
+
+#### [MODIFY] `backend/src/controllers/adminController.js`
+- **KYC Approval**: After marking a fulfiller as verified, trigger `notificationService.sendFulfillerApprovedEmail`.
 
 ---
 
 ## Verification Plan
 
+### Automated Tests
+- **Integration Test**: Mock the email transporter and verify that `sendWelcomeEmail` is called exactly once after verification.
+- **Log Verification**: Ensure a record is created in `notification_logs` for every successful send.
+
 ### Manual Verification
-- **UI Fix**: Click through all tabs (Order Board, Financials, etc.) and verify they render the full "Mission Control" UI instead of raw code.
-- **Admin Management**: Create a new 'Ops' user, log out, and verify you can log in with the new credentials.
-- **Role Enforcement**: Verify that a 'Support' user cannot access the "Manage Staff" or "Settings" sections.
+- Sign up with a real email and verify the OTP arrives.
+- Verify the "Welcome" email arrives immediately after entering the correct OTP.
+- Approve a test Fulfiller in the Admin Dashboard and verify they receive the detailed approval instructions.

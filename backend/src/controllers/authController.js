@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const authService = require('../services/authService');
 const jwt = require('jsonwebtoken');
+const notificationService = require('../services/notificationService');
 
 /**
  * Registers a new user and generates an OTP.
@@ -26,8 +27,8 @@ const signup = async (req, res) => {
       [user.id, otp, expiresAt]
     );
 
-    // TODO: Send email with OTP using an email service
-    console.log(`OTP for ${email}: ${otp}`);
+    // Send email with OTP (Background)
+    notificationService.sendOTPEmail(user.id, email, otp);
 
     const tokens = authService.generateTokens(user);
 
@@ -41,6 +42,7 @@ const signup = async (req, res) => {
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Email or phone already exists' });
     }
+    console.error('Signup Error:', error);
     res.status(500).json({ error: 'Failed to register user' });
   }
 };
@@ -64,16 +66,22 @@ const verifyEmail = async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
+    const userId = rows[0].user_id;
+
     await db.query(
       "UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [rows[0].user_id]
+      [userId]
     );
 
     // Delete used OTP
-    await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [rows[0].user_id]);
+    await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [userId]);
+
+    // Send Welcome Email (Background)
+    notificationService.sendWelcomeEmail(userId);
 
     res.status(200).json({ message: 'Email verified successfully' });
   } catch (error) {
+    console.error('Verification Error:', error);
     res.status(500).json({ error: 'Verification failed' });
   }
 };
