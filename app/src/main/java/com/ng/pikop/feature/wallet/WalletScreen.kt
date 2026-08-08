@@ -1,25 +1,29 @@
 package com.ng.pikop.feature.wallet
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CallMade
-import androidx.compose.material.icons.filled.CallReceived
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ng.pikop.R
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.WalletTransaction
 import com.ng.pikop.core.network.WithdrawalRequest
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +56,7 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
                 title = { Text("My Wallet") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -71,6 +75,12 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Image(
+                                painter = painterResource(id = R.drawable.pikop_logo),
+                                contentDescription = null,
+                                modifier = Modifier.size(80.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text("Current Balance", style = MaterialTheme.typography.labelMedium)
                             Text(
                                 "₦${"%,.2f".format(balance)}",
@@ -145,13 +155,17 @@ fun TransactionItem(tx: WalletTransaction) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = if (isCredit) Icons.Default.CallReceived else Icons.Default.CallMade,
+                imageVector = if (isCredit) Icons.AutoMirrored.Filled.CallReceived else Icons.AutoMirrored.Filled.CallMade,
                 contentDescription = null,
                 tint = if (isCredit) Color(0xFF388E3C) else Color(0xFFC62828)
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = tx.purpose.replace("_", " ").capitalize(), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = tx.purpose.replace("_", " ").lowercase()
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() },
+                    style = MaterialTheme.typography.bodyMedium
+                )
                 Text(text = tx.created_at.take(10), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
             Text(

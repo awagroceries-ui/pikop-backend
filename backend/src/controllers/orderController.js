@@ -270,7 +270,32 @@ const verifyDelivery = async (req, res) => {
  * Returns full order details and status history.
  */
 const getOrderDetails = async (req, res) => {
-  // ... existing code
+  const { orderId } = req.params;
+  try {
+    const orderRes = await db.query(
+      `SELECT *,
+              ST_Y(pickup_location::geometry) as pickup_lat,
+              ST_X(pickup_location::geometry) as pickup_lng,
+              ST_Y(delivery_location::geometry) as delivery_lat,
+              ST_X(delivery_location::geometry) as delivery_lng
+       FROM orders WHERE id = $1`,
+      [orderId]
+    );
+    if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+
+    const historyRes = await db.query(
+      "SELECT status, description, created_at as time FROM order_status_history WHERE order_id = $1 ORDER BY created_at ASC",
+      [orderId]
+    );
+
+    res.status(200).json({
+      ...orderRes.rows[0],
+      history: historyRes.rows
+    });
+  } catch (error) {
+    console.error('Get Order Details Error:', error);
+    res.status(500).json({ error: 'Failed to fetch order details' });
+  }
 };
 
 /**

@@ -47,7 +47,6 @@ const getOffers = async (req, res) => {
     const fulfillerId = fulfillerRes.rows[0].id;
 
     // For alpha: Find all SEARCHING orders within a fixed 10km radius
-    // In production, we'd use the fulfiller's actual last location
     const query = `
       SELECT o.id, o.pickup_address, o.delivery_address, o.total_fare, o.created_at
       FROM orders o, fulfillers f
@@ -77,7 +76,39 @@ const getOffers = async (req, res) => {
  * Returns all orders fulfilled by the authenticated user.
  */
 const getFulfillerOrders = async (req, res) => {
-  // ... existing code
+  const userId = req.user.id;
+  try {
+    const { rows } = await db.query(
+      `SELECT o.id, o.status, o.total_fare, o.pickup_address, o.delivery_address, o.created_at,
+              (o.total_fare * 0.75) as earnings
+       FROM orders o
+       JOIN fulfillers f ON f.id = o.fulfiller_id
+       WHERE f.user_id = $1
+       ORDER BY o.created_at DESC`,
+      [userId]
+    );
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error('Get Fulfiller Orders Error:', error);
+    res.status(500).json({ error: 'Failed to fetch your delivery history' });
+  }
+};
+
+/**
+ * Returns the fulfiller profile status.
+ */
+const getProfile = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const { rows } = await db.query(
+      "SELECT id, online_status, kyc_status FROM fulfillers WHERE user_id = $1",
+      [userId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Fulfiller profile not found' });
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
 };
 
 /**
@@ -115,5 +146,6 @@ module.exports = {
   updateStatus,
   getOffers,
   getFulfillerOrders,
+  getProfile,
   uploadKYC
 };

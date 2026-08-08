@@ -2,16 +2,20 @@ package com.ng.pikop.feature.order
 
 import android.app.Activity
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.maps.model.LatLng
+import com.ng.pikop.R
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.SavedAddress
 import com.ng.pikop.core.network.QuoteRequest
@@ -64,9 +68,22 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
             .fillMaxSize()
             .padding(24.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Top
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Request a Delivery", style = MaterialTheme.typography.headlineMedium)
+        Image(
+            painter = painterResource(id = R.drawable.pikop_logo),
+            contentDescription = "Pikop Logo",
+            modifier = Modifier.size(100.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Request a Delivery",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.align(Alignment.Start)
+        )
         
         if (savedAddresses.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))

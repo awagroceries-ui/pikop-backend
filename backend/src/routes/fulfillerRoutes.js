@@ -17,6 +17,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 router.patch('/status', authenticateToken, fulfillerController.updateStatus);
+router.get('/profile', authenticateToken, fulfillerController.getProfile);
 router.get('/offers', authenticateToken, fulfillerController.getOffers);
 router.get('/orders', authenticateToken, fulfillerController.getFulfillerOrders);
 router.post('/kyc', authenticateToken, upload.single('document'), fulfillerController.uploadKYC);

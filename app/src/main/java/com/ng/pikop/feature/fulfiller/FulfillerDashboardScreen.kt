@@ -1,15 +1,20 @@
 package com.ng.pikop.feature.fulfiller
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ng.pikop.R
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.FulfillerOrderResponse
 import com.ng.pikop.core.network.FulfillerStatusRequest
@@ -21,7 +26,8 @@ import kotlinx.coroutines.launch
 fun FulfillerDashboardScreen(
     onAcceptOffer: (String) -> Unit, 
     onGoToWallet: () -> Unit,
-    onGoToKyc: () -> Unit
+    onGoToKyc: () -> Unit,
+    onGoToAbout: () -> Unit
 ) {
     var isOnline by remember { mutableStateOf(false) }
     var offers by remember { mutableStateOf<List<OfferResponse>>(emptyList()) }
@@ -35,8 +41,10 @@ fun FulfillerDashboardScreen(
     // Initial Fetch: history and profile
     LaunchedEffect(Unit) {
         try {
+            val profile = apiService.getFulfillerProfile()
+            kycStatus = profile.kyc_status
+            isOnline = profile.online_status == "ONLINE"
             history = apiService.getFulfillerOrders()
-            // In a real app, fetch profile for kycStatus
         } catch (e: Exception) {}
     }
 
@@ -59,10 +67,19 @@ fun FulfillerDashboardScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            Text(
-                text = "Fulfiller Dashboard",
-                style = MaterialTheme.typography.headlineMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Fulfiller Dashboard",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                IconButton(onClick = onGoToAbout) {
+                    Icon(Icons.Default.Info, contentDescription = "About", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -74,6 +91,12 @@ fun FulfillerDashboardScreen(
                     onClick = onGoToKyc
                 ) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.pikop_badge),
+                            contentDescription = null,
+                            modifier = Modifier.size(80.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Account Not Verified", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
                             Text("Upload documents to start delivering.", style = MaterialTheme.typography.bodySmall)
@@ -139,7 +162,7 @@ fun FulfillerDashboardScreen(
                                 }
                             }
                         },
-                        enabled = !isLoading
+                        enabled = !isLoading && kycStatus == "VERIFIED"
                     )
                 }
             }
@@ -171,7 +194,10 @@ fun FulfillerDashboardScreen(
                 }
             } else {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Go online to start receiving delivery offers.")
+                    Text(
+                        text = if (kycStatus == "VERIFIED") "Go online to start receiving delivery offers." 
+                               else "Verify your account to start receiving offers."
+                    )
                 }
             }
         }

@@ -1,56 +1,39 @@
-# Implementation Plan - Advanced Features Bundle
+# Implementation Plan - Expansion to Abuja and Lagos
 
-Implement a suite of advanced features to make Pikop production-ready: Wallet UI, KYC Upload, Order Cancellations, and Push Notifications.
+Enable full service coverage in Abuja and Lagos by updating the app's location defaults, adding a city selector, and ensuring the map picker adapts to the user's selected region.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Firebase Setup**: You will need to create a project in the [Firebase Console](https://console.firebase.google.com/) and provide the `google-services.json` file for the Android app.
-> - **File Storage**: For KYC uploads, I will store files in a `uploads/` directory on your VPS. In production, you might eventually want an S3-compatible bucket.
-> - **Cancellation Fees**: I will implement a standard ₦200 cancellation fee if a driver has already been matched and has arrived/is nearby.
+> - **Location Agnostic Backend**: Your current backend engine already supports nationwide coverage because it uses coordinates and radius matching (PostGIS). No backend changes are required for this expansion.
+> - **Google Maps API**: Ensure your Google Maps API key has no billing restrictions for high-volume geocoding in multiple cities.
 
 ## Proposed Changes
 
-### Phase 1: Wallet & Withdrawal UI (Android)
-- **Backend**: Add `GET /api/v1/wallets/me` to fetch current balance and recent transactions.
-- **Android**:
-    - Create `WalletScreen.kt` with balance card and transaction list.
-    - Implement "Request Payout" dialog for fulfillers.
-    - Link to `OrdersDashboardScreen` and `FulfillerDashboardScreen`.
+### UI & Location Intelligence (Android)
 
-### Phase 2: Fulfiller KYC Upload (Full Stack)
-- **Backend**:
-    - Add `multer` for multipart/form-data handling.
-    - Implement `POST /api/v1/fulfillers/kyc` to save document paths to the database.
-- **Android**:
-    - Create `KycUploadScreen.kt`.
-    - Implement image selection and uploading logic for ID cards and licenses.
+#### [MODIFY] [MapPickerSheet.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/MapPickerSheet.kt)
+- **City Selector**: Add a horizontal scrollable row of "Quick City" chips (Port Harcourt, Lagos, Abuja) at the top of the map.
+- **Dynamic Camera**: When a city chip is clicked, the map will automatically animate to that city's center point.
+- **User Location Integration**: Use the `FusedLocationProviderClient` to try and center the map on the user's actual current location first.
 
-### Phase 3: Order Cancellations & Fees
-- **Backend**:
-    - Implement `POST /api/v1/orders/:id/cancel`.
-    - Logic: If status is `MATCHED`, apply a cancellation fee to the user's wallet (or flag for next payment) and notify the fulfiller.
-- **Android**:
-    - Add "Cancel Order" buttons to `TrackOrderScreen` (User) and `ActiveOrderScreen` (Fulfiller).
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- Pass the "Preferred City" context to the map picker to ensure it opens in the right region.
 
-### Phase 4: Push Notifications (FCM)
-- **Infrastructure**:
-    - Add `firebase-admin` to backend and Firebase SDK to Android.
-- **Backend**:
-    - Implement `POST /api/v1/auth/fcm-token` to store device tokens.
-    - Trigger notifications for: "New Offer Nearby" (Fulfiller) and "Driver Arrived/Delivered" (User).
-- **Android**:
-    - Implement `PikopMessagingService` to handle incoming messages.
+---
+
+### Location Constants
+I will define the following center points for the expansion:
+- **Port Harcourt**: `4.8156, 7.0498`
+- **Lagos (Ikeja)**: `6.5244, 3.3792`
+- **Abuja (Wuse)**: `9.0578, 7.4951`
 
 ---
 
 ## Verification Plan
 
-### Automated Tests
-- Integration tests for wallet balance deductions during cancellation.
-- API tests for file upload endpoints.
-
 ### Manual Verification
-- Upload a test ID card and verify it appears in the Admin Dashboard KYC queue.
-- Request a payout and verify a `PENDING` withdrawal record appears in the DB.
-- Trigger a mock FCM message to the device.
+- Open the Map Picker and click the **"Lagos"** chip; verify the map moves to Lagos.
+- Open the Map Picker and click the **"Abuja"** chip; verify the map moves to Abuja.
+- Ensure the **Reverse Geocoding** (finding address from pin) still works accurately in all three cities.
+- Verify that the **Address Autocomplete** (suggestions) shows results for Lagos and Abuja when searched.

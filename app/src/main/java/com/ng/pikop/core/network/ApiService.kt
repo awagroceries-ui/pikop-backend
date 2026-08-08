@@ -91,7 +91,17 @@ data class OrderDetailsResponse(
     val total_fare: Double,
     val pickup_address: String,
     val delivery_address: String,
+    val pickup_lat: Double,
+    val pickup_lng: Double,
+    val delivery_lat: Double,
+    val delivery_lng: Double,
     val history: List<StatusHistoryItem>
+)
+
+data class FulfillerProfileResponse(
+    val id: Int,
+    val online_status: String,
+    val kyc_status: String
 )
 
 data class FulfillerStatusRequest(
@@ -188,6 +198,9 @@ interface ApiService {
 
     @PATCH("api/v1/fulfillers/status")
     suspend fun updateStatus(@Body request: FulfillerStatusRequest): AuthResponse
+
+    @GET("api/v1/fulfillers/profile")
+    suspend fun getFulfillerProfile(): FulfillerProfileResponse
 
     @GET("api/v1/fulfillers/offers")
     suspend fun getOffers(): List<OfferResponse>

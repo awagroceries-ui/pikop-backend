@@ -2,10 +2,18 @@ package com.ng.pikop.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Pikop Brand Colors
+val PikopBlack = Color(0xFF0B0B0B)
+val PikopOrange = Color(0xFFFF9F0A)
+val PikopDeepOrange = Color(0xFFFF5722)
+val PikopLightGreen = Color(0xFF8BC34A)
+val PikopDarkGreen = Color(0xFF1B5E20)
+val PikopWhite = Color(0xFFFFFFFF)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// UI Palettes
+val Primary = PikopOrange
+val Background = PikopBlack
+val OnPrimary = PikopWhite
+val Surface = Color(0xFF1C1C1E) // Slightly lighter than background for cards
+val OnSurface = PikopWhite
+val Error = PikopDeepOrange

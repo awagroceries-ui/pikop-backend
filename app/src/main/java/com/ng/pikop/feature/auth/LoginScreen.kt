@@ -1,15 +1,20 @@
 package com.ng.pikop.feature.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.ng.pikop.R
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.LoginRequest
@@ -35,10 +40,19 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onGoToSignup: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.pikop_logo),
+                contentDescription = "Pikop Logo",
+                modifier = Modifier.size(240.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = "Welcome Back",
                 style = MaterialTheme.typography.headlineMedium
@@ -117,6 +131,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onGoToSignup: () -> Unit) {
             TextButton(onClick = onGoToSignup) {
                 Text("Don't have an account? Sign Up")
             }
+            
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

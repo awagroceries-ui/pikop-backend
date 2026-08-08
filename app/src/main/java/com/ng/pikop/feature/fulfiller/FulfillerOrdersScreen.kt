@@ -1,18 +1,21 @@
 package com.ng.pikop.feature.fulfiller
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ng.pikop.R
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.FulfillerOrderResponse
 import com.ng.pikop.feature.order.StatusBadge
@@ -38,7 +41,7 @@ fun FulfillerOrdersScreen(onBack: () -> Unit) {
                 title = { Text("Delivery History") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -61,7 +64,11 @@ fun FulfillerOrdersScreen(onBack: () -> Unit) {
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Payments, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Image(
+                                painter = painterResource(id = R.drawable.pikop_badge),
+                                contentDescription = null,
+                                modifier = Modifier.size(72.dp)
+                            )
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text("Lifetime Earnings (75%)", style = MaterialTheme.typography.labelSmall)

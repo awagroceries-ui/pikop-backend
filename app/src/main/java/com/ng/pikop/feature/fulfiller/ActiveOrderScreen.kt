@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.location.LocationServices
@@ -92,11 +93,10 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
     // Auto-zoom map to fit fulfiller and target
     LaunchedEffect(fulfillerLocation, orderStatus, orderDetails) {
         if (fulfillerLocation != null && orderDetails != null) {
-            // Mock targets for alpha since coordinates aren't in OrderDetails yet
             val target = if (orderStatus == "MATCHED") {
-                LatLng(4.8156, 7.0498) 
+                LatLng(orderDetails!!.pickup_lat, orderDetails!!.pickup_lng) 
             } else {
-                LatLng(4.8256, 7.0598)
+                LatLng(orderDetails!!.delivery_lat, orderDetails!!.delivery_lng)
             }
             
             val bounds = LatLngBounds.builder()
@@ -129,14 +129,21 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                         )
                     }
                     
-                    val targetColor = if (orderStatus == "MATCHED") BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
-                    val targetLatLng = if (orderStatus == "MATCHED") LatLng(4.8156, 7.0498) else LatLng(4.8256, 7.0598)
-
-                    Marker(
-                        state = MarkerState(position = targetLatLng),
-                        title = if (orderStatus == "MATCHED") "Pickup" else "Delivery",
-                        icon = BitmapDescriptorFactory.defaultMarker(targetColor)
-                    )
+                    if (orderDetails != null) {
+                        val targetLatLng = if (orderStatus == "MATCHED") {
+                            LatLng(orderDetails!!.pickup_lat, orderDetails!!.pickup_lng)
+                        } else {
+                            LatLng(orderDetails!!.delivery_lat, orderDetails!!.delivery_lng)
+                        }
+                        
+                        Marker(
+                            state = MarkerState(position = targetLatLng),
+                            title = if (orderStatus == "MATCHED") "Pickup" else "Delivery",
+                            icon = BitmapDescriptorFactory.defaultMarker(
+                                if (orderStatus == "MATCHED") BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
+                            )
+                        )
+                    }
                 }
             }
 

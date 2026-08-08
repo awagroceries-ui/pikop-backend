@@ -17,9 +17,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.core.datastore.TokenManager
+import com.ng.pikop.feature.auth.AboutPikopScreen
 import com.ng.pikop.feature.auth.EmailOtpScreen
 import com.ng.pikop.feature.auth.LoginScreen
+import com.ng.pikop.feature.auth.PrivacyPolicyScreen
 import com.ng.pikop.feature.auth.SignupScreen
+import com.ng.pikop.feature.auth.SplashScreen
 import com.ng.pikop.feature.auth.TermsScreen
 import com.ng.pikop.feature.fulfiller.ActiveOrderScreen
 import com.ng.pikop.feature.fulfiller.FulfillerDashboardScreen
@@ -51,7 +54,14 @@ fun PikopAppNavigation() {
     val tokenManager = remember { TokenManager(context) }
     val userEmail by tokenManager.userEmail.collectAsState(initial = null)
 
-    NavHost(navController = navController, startDestination = "login") {
+    NavHost(navController = navController, startDestination = "splash") {
+        composable("splash") {
+            SplashScreen(onAnimationFinished = {
+                navController.navigate("login") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            })
+        }
         composable("login") {
             LoginScreen(
                 onLoginSuccess = { navController.navigate("orders_dashboard") },
@@ -59,9 +69,17 @@ fun PikopAppNavigation() {
             )
         }
         composable("signup") {
-            SignupScreen(onSignupSuccess = { email ->
-                navController.navigate("email_otp/$email")
-            })
+            SignupScreen(
+                onSignupSuccess = { email ->
+                    navController.navigate("email_otp/$email")
+                },
+                onViewTerms = {
+                    navController.navigate("terms_viewer/false")
+                },
+                onViewPrivacy = {
+                    navController.navigate("privacy_policy")
+                }
+            )
         }
         composable("email_otp/{email}") { backStackEntry ->
             val email = backStackEntry.arguments?.getString("email") ?: ""
@@ -73,12 +91,33 @@ fun PikopAppNavigation() {
         composable("terms") {
             TermsScreen(onAccept = { navController.navigate("orders_dashboard") })
         }
+        composable("privacy_policy") {
+            PrivacyPolicyScreen(onBack = { navController.popBackStack() })
+        }
+        composable("about_pikop/{isFulfiller}") { backStackEntry ->
+            val isFulfiller = backStackEntry.arguments?.getString("isFulfiller")?.toBoolean() ?: false
+            AboutPikopScreen(
+                onBack = { navController.popBackStack() },
+                onViewTerms = { role -> navController.navigate("terms_viewer/$role") },
+                onViewPrivacy = { navController.navigate("privacy_policy") },
+                isFulfiller = isFulfiller
+            )
+        }
+        composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->
+            val showFulfillerTerms = backStackEntry.arguments?.getString("showFulfillerTerms")?.toBoolean() ?: false
+            TermsScreen(
+                onAccept = { navController.popBackStack() }, 
+                isViewer = true,
+                showFulfillerTerms = showFulfillerTerms
+            )
+        }
         composable("orders_dashboard") {
             OrdersDashboardScreen(
                 onNewDelivery = { navController.navigate("order_quote") },
                 onTrackOrder = { orderId -> navController.navigate("track_order/$orderId") },
                 onManageAddresses = { navController.navigate("saved_addresses") },
-                onGoToWallet = { navController.navigate("wallet/false") }
+                onGoToWallet = { navController.navigate("wallet/false") },
+                onGoToAbout = { navController.navigate("about_pikop/false") }
             )
         }
         composable("saved_addresses") {
@@ -116,6 +155,9 @@ fun PikopAppNavigation() {
                 },
                 onGoToKyc = {
                     navController.navigate("kyc_upload")
+                },
+                onGoToAbout = {
+                    navController.navigate("about_pikop/true")
                 }
             )
         }
