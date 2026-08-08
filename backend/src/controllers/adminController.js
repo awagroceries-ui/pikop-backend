@@ -51,8 +51,6 @@ const getDashboard = async (req, res) => {
     `);
 
     res.render('dashboard', {
-      admin: req.session.adminUsername,
-      role: req.session.adminRole,
       stats: {
         activeOrders: activeOrders.rows[0].count,
         onlineFulfillers: onlineFulfillers.rows[0].count,
@@ -120,7 +118,7 @@ const getKYCQueue = async (req, res) => {
       JOIN users u ON u.id = f.user_id
       WHERE k.status = 'PENDING'
     `);
-    res.render('kyc_queue', { documents: rows, admin: req.session.adminUsername });
+    res.render('kyc_queue', { documents: rows });
   } catch (error) {
     res.status(500).send('Error loading KYC queue');
   }
@@ -150,7 +148,7 @@ const getOrders = async (req, res) => {
       LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
       ORDER BY o.created_at DESC
     `);
-    res.render('orders', { orders: rows, admin: req.session.adminUsername });
+    res.render('orders', { orders: rows });
   } catch (error) {
     res.status(500).send('Error loading orders');
   }
@@ -168,7 +166,7 @@ const getWithdrawals = async (req, res) => {
       JOIN users u ON u.id = f.user_id
       ORDER BY w.created_at DESC
     `);
-    res.render('withdrawals', { withdrawals: rows, admin: req.session.adminUsername });
+    res.render('withdrawals', { withdrawals: rows });
   } catch (error) {
     res.status(500).send('Error loading withdrawals');
   }
@@ -185,24 +183,51 @@ const getSettings = async (req, res) => {
 
     res.render('settings', {
       settings: settingsMap,
-      admin: req.session.adminUsername,
       process: process
     });
   } catch (error) {
     res.status(500).send('Error loading settings');
   }
 };
-
-const updateSettings = async (req, res) => {
-  const { platform_commission } = req.body;
+// ...
+/**
+ * Admin User Management
+ */
+const getAdmins = async (req, res) => {
   try {
-    await db.query(
-      "UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'platform_commission'",
-      [platform_commission]
-    );
-    res.redirect('/admin/settings');
+    const { rows } = await db.query("SELECT id, username, role, created_at FROM admin_users ORDER BY created_at DESC");
+    res.render('admins', { admins: rows });
   } catch (error) {
-    res.status(500).send('Error updating settings');
+    res.status(500).send('Error loading admin users');
+  }
+};
+
+const addAdmin = async (req, res) => {
+  const { username, password, role } = req.body;
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+    await db.query(
+      "INSERT INTO admin_users (username, password_hash, role) VALUES ($1, $2, $3)",
+      [username, passwordHash, role]
+    );
+    res.redirect('/admin/admins');
+  } catch (error) {
+    console.error('Add Admin Error:', error);
+    res.status(500).send('Error creating admin user');
+  }
+};
+
+const deleteAdmin = async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Prevent deleting self
+    if (parseInt(id) === req.session.adminId) {
+      return res.status(400).send('You cannot delete your own account.');
+    }
+    await db.query("DELETE FROM admin_users WHERE id = $1", [id]);
+    res.redirect('/admin/admins');
+  } catch (error) {
+    res.status(500).send('Error deleting admin user');
   }
 };
 
@@ -216,5 +241,8 @@ module.exports = {
   getSettings,
   updateSettings,
   getRevenueReport,
-  getOrderReport
+  getOrderReport,
+  getAdmins,
+  addAdmin,
+  deleteAdmin
 };

@@ -1,26 +1,16 @@
-# Admin Dashboard Redesign Task List [DONE]
+# Admin Management & UI Fix
 
-## Preparation
-- [x] Research existing DB schema for reporting queries
+## Backend: Middleware & Logic
+- [x] Implement `res.locals` middleware in `adminRoutes.js`
+- [x] Implement `getAdmins`, `addAdmin`, and `deleteAdmin` in `adminController.js`
+- [x] Clean up existing controller `render` calls
 
-## Backend: Reporting APIs
-- [x] Add reporting routes to `adminRoutes.js`
-- [x] Implement revenue aggregation in `adminController.js`
-- [x] Implement order volume aggregation in `adminController.js`
-- [x] Update `getDashboard` with sparkline data
-
-## Frontend: Visual Identity
-- [x] Update `layout.ejs` with new CSS, fonts, and Chart.js
-- [x] Implement "Velocity Pulse" animations
-- [x] Redesign Sidebar and Top Nav
-
-## Frontend: Feature Views
-- [x] Redesign `dashboard.ejs` with KPI sparklines and Main Charts
-- [x] Redesign `orders.ejs` for "Mission Control" scannability
-- [x] Redesign `kyc_queue.ejs` with improved empty states
-- [x] Redesign `withdrawals.ejs` and `settings.ejs` tables
+## Frontend: Admin UI
+- [x] Create `admins.ejs` view
+- [x] Update `layout.ejs` sidebar with "Manage Staff"
+- [x] Finalize "Mission Control" UI consistency across all tabs
 
 ## Verification
-- [x] Tablet responsiveness check
-- [x] Keyboard navigation check
-- [x] Final visual audit
+- [ ] Test tab rendering (Fix "code only" issue)
+- [ ] Test admin creation and deletion
+- [ ] Test role-based access control (RBAC)
