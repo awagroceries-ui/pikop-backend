@@ -47,19 +47,19 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
         position = CameraPosition.fromLatLngZoom(pickup, 14f)
     }
 
-    val fetchHistory = suspend {
-        try {
-            val details = apiService.getOrderDetails(orderId)
-            history = details.history.map { item ->
-                OrderStatusStep(
-                    status = item.status,
-                    description = item.description,
-                    time = formatTime(item.time),
-                    isCompleted = true
-                )
-            }
-        } catch (e: Exception) {
-            // Handle error
+    val fetchHistory: () -> Unit = {
+        coroutineScope.launch {
+            try {
+                val details = apiService.getOrderDetails(orderId)
+                history = details.history.map { item ->
+                    OrderStatusStep(
+                        status = item.status,
+                        description = item.description,
+                        time = formatTime(item.time),
+                        isCompleted = true
+                    )
+                }
+            } catch (e: Exception) {}
         }
     }
 
@@ -82,9 +82,7 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
         }
 
         SocketManager.on("status_updated") { _ ->
-            coroutineScope.launch {
-                fetchHistory()
-            }
+            fetchHistory()
         }
 
         onDispose {
@@ -110,7 +108,7 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
         sheetPeekHeight = 140.dp,
         sheetContainerColor = MaterialTheme.colorScheme.surface,
         sheetContent = {
-            TrackingBottomSheetContent(orderId, etaMinutes, history)
+            TrackingBottomSheetContent(orderId, etaMinutes, history, fetchHistory)
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
@@ -150,7 +148,7 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
 }
 
 @Composable
-fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>) {
+fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>, onRefresh: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -199,26 +197,55 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp), thickness = 0.5.dp)
 
-        // Cancel Order Button (Only if not delivered/picked up)
-        val canCancel = history.none { it.status == "PICKED_UP" || it.status == "DELIVERED" }
+        // Cancel Order Button
+        val canCancel = history.none { it.status == "PICKED_UP" || it.status == "DELIVERED" || it.status == "CANCELLED" }
+        val isMatched = history.any { it.status == "MATCHED" }
+        
         if (canCancel) {
             val scope = rememberCoroutineScope()
             val apiService = remember { ApiService.create() }
+            var showCancelConfirm by remember { mutableStateOf(false) }
+
             OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        try {
-                            apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation"))
-                            // Handle navigation back or success state
-                        } catch (e: Exception) {}
-                    }
-                },
+                onClick = { showCancelConfirm = true },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
             ) {
                 Text("Cancel Delivery")
             }
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (showCancelConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showCancelConfirm = false },
+                    title = { Text("Abort Mission?") },
+                    text = {
+                        Text(
+                            if (isMatched) "A fulfiller is already on the way. Aborting now will incur a 25% cancellation fee."
+                            else "Are you sure you want to cancel this delivery request?"
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation"))
+                                        onRefresh()
+                                    } catch (e: Exception) {}
+                                }
+                                showCancelConfirm = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                        ) {
+                            Text("Confirm Abort")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCancelConfirm = false }) { Text("Keep Order") }
+                    }
+                )
+            }
         }
 
         Text(text = "Delivery Progress", style = MaterialTheme.typography.titleMedium)

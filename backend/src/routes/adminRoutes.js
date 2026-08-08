@@ -25,6 +25,7 @@ router.get('/reports/orders', adminController.getOrderReport);
 // Orders and Withdrawals
 router.get('/orders', adminController.getOrders);
 router.get('/withdrawals', adminController.getWithdrawals);
+router.get('/disputes', adminController.getDisputes);
 
 // Admin Management
 router.get('/admins', hasRole(['super_admin']), adminController.getAdmins);

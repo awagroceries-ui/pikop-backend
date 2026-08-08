@@ -1,54 +1,64 @@
-# Implementation Plan - Role-Based Onboarding
+# Implementation Plan - Order Lifecycle Enhancements
 
-Refactor the onboarding flow to allow users to choose their role (Customer or Fulfiller) at the beginning of their journey, providing a more intuitive and specialized experience.
+Implement item-photo preview, masked-location previews, no-free-cancellation policy, and an Incident Report flow to improve trust, security, and operational efficiency.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Unified Account**: Every user will still have a unique email/phone, but their "Home" dashboard will be locked to their primary role choice during signup.
-> - **Fulfiller Creation**: If a user signs up as a Fulfiller, the backend will automatically initialize their fulfiller profile and wallet in a single step.
+> - **Schema Migration**: I will add `item_photo_url` and `delivery_photo_url` to the `orders` table. `delivery_photo_url` will now be mandatory for completing a delivery.
+> - **Privacy**: Fulfillers will only see the `display_summary` (e.g., "Near UNIPORT Gate") before acceptance. Exact coordinates and addresses are revealed only after they accept.
+> - **Instant Fees**: Cancellations after `MATCHED` will immediately charge 25% of the fare. Waivers can be requested via the Incident flow and approved later by Ops.
 
 ## Proposed Changes
 
-### 1. Backend & Database Refinement
+### 1. Database & Schema (Backend)
 
-#### [NEW] `backend/migrations/1722940000000_user_roles.js`
-- Add `role` column to `users` table: `varchar(20)`, default `'CUSTOMER'`.
-
-#### [MODIFY] `backend/src/controllers/authController.js`
-- Update `signup`: Accept `role` from request. If `FULFILLER`, automatically create the record in the `fulfillers` table.
-- Update `login`: Include `role` in the response payload and JWT.
+#### [NEW] `backend/migrations/1722950000000_order_lifecycle_ext.js`
+- **Orders**: Add `item_photo_url` (nullable/required by logic), `delivery_photo_url` (required at delivery), `cancellation_fee_waived` (bool, default false), `incident_dispute_id` (uuid, FK).
+- **Disputes**: Extend category enum and resolution options.
+- **Addresses**: (Since addresses are currently strings in the `orders` table, I will add `pickup_display_summary` and `delivery_display_summary` directly to the `orders` table for simplicity and alignment with the current schema).
 
 ---
 
-### 2. Android: Entry Point Refactor
+### 2. Pre-Acceptance Preview (Full Stack)
 
-#### [NEW] `UserTypeSelectionScreen.kt`
-- A premium, branded screen shown after Splash.
-- Two large, high-impact cards:
-    - **"I want to Send/Receive"** (Customer path)
-    - **"I want to Deliver/Earn"** (Fulfiller path)
-- Navigates to Signup/Login with the selected role context.
+#### [MODIFY] `OrderQuoteScreen.kt` (Android)
+- Add a required "Take Photo of Item" step before the final request.
+- Upload photo to `/uploads/items/` via a new endpoint.
 
-#### [MODIFY] `TokenManager.kt`
-- Add `USER_ROLE_KEY` to store the chosen role locally for persistent navigation.
+#### [MODIFY] `orderController.js` (Backend)
+- Update `getQuote`/`createOrder` to handle the `item_photo_url`.
+- Update `getOffers` to include `item_photo_url` and `pickup_display_summary`.
+
+#### [MODIFY] `IncomingOfferComponent.kt` (Android)
+- Display the item image and the masked pickup summary.
+
+---
+
+### 3. Cancellation Policy & Incident Flow (Backend)
+
+#### [MODIFY] `orderController.js`
+- **User Cancellation**: Block free cancellation after `MATCHED`. Charge 25% fee (100% to platform wallet).
+- **New Endpoint**: `POST /orders/:id/incident`
+    - Logic for `HANDOFF`: Reset order to `SEARCHING`, keep original incident attached, show special message to user.
+    - Logic for `CANCEL_WITH_WAIVER`: Charge fee immediately, create Dispute.
+    - `security_risk` triggers auto-waiver.
+
+#### [MODIFY] `walletService.js`
+- Implement `processCancellationFee(orderId)` to handle the 25% platform credit.
 
 ---
 
-### 3. UI Path Specialization
+### 4. Admin Dashboard (UI)
 
-#### [MODIFY] `SignupScreen.kt`
-- Adapt titles and branding based on the chosen role (e.g., "Join the Fleet" for Fulfillers).
-
-#### [MODIFY] `MainActivity.kt`
-- Change `startDestination` to `user_type_selection` (if not logged in).
-- Logic to automatically route logged-in users to `orders_dashboard` or `fulfiller_dashboard` based on their stored role.
-
----
+#### [MODIFY] `disputes.ejs`
+- Add filters for incident categories.
+- Add "Waive Fee" / "Deny Waiver" buttons.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Customer Path**: Select "Send", sign up, and verify you land on the **Customer Dashboard**.
-2.  **Fulfiller Path**: Select "Deliver", sign up, and verify you land on the **Fulfiller Dashboard** with the KYC warning visible.
-3.  **Persistence**: Close and reopen the app; verify it remembers your role and takes you back to the correct dashboard without asking for user type again.
+1.  **Offer Preview**: As a Fulfiller, verify you can see the item photo and "Near [Landmark]" summary before accepting.
+2.  **User Cancellation**: As a Customer, cancel a matched order and verify 25% is deducted from the wallet.
+3.  **Incident Flow**: As a Fulfiller, file a `breakdown` incident with `handoff`. Verify the order returns to the search pool for other drivers.
+4.  **Auto-Waiver**: File a `security_risk` incident and verify the cancellation fee is waived immediately.

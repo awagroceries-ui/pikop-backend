@@ -1,0 +1,60 @@
+<div class="mb-5">
+    <h4 class="mb-1">Conflict Resolution & Incidents</h4>
+    <p class="text-muted small mb-0">Review market anomalies, delivery disputes, and fulfiller incidents.</p>
+</div>
+
+<div class="card overflow-hidden">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Reference</th>
+                <th>Category</th>
+                <th>Reporter</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody class="mono">
+            <% if (disputes.length === 0) { %>
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        No active disputes or incidents flagged.
+                    </td>
+                </tr>
+            <% } %>
+            <% disputes.forEach(dispute => { %>
+                <tr class="<%= dispute.category.startsWith('incident_') ? 'bg-opacity-10 bg-danger' : '' %>">
+                    <td>
+                        <div class="small text-muted">Order:</div>
+                        <span class="text-active fw-bold">#<%= dispute.order_id %></span>
+                    </td>
+                    <td>
+                        <span class="status-badge <%= dispute.category.startsWith('incident_') ? 'status-searching' : 'bg-secondary text-white' %>">
+                            <%= dispute.category.replace('incident_', '').replace('_', ' ') %>
+                        </span>
+                    </td>
+                    <td>
+                        <div class="small">User ID: <%= dispute.reporter_id %></div>
+                    </td>
+                    <td style="max-width: 300px;">
+                        <p class="small mb-0 text-truncate" title="<%= dispute.reason %>"><%= dispute.reason %></p>
+                    </td>
+                    <td>
+                        <span class="badge <%= dispute.status === 'RESOLVED' ? 'bg-success' : 'bg-warning' %>">
+                            <%= dispute.status %>
+                        </span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-2">
+                            <% if (dispute.category === 'incident_breakdown' || dispute.category === 'incident_accident') { %>
+                                <button class="btn btn-sm btn-success">Waive Fee</button>
+                            <% } %>
+                            <button class="btn btn-sm btn-primary">Review</button>
+                        </div>
+                    </td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+</div>

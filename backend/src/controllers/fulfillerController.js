@@ -48,7 +48,7 @@ const getOffers = async (req, res) => {
 
     // For alpha: Find all SEARCHING orders within a fixed 10km radius
     const query = `
-      SELECT o.id, o.pickup_address, o.delivery_address, o.total_fare, o.created_at
+      SELECT o.id, o.pickup_address, o.delivery_address, o.total_fare, o.created_at, o.item_photo_url, o.pickup_display_summary
       FROM orders o, fulfillers f
       WHERE f.id = $1
       AND o.status = 'SEARCHING'
@@ -59,9 +59,10 @@ const getOffers = async (req, res) => {
 
     const offers = rows.map(r => ({
       id: r.id.toString(),
-      pickup_address: r.pickup_address,
-      delivery_address: r.delivery_address,
+      pickup_address: r.pickup_display_summary || 'Restricted Area', // Masked for offer
+      delivery_address: 'Hidden until accepted', // Masked for offer
       total_fare: parseFloat(r.total_fare),
+      item_photo_url: r.item_photo_url,
       expires_at: new Date(new Date(r.created_at).getTime() + 5 * 60000).toISOString() // 5m offer window
     }));
 

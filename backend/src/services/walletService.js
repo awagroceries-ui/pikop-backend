@@ -75,6 +75,53 @@ const processDeliveryPayment = async (orderId) => {
   }
 };
 
+/**
+ * Processes a cancellation fee for a matched order.
+ * Charges 25% of total_fare to the platform wallet.
+ * This assumes the user's wallet was already debited or the capture was successful.
+ */
+const processCancellationFee = async (orderId) => {
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const orderRes = await client.query(
+      'SELECT total_fare, user_id FROM orders WHERE id = $1 FOR UPDATE',
+      [orderId]
+    );
+    if (orderRes.rows.length === 0) throw new Error('Order not found');
+
+    const { total_fare } = orderRes.rows[0];
+    const feeAmount = (total_fare * 0.25).toFixed(2);
+
+    // Get Platform Wallet
+    const platformWalletRes = await client.query(
+      "SELECT id FROM wallets WHERE owner_type = 'PLATFORM' FOR UPDATE"
+    );
+    const platformWalletId = platformWalletRes.rows[0].id;
+
+    // Credit Platform Wallet
+    await client.query(
+      'UPDATE wallets SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [feeAmount, platformWalletId]
+    );
+    await client.query(
+      "INSERT INTO wallet_ledger_entries (wallet_id, amount, entry_type, purpose, reference_id) VALUES ($1, $2, 'CREDIT', 'CANCELLATION_FEE', $3)",
+      [platformWalletId, feeAmount, orderId]
+    );
+
+    await client.query('COMMIT');
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error processing cancellation fee:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
-  processDeliveryPayment
+  processDeliveryPayment,
+  processCancellationFee
 };

@@ -58,8 +58,10 @@ const getQuote = async (req, res) => {
  * Creates an order from a valid quote.
  */
 const createOrder = async (req, res) => {
-  const { quote_id, payment_method, recipient_name, recipient_phone, notes, pickup_lat, pickup_lng, delivery_lat, delivery_lng } = req.body;
+  const { quote_id, payment_method, recipient_name, recipient_phone, notes, pickup_lat, pickup_lng, delivery_lat, delivery_lng, item_photo_url, pickup_display_summary, delivery_display_summary } = req.body;
   const userId = req.user?.id || 1;
+
+  if (!item_photo_url) return res.status(400).json({ error: 'Item photo is required' });
 
   const client = await db.pool.connect();
   try {
@@ -86,10 +88,10 @@ const createOrder = async (req, res) => {
     const dLng = delivery_lng || 0;
 
     const { rows } = await client.query(
-      `INSERT INTO orders (user_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code, delivery_code)
-       VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, 'SEARCHING', $8, $9, $10)
+      `INSERT INTO orders (user_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code, delivery_code, item_photo_url, pickup_display_summary, delivery_display_summary)
+       VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, 'SEARCHING', $8, $9, $10, $11, $12, $13)
        RETURNING id, status`,
-      [userId, pLng, pLat, dLng, dLat, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupCode, deliveryCode]
+      [userId, pLng, pLat, dLng, dLat, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupCode, deliveryCode, item_photo_url, pickup_display_summary, delivery_display_summary]
     );
 
     const orderId = rows[0].id;
@@ -220,7 +222,9 @@ const verifyPickup = async (req, res) => {
  */
 const verifyDelivery = async (req, res) => {
   const { orderId } = req.params;
-  const { code } = req.body;
+  const { code, delivery_photo_url } = req.body;
+
+  if (!delivery_photo_url) return res.status(400).json({ error: 'Delivery proof photo is required' });
 
   const client = await db.pool.connect();
   try {
@@ -247,8 +251,8 @@ const verifyDelivery = async (req, res) => {
     }
 
     await client.query(
-      "UPDATE orders SET status = 'DELIVERED' WHERE id = $1",
-      [orderId]
+      "UPDATE orders SET status = 'DELIVERED', delivery_photo_url = $1 WHERE id = $2",
+      [delivery_photo_url, orderId]
     );
 
     await logStatusChange(client, orderId, 'DELIVERED', 'Item delivered successfully');
@@ -311,14 +315,20 @@ const cancelOrder = async (req, res) => {
     await client.query('BEGIN');
 
     const { rows } = await client.query(
-      "SELECT id, status, total_fare, user_id FROM orders WHERE id = $1 FOR UPDATE",
+      "SELECT id, status, total_fare, user_id, fulfiller_id FROM orders WHERE id = $1 FOR UPDATE",
       [orderId]
     );
 
     if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     const order = rows[0];
 
-    // Ensure only the owner or an admin can cancel
+    // 1. Logic for Fulfiller Cancellation
+    const isFulfiller = req.user.role === 'FULFILLER';
+    if (isFulfiller) {
+      return res.status(400).json({ error: 'Fulfillers must file an Incident Report to cancel an active mission.' });
+    }
+
+    // 2. Logic for User Cancellation
     if (order.user_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
 
     if (['DELIVERED', 'CANCELLED'].includes(order.status)) {
@@ -326,9 +336,14 @@ const cancelOrder = async (req, res) => {
     }
 
     let fee = 0;
-    if (order.status === 'MATCHED') {
-      fee = 200.00; // Standard cancellation fee
-    } else if (order.status === 'PICKED_UP') {
+    if (['MATCHED', 'PICKED_UP'].includes(order.status)) {
+       // After MATCHED, user is charged 25% fee
+       fee = (order.total_fare * 0.25).toFixed(2);
+    }
+
+    if (order.status === 'PICKED_UP') {
+       // Item already with driver - block simple cancellation
+       await client.query('ROLLBACK');
        return res.status(400).json({ error: 'Item already picked up. Contact support to cancel.' });
     }
 
@@ -338,27 +353,96 @@ const cancelOrder = async (req, res) => {
       [orderId]
     );
 
-    await logStatusChange(client, orderId, 'CANCELLED', `Order cancelled by user. Reason: ${reason || 'Not provided'}`);
+    await logStatusChange(client, orderId, 'CANCELLED', `Mission aborted by User. Reason: ${reason || 'Not provided'}`);
 
     if (fee > 0) {
-      // Deduct fee from user wallet (This logic assumes user has a wallet)
-      // For MVP, we'll just log it or flag for next payment if no balance
+      // 100% of fee goes to platform wallet
+      await walletService.processCancellationFee(orderId);
+
+      // Refund remaining 75% to user (This logic would be more complex with real payments)
+      // For now, we log the debit of the full amount and credit of 75% if using a wallet
       await client.query(
-        "UPDATE wallets SET balance = balance - $1 WHERE owner_id = $2 AND owner_type = 'USER'",
-        [fee, userId]
-      );
-      await client.query(
-        "INSERT INTO wallet_ledger_entries (wallet_id, amount, entry_type, purpose, reference_id) VALUES ((SELECT id FROM wallets WHERE owner_id = $1 AND owner_type = 'USER'), $2, 'DEBIT', 'CANCELLATION_FEE', $3)",
-        [userId, fee, orderId]
+        "UPDATE wallets SET balance = balance + $1 WHERE owner_id = $2 AND owner_type = 'USER'",
+        [(order.total_fare - fee).toFixed(2), userId]
       );
     }
 
     await client.query('COMMIT');
-    res.status(200).json({ message: 'Order cancelled successfully', fee_applied: fee });
+    res.status(200).json({ message: 'Mission aborted. 25% cancellation protocol applied.', fee_applied: fee });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Cancel Order Error:', error);
-    res.status(500).json({ error: 'Failed to cancel order' });
+    res.status(500).json({ error: 'Failed to abort mission' });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Files an incident report for an active order (Fulfiller Only).
+ */
+const fileIncident = async (req, res) => {
+  const userId = req.user.id;
+  const { orderId } = req.params;
+  const { category, description, resolution_requested } = req.body;
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verify order and fulfiller ownership
+    const orderRes = await client.query(
+      `SELECT o.*, f.id as fulfiller_real_id
+       FROM orders o
+       JOIN fulfillers f ON f.id = o.fulfiller_id
+       WHERE o.id = $1 AND f.user_id = $2 FOR UPDATE`,
+      [orderId, userId]
+    );
+
+    if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Active mission not found' });
+    const order = orderRes.rows[0];
+
+    // 2. Create Dispute row
+    const cat = `incident_${category}`;
+    const disputeRes = await client.query(
+      `INSERT INTO disputes (order_id, reporter_id, reason, category, status)
+       VALUES ($1, $2, $3, $4, 'OPEN') RETURNING id`,
+      [orderId, order.user_id, description, cat]
+    );
+    const disputeId = disputeRes.rows[0].id;
+
+    // 3. Resolution Logic
+    if (resolution_requested === 'handoff') {
+      // Reset to SEARCHING
+      await client.query(
+        "UPDATE orders SET status = 'SEARCHING', fulfiller_id = NULL, incident_dispute_id = $1 WHERE id = $2",
+        [disputeId, orderId]
+      );
+      await logStatusChange(client, orderId, 'SEARCHING', 'Fulfiller reassigned due to an unexpected operational issue');
+
+    } else if (resolution_requested === 'cancel_with_waiver_request') {
+      let waiveFee = false;
+      if (category === 'security_risk') waiveFee = true;
+
+      await client.query(
+        "UPDATE orders SET status = 'CANCELLED', incident_dispute_id = $1, cancellation_fee_waived = $2 WHERE id = $3",
+        [disputeId, waiveFee, orderId]
+      );
+
+      await logStatusChange(client, orderId, 'CANCELLED', `Mission aborted due to ${category}. Waiver requested.`);
+
+      // Charge 25% fee immediately (even if waiver requested, unless security_risk)
+      if (!waiveFee) {
+        await walletService.processCancellationFee(orderId);
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Incident report filed and processed.', dispute_id: disputeId });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Incident Report Error:', error);
+    res.status(500).json({ error: 'Failed to process incident report' });
   } finally {
     client.release();
   }

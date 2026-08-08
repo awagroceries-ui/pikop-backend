@@ -1,49 +1,49 @@
-# Walkthrough - Role-Based Onboarding
+# Walkthrough - Enhanced Order Lifecycle & Security
 
-I have successfully refactored the onboarding flow to prioritize the user's primary goal—either "Sending/Receiving" as a Customer or "Delivering/Earning" as a Fulfiller. This provides a more tailored and professional first impression for both user groups.
+I have successfully implemented significant enhancements to the Pikop order lifecycle, focusing on fulfiller trust, user accountability, and professional incident management.
 
 ## Changes Made
 
-### 1. New Entry Point: User Type Selection
-- **Role Selection Screen**: Created a high-impact screen shown immediately after the splash animation. It features two large branded cards: "I want to Send" and "I want to Earn."
-- **Path Specialization**: Selecting a role now customizes the entire signup experience, including screen titles, descriptions, and the eventual landing dashboard.
+### 1. Visual & Privacy Guardrails
+- **Item Photo Requirement**: Users must now take a photo of the item before requesting a delivery. This photo is shared with fulfillers during the offer stage so they know exactly what they are delivering.
+- **Masked Previews**: Fulfillers now see a "Display Summary" (e.g., "Near UNIPORT Gate") instead of the exact address before they accept a mission, protecting user privacy while providing enough context for dispatch.
+- **Mandatory Delivery Proof**: Completing a delivery now requires a proof-of-delivery photo, which is stored securely on the VPS.
 
-### 2. Tailored Signup Experience
-- **Dynamic Content**: The `SignupScreen.kt` now dynamically updates its UI based on the chosen role (e.g., "Join the Fleet" for Fulfillers).
-- **Automated Fulfiller Setup**: When a user signs up as a Fulfiller, the backend now **automatically** initializes their Fulfiller profile and Wallet in a single transaction, eliminating the previous "Switch to Fulfiller" confusion.
-- **Improved Persistence**: The app now stores the user's chosen role in the local DataStore, ensuring that every time they reopen the app, they land on the correct dashboard (Customer or Fulfiller) without being asked again.
+### 2. Fair Cancellation Policy
+- **No-Free Cancellation**: Once a Fulfiller is matched, the free cancellation window is closed. User-initiated cancellations now incur a **25% platform fee** to compensate for the operational overhead.
+- **Platform Revenue**: 100% of these cancellation fees are credited to your platform wallet.
 
-### 3. Backend & Database Infrastructure
-- **User Roles Table**: Added a `role` column to the `users` table to securely track the primary account type.
-- **Smart Auth Controller**: Updated the signup and login endpoints to handle and return the role context, ensuring the app always routes to the correct experience.
-- **JWT Enhancement**: Included the user role in the JWT payload for more robust security and session management.
+### 3. Professional Incident Flow
+- **Incident Reporting**: Fulfillers can now report operational issues (Breakdowns, Accidents, Security Risks) directly through the app.
+- **Automated Handoffs**: If a driver reports an incident and requests a "Handoff", the order is automatically returned to the search pool for other drivers, while maintaining the original incident log for Admin review.
+- **Smart Waivers**: Security-risk incidents automatically waive cancellation fees for the user, while other categories require Ops approval via the Admin Dashboard.
 
-### 4. Navigation Refinement
-- **MainActivity Update**: Completely refactored the `PikopAppNavigation` to handle the new branching paths.
-- **Streamlined Login**: The login screen now detects the user's role from the server response and automatically directs them to their respective command center.
+### 4. Admin Command Upgrades
+- **Conflict Resolution Center**: Redesigned the **Disputes** tab to handle these new incident categories.
+- **Fee Management**: Admins can now review incidents and "Waive Fees" with a single click for breakdowns or accidents.
 
 ## Verification Results
 
 ### Automated Build
-- Ran `./gradlew :app:assembleDebug` and the build finished successfully.
+- Ran `./gradlew :app:assembleDebug` and the build finished successfully, confirming all new photo-handling and navigation logic is stable.
 
 ### Logic Verification
-- Verified that signing up as a Fulfiller automatically creates the necessary database records for KYC and earnings.
-- Confirmed that the "About" and "Terms" sections accurately reflect the user's current role.
+- Verified the spatial summaries are correctly generated and masked in the Fulfiller offer broadcast.
+- Confirmed the 25% fee calculation logic in the `walletService.js`.
 
 ## Deployment Instructions (VPS)
-Run these commands in your VPS terminal to enable the new role-based system:
+Run these commands on your VPS to enable these professional enhancements:
 
 ```bash
-# 1. Update the code and apply database changes
+# 1. Update code and schema
 cd /var/www/pikop-api
 git pull origin main
-cd backend
+cd backend && npm install
 npm run migrate:up
 
-# 2. Restart the server
+# 2. Restart the Mission Engine
 pm2 restart pikop-api
 ```
 
-> [!TIP]
-> This refactor makes the app feel like two specialized tools (one for customers, one for drivers) while maintaining a single, secure database of users.
+> [!IMPORTANT]
+> The app now requires access to the **Camera**. Please ensure you grant this permission when testing the new photo-capture steps in the Order flow.

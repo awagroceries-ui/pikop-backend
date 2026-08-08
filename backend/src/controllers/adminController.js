@@ -138,6 +138,7 @@ const approveKYC = async (req, res) => {
 
     res.redirect('/admin/kyc');
   } catch (error) {
+    console.error('Approve KYC Error:', error);
     res.status(500).send('Error approving KYC');
   }
 };
@@ -175,6 +176,18 @@ const getWithdrawals = async (req, res) => {
     res.render('withdrawals', { withdrawals: rows });
   } catch (error) {
     res.status(500).send('Error loading withdrawals');
+  }
+};
+
+/**
+ * List all disputes and incidents.
+ */
+const getDisputes = async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT * FROM disputes ORDER BY created_at DESC");
+    res.render('disputes', { disputes: rows });
+  } catch (error) {
+    res.status(500).send('Error loading disputes');
   }
 };
 
@@ -257,6 +270,7 @@ module.exports = {
   approveKYC,
   getOrders,
   getWithdrawals,
+  getDisputes,
   getSettings,
   updateSettings,
   getRevenueReport,

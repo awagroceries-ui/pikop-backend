@@ -1,11 +1,19 @@
 package com.ng.pikop.feature.order
 
 import android.app.Activity
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,9 +30,11 @@ import com.ng.pikop.core.network.QuoteRequest
 import com.ng.pikop.core.network.FareBreakdown
 import com.ng.pikop.core.network.CreateOrderRequest
 import kotlinx.coroutines.launch
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Work
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
@@ -37,6 +47,8 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
     var savedAddresses by remember { mutableStateOf<List<SavedAddress>>(emptyList()) }
     
     var description by remember { mutableStateOf("") }
+    var itemPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var itemPhotoUrl by remember { mutableStateOf<String?>(null) }
     
     // UI State for Map Picker
     var showMapPickerFor by remember { mutableStateOf<String?>(null) } // "pickup" or "delivery"
@@ -55,6 +67,12 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
     val activity = context as? Activity
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create() }
+
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        itemPhotoUri = uri
+    }
 
     // Fetch Saved Addresses
     LaunchedEffect(Unit) {
@@ -152,7 +170,41 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Recipient Details", style = MaterialTheme.typography.titleMedium)
+        
+        // Item Photo Step
+        Card(
+            onClick = { photoLauncher.launch("image/*") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = if (itemPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (itemPhotoUri != null) Icons.Default.CheckCircle else Icons.Default.AddAPhoto,
+                    contentDescription = null,
+                    tint = if (itemPhotoUri != null) MaterialTheme.colorScheme.primary else Color.Gray
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = if (itemPhotoUri != null) "Item Photo Attached" else "Take Photo of Item",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        text = "Fulfillers need to see the item before accepting.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Text("Recipient Details", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
@@ -229,7 +281,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && pickupAddress.isNotBlank() && deliveryAddress.isNotBlank()
+                enabled = !isLoading && pickupAddress.isNotBlank() && deliveryAddress.isNotBlank() && itemPhotoUri != null
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
@@ -249,27 +301,42 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                             onSuccess = { transaction ->
                                 coroutineScope.launch {
                                     isLoading = true
-                                    // Show temporary message while we finalize
-                                    Toast.makeText(context, "Payment processing... please wait.", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Finalizing mission...", Toast.LENGTH_LONG).show()
                                     
-                                    val success = finalizeOrderAfterPayment(
-                                        apiService = apiService,
-                                        quoteId = quoteId!!,
-                                        paymentReference = transaction.reference,
-                                        recipientName = recipientName,
-                                        recipientPhone = recipientPhone,
-                                        notes = if (notes.isBlank()) null else notes,
-                                        pLat = pickupLatLng?.latitude ?: 0.0,
-                                        pLng = pickupLatLng?.longitude ?: 0.0,
-                                        dLat = deliveryLatLng?.latitude ?: 0.0,
-                                        dLng = deliveryLatLng?.longitude ?: 0.0
-                                    )
-                                    if (success) {
-                                        onOrderComplete(transaction.reference)
-                                    } else {
-                                        errorMessage = "Payment confirmed, but order creation failed. Please contact support."
+                                    try {
+                                        // 1. Upload item photo first
+                                        val file = getFileFromUri(context, itemPhotoUri!!)
+                                        val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                                        val body = MultipartBody.Part.createFormData("document", file.name, requestFile)
+                                        val uploadRes = apiService.uploadOrderPhoto(body)
+                                        itemPhotoUrl = uploadRes["url"]
+
+                                        // 2. Finalize order
+                                        val success = finalizeOrderAfterPayment(
+                                            apiService = apiService,
+                                            quoteId = quoteId!!,
+                                            paymentReference = transaction.reference,
+                                            recipientName = recipientName,
+                                            recipientPhone = recipientPhone,
+                                            notes = if (notes.isBlank()) null else notes,
+                                            pLat = pickupLatLng?.latitude ?: 0.0,
+                                            pLng = pickupLatLng?.longitude ?: 0.0,
+                                            dLat = deliveryLatLng?.latitude ?: 0.0,
+                                            dLng = deliveryLatLng?.longitude ?: 0.0,
+                                            itemPhotoUrl = itemPhotoUrl!!,
+                                            pSummary = pickupAddress.take(50),
+                                            dSummary = deliveryAddress.take(50)
+                                        )
+                                        if (success) {
+                                            onOrderComplete(transaction.reference)
+                                        } else {
+                                            errorMessage = "Payment confirmed, but mission deployment failed. Contact Pikop Support."
+                                        }
+                                    } catch (e: Exception) {
+                                        errorMessage = "Deployment Error: ${e.message}"
+                                    } finally {
+                                        isLoading = false
                                     }
-                                    isLoading = false
                                 }
                             },
                             onError = { error ->
@@ -284,7 +351,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("Pay ₦${quoteResult!!.total_fare} with Paystack")
+                    Text("Pay ₦${quoteResult!!.total_fare} & Deploy Mission")
                 }
             }
         }
@@ -309,6 +376,16 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
     }
 }
 
+private fun getFileFromUri(context: android.content.Context, uri: Uri): File {
+    val tempFile = File(context.cacheDir, "item_temp_${System.currentTimeMillis()}.jpg")
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        FileOutputStream(tempFile).use { output ->
+            input.copyTo(output)
+        }
+    }
+    return tempFile
+}
+
 suspend fun finalizeOrderAfterPayment(
     apiService: ApiService,
     quoteId: String,
@@ -319,7 +396,10 @@ suspend fun finalizeOrderAfterPayment(
     pLat: Double,
     pLng: Double,
     dLat: Double,
-    dLng: Double
+    dLng: Double,
+    itemPhotoUrl: String,
+    pSummary: String,
+    dSummary: String
 ): Boolean {
     return try {
         val request = CreateOrderRequest(
@@ -331,7 +411,10 @@ suspend fun finalizeOrderAfterPayment(
             pickup_lat = pLat,
             pickup_lng = pLng,
             delivery_lat = dLat,
-            delivery_lng = dLng
+            delivery_lng = dLng,
+            item_photo_url = itemPhotoUrl,
+            pickup_display_summary = pSummary,
+            delivery_display_summary = dSummary
         )
         val response = apiService.createOrder(request)
         response.status == "SEARCHING" || response.status == "MATCHED"

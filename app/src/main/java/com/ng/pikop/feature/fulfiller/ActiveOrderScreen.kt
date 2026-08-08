@@ -4,9 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,12 +27,18 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.*
 import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.IncidentRequest
 import com.ng.pikop.core.network.OrderDetailsResponse
 import com.ng.pikop.core.network.SocketManager
 import com.ng.pikop.core.network.VerifyCodeRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
@@ -37,8 +48,11 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
     
     var pickupCode by remember { mutableStateOf("") }
     var deliveryCode by remember { mutableStateOf("") }
+    var deliveryPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    
     var isLoading by remember { mutableStateOf(false) }
     var showRatingDialog by remember { mutableStateOf(false) }
+    var showIncidentDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -46,6 +60,12 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     
     val cameraPositionState = rememberCameraPositionState()
+
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        deliveryPhotoUri = uri
+    }
 
     // Fetch Order Details on Init
     LaunchedEffect(orderId) {
@@ -90,7 +110,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
         }
     }
 
-    // Auto-zoom map to fit fulfiller and target
+    // Auto-zoom map
     LaunchedEffect(fulfillerLocation, orderStatus, orderDetails) {
         if (fulfillerLocation != null && orderDetails != null) {
             val target = if (orderStatus == "MATCHED") {
@@ -145,6 +165,15 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                         )
                     }
                 }
+                
+                // Incident Button
+                IconButton(
+                    onClick = { showIncidentDialog = true },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                ) {
+                    Icon(Icons.Default.ReportProblem, contentDescription = "Report Incident", tint = MaterialTheme.colorScheme.error)
+                }
             }
 
             // Details Section (Bottom 60%)
@@ -156,7 +185,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = "Active Delivery", style = MaterialTheme.typography.headlineMedium)
+                Text(text = "Active Mission", style = MaterialTheme.typography.headlineMedium)
                 Text(text = "Order ID: #$orderId", style = MaterialTheme.typography.bodySmall)
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -212,6 +241,21 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Mandatory Delivery Photo
+                    Card(
+                        onClick = { photoLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = if (deliveryPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AddAPhoto, contentDescription = null)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(if (deliveryPhotoUri != null) "Photo Attached" else "Take Proof of Delivery")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
                         value = deliveryCode,
@@ -227,24 +271,48 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                             coroutineScope.launch {
                                 isLoading = true
                                 try {
-                                    apiService.verifyDelivery(orderId, VerifyCodeRequest(deliveryCode))
+                                    // 1. Upload delivery photo
+                                    val file = getFileFromUri(context, deliveryPhotoUri!!)
+                                    val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                                    val body = MultipartBody.Part.createFormData("document", file.name, requestFile)
+                                    val uploadRes = apiService.uploadOrderPhoto(body)
+                                    val photoUrl = uploadRes["url"] ?: ""
+
+                                    // 2. Verify delivery
+                                    apiService.verifyDelivery(orderId, VerifyCodeRequest(deliveryCode, photoUrl))
                                     orderStatus = "DELIVERED"
                                     showRatingDialog = true
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Invalid Delivery Code", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Delivery Verification Failed", Toast.LENGTH_SHORT).show()
                                 } finally {
                                     isLoading = false
                                 }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !isLoading && deliveryCode.length == 4
+                        enabled = !isLoading && deliveryCode.length == 4 && deliveryPhotoUri != null
                     ) {
-                        Text("Complete Delivery")
+                        Text("Complete Mission")
                     }
                 }
             }
         }
+    }
+
+    if (showIncidentDialog) {
+        IncidentReportDialog(
+            onDismiss = { showIncidentDialog = false },
+            onReport = { category, resolution, notes ->
+                coroutineScope.launch {
+                    try {
+                        apiService.fileIncident(orderId, IncidentRequest(category, notes, resolution))
+                        Toast.makeText(context, "Incident reported. Check status.", Toast.LENGTH_LONG).show()
+                        onOrderCompleted() // Navigate away
+                    } catch (e: Exception) {}
+                    showIncidentDialog = false
+                }
+            }
+        )
     }
 
     if (showRatingDialog) {
@@ -264,6 +332,55 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
             }
         )
     }
+}
+
+@Composable
+fun IncidentReportDialog(onDismiss: () -> Unit, onReport: (String, String, String) -> Unit) {
+    var category by remember { mutableStateOf("breakdown") }
+    var resolution by remember { mutableStateOf("handoff") }
+    var notes by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Report Incident") },
+        text = {
+            Column {
+                Text("What happened?", style = MaterialTheme.typography.labelSmall)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = category == "breakdown", onClick = { category = "breakdown" }, label = { Text("Breakdown") })
+                    FilterChip(selected = category == "security_risk", onClick = { category = "security_risk" }, label = { Text("Security") })
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Requested Resolution", style = MaterialTheme.typography.labelSmall)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = resolution == "handoff", onClick = { resolution = "handoff" }, label = { Text("Handoff") })
+                    FilterChip(selected = resolution == "cancel_with_waiver_request", onClick = { resolution = "cancel_with_waiver_request" }, label = { Text("Abort") })
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes") }, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onReport(category, resolution, notes) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                Text("File Report")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+private fun getFileFromUri(context: android.content.Context, uri: Uri): File {
+    val tempFile = File(context.cacheDir, "temp_upload_${System.currentTimeMillis()}.jpg")
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        FileOutputStream(tempFile).use { output ->
+            input.copyTo(output)
+        }
+    }
+    return tempFile
 }
 
 @Composable

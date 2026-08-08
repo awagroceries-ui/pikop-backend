@@ -4,13 +4,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Body
-import retrofit2.http.DELETE
-import retrofit2.http.GET
-import retrofit2.http.Multipart
-import retrofit2.http.PATCH
-import retrofit2.http.POST
-import retrofit2.http.Part
+import retrofit2.http.*
 import java.util.concurrent.TimeUnit
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -72,7 +66,10 @@ data class CreateOrderRequest(
     val pickup_lat: Double,
     val pickup_lng: Double,
     val delivery_lat: Double,
-    val delivery_lng: Double
+    val delivery_lng: Double,
+    val item_photo_url: String,
+    val pickup_display_summary: String,
+    val delivery_display_summary: String
 )
 
 data class OrderResponse(
@@ -97,6 +94,7 @@ data class OrderDetailsResponse(
     val pickup_lng: Double,
     val delivery_lat: Double,
     val delivery_lng: Double,
+    val item_photo_url: String?,
     val history: List<StatusHistoryItem>
 )
 
@@ -127,16 +125,24 @@ data class OfferResponse(
     val pickup_address: String,
     val delivery_address: String,
     val total_fare: Double,
+    val item_photo_url: String?,
     val expires_at: String
 )
 
 data class VerifyCodeRequest(
-    val code: String
+    val code: String,
+    val delivery_photo_url: String? = null
 )
 
 data class RatingRequest(
     val rating: Int,
     val comment: String? = null
+)
+
+data class IncidentRequest(
+    val category: String, // breakdown, accident, security_risk, other
+    val description: String,
+    val resolution_requested: String // handoff, cancel_with_waiver_request
 )
 
 data class SavedAddress(
@@ -217,6 +223,12 @@ interface ApiService {
         @Part document: MultipartBody.Part
     ): AuthResponse
 
+    @Multipart
+    @POST("api/v1/orders/upload")
+    suspend fun uploadOrderPhoto(
+        @Part document: MultipartBody.Part
+    ): Map<String, String>
+
     @POST("api/v1/orders/{id}/accept")
     suspend fun acceptOrder(@retrofit2.http.Path("id") id: String): OrderResponse
 
@@ -228,6 +240,9 @@ interface ApiService {
 
     @POST("api/v1/orders/{id}/cancel")
     suspend fun cancelOrder(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): AuthResponse
+
+    @POST("api/v1/orders/{id}/incident")
+    suspend fun fileIncident(@retrofit2.http.Path("id") id: String, @Body request: IncidentRequest): AuthResponse
 
     @POST("api/v1/orders/{id}/rate")
     suspend fun rateCustomer(@retrofit2.http.Path("id") id: String, @Body request: RatingRequest): OrderResponse

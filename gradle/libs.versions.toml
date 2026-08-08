@@ -15,8 +15,10 @@ playServicesLocation = "21.3.0"
 socketIo = "2.1.0"
 googlePlaces = "3.5.0"
 firebaseBom = "33.1.2"
+coil = "2.6.0"
 
 [libraries]
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
