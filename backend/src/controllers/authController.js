@@ -7,25 +7,51 @@ const notificationService = require('../services/notificationService');
  * Registers a new user and generates an OTP.
  */
 const signup = async (req, res) => {
-  const { full_name, email, phone, password } = req.body;
+  const { full_name, email, phone, password, role } = req.body;
+  const userRole = (role || 'CUSTOMER').toUpperCase();
 
+  const client = await db.pool.connect();
   try {
+    await client.query('BEGIN');
+
     const passwordHash = await authService.hashPassword(password);
 
-    const userRes = await db.query(
-      "INSERT INTO users (full_name, email, phone, password_hash) VALUES ($1, $2, $3, $4) RETURNING id, email",
-      [full_name, email, phone, passwordHash]
+    const userRes = await client.query(
+      "INSERT INTO users (full_name, email, phone, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role",
+      [full_name, email, phone, passwordHash, userRole]
     );
     const user = userRes.rows[0];
+
+    // If Fulfiller, initialize profile and wallet
+    if (userRole === 'FULFILLER') {
+      const fulfillerRes = await client.query(
+        "INSERT INTO fulfillers (user_id) VALUES ($1) RETURNING id",
+        [user.id]
+      );
+      const fulfillerId = fulfillerRes.rows[0].id;
+
+      await client.query(
+        "INSERT INTO wallets (owner_id, owner_type) VALUES ($1, 'FULFILLER')",
+        [fulfillerId]
+      );
+    } else {
+      // Initialize Customer Wallet
+      await client.query(
+        "INSERT INTO wallets (owner_id, owner_type) VALUES ($1, 'USER')",
+        [user.id]
+      );
+    }
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60000); // 10 minutes
 
-    await db.query(
+    await client.query(
       "INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)",
       [user.id, otp, expiresAt]
     );
+
+    await client.query('COMMIT');
 
     // Send email with OTP (Background)
     notificationService.sendOTPEmail(user.id, email, otp).catch(e => {
@@ -38,14 +64,18 @@ const signup = async (req, res) => {
       message: 'User registered. Please verify your email.',
       userId: user.id,
       email: user.email,
+      role: user.role,
       ...tokens
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Email or phone already exists' });
     }
     console.error('Signup Error:', error);
     res.status(500).json({ error: 'Failed to register user' });
+  } finally {
+    client.release();
   }
 };
 
@@ -108,9 +138,11 @@ const login = async (req, res) => {
       message: 'Login successful',
       userId: user.id,
       email: user.email,
+      role: user.role,
       ...tokens
     });
   } catch (error) {
+    console.error('Login Error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
 };
@@ -119,7 +151,16 @@ const login = async (req, res) => {
  * Refreshes the access token using a refresh token.
  */
 const refreshToken = (req, res) => {
-  // ... existing code
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(401).json({ error: 'Refresh token required' });
+
+  jwt.verify(refreshToken, authService.REFRESH_TOKEN_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid refresh token' });
+
+    // Generate new tokens
+    const tokens = authService.generateTokens(user);
+    res.json(tokens);
+  });
 };
 
 /**

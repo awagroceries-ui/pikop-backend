@@ -19,7 +19,8 @@ data class SignupRequest(
     val full_name: String,
     val email: String,
     val phone: String,
-    val password: String
+    val password: String,
+    val role: String
 )
 
 data class AuthResponse(
@@ -27,7 +28,8 @@ data class AuthResponse(
     val accessToken: String?,
     val refreshToken: String?,
     val userId: String?,
-    val email: String?
+    val email: String?,
+    val role: String?
 )
 
 data class LoginRequest(

@@ -17,13 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.core.datastore.TokenManager
-import com.ng.pikop.feature.auth.AboutPikopScreen
-import com.ng.pikop.feature.auth.EmailOtpScreen
-import com.ng.pikop.feature.auth.LoginScreen
-import com.ng.pikop.feature.auth.PrivacyPolicyScreen
-import com.ng.pikop.feature.auth.SignupScreen
-import com.ng.pikop.feature.auth.SplashScreen
-import com.ng.pikop.feature.auth.TermsScreen
+import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.fulfiller.ActiveOrderScreen
 import com.ng.pikop.feature.fulfiller.FulfillerDashboardScreen
 import com.ng.pikop.feature.fulfiller.FulfillerOrdersScreen
@@ -52,48 +46,93 @@ fun PikopAppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
+    
     val userEmail by tokenManager.userEmail.collectAsState(initial = null)
+    val userRole by tokenManager.userRole.collectAsState(initial = null)
+    val accessToken by tokenManager.accessToken.collectAsState(initial = null)
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
             SplashScreen(onAnimationFinished = {
-                navController.navigate("login") {
-                    popUpTo("splash") { inclusive = true }
+                if (accessToken != null) {
+                    val target = if (userRole == "FULFILLER") "fulfiller_dashboard" else "orders_dashboard"
+                    navController.navigate(target) {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                } else {
+                    navController.navigate("user_type_selection") {
+                        popUpTo("splash") { inclusive = true }
+                    }
                 }
             })
         }
+
+        composable("user_type_selection") {
+            UserTypeSelectionScreen(onRoleSelected = { role ->
+                if (role == "LOGIN") {
+                    navController.navigate("login")
+                } else {
+                    navController.navigate("signup/$role")
+                }
+            })
+        }
+
         composable("login") {
             LoginScreen(
-                onLoginSuccess = { navController.navigate("orders_dashboard") },
-                onGoToSignup = { navController.navigate("signup") }
+                onLoginSuccess = { role ->
+                    val target = if (role == "FULFILLER") "fulfiller_dashboard" else "orders_dashboard"
+                    navController.navigate(target) {
+                        popUpTo("login") { inclusive = true }
+                    }
+                },
+                onGoToSignup = { navController.navigate("user_type_selection") }
             )
         }
-        composable("signup") {
+
+        composable("signup/{role}") { backStackEntry ->
+            val role = backStackEntry.arguments?.getString("role") ?: "CUSTOMER"
             SignupScreen(
-                onSignupSuccess = { email ->
-                    navController.navigate("email_otp/$email")
+                role = role,
+                onSignupSuccess = { email, userRole ->
+                    navController.navigate("email_otp/$email/$userRole")
                 },
                 onViewTerms = {
-                    navController.navigate("terms_viewer/false")
+                    navController.navigate("terms_viewer/${role == "FULFILLER"}")
                 },
                 onViewPrivacy = {
                     navController.navigate("privacy_policy")
                 }
             )
         }
-        composable("email_otp/{email}") { backStackEntry ->
+
+        composable("email_otp/{email}/{role}") { backStackEntry ->
             val email = backStackEntry.arguments?.getString("email") ?: ""
+            val role = backStackEntry.arguments?.getString("role") ?: "CUSTOMER"
             EmailOtpScreen(
                 email = email,
-                onVerificationSuccess = { navController.navigate("terms") }
+                onVerificationSuccess = { 
+                    navController.navigate("terms/$role") 
+                }
             )
         }
-        composable("terms") {
-            TermsScreen(onAccept = { navController.navigate("orders_dashboard") })
+
+        composable("terms/{role}") { backStackEntry ->
+            val role = backStackEntry.arguments?.getString("role") ?: "CUSTOMER"
+            TermsScreen(
+                onAccept = { 
+                    val target = if (role == "FULFILLER") "fulfiller_dashboard" else "orders_dashboard"
+                    navController.navigate(target) {
+                        popUpTo("user_type_selection") { inclusive = true }
+                    }
+                },
+                showFulfillerTerms = role == "FULFILLER"
+            )
         }
+
         composable("privacy_policy") {
             PrivacyPolicyScreen(onBack = { navController.popBackStack() })
         }
+
         composable("about_pikop/{isFulfiller}") { backStackEntry ->
             val isFulfiller = backStackEntry.arguments?.getString("isFulfiller")?.toBoolean() ?: false
             AboutPikopScreen(
@@ -103,6 +142,7 @@ fun PikopAppNavigation() {
                 isFulfiller = isFulfiller
             )
         }
+
         composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->
             val showFulfillerTerms = backStackEntry.arguments?.getString("showFulfillerTerms")?.toBoolean() ?: false
             TermsScreen(
@@ -111,6 +151,7 @@ fun PikopAppNavigation() {
                 showFulfillerTerms = showFulfillerTerms
             )
         }
+
         composable("orders_dashboard") {
             OrdersDashboardScreen(
                 onNewDelivery = { navController.navigate("order_quote") },
@@ -120,9 +161,11 @@ fun PikopAppNavigation() {
                 onGoToAbout = { navController.navigate("about_pikop/false") }
             )
         }
+
         composable("saved_addresses") {
             SavedAddressesScreen(onBack = { navController.popBackStack() })
         }
+
         composable("wallet/{isFulfiller}") { backStackEntry ->
             val isFulfiller = backStackEntry.arguments?.getString("isFulfiller")?.toBoolean() ?: false
             WalletScreen(
@@ -130,11 +173,9 @@ fun PikopAppNavigation() {
                 isFulfiller = isFulfiller
             )
         }
+
         composable("order_quote") {
             Column {
-                Button(onClick = { navController.navigate("fulfiller_dashboard") }) {
-                    Text("Switch to Fulfiller")
-                }
                 OrderQuoteScreen(
                     userEmail = userEmail ?: "",
                     onOrderComplete = { reference ->
@@ -145,6 +186,7 @@ fun PikopAppNavigation() {
                 )
             }
         }
+
         composable("fulfiller_dashboard") {
             FulfillerDashboardScreen(
                 onAcceptOffer = { orderId ->
@@ -161,12 +203,15 @@ fun PikopAppNavigation() {
                 }
             )
         }
+
         composable("kyc_upload") {
             KycUploadScreen(onBack = { navController.popBackStack() })
         }
+
         composable("fulfiller_history") {
             FulfillerOrdersScreen(onBack = { navController.popBackStack() })
         }
+
         composable("active_order/{orderId}") { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
             ActiveOrderScreen(
@@ -178,6 +223,7 @@ fun PikopAppNavigation() {
                 }
             )
         }
+
         composable("track_order/{orderId}") { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
             TrackOrderScreen(

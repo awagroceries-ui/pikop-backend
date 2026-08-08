@@ -1,53 +1,49 @@
-# Walkthrough - Transactional Email Notifications & OTP Fix
+# Walkthrough - Role-Based Onboarding
 
-I have successfully fixed the OTP delivery issue and implemented professional transactional email notifications for the Pikop platform using **Brevo SMTP**.
+I have successfully refactored the onboarding flow to prioritize the user's primary goal—either "Sending/Receiving" as a Customer or "Delivering/Earning" as a Fulfiller. This provides a more tailored and professional first impression for both user groups.
 
 ## Changes Made
 
-### 1. Email Infrastructure (Backend)
-- **Nodemailer Integration**: Added `nodemailer` to handle SMTP communication with Brevo.
-- **Email Service**: Created `emailService.js` to manage the SMTP transporter and provide a unified `sendMail` function.
-- **MJML-Style Templates**: Implemented high-quality, responsive HTML templates in `notificationService.js` that render reliably across Gmail, Outlook, and mobile mail clients.
+### 1. New Entry Point: User Type Selection
+- **Role Selection Screen**: Created a high-impact screen shown immediately after the splash animation. It features two large branded cards: "I want to Send" and "I want to Earn."
+- **Path Specialization**: Selecting a role now customizes the entire signup experience, including screen titles, descriptions, and the eventual landing dashboard.
 
-### 2. Transactional Events
-- **OTP Verification**: Fixed the registration flow. Users will now receive their 6-digit verification code directly in their inbox immediately after signing up.
-- **User Welcome Email**: Implemented a warm welcome message that triggers automatically the first time a user verifies their email. It includes a clear call-to-action to "Request your first delivery".
-- **Fulfiller Approval Confirmation**: Created a detailed confirmation email for newly verified fulfillers. It provides next steps ("Go Online"), reinforces the 75/25 earnings split, and explains how payouts work.
+### 2. Tailored Signup Experience
+- **Dynamic Content**: The `SignupScreen.kt` now dynamically updates its UI based on the chosen role (e.g., "Join the Fleet" for Fulfillers).
+- **Automated Fulfiller Setup**: When a user signs up as a Fulfiller, the backend now **automatically** initializes their Fulfiller profile and Wallet in a single transaction, eliminating the previous "Switch to Fulfiller" confusion.
+- **Improved Persistence**: The app now stores the user's chosen role in the local DataStore, ensuring that every time they reopen the app, they land on the correct dashboard (Customer or Fulfiller) without being asked again.
 
-### 3. Reliability & Tracking
-- **Notification Logs**: Created a new database table `notification_logs` to record every email send attempt. This allows your support staff to verify if an email was sent without checking external provider logs.
-- **Duplicate Prevention**: Added a guard-rail system that checks the logs before sending, ensuring users are never spammed with duplicate Welcome or Approval emails.
-- **Asynchronous Execution**: Emails are sent in the background. If a provider is slow or fails, it does not block the user's experience or the admin's workflow.
+### 3. Backend & Database Infrastructure
+- **User Roles Table**: Added a `role` column to the `users` table to securely track the primary account type.
+- **Smart Auth Controller**: Updated the signup and login endpoints to handle and return the role context, ensuring the app always routes to the correct experience.
+- **JWT Enhancement**: Included the user role in the JWT payload for more robust security and session management.
+
+### 4. Navigation Refinement
+- **MainActivity Update**: Completely refactored the `PikopAppNavigation` to handle the new branching paths.
+- **Streamlined Login**: The login screen now detects the user's role from the server response and automatically directs them to their respective command center.
+
+## Verification Results
+
+### Automated Build
+- Ran `./gradlew :app:assembleDebug` and the build finished successfully.
+
+### Logic Verification
+- Verified that signing up as a Fulfiller automatically creates the necessary database records for KYC and earnings.
+- Confirmed that the "About" and "Terms" sections accurately reflect the user's current role.
 
 ## Deployment Instructions (VPS)
+Run these commands in your VPS terminal to enable the new role-based system:
 
-### 1. Update the code
-Run these in your VPS terminal:
 ```bash
+# 1. Update the code and apply database changes
 cd /var/www/pikop-api
 git pull origin main
-cd backend && npm install
+cd backend
 npm run migrate:up
-```
 
-### 2. Configure SMTP
-Ensure your `.env` file has these specific Brevo settings:
-```bash
-SMTP_HOST=smtp-relay.brevo.com
-SMTP_PORT=587
-SMTP_USER=awagroceries@gmail.com
-SMTP_PASS=your_brevo_key_here
-EMAIL_FROM='"Pikop by Awa" <awagroceries@gmail.com>'
-```
-
-### 3. Restart the server
-```bash
+# 2. Restart the server
 pm2 restart pikop-api
 ```
 
-## Verification Results
-- **Log Verification**: Confirmed that `notification_logs` correctly records both `SUCCESS` and `FAILED` states.
-- **Template Check**: Verified that the HTML templates use inlined CSS for maximum compatibility with mail clients.
-
-> [!IMPORTANT]
-> The OTP emails are now "Live". When you test signup on the emulator, please use a real email address you have access to, and the code should arrive within seconds.
+> [!TIP]
+> This refactor makes the app feel like two specialized tools (one for customers, one for drivers) while maintaining a single, secure database of users.

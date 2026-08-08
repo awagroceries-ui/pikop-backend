@@ -25,10 +25,12 @@ import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.SignupRequest
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @Composable
 fun SignupScreen(
-    onSignupSuccess: (String) -> Unit,
+    role: String,
+    onSignupSuccess: (String, String) -> Unit,
     onViewTerms: () -> Unit,
     onViewPrivacy: () -> Unit
 ) {
@@ -46,6 +48,8 @@ fun SignupScreen(
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create() }
 
+    val isFulfiller = role == "FULFILLER"
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -61,14 +65,20 @@ fun SignupScreen(
             Image(
                 painter = painterResource(id = R.drawable.pikop_logo),
                 contentDescription = "Pikop Logo",
-                modifier = Modifier.size(200.dp)
+                modifier = Modifier.size(160.dp)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Create Pikop Account",
+                text = if (isFulfiller) "Join the Fleet" else "Create Pikop Account",
                 style = MaterialTheme.typography.headlineMedium
+            )
+            
+            Text(
+                text = if (isFulfiller) "Start earning by delivering items." else "Send and receive items with ease.",
+                style = MaterialTheme.typography.bodySmall,
+                color = androidx.compose.ui.graphics.Color.Gray
             )
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -146,15 +156,17 @@ fun SignupScreen(
                         isLoading = true
                         errorMessage = null
                         try {
-                            val request = SignupRequest(fullName, email, phone, password)
+                            val request = SignupRequest(fullName, email, phone, password, role)
                             val response = apiService.signup(request)
                             if (response.accessToken != null && response.refreshToken != null) {
+                                val userRole = response.role ?: role
                                 tokenManager.saveTokens(
                                     response.accessToken,
                                     response.refreshToken,
-                                    email
+                                    email,
+                                    userRole
                                 )
-                                onSignupSuccess(email)
+                                onSignupSuccess(email, userRole)
                             } else {
                                 errorMessage = response.message
                             }

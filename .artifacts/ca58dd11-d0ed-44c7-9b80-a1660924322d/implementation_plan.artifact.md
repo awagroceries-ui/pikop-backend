@@ -1,38 +1,54 @@
-# Implementation Plan - Email Delivery Debug & Reliability
+# Implementation Plan - Role-Based Onboarding
 
-Diagnose and resolve the email delivery issue by adding verbose logging, SMTP connection verification, and robust path handling for environment variables.
+Refactor the onboarding flow to allow users to choose their role (Customer or Fulfiller) at the beginning of their journey, providing a more intuitive and specialized experience.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **SMTP Diagnostics**: I will add a script that tests your Brevo connection directly and prints the exact error (e.g., "Connection Timeout" or "Invalid Credentials").
-> - **Path Standardization**: I will ensure all services look for the `.env` file in the same consistent location to prevent missing configuration bugs.
+> - **Unified Account**: Every user will still have a unique email/phone, but their "Home" dashboard will be locked to their primary role choice during signup.
+> - **Fulfiller Creation**: If a user signs up as a Fulfiller, the backend will automatically initialize their fulfiller profile and wallet in a single step.
 
 ## Proposed Changes
 
-### 1. Enhanced Diagnostics (Backend)
+### 1. Backend & Database Refinement
 
-#### [NEW] `backend/scratch/test_email.js`
-- A standalone script to test the SMTP transporter.
-- It will attempt to send a test email and print the full error stack if it fails.
-- This will reveal if port `587` is blocked by your VPS provider (TrueHost).
+#### [NEW] `backend/migrations/1722940000000_user_roles.js`
+- Add `role` column to `users` table: `varchar(20)`, default `'CUSTOMER'`.
 
-#### [MODIFY] `backend/src/services/emailService.js`
-- Add `logger: true` and `debug: true` to the Nodemailer transporter (temporarily) to help identify handshaking issues.
-- Standardize the `.env` loading path across all services.
+#### [MODIFY] `backend/src/controllers/authController.js`
+- Update `signup`: Accept `role` from request. If `FULFILLER`, automatically create the record in the `fulfillers` table.
+- Update `login`: Include `role` in the response payload and JWT.
 
 ---
 
-### 2. Logic Robustness
+### 2. Android: Entry Point Refactor
 
-#### [MODIFY] `backend/src/controllers/authController.js`
-- Change `notificationService.sendOTPEmail` to a background promise with an error catcher, ensuring any failure to *start* the email process is caught and logged.
+#### [NEW] `UserTypeSelectionScreen.kt`
+- A premium, branded screen shown after Splash.
+- Two large, high-impact cards:
+    - **"I want to Send/Receive"** (Customer path)
+    - **"I want to Deliver/Earn"** (Fulfiller path)
+- Navigates to Signup/Login with the selected role context.
+
+#### [MODIFY] `TokenManager.kt`
+- Add `USER_ROLE_KEY` to store the chosen role locally for persistent navigation.
+
+---
+
+### 3. UI Path Specialization
+
+#### [MODIFY] `SignupScreen.kt`
+- Adapt titles and branding based on the chosen role (e.g., "Join the Fleet" for Fulfillers).
+
+#### [MODIFY] `MainActivity.kt`
+- Change `startDestination` to `user_type_selection` (if not logged in).
+- Logic to automatically route logged-in users to `orders_dashboard` or `fulfiller_dashboard` based on their stored role.
 
 ---
 
 ## Verification Plan
 
-### Manual Verification (Run on VPS)
-1.  **Test Script**: Run `node backend/scratch/test_email.js` and examine the output.
-2.  **Logs**: Check `pm2 logs pikop-api` during a signup attempt to see the new verbose email logs.
-3.  **Database Check**: Check the `notification_logs` table via SQL to see the `error_message` for failed attempts.
+### Manual Verification
+1.  **Customer Path**: Select "Send", sign up, and verify you land on the **Customer Dashboard**.
+2.  **Fulfiller Path**: Select "Deliver", sign up, and verify you land on the **Fulfiller Dashboard** with the KYC warning visible.
+3.  **Persistence**: Close and reopen the app; verify it remembers your role and takes you back to the correct dashboard without asking for user type again.

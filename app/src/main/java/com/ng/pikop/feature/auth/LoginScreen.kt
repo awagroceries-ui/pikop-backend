@@ -2,9 +2,7 @@ package com.ng.pikop.feature.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,7 +19,7 @@ import com.ng.pikop.core.network.LoginRequest
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit, onGoToSignup: () -> Unit) {
+fun LoginScreen(onLoginSuccess: (String) -> Unit, onGoToSignup: () -> Unit) {
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     
@@ -40,8 +38,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onGoToSignup: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -97,12 +94,14 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onGoToSignup: () -> Unit) {
                         try {
                             val response = apiService.login(LoginRequest(email, password))
                             if (response.accessToken != null && response.refreshToken != null) {
+                                val userRole = response.role ?: "CUSTOMER"
                                 tokenManager.saveTokens(
                                     response.accessToken,
                                     response.refreshToken,
-                                    email
+                                    email,
+                                    userRole
                                 )
-                                onLoginSuccess()
+                                onLoginSuccess(userRole)
                             } else {
                                 errorMessage = response.message
                             }
@@ -129,10 +128,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onGoToSignup: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
 
             TextButton(onClick = onGoToSignup) {
-                Text("Don't have an account? Sign Up")
+                Text("Don't have an account? Sign Up", color = MaterialTheme.colorScheme.primary)
             }
-            
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

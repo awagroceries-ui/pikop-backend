@@ -12,6 +12,7 @@ const generateTokens = (user) => {
   const payload = {
     id: user.id,
     email: user.email,
+    role: user.role,
     isVerified: !!user.email_verified_at
   };
 
