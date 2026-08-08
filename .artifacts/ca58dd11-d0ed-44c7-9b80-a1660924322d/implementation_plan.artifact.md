@@ -1,39 +1,40 @@
-# Implementation Plan - Expansion to Abuja and Lagos
+# Implementation Plan - Final VPS Deployment & Synchronization
 
-Enable full service coverage in Abuja and Lagos by updating the app's location defaults, adding a city selector, and ensuring the map picker adapts to the user's selected region.
+Synchronize the live VPS environment with all newly implemented features, including branding, wallet systems, KYC processing, and push notifications.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Location Agnostic Backend**: Your current backend engine already supports nationwide coverage because it uses coordinates and radius matching (PostGIS). No backend changes are required for this expansion.
-> - **Google Maps API**: Ensure your Google Maps API key has no billing restrictions for high-volume geocoding in multiple cities.
+> - **Sensitive Data**: You have provided the live keys. I have formatted them into a single configuration block below.
+> - **Security**: Ensure that after copying these into your `.env` file, you do not share that file with anyone else.
+> - **Firebase**: The Service Account JSON must be pasted as a single-line string in the `.env` file for the current code to read it correctly.
 
-## Proposed Changes
+## Proposed Steps
 
-### UI & Location Intelligence (Android)
+### 1. Update `.env` on VPS
+I have prepared the exact content for your `.env` file based on the keys you provided. This includes the database URL, JWT secrets, and the new service keys.
 
-#### [MODIFY] [MapPickerSheet.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/MapPickerSheet.kt)
-- **City Selector**: Add a horizontal scrollable row of "Quick City" chips (Port Harcourt, Lagos, Abuja) at the top of the map.
-- **Dynamic Camera**: When a city chip is clicked, the map will automatically animate to that city's center point.
-- **User Location Integration**: Use the `FusedLocationProviderClient` to try and center the map on the user's actual current location first.
+### 2. Database Migrations
+Run the latest migrations to create the following tables:
+- `saved_addresses`
+- `fcm_tokens`
+- `settings` (Platform commission)
+- Update `quotes` with coordinates.
 
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- Pass the "Preferred City" context to the map picker to ensure it opens in the right region.
+### 3. File System Setup
+Create the `uploads` directory to handle Fulfiller KYC document storage.
 
----
-
-### Location Constants
-I will define the following center points for the expansion:
-- **Port Harcourt**: `4.8156, 7.0498`
-- **Lagos (Ikeja)**: `6.5244, 3.3792`
-- **Abuja (Wuse)**: `9.0578, 7.4951`
+### 4. Service Restart
+Restart the `pikop-api` process using PM2 to apply all environment variables and code changes.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-- Open the Map Picker and click the **"Lagos"** chip; verify the map moves to Lagos.
-- Open the Map Picker and click the **"Abuja"** chip; verify the map moves to Abuja.
-- Ensure the **Reverse Geocoding** (finding address from pin) still works accurately in all three cities.
-- Verify that the **Address Autocomplete** (suggestions) shows results for Lagos and Abuja when searched.
+- **API Health**: Confirm `https://api.awa.name.ng/health` returns OK.
+- **Admin Dashboard**: Log in and verify the "Withdrawals" and "Order Board" are visible.
+- **Android App**:
+    - Perform a fresh signup.
+    - Test "Lagos" or "Abuja" address selection.
+    - Upload a test KYC document and see it appear in the Admin queue.

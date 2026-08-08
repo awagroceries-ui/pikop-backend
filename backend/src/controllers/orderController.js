@@ -364,6 +364,24 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+/**
+ * Returns all orders for the authenticated user.
+ */
+const getUserOrders = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const { rows } = await db.query(
+      `SELECT id, status, total_fare, pickup_address, delivery_address, created_at
+       FROM orders WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error('Get User Orders Error:', error);
+    res.status(500).json({ error: 'Failed to fetch your orders' });
+  }
+};
+
 module.exports = {
   getQuote,
   createOrder,
