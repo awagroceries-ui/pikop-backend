@@ -1,61 +1,71 @@
-# Implementation Plan - Order Queuing for Fulfillers
+# Implementation Plan - Support Chat & Messaging Infrastructure
 
-Enable fulfillers to claim a second mission that automatically activates once their current delivery is completed. This creates a "back-to-back" workflow without concurrent routing.
+Implement a native real-time Support Chat system for Pikop, extending the Socket.io infrastructure and replacing the previous third-party (Tawk.to) integration plan.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Strict Eligibility**: Fulfillers can only browse and claim a queued order *after* they have successfully picked up their current item (Status: `PICKED_UP`).
-> - **Proximity Filter**: Candidates are filtered to have a pickup point within **3km** of the current order's delivery destination.
-> - **Hard Limit**: Fulfillers are limited to exactly **ONE** queued order at a time.
-> - **Auto-Activation**: The queued order will automatically transition to `MATCHED` and become the new active mission the moment the current order is marked as `DELIVERED`.
+> - **Unified Messaging**: I will implement a single `messages` table that handles both Order-based chat and Support-based conversations.
+> - **Real-time Engine**: I will reuse the existing Socket.io setup, adding specialized rooms for support threads (`support:{id}`).
+> - **Admin Attribution**: Admins will be able to reply directly from the dashboard, with their messages clearly identified as "Admin" in the app.
 
 ## Proposed Changes
 
 ### 1. Database & Schema (Backend)
 
-#### [NEW] `backend/migrations/1722960000000_order_queuing.js`
-- **Orders**: Add `queued_for_fulfiller_id` (integer, references fulfillers).
-- **Status**: Add logic support for `QUEUED` status.
+#### [NEW] `backend/migrations/1722970000000_messaging_system.js`
+- **Conversations**: `id` (uuid), `participant_type` (user/fulfiller), `participant_id` (int, references users/fulfillers), `status` (open/closed), `created_at`, `last_message_at`.
+- **Messages**: `id` (uuid), `conversation_id` (FK, nullable), `order_id` (FK, nullable), `sender_id` (int), `sender_type` (user/fulfiller/admin), `content` (text), `created_at`.
+- **Constraint**: Ensure exactly one of `conversation_id` or `order_id` is present.
 
 ---
 
-### 2. Backend Logic (Lifecycle)
+### 2. Support Logic & Real-time (Backend)
 
-#### [MODIFY] `orderController.js`
-- **New Endpoint**: `GET /api/v1/fulfillers/me/queue-candidates`
-    - Logic: Find `SEARCHING` orders within 3km of the fulfiller's *active* delivery point.
-- **New Endpoint**: `POST /api/v1/orders/:orderId/queue/claim`
-    - Logic: Atomically claim an order into the `QUEUED` state.
-- **Update `verifyDelivery`**:
-    - After an order is marked `DELIVERED`, check for a matching `QUEUED` order.
-    - If found, promote it to `MATCHED`, assign the `fulfiller_id`, and emit a socket event to the User.
+#### [NEW] `backend/src/controllers/supportController.js`
+- `getOrCreateConversation`: Logic to find an existing open support thread or start a new one.
+- `getMessages`: Paginated retrieval of chat history.
 
-#### [MODIFY] `fulfillerController.js`
-- Ensure `getProfile` or dashboard includes information about current queued missions.
+#### [MODIFY] `backend/src/services/socketService.js`
+- Add `join_support` room handler.
+- Implement `send_message` event:
+    - Persists message to DB.
+    - Broadcasts to the specific room (order or support).
+    - Triggers FCM notification if the recipient is not currently connected to the room.
 
----
-
-### 3. Fulfiller UI (Android)
-
-#### [MODIFY] `ActiveOrderScreen.kt`
-- **Queue Section**: When the status is `PICKED_UP`, show a "Queue Your Next Mission" section.
-- **Preview Card**: Reuse `IncomingOfferComponent` to show the item photo and masked summary of queue candidates.
-- **"Up Next" Display**: If an order is already queued, show a distinct "Up Next" summary card at the bottom of the screen.
-
-#### [MODIFY] `ApiService.kt`
-- Add `getQueueCandidates` and `claimQueueOrder` endpoints.
+#### [NEW] `backend/src/routes/supportRoutes.js`
+- Endpoints for Participant usage: `POST /`, `GET /:id/messages`.
 
 ---
 
-### 4. User Experience (Android)
+### 3. Admin Command Center (UI & API)
 
-- Users with a `QUEUED` order will see their status as "Fulfiller Assigned," but real-time tracking will only activate once the driver completes their current mission and starts moving toward them.
+#### [MODIFY] `backend/src/controllers/adminController.js`
+- `getSupportInbox`: List all open conversations with participant names and previews.
+- `replyToSupport`: API to send messages as 'admin'.
+- `resolveSupport`: Mark conversation as closed.
+
+#### [NEW] `backend/src/views/support_inbox.ejs`
+- A shared inbox view for the Support team.
+- Real-time message updates using Socket.io client.
+
+---
+
+### 4. Android UI Integration
+
+#### [NEW] `ChatScreen.kt`
+- A reusable Compose component for a standard chat interface.
+- Handles real-time Socket.io events and message history.
+
+#### [MODIFY] `AboutPikopScreen.kt` (Help Center)
+- Add "Contact Support" button which launches `ChatScreen` with a conversation context.
+
+---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Pickup Guardrail**: Verify that a fulfiller *cannot* see queue candidates before they have verified the pickup code for their first order.
-2.  **Radius Test**: Ensure only orders near the *destination* of the current mission appear in the queue list.
-3.  **Auto-Transition**: Complete a delivery and verify that the app instantly switches to the next mission's pickup instructions.
-4.  **Conflict Check**: Verify that a fulfiller cannot claim a second queued order.
+1.  **Conversation Persistence**: Start a support chat as a User, close the app, reopen, and verify the history is still there.
+2.  **Real-time Admin Reply**: Send a message as a User; verify it appears instantly on the Admin Dashboard. Reply as Admin; verify it appears instantly in the app.
+3.  **FCM Notification**: Close the app as a User. Send an Admin reply. Verify the User receives a Push Notification.
+4.  **Auto-Reopen**: As Admin, "Close" a conversation. As User, send a new message. Verify the status flips back to "Open" in the dashboard.

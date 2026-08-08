@@ -1,20 +1,27 @@
-# Milestone 21: Order Queuing Implementation [DONE]
+# Support Chat Implementation Task List [DONE]
 
 ## Phase 1: Database & Schema
-- [x] Create `order_queuing` migration (`queued_for_fulfiller_id` and status support)
+- [x] Create `messaging_system` migration (`conversations` and `messages` tables)
 
-## Phase 2: Backend Logic
-- [x] Implement `getQueueCandidates` in `orderController.js` (3km radius from delivery point)
-- [x] Implement `claimQueueOrder` in `orderController.js`
-- [x] Update `verifyDelivery` in `orderController.js` to auto-activate queued missions
-- [x] Add routes to `orderRoutes.js`
+## Phase 2: Backend Logic & Socket.io
+- [x] Create `supportController.js` (Conversation & Message CRUD)
+- [x] Create `supportRoutes.js`
+- [x] Update `socketService.js` (Support rooms and real-time broadcasting)
+- [x] Update `app.js` to register support routes
 
-## Phase 3: Android UI Integration
-- [x] Update `ApiService.kt` with queue endpoints
-- [x] Refactor `ActiveOrderScreen.kt` to show "Up Next" section
-- [x] Implement queue claiming flow in Fulfiller app
+## Phase 3: Admin Dashboard
+- [x] Update `adminController.js` with Support Inbox logic
+- [x] Create `support_inbox.ejs` view
+- [x] Create `support_detail.ejs` view (Real-time admin chat)
+- [x] Update `layout.ejs` sidebar with "Support Inbox"
+
+## Phase 4: Android App Integration
+- [x] Update `ApiService.kt` with support endpoints
+- [x] Create `ChatScreen.kt` (Reusable chat UI)
+- [x] Integrate "Contact Support" in `AboutPikopScreen.kt`
+- [x] Update `MainActivity.kt` navigation
 
 ## Verification
-- [ ] Verify eligibility gate (Only after pickup)
-- [ ] Verify proximity filter (3km radius)
-- [ ] Verify auto-activation upon delivery
+- [ ] Test real-time message exchange (User <-> Admin)
+- [ ] Verify FCM notifications for offline users
+- [ ] Verify automatic reopening of closed conversations

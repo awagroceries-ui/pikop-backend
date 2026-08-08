@@ -48,6 +48,7 @@ app.use('/api/v1/fulfillers', require('./routes/fulfillerRoutes'));
 app.use('/api/v1/withdrawals', require('./routes/withdrawalRoutes'));
 app.use('/api/v1/addresses', require('./routes/addressRoutes'));
 app.use('/api/v1/wallets', require('./routes/walletRoutes'));
+app.use('/api/v1/support', require('./routes/supportRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
 
 // Error handling middleware

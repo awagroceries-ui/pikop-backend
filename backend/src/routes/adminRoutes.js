@@ -27,6 +27,11 @@ router.get('/orders', adminController.getOrders);
 router.get('/withdrawals', adminController.getWithdrawals);
 router.get('/disputes', adminController.getDisputes);
 
+// Support Inbox
+router.get('/support', adminController.getSupportInbox);
+router.get('/support/:id', adminController.getConversationDetails);
+router.post('/support/:id/resolve', adminController.resolveSupport);
+
 // Admin Management
 router.get('/admins', hasRole(['super_admin']), adminController.getAdmins);
 router.post('/admins', hasRole(['super_admin']), adminController.addAdmin);

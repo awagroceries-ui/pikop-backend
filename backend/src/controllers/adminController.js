@@ -192,9 +192,57 @@ const getDisputes = async (req, res) => {
 };
 
 /**
+ * Support Inbox Logic
+ */
+const getSupportInbox = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT c.*, u.full_name as participant_name
+      FROM conversations c
+      JOIN users u ON u.id = c.participant_id
+      WHERE c.status = 'OPEN'
+      ORDER BY c.last_message_at DESC
+    `);
+    res.render('support_inbox', { conversations: rows });
+  } catch (error) {
+    res.status(500).send('Error loading support inbox');
+  }
+};
+
+const getConversationDetails = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const convRes = await db.query("SELECT c.*, u.full_name FROM conversations c JOIN users u ON u.id = c.participant_id WHERE c.id = $1", [id]);
+    if (convRes.rows.length === 0) return res.status(404).send('Conversation not found');
+
+    const msgRes = await db.query("SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC", [id]);
+
+    res.render('support_detail', {
+      conversation: convRes.rows[0],
+      messages: msgRes.rows,
+      adminId: req.session.adminId
+    });
+  } catch (error) {
+    res.status(500).send('Error loading conversation details');
+  }
+};
+
+const resolveSupport = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query("UPDATE conversations SET status = 'CLOSED' WHERE id = $1", [id]);
+    res.redirect('/admin/support');
+  } catch (error) {
+    res.status(500).send('Error closing conversation');
+  }
+};
+
+/**
  * Manage platform settings.
  */
 const getSettings = async (req, res) => {
+// ... existing
+};
   try {
     const { rows } = await db.query("SELECT key, value FROM settings");
     const settingsMap = {};
@@ -271,6 +319,9 @@ module.exports = {
   getOrders,
   getWithdrawals,
   getDisputes,
+  getSupportInbox,
+  getConversationDetails,
+  resolveSupport,
   getSettings,
   updateSettings,
   getRevenueReport,

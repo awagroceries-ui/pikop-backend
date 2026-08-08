@@ -174,6 +174,19 @@ data class WalletResponse(
     val transactions: List<WalletTransaction>
 )
 
+data class SupportConversation(
+    val id: String,
+    val status: String
+)
+
+data class ChatMessage(
+    val id: String,
+    val sender_id: Int,
+    val sender_type: String,
+    val content: String,
+    val created_at: String
+)
+
 data class WithdrawalRequest(
     val amount: Double,
     val type: String // STANDARD, INSTANT
@@ -261,6 +274,12 @@ interface ApiService {
 
     @DELETE("api/v1/addresses/{id}")
     suspend fun deleteAddress(@retrofit2.http.Path("id") id: Int): AuthResponse
+
+    @POST("api/v1/support/conversations")
+    suspend fun getOrCreateSupportConversation(): SupportConversation
+
+    @GET("api/v1/support/conversations/{id}/messages")
+    suspend fun getSupportMessages(@retrofit2.http.Path("id") id: String): List<ChatMessage>
 
     @GET("api/v1/wallets/me")
     suspend fun getWalletInfo(): WalletResponse

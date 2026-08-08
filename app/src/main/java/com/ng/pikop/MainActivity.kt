@@ -7,7 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.core.datastore.TokenManager
+import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.fulfiller.ActiveOrderScreen
 import com.ng.pikop.feature.fulfiller.FulfillerDashboardScreen
@@ -28,6 +29,7 @@ import com.ng.pikop.feature.order.SavedAddressesScreen
 import com.ng.pikop.feature.order.TrackOrderScreen
 import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.ui.theme.PikopTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -135,11 +137,32 @@ fun PikopAppNavigation() {
 
         composable("about_pikop/{isFulfiller}") { backStackEntry ->
             val isFulfiller = backStackEntry.arguments?.getString("isFulfiller")?.toBoolean() ?: false
+            val coroutineScope = rememberCoroutineScope()
+            val apiService = remember { ApiService.create() }
+            
             AboutPikopScreen(
                 onBack = { navController.popBackStack() },
                 onViewTerms = { role -> navController.navigate("terms_viewer/$role") },
                 onViewPrivacy = { navController.navigate("privacy_policy") },
+                onContactSupport = {
+                    coroutineScope.launch {
+                        try {
+                            val conv = apiService.getOrCreateSupportConversation()
+                            navController.navigate("chat/${conv.id}")
+                        } catch (e: Exception) {}
+                    }
+                },
                 isFulfiller = isFulfiller
+            )
+        }
+
+        composable("chat/{conversationId}") { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            ChatScreen(
+                conversationId = conversationId,
+                userId = 1, // Placeholder for alpha
+                userRole = if (userRole == "FULFILLER") "FULFILLER" else "USER",
+                onBack = { navController.popBackStack() }
             )
         }
 

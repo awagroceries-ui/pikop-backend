@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.*
@@ -22,6 +23,7 @@ fun AboutPikopScreen(
     onBack: () -> Unit,
     onViewTerms: (Boolean) -> Unit, // Passes isFulfiller
     onViewPrivacy: () -> Unit,
+    onContactSupport: () -> Unit,
     isFulfiller: Boolean = false
 ) {
     Scaffold(
@@ -100,6 +102,17 @@ fun AboutPikopScreen(
                 Icon(Icons.Default.PrivacyTip, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Privacy Policy")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onContactSupport,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Contact Support")
             }
             
             Spacer(modifier = Modifier.weight(1f))

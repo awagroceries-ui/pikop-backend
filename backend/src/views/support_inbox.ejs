@@ -1,0 +1,49 @@
+<div class="mb-5">
+    <h4 class="mb-1">Support Command</h4>
+    <p class="text-muted small mb-0">Monitor and respond to active participant queries.</p>
+</div>
+
+<div class="card overflow-hidden">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Participant</th>
+                <th>Channel</th>
+                <th>Last Activity</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+            </tr>
+        </thead>
+        <tbody class="mono">
+            <% if (conversations.length === 0) { %>
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">
+                        No active support threads. All clear.
+                    </td>
+                </tr>
+            <% } %>
+            <% conversations.forEach(conv => { %>
+                <tr>
+                    <td>
+                        <div class="fw-bold"><%= conv.participant_name %></div>
+                        <code class="small text-muted" style="font-size: 0.65rem;"><%= conv.id %></code>
+                    </td>
+                    <td>
+                        <span class="badge bg-opacity-10 <%= conv.participant_type === 'FULFILLER' ? 'bg-info text-active' : 'bg-primary text-primary' %> border">
+                            <%= conv.participant_type %>
+                        </span>
+                    </td>
+                    <td class="small text-muted">
+                        <%= new Date(conv.last_message_at).toLocaleTimeString() %>
+                    </td>
+                    <td>
+                        <span class="status-badge status-searching">Open</span>
+                    </td>
+                    <td class="text-end">
+                        <a href="/admin/support/<%= conv.id %>" class="btn btn-sm btn-primary px-3">Connect</a>
+                    </td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+</div>
