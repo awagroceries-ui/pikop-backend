@@ -100,11 +100,12 @@ fun KycUploadScreen(onBack: () -> Unit) {
                             try {
                                 val session = apiService.startDiditVerification()
                                 DiditSdk.startVerification(token = session.session_token) { result ->
-                                    // result.status: COMPLETED, CANCELLED, FAILED
                                     diditStatus = "pending"
                                 }
                             } catch (e: Exception) {
-                                Toast.makeText(context, "Failed to start verification", Toast.LENGTH_SHORT).show()
+                                // Extract detailed error if possible
+                                val errorMsg = e.message ?: "Server Error"
+                                Toast.makeText(context, "Verification Failed: $errorMsg", Toast.LENGTH_LONG).show()
                             }
                         }
                     }

@@ -22,7 +22,8 @@ const startDiditVerification = async (req, res) => {
       session_id: session.session_id
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Start Verification Error:', error.message);
+    res.status(502).json({ error: error.message });
   }
 };
 
@@ -30,7 +31,7 @@ const startDiditVerification = async (req, res) => {
  * Handles signed decision webhooks from Didit.
  */
 const handleDiditWebhook = async (req, res) => {
-  const raw = JSON.stringify(req.body); // For alpha, if rawBody not middleware-attached
+  const raw = JSON.stringify(req.body);
   const sig = req.headers['x-signature-v2'];
   const ts = req.headers['x-timestamp'];
 
@@ -61,7 +62,7 @@ const handleDiditWebhook = async (req, res) => {
         AND status != 'APPROVED'`, [userId]);
 
       if (rows[0].count === "0") {
-        await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE id = $1", [userId]);
+        await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE user_id = $1", [userId]);
       }
     }
 
