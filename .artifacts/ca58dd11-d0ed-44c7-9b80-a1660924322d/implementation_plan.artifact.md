@@ -1,46 +1,52 @@
-# Implementation Plan - Reliability & UI Contrast Fixes
+# Implementation Plan - Crash Fix & UI Refinement
 
-Resolve the signup transaction bug, fix login authentication issues, and improve UI contrast for both the Admin Dashboard and the Android Order screens.
+Resolve the instant app crash, fix the persistent 16 KB alignment warning, and improve UI visibility across the platform.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Signup Fix**: I found a critical bug where the signup process was failing because it tried to save your verification code before finishing the account creation. This will be fixed by properly grouping everything into a single secure transaction.
-> - **UI Contrast**: I am increasing the brightness of all text in the Admin Portal and ensuring the Order screen in the app uses high-contrast text for maximum readability.
+> - **Firebase Initialization**: I suspect the crash is due to Firebase Messaging being called before it's properly initialized (as `google-services.json` appears to be missing). I will wrap these calls in safety checks.
+> - **16 KB Warning**: I will try a different combination of build flags to permanently silence this development warning on the emulator.
+> - **UI Contrast**: I will continue brightening text and labels to ensure they are visible on all screens.
 
 ## Proposed Changes
 
-### 1. Backend Reliability (Signup & Login)
+### 1. Crash Fix (Android)
 
-#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/controllers/authController.js)
-- **Fix Signup Transaction**: Change all database calls within the signup process to use the same transaction client. This resolves the "foreign key constraint" violation.
-- **Login Debugging**: Ensure the login process correctly identifies the user's role and verification status.
+#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
+- Wrap `FirebaseMessaging.getInstance()` calls in a `try-catch` block and check if `FirebaseApp` is initialized.
+- Ensure `PikopAppNavigation` doesn't crash if the intent handling fails.
 
----
-
-### 2. Admin Portal UI (Contrast Fix)
-
-#### [MODIFY] [layout.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/views/layout.ejs)
-- Brighten `--text-muted` from `#94A3B8` to `#CBD5E1`.
-- Add explicit high-contrast overrides for Bootstrap tables and card texts to ensure they are crisp against the Midnight Navy background.
+#### [MODIFY] [PikopApp.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/PikopApp.kt)
+- Add a safety check for Firebase initialization.
 
 ---
 
-### 3. Android UI (Contrast & 16 KB Fix)
-
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- Wrap key text elements in `CompositionLocalProvider` or explicitly set their color to `MaterialTheme.colorScheme.onBackground` to ensure visibility against any background color.
+### 2. Build & Compatibility (Android)
 
 #### [MODIFY] [AndroidManifest.xml](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/AndroidManifest.xml)
-- Add `tools:ignore="UnusedAttribute"` to the `extractNativeLibs` and `pageSizeCompat` attributes to ensure they are correctly processed by the build tool and finally silence the 16 KB pop-up.
+- Remove `extractNativeLibs` and `pageSizeCompat` if they continue to cause conflicts, relying purely on Gradle's `useLegacyPackaging`.
+- Or, use the specific combination recommended for Android 15 testing.
+
+#### [MODIFY] [build.gradle.kts](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/build.gradle.kts)
+- Ensure `useLegacyPackaging = true` is correctly set in the `packaging` block.
+
+---
+
+### 3. UI Contrast & Login Fix (Full Stack)
+
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- Standardize all text colors to use `MaterialTheme.colorScheme.onSurface` for high contrast.
+
+#### [MODIFY] [layout.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/views/layout.ejs)
+- Apply a even brighter color to the sidebar links and main data points.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Signup**: Perform a signup and verify the "verification code" email is sent and no database error occurs.
-2.  **Login**: Verify you can log in with the account created above.
-3.  **Admin Contrast**: Open the Admin Dashboard and verify all sidebar links and table data are clearly readable.
-4.  **Order Contrast**: Open the "Request a Delivery" screen and verify all labels and field titles are dark/bold enough to be seen easily.
-5.  **Alignment Check**: Verify the 16 KB warning no longer appears on launch.
+1.  **Run the App**: Confirm it no longer crashes instantly upon launch.
+2.  **Alignment Pop-up**: Verify if the 16 KB warning is suppressed.
+3.  **Login Test**: Verify that valid credentials work (note: if you wiped the DB, you must sign up again).
+4.  **Visual Audit**: Check the "Request a Delivery" and "Admin" screens for text visibility.

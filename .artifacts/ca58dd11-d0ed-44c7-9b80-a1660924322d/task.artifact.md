@@ -1,13 +1,13 @@
-# Reliability & UI Contrast Fix Task List
+# Crash Fix & UI Refinement Task List
 
-- [/] Fix Backend Signup Transaction
-    - [ ] Update `authController.js` to use `client.query` for OTP insertion within the transaction
-- [/] Improve Admin Dashboard Contrast
-    - [ ] Update `layout.ejs` with brighter text variables and high-contrast table rules
-- [/] Improve Android Order Screen Contrast
-    - [ ] Update `OrderQuoteScreen.kt` with explicit text colors
-- [/] Suppress 16 KB Alignment Pop-up
-    - [ ] Update `AndroidManifest.xml` with `tools:ignore` flags
-- [/] Sync & Verify
+- [/] Fix Instant App Crash
+    - [ ] Guard Firebase calls in `MainActivity.kt`
+    - [ ] Update `PikopApp.kt` with safety checks
+- [/] Resolve 16 KB Alignment Warning
+    - [ ] Sync Manifest and Gradle flags
+- [/] Improve UI Contrast
+    - [ ] High-contrast labels in `OrderQuoteScreen.kt`
+    - [ ] Brighter Admin Dashboard text in `layout.ejs`
+- [/] Final Stability Verification
     - [ ] Pushing fixes to GitHub
-    - [ ] Instructions for VPS restart
+    - [ ] Instruction for user to re-run

@@ -31,6 +31,7 @@ import com.ng.pikop.core.network.SavedAddress
 import com.ng.pikop.core.network.QuoteRequest
 import com.ng.pikop.core.network.FareBreakdown
 import com.ng.pikop.core.network.CreateOrderRequest
+import com.ng.pikop.core.network.ErrorUtils
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -103,7 +104,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         Text(
             text = "Request a Delivery",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground, // Explicit high contrast
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.align(Alignment.Start)
         )
         
@@ -171,9 +172,9 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
             onValueChange = { description = it },
             label = { Text("Item Description", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             )
         )
 
@@ -201,12 +202,12 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                     Text(
                         text = if (itemPhotoUri != null) "Item Photo Attached" else "Take Photo of Item",
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = if (itemPhotoUri != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "Fulfillers need to see the item before accepting.",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
+                        color = if (itemPhotoUri != null) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else Color.Gray
                     )
                 }
             }
@@ -221,9 +222,9 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
             onValueChange = { recipientName = it },
             label = { Text("Recipient Name", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             )
         )
 
@@ -234,9 +235,9 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
             onValueChange = { recipientPhone = it },
             label = { Text("Recipient Phone", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             )
         )
 
@@ -247,9 +248,9 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
             onValueChange = { notes = it },
             label = { Text("Notes (Optional)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
             )
         )
 
@@ -295,7 +296,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                             quoteId = response.quote_id
                             quoteResult = response.fare_breakdown
                         } catch (e: Exception) {
-                            errorMessage = e.localizedMessage ?: "Failed to get quote"
+                            errorMessage = ErrorUtils.parseError(e)
                         } finally {
                             isLoading = false
                         }
@@ -354,14 +355,14 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                                             errorMessage = "Payment confirmed, but mission deployment failed. Contact Pikop Support."
                                         }
                                     } catch (e: Exception) {
-                                        errorMessage = "Deployment Error: ${e.message}"
+                                        errorMessage = ErrorUtils.parseError(e)
                                     } finally {
                                         isLoading = false
                                     }
                                 }
                             },
                             onError = { error ->
-                                errorMessage = error.localizedMessage ?: "Payment failed"
+                                errorMessage = ErrorUtils.parseError(Exception(error))
                             }
                         )
                     }

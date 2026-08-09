@@ -21,6 +21,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.FirebaseApp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.feature.auth.*
@@ -56,31 +57,25 @@ fun PikopAppNavigation() {
     val userRole by tokenManager.userRole.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
 
-    // Handle Intent Deep-linking
-    val activity = context as? ComponentActivity
-    LaunchedEffect(activity?.intent) {
-        val navigateTo = activity?.intent?.getStringExtra("navigate_to")
-        if (navigateTo == "chat" && accessToken != null) {
-            // Logic to get the latest conversation ID could be added here
-            // For now, we try to open support if they land on main
-            navController.navigate("main") 
-        }
-    }
-
-    // Push Token Registration
+    // Push Token Registration (Safe)
     LaunchedEffect(accessToken) {
         if (accessToken != null) {
-            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val token = task.result
-                    scope.launch {
-                        try {
-                            val api = ApiService.create(tokenManager)
-                            api.updateFCMToken(mapOf("token" to token))
-                        } catch (e: Exception) {}
+            try {
+                // Ensure Firebase is initialized before requesting token
+                if (FirebaseApp.getApps(context).isNotEmpty()) {
+                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val token = task.result
+                            scope.launch {
+                                try {
+                                    val api = ApiService.create(tokenManager)
+                                    api.updateFCMToken(mapOf("token" to token))
+                                } catch (e: Exception) {}
+                            }
+                        }
                     }
                 }
-            }
+            } catch (e: Exception) {}
         }
     }
 
@@ -137,6 +132,45 @@ fun PikopAppNavigation() {
             )
         }
 
+        composable("privacy_policy") {
+            PrivacyPolicyScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable("about_pikop/{isFulfiller}") { backStackEntry ->
+            val isFulfiller = backStackEntry.arguments?.getString("isFulfiller")?.toBoolean() ?: false
+            
+            AboutPikopScreen(
+                onBack = { navController.popBackStack() },
+                onViewTerms = { role -> navController.navigate("terms_viewer/$role") },
+                onViewPrivacy = { navController.navigate("privacy_policy") },
+                onContactSupport = {
+                    scope.launch {
+                        try {
+                            val api = ApiService.create(tokenManager)
+                            val conv = api.getOrCreateSupportConversation()
+                            navController.navigate("chat/${conv.id}")
+                        } catch (e: Exception) {}
+                    }
+                },
+                isFulfiller = isFulfiller
+            )
+        }
+
+        composable("chat/{conversationId}") { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            ChatScreen(
+                conversationId = conversationId,
+                userId = 1, // Placeholder
+                userRole = if (userRole == "FULFILLER") "FULFILLER" else "USER",
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->
+            val showFulfillerTerms = backStackEntry.arguments?.getString("showFulfillerTerms")?.toBoolean() ?: false
+            TermsScreen(onAccept = { navController.popBackStack() }, isViewer = true, showFulfillerTerms = showFulfillerTerms)
+        }
+
         composable("main") {
             MainAppScaffold(
                 navController = navController,
@@ -160,15 +194,6 @@ fun PikopAppNavigation() {
         }
         composable("kyc_upload") {
             KycUploadScreen(onBack = { navController.popBackStack() })
-        }
-        composable("chat/{conversationId}") { backStackEntry ->
-            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
-            ChatScreen(conversationId = conversationId, userId = 1, userRole = userRole ?: "CUSTOMER", onBack = { navController.popBackStack() })
-        }
-        composable("privacy_policy") { PrivacyPolicyScreen(onBack = { navController.popBackStack() }) }
-        composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->
-            val showFulfillerTerms = backStackEntry.arguments?.getString("showFulfillerTerms")?.toBoolean() ?: false
-            TermsScreen(onAccept = { navController.popBackStack() }, isViewer = true, showFulfillerTerms = showFulfillerTerms)
         }
     }
 }
@@ -236,7 +261,7 @@ fun MainAppScaffold(
                         userEmail = userEmail,
                         onNewDelivery = { navController.navigate("order_quote") },
                         onTrackOrder = { id -> navController.navigate("track_order/$id") },
-                        onManageAddresses = { nestedNavController.navigate("account") }, // Linked to account or specialized addresses screen
+                        onManageAddresses = { nestedNavController.navigate("account") },
                         onGoToWallet = { nestedNavController.navigate("wallet") },
                         onGoToAbout = { nestedNavController.navigate("account") },
                         onLogout = {}
@@ -247,7 +272,6 @@ fun MainAppScaffold(
                 if (userRole == "FULFILLER") {
                     FulfillerOrdersScreen(onBack = { nestedNavController.popBackStack() })
                 } else {
-                    // Reusing Dashboard for now or dedicated history list
                     OrdersDashboardScreen(userEmail, {}, { id -> navController.navigate("track_order/$id") }, {}, {}, {}, {})
                 }
             }
@@ -267,9 +291,7 @@ fun MainAppScaffold(
                             } catch (e: Exception) {}
                         }
                     },
-                    onNavigateToAddresses = { 
-                        // Implementation for addresses flow if needed
-                    },
+                    onNavigateToAddresses = { },
                     onLogout = {
                         scope.launch {
                             tokenManager.clearTokens()
