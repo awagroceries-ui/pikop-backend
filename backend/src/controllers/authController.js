@@ -16,13 +16,14 @@ const signup = async (req, res) => {
 
     const passwordHash = await authService.hashPassword(password);
 
+    // 1. Create User
     const userRes = await client.query(
       "INSERT INTO users (full_name, email, phone, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role",
       [full_name, email, phone, passwordHash, userRole]
     );
     const user = userRes.rows[0];
 
-    // If Fulfiller, initialize profile and wallet
+    // 2. Initialize Role-specific data
     if (userRole === 'FULFILLER') {
       const fulfillerRes = await client.query(
         "INSERT INTO fulfillers (user_id) VALUES ($1) RETURNING id",
@@ -35,27 +36,27 @@ const signup = async (req, res) => {
         [fulfillerId]
       );
     } else {
-      // Initialize Customer Wallet
       await client.query(
         "INSERT INTO wallets (owner_id, owner_type) VALUES ($1, 'USER')",
         [user.id]
       );
     }
 
-    // Generate 6-digit OTP
+    // 3. Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60000); // 10 minutes
 
-    await db.query(
+    // IMPORTANT: Use 'client' inside the transaction to avoid foreign key violations
+    await client.query(
       "INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)",
       [user.id, otp, expiresAt]
     );
 
     await client.query('COMMIT');
 
-    // Send email with OTP (Background)
+    // 4. Send email with OTP (Asynchronous, no longer blocks)
     notificationService.sendOTPEmail(user.id, email, otp).catch(e => {
-        console.error('CRITICAL: Initial OTP send failed:', e.message);
+        console.error('Initial OTP send failed:', e.message);
     });
 
     const tokens = authService.generateTokens(user);
@@ -71,7 +72,7 @@ const signup = async (req, res) => {
     if (client) {
         try { await client.query('ROLLBACK'); } catch (e) {}
     }
-    console.error('SIGNUP ERROR DETECTED:', error);
+    console.error('SIGNUP ERROR:', error);
 
     if (error.code === '23505') {
       const field = error.detail.includes('email') ? 'Email address' : 'Phone number';
@@ -113,7 +114,7 @@ const verifyEmail = async (req, res) => {
     // Delete used OTP
     await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [userId]);
 
-    // Send Welcome Email (Background)
+    // Send Welcome Email
     notificationService.sendWelcomeEmail(userId).catch(e => console.error('Welcome email failed:', e.message));
 
     res.status(200).json({ message: 'Email verified successfully' });

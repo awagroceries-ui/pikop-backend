@@ -1,48 +1,46 @@
-# Implementation Plan - Final Stability & Notification Routing
+# Implementation Plan - Reliability & UI Contrast Fixes
 
-Resolve the persisting 16 KB alignment warning, the 500 Server Error during signup, and implement deep-link routing for push notifications.
+Resolve the signup transaction bug, fix login authentication issues, and improve UI contrast for both the Admin Dashboard and the Android Order screens.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **16 KB Alignment**: I am explicitly enabling `extractNativeLibs="true"` in the Manifest. This ensures libraries are compressed, which is the standard way to bypass alignment warnings on debug emulators while maintaining full functionality.
-> - **Notification Routing**: I will update the `MainActivity` to listen for "New Message" notifications and automatically open the support chat when the notification is tapped.
-> - **500 Error Diagnostic**: I have added a specialized signup diagnostic to the backend to catch the exact silent error causing the signup failure.
+> - **Signup Fix**: I found a critical bug where the signup process was failing because it tried to save your verification code before finishing the account creation. This will be fixed by properly grouping everything into a single secure transaction.
+> - **UI Contrast**: I am increasing the brightness of all text in the Admin Portal and ensuring the Order screen in the app uses high-contrast text for maximum readability.
 
 ## Proposed Changes
 
-### 1. Build & Compatibility (Android)
-
-#### [MODIFY] [AndroidManifest.xml](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/AndroidManifest.xml)
-- Add `android:extractNativeLibs="true"` to the `<application>` tag.
-- Add `android:pageSizeCompat="enabled"`.
-- This combination is the recommended "debug-mode" fix to suppress the 16 KB alignment pop-up.
-
----
-
-### 2. Notification Deep-Linking (Android)
-
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Add logic to check the `Intent` for a `navigate_to` extra.
-- If `chat` is detected, automatically navigate the user to the support conversation after they log in.
-
----
-
-### 3. Backend Hardening (Backend)
+### 1. Backend Reliability (Signup & Login)
 
 #### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/controllers/authController.js)
-- Add a specialized check for the `wallets` table during signup.
-- Enhance the `ROLLBACK` logic to ensure the database connection is never left hanging.
+- **Fix Signup Transaction**: Change all database calls within the signup process to use the same transaction client. This resolves the "foreign key constraint" violation.
+- **Login Debugging**: Ensure the login process correctly identifies the user's role and verification status.
 
-#### [NEW] `backend/scratch/fix_database.js`
-- A script to run on your VPS that ensures the `role` column and `wallets` entries are perfectly formatted, fixing any silent data corruption from previous failed tests.
+---
+
+### 2. Admin Portal UI (Contrast Fix)
+
+#### [MODIFY] [layout.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/views/layout.ejs)
+- Brighten `--text-muted` from `#94A3B8` to `#CBD5E1`.
+- Add explicit high-contrast overrides for Bootstrap tables and card texts to ensure they are crisp against the Midnight Navy background.
+
+---
+
+### 3. Android UI (Contrast & 16 KB Fix)
+
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- Wrap key text elements in `CompositionLocalProvider` or explicitly set their color to `MaterialTheme.colorScheme.onBackground` to ensure visibility against any background color.
+
+#### [MODIFY] [AndroidManifest.xml](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/AndroidManifest.xml)
+- Add `tools:ignore="UnusedAttribute"` to the `extractNativeLibs` and `pageSizeCompat` attributes to ensure they are correctly processed by the build tool and finally silence the 16 KB pop-up.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Alignment Check**: Launch the app and verify the 16 KB pop-up is finally gone.
-2.  **Signup Success**: Run the `fix_database.js` on your VPS, then attempt a signup. You should receive the OTP and proceed to the dashboard.
-3.  **Notification Tap**: Send a test message from the Admin Dashboard, tap the notification on the phone, and verify it opens the Chat screen.
-4.  **Logout**: Navigate to the "Account" tab in the bottom bar and verify the "Sign Out" button works and clears your session.
+1.  **Signup**: Perform a signup and verify the "verification code" email is sent and no database error occurs.
+2.  **Login**: Verify you can log in with the account created above.
+3.  **Admin Contrast**: Open the Admin Dashboard and verify all sidebar links and table data are clearly readable.
+4.  **Order Contrast**: Open the "Request a Delivery" screen and verify all labels and field titles are dark/bold enough to be seen easily.
+5.  **Alignment Check**: Verify the 16 KB warning no longer appears on launch.

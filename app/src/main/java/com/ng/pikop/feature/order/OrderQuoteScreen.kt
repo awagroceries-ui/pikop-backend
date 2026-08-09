@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.R
@@ -102,6 +103,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         Text(
             text = "Request a Delivery",
             style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground, // Explicit high contrast
             modifier = Modifier.align(Alignment.Start)
         )
         
@@ -167,8 +169,12 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
-            label = { Text("Item Description") },
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Item Description", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.colors(
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface
+            )
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -194,7 +200,8 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                 Column {
                     Text(
                         text = if (itemPhotoUri != null) "Item Photo Attached" else "Take Photo of Item",
-                        style = MaterialTheme.typography.titleSmall
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "Fulfillers need to see the item before accepting.",
@@ -206,14 +213,18 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-        Text("Recipient Details", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+        Text("Recipient Details", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.align(Alignment.Start))
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = recipientName,
             onValueChange = { recipientName = it },
-            label = { Text("Recipient Name") },
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Recipient Name", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.colors(
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface
+            )
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -221,8 +232,12 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         OutlinedTextField(
             value = recipientPhone,
             onValueChange = { recipientPhone = it },
-            label = { Text("Recipient Phone") },
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Recipient Phone", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.colors(
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface
+            )
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -230,8 +245,12 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         OutlinedTextField(
             value = notes,
             onValueChange = { notes = it },
-            label = { Text("Notes (Optional)") },
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Notes (Optional)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.colors(
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface
+            )
         )
 
         if (quoteResult != null) {
@@ -241,16 +260,16 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Total Fare: ₦${quoteResult!!.total_fare}", style = MaterialTheme.typography.titleLarge)
-                    Text("Size Tier: ${quoteResult!!.size_tier}")
-                    Text("Locked Until: ${quoteResult!!.fare_locked_until}")
+                    Text("Total Fare: ₦${quoteResult!!.total_fare}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text("Size Tier: ${quoteResult!!.size_tier}", color = MaterialTheme.colorScheme.onSurface)
+                    Text("Locked Until: ${quoteResult!!.fare_locked_until}", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
 
         if (errorMessage != null) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = errorMessage!!, color = MaterialTheme.colorScheme.error)
+            Text(text = errorMessage!!, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(24.dp))

@@ -1,11 +1,13 @@
-# Final Stability & Access Fix Task List
+# Reliability & UI Contrast Fix Task List
 
-## Backend: Access & Security
-- [ ] Provide SQL commands to create missing DB role on VPS
-- [ ] Update `fix_database.js` with IPv4 and robust quoting
-- [ ] Finalize user-friendly error strings in `authController.js`
-
-## Android: UI & Compatibility
-- [ ] Fix 16 KB alignment by cleaning up `AndroidManifest.xml`
-- [ ] Rename "Account" tab to "Menu" for clarity in `MainActivity.kt`
-- [ ] Final end-to-end signup/login test
+- [/] Fix Backend Signup Transaction
+    - [ ] Update `authController.js` to use `client.query` for OTP insertion within the transaction
+- [/] Improve Admin Dashboard Contrast
+    - [ ] Update `layout.ejs` with brighter text variables and high-contrast table rules
+- [/] Improve Android Order Screen Contrast
+    - [ ] Update `OrderQuoteScreen.kt` with explicit text colors
+- [/] Suppress 16 KB Alignment Pop-up
+    - [ ] Update `AndroidManifest.xml` with `tools:ignore` flags
+- [/] Sync & Verify
+    - [ ] Pushing fixes to GitHub
+    - [ ] Instructions for VPS restart
