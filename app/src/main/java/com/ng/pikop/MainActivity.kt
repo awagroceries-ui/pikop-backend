@@ -209,7 +209,7 @@ fun MainAppScaffold(
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                    label = { Text("Account") },
+                    label = { Text("Menu") },
                     selected = currentDestination == "account",
                     onClick = { nestedNavController.navigate("account") { launchSingleTop = true } }
                 )
