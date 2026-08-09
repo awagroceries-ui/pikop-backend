@@ -3,6 +3,12 @@ const db = require('../src/config/db');
 const fixDatabase = async () => {
     console.log('🚀 Starting Database Integrity Fix...');
 
+    // Force IPv4 if localhost is used
+    if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('localhost')) {
+        process.env.DATABASE_URL = process.env.DATABASE_URL.replace('localhost', '127.0.0.1');
+        console.log('  ℹ️  Detected localhost. Redirecting to 127.0.0.1 for IPv4 compatibility.');
+    }
+
     try {
         // 1. Ensure all users have a role
         console.log('- Verifying User Roles...');
