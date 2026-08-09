@@ -1,14 +1,21 @@
-# Navigation, Stability & Notifications Fixes
+# Final Stability & UI Refinement
 
-- [/] 16 KB Page Size Fix
-    - [ ] Update `app/build.gradle.kts` with legacy packaging
-- [/] Push Notifications Activation
-    - [ ] Update `PikopMessagingService.kt` to handle token refresh
-    - [ ] Update `MainActivity.kt` to register token on app start
-- [/] Navigation Hub & Logout
-    - [ ] Create `NavigationDrawerContent.kt` shared component
-    - [ ] Update `OrdersDashboardScreen.kt` with Drawer
-    - [ ] Update `FulfillerDashboardScreen.kt` with Drawer
-    - [ ] Update `TokenManager.kt` with full clear logic
-- [/] Backend Stability
-    - [ ] Add defensive logging to `authController.js`
+## Phase 1: Build & Notifications
+- [x] Fix 16 KB alignment build error (Manifest cleaned)
+- [ ] Activate Chat Notifications in `PikopMessagingService.kt`
+- [ ] Ensure FCM Token registration on every app start in `MainActivity.kt`
+
+## Phase 2: Professional Bottom Navigation
+- [ ] Create `MainAppScaffold.kt` (Unified navigation wrapper)
+- [ ] Create `AccountScreen.kt` (Profile, Support, Logout)
+- [ ] Integrate BottomBar in `MainActivity.kt`
+- [ ] Refactor Dashboards to fit inside the new Scaffold
+
+## Phase 3: Backend Robustness
+- [ ] Add Didit fallback for dev environment in `diditService.js`
+- [ ] Standardize 500/400 error payloads in `authController.js`
+
+## Verification
+- [ ] End-to-end Chat -> Notification test
+- [ ] Full Logout -> Session Clear test
+- [ ] Build success verification

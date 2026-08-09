@@ -19,8 +19,13 @@ if (!DIDIT_API_KEY) {
  * @param {number} userId - Internal user ID to link with session.
  */
 const createSession = async (userId) => {
-  if (!DIDIT_API_KEY) {
-    throw new Error('Didit API Key is not configured on the server.');
+  if (!DIDIT_API_KEY || DIDIT_API_KEY.includes('your_')) {
+    console.warn('[Didit] API Key not configured. Returning MOCK session for development.');
+    return {
+      session_id: `mock_session_${Date.now()}`,
+      session_token: "mock_token",
+      url: "https://example.com/mock-verify"
+    };
   }
 
   try {

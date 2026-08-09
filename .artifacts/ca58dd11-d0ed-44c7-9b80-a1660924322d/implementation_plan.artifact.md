@@ -1,62 +1,53 @@
-# Implementation Plan - Stability, Notifications & Navigation Hub
+# Implementation Plan - Final Stability & UI Refinement
 
-Resolve current stability issues (500 Error, 16KB alignment) and implement a professional Navigation Menu with Sign Out capabilities for both app roles.
+Finalize the app's stability, activate push notifications globally, and implement a professional Bottom Navigation Bar for intuitive access to core features.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **16 KB Alignment**: I am switching the app to use compressed native libraries (`useLegacyPackaging = true`). This is a standard workaround for debug builds on 16 KB page-size emulators when alignment checks fail.
-> - **Push Notifications**: I will implement the missing "Token Registration" logic. You will need to re-log into the app once for your device to register its notification token with the backend.
-> - **Navigation Hub**: I am implementing a **Modal Navigation Drawer** (side menu) for both the Customer and Fulfiller dashboards.
+> - **Build Fix**: I have already resolved the "extractNativeLibs" build failure. You can now build and run the app successfully.
+> - **UI Structure**: I will implement a **Bottom Navigation Bar** (Home, Orders, Wallet, Menu) to replace the current TopAppBar navigation, making the app feel more like a premium marketplace.
+> - **Push Notifications**: I will ensure the FCM token registration is robust and tested.
 
 ## Proposed Changes
 
-### 1. Stability & Fixes (Android & Backend)
+### 1. UI Architecture (Android)
 
-#### [MODIFY] [build.gradle.kts (app)](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/build.gradle.kts)
-- Set `jniLibs.useLegacyPackaging = true`. This forces the app to use compressed libraries, which bypasses the 16 KB alignment pop-up issue on debug builds.
-
-#### [MODIFY] [PikopMessagingService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/PikopMessagingService.kt)
-- Implement `onNewToken` to automatically send the Firebase token to the backend when it's generated.
-
-#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/controllers/authController.js) (Backend)
-- Add more defensive logging for 500 errors to help catch transient failures during signup/login.
-
----
-
-### 2. Navigation Menu & Sign Out (Android)
-
-#### [NEW] `NavigationDrawerContent.kt`
-- A shared, branded component for the side menu.
-- **Header**: Large Pikop Logo and user email.
-- **Items**:
-    - Home (Dashboard)
-    - My Wallet
-    - Saved Addresses (Customer only)
-    - Support Chat
-    - About Pikop
-    - **Sign Out** (Red accent)
-
-#### [MODIFY] `OrdersDashboardScreen.kt` & `FulfillerDashboardScreen.kt`
-- Wrap both screens in a `ModalNavigationDrawer`.
-- Add a "Menu" (hamburger) icon to the `TopAppBar`.
-
-#### [MODIFY] `TokenManager.kt`
-- Enhance `clearTokens()` to ensure all session data is wiped during Sign Out.
+#### [MODIFY] `MainActivity.kt` & Dashboards
+- Implement a **BottomNavigationBar** component.
+- **Tabs**:
+    - **Home**: Main Dashboard (Create Order / Receive Offers).
+    - **Orders**: Mission History.
+    - **Wallet**: Earnings and Payouts.
+    - **Account**: Profile, Support, and **Sign Out**.
 
 ---
 
-### 3. Push Notification Activation
+### 2. Push Notification Mastery
 
-#### [MODIFY] `MainActivity.kt`
-- Add logic on startup to fetch the current FCM token and send it to the backend via `updateFCMToken`, ensuring the device is always registered.
+#### [MODIFY] `PikopMessagingService.kt`
+- Add support for **In-App Chat** notifications (Support and Order chats).
+- Ensure notifications include a deep-link to the specific chat or order.
+
+---
+
+### 3. Backend Reliability
+
+#### [MODIFY] `diditService.js` (Backend)
+- Add a fallback mechanism to use a placeholder session if the API key is missing (for development only), ensuring the UI doesn't crash during testing.
+
+#### [MODIFY] `authController.js`
+- Standardize all 500 error responses to return a JSON object with a `detail` field, matching the Android app's error parsing.
 
 ---
 
 ## Verification Plan
 
+### Automated Tests
+- Run `./gradlew :app:assembleDebug` to confirm build success.
+
 ### Manual Verification
-1.  **16 KB Check**: Launch the app on the emulator and verify the "ELF alignment" pop-up no longer appears.
-2.  **Menu Navigation**: Open the side menu and verify all links (Wallet, Support, etc.) work correctly.
-3.  **Sign Out**: Click Sign Out, verify you are returned to the User Type Selection screen, and that you cannot go back without logging in.
-4.  **Notifications**: Send a support chat message from the Admin Dashboard and verify the push notification appears on the phone.
+1.  **Navigation**: Tap through the new Bottom Navigation tabs and verify they switch screens instantly.
+2.  **Logout**: Navigate to the "Account" tab and click "Sign Out." Verify the session is wiped.
+3.  **Stability**: Trigger a signup with an existing email and verify you get a clean "Email already exists" message instead of a 502/500 error.
+4.  **Notifications**: Send a chat message and verify the push notification appears with the correct icon and text.

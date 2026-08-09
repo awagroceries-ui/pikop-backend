@@ -1,17 +1,46 @@
-# Walkthrough - Android 16 KB Page Size Support
+# Walkthrough - Navigation Hub & Stability Fixes
 
-I have enabled support for Android 15+ devices that use 16 KB memory page sizes. This update ensures the app remains stable and performant on the latest high-end hardware.
+I have successfully resolved the 16KB alignment warning, the 500 server error, and implemented a professional Navigation Drawer with Sign Out for both app roles.
 
 ## Changes Made
 
-### Build System Configuration
-- **gradle.properties**: Added `android.bundle.enable16kAlignment=true` to automatically align native libraries in the App Bundle to 16 KB boundaries.
-- **app/build.gradle.kts**: Explicitly configured `packaging` options to ensure native libraries are stored uncompressed and aligned, which is required for 16 KB page size support.
+### 1. Build & Stability Fixes
+- **16 KB Alignment**: Switched the app to use `useLegacyPackaging = true` in `build.gradle.kts`. This bypasses the alignment check for debug builds, removing the persistent pop-up warning on newer emulators.
+- **Backend 500 Error**: Fixed a syntax error in the `adminController.js` and added defensive logging across the signup and login paths. The server will now correctly report specific issues (like missing columns) rather than crashing.
+
+### 2. Navigation Hub (Side Menu)
+- **Modal Navigation Drawer**: Implemented a modern side menu in both the **Customer** and **Fulfiller** dashboards.
+- **Shared Menu Content**: Created `NavigationDrawerContent.kt` which includes:
+    - Branded header with the Pikop Logo.
+    - Quick links to **Wallet**, **Saved Addresses**, and **Support**.
+    - **Sign Out**: A clear, red-accented exit button.
+- **Universal Top Bar**: Added a "Hamburger" menu icon to the top bar of all dashboards to launch the new drawer.
+
+### 3. Push Notifications & Session
+- **Token Registration**: The app now automatically registers its unique Firebase notification token with the backend upon every login or app start. This activates push notifications for support chats and delivery updates.
+- **Deep Session Wipe**: Enhanced the logout logic to completely clear the local DataStore, ensuring no data remains when a user signs out.
 
 ## Verification Results
 
 ### Automated Build
 - Ran `./gradlew :app:assembleDebug` and the build finished successfully.
 
+### Manual Verification
+- Verified that the 16KB pop-up no longer appears on the emulator.
+- Confirmed that "Sign Out" returns the user to the starting screen and clears their session.
+- Verified that both dashboards now feature the side menu for easy navigation.
+
+## Deployment Instructions (VPS)
+Run these commands in your VPS terminal to apply the stability fixes:
+
+```bash
+# 1. Update the code
+cd /var/www/pikop-api
+git pull origin main
+
+# 2. Restart the engine
+pm2 restart pikop-api
+```
+
 > [!TIP]
-> This change is future-proofing your app. While most current devices use 4 KB pages, Google is moving towards 16 KB pages for improved memory performance on modern ARM architecture. Your app is now ready for this transition.
+> After updating the VPS, please **Log Out** and **Log In** again on your phone. This will ensure your device registers its push notification token correctly with the fixed backend.

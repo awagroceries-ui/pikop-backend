@@ -15,19 +15,25 @@ import com.ng.pikop.R
 class PikopMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        remoteMessage.notification?.let {
-            sendNotification(it.title ?: "Pikop Update", it.body ?: "")
-        }
+        val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: "Pikop Update"
+        val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: ""
+        val type = remoteMessage.data["type"] // e.g. "SUPPORT_CHAT"
+
+        sendNotification(title, body, type)
     }
 
     override fun onNewToken(token: String) {
-        // Token will be registered in MainActivity on startup/login
-        // or we could trigger a background registration here if needed.
+        // Token is registered in MainActivity on startup/login
     }
 
-    private fun sendNotification(title: String, messageBody: String) {
-        val intent = Intent(this, MainActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    private fun sendNotification(title: String, messageBody: String, type: String?) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            if (type == "SUPPORT_CHAT") {
+                putExtra("navigate_to", "chat")
+            }
+        }
+        
         val pendingIntent = PendingIntent.getActivity(this, 0, intent,
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE)
 
@@ -46,6 +52,6 @@ class PikopMessagingService : FirebaseMessagingService() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        notificationManager.notify(0, notificationBuilder.build())
+        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
     }
 }
