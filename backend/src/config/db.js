@@ -5,15 +5,9 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 let connString = process.env.DATABASE_URL;
 
-// Ensure IPv4 for local connections
-if (connString && (connString.includes('localhost') || connString.includes('127.0.0.1'))) {
-  try {
-    const parsedUrl = new url.URL(connString);
-    parsedUrl.hostname = '127.0.0.1';
-    connString = parsedUrl.toString();
-  } catch (e) {
-    console.error('Database URL Parsing Error:', e.message);
-  }
+// Force IPv4 for local connections (bypasses IPv6 ::1 issues on VPS)
+if (connString) {
+  connString = connString.replace('localhost', '127.0.0.1').replace('[::1]', '127.0.0.1');
 }
 
 const pool = new Pool({

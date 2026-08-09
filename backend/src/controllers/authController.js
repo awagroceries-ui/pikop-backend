@@ -74,10 +74,11 @@ const signup = async (req, res) => {
     console.error('SIGNUP ERROR DETECTED:', error);
 
     if (error.code === '23505') {
-      return res.status(400).json({ message: 'The email address or phone number you entered is already registered. Please try logging in instead.' });
+      const field = error.detail.includes('email') ? 'Email address' : 'Phone number';
+      return res.status(400).json({ message: `${field} is already registered. Please try logging in instead.` });
     }
 
-    res.status(500).json({ message: 'A server error occurred during registration. Please try again later.' });
+    res.status(500).json({ message: 'A server error occurred during registration: ' + error.message });
   } finally {
     if (client) client.release();
   }
