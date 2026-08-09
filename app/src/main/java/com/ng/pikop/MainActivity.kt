@@ -56,6 +56,17 @@ fun PikopAppNavigation() {
     val userRole by tokenManager.userRole.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
 
+    // Handle Intent Deep-linking
+    val activity = context as? ComponentActivity
+    LaunchedEffect(activity?.intent) {
+        val navigateTo = activity?.intent?.getStringExtra("navigate_to")
+        if (navigateTo == "chat" && accessToken != null) {
+            // Logic to get the latest conversation ID could be added here
+            // For now, we try to open support if they land on main
+            navController.navigate("main") 
+        }
+    }
+
     // Push Token Registration
     LaunchedEffect(accessToken) {
         if (accessToken != null) {

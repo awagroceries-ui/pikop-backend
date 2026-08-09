@@ -46,7 +46,7 @@ const signup = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60000); // 10 minutes
 
-    await client.query(
+    await db.query(
       "INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)",
       [user.id, otp, expiresAt]
     );
@@ -68,14 +68,16 @@ const signup = async (req, res) => {
       ...tokens
     });
   } catch (error) {
-    if (client) await client.query('ROLLBACK');
-    console.error('SIGNUP ERROR:', error);
+    if (client) {
+        try { await client.query('ROLLBACK'); } catch (e) {}
+    }
+    console.error('SIGNUP ERROR DETECTED:', error);
 
     if (error.code === '23505') {
-      return res.status(400).json({ error: 'Email or phone already exists' });
+      return res.status(400).json({ message: 'Email or phone number is already registered.' });
     }
 
-    res.status(500).json({ error: 'Failed to register: ' + error.message });
+    res.status(500).json({ message: 'Server error: ' + error.message });
   } finally {
     if (client) client.release();
   }
@@ -97,7 +99,7 @@ const verifyEmail = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+      return res.status(400).json({ message: 'Invalid or expired verification code.' });
     }
 
     const userId = rows[0].user_id;
@@ -116,7 +118,7 @@ const verifyEmail = async (req, res) => {
     res.status(200).json({ message: 'Email verified successfully' });
   } catch (error) {
     console.error('Verification Error:', error);
-    res.status(500).json({ error: 'Verification failed' });
+    res.status(500).json({ message: 'Verification failed. Please try again.' });
   }
 };
 
@@ -128,11 +130,11 @@ const login = async (req, res) => {
 
   try {
     const { rows } = await db.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+    if (rows.length === 0) return res.status(401).json({ message: 'Invalid email or password.' });
 
     const user = rows[0];
     const isMatch = await authService.comparePassword(password, user.password_hash);
-    if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!isMatch) return res.status(401).json({ message: 'Invalid email or password.' });
 
     const tokens = authService.generateTokens(user);
 
@@ -145,7 +147,7 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error('Login Error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ message: 'Login failed due to a server error.' });
   }
 };
 
@@ -154,10 +156,10 @@ const login = async (req, res) => {
  */
 const refreshToken = (req, res) => {
   const { refreshToken } = req.body;
-  if (!refreshToken) return res.status(401).json({ error: 'Refresh token required' });
+  if (!refreshToken) return res.status(401).json({ message: 'Session expired. Please login again.' });
 
   jwt.verify(refreshToken, authService.REFRESH_TOKEN_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid refresh token' });
+    if (err) return res.status(403).json({ message: 'Invalid session. Please login again.' });
 
     // Generate new tokens
     const tokens = authService.generateTokens(user);
@@ -174,9 +176,9 @@ const updateFCMToken = async (req, res) => {
   try {
     const fcmService = require('../services/fcmService');
     await fcmService.saveToken(userId, token);
-    res.status(200).json({ message: 'Token updated' });
+    res.status(200).json({ message: 'Notifications activated.' });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update token' });
+    res.status(500).json({ message: 'Failed to activate notifications.' });
   }
 };
 

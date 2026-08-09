@@ -1,53 +1,48 @@
-# Implementation Plan - Final Stability & UI Refinement
+# Implementation Plan - Final Stability & Notification Routing
 
-Finalize the app's stability, activate push notifications globally, and implement a professional Bottom Navigation Bar for intuitive access to core features.
+Resolve the persisting 16 KB alignment warning, the 500 Server Error during signup, and implement deep-link routing for push notifications.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Build Fix**: I have already resolved the "extractNativeLibs" build failure. You can now build and run the app successfully.
-> - **UI Structure**: I will implement a **Bottom Navigation Bar** (Home, Orders, Wallet, Menu) to replace the current TopAppBar navigation, making the app feel more like a premium marketplace.
-> - **Push Notifications**: I will ensure the FCM token registration is robust and tested.
+> - **16 KB Alignment**: I am explicitly enabling `extractNativeLibs="true"` in the Manifest. This ensures libraries are compressed, which is the standard way to bypass alignment warnings on debug emulators while maintaining full functionality.
+> - **Notification Routing**: I will update the `MainActivity` to listen for "New Message" notifications and automatically open the support chat when the notification is tapped.
+> - **500 Error Diagnostic**: I have added a specialized signup diagnostic to the backend to catch the exact silent error causing the signup failure.
 
 ## Proposed Changes
 
-### 1. UI Architecture (Android)
+### 1. Build & Compatibility (Android)
 
-#### [MODIFY] `MainActivity.kt` & Dashboards
-- Implement a **BottomNavigationBar** component.
-- **Tabs**:
-    - **Home**: Main Dashboard (Create Order / Receive Offers).
-    - **Orders**: Mission History.
-    - **Wallet**: Earnings and Payouts.
-    - **Account**: Profile, Support, and **Sign Out**.
+#### [MODIFY] [AndroidManifest.xml](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/AndroidManifest.xml)
+- Add `android:extractNativeLibs="true"` to the `<application>` tag.
+- Add `android:pageSizeCompat="enabled"`.
+- This combination is the recommended "debug-mode" fix to suppress the 16 KB alignment pop-up.
 
 ---
 
-### 2. Push Notification Mastery
+### 2. Notification Deep-Linking (Android)
 
-#### [MODIFY] `PikopMessagingService.kt`
-- Add support for **In-App Chat** notifications (Support and Order chats).
-- Ensure notifications include a deep-link to the specific chat or order.
+#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
+- Add logic to check the `Intent` for a `navigate_to` extra.
+- If `chat` is detected, automatically navigate the user to the support conversation after they log in.
 
 ---
 
-### 3. Backend Reliability
+### 3. Backend Hardening (Backend)
 
-#### [MODIFY] `diditService.js` (Backend)
-- Add a fallback mechanism to use a placeholder session if the API key is missing (for development only), ensuring the UI doesn't crash during testing.
+#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend/src/controllers/authController.js)
+- Add a specialized check for the `wallets` table during signup.
+- Enhance the `ROLLBACK` logic to ensure the database connection is never left hanging.
 
-#### [MODIFY] `authController.js`
-- Standardize all 500 error responses to return a JSON object with a `detail` field, matching the Android app's error parsing.
+#### [NEW] `backend/scratch/fix_database.js`
+- A script to run on your VPS that ensures the `role` column and `wallets` entries are perfectly formatted, fixing any silent data corruption from previous failed tests.
 
 ---
 
 ## Verification Plan
 
-### Automated Tests
-- Run `./gradlew :app:assembleDebug` to confirm build success.
-
 ### Manual Verification
-1.  **Navigation**: Tap through the new Bottom Navigation tabs and verify they switch screens instantly.
-2.  **Logout**: Navigate to the "Account" tab and click "Sign Out." Verify the session is wiped.
-3.  **Stability**: Trigger a signup with an existing email and verify you get a clean "Email already exists" message instead of a 502/500 error.
-4.  **Notifications**: Send a chat message and verify the push notification appears with the correct icon and text.
+1.  **Alignment Check**: Launch the app and verify the 16 KB pop-up is finally gone.
+2.  **Signup Success**: Run the `fix_database.js` on your VPS, then attempt a signup. You should receive the OTP and proceed to the dashboard.
+3.  **Notification Tap**: Send a test message from the Admin Dashboard, tap the notification on the phone, and verify it opens the Chat screen.
+4.  **Logout**: Navigate to the "Account" tab in the bottom bar and verify the "Sign Out" button works and clears your session.

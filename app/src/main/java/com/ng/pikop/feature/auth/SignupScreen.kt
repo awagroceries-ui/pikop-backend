@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.ng.pikop.R
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.ErrorUtils
 import com.ng.pikop.core.network.SignupRequest
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -171,7 +172,7 @@ fun SignupScreen(
                                 errorMessage = response.message
                             }
                         } catch (e: Exception) {
-                            errorMessage = e.localizedMessage ?: "Registration failed"
+                            errorMessage = ErrorUtils.parseError(e)
                         } finally {
                             isLoading = false
                         }
