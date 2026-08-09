@@ -16,6 +16,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.messaging.FirebaseMessaging
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.feature.auth.*
@@ -48,10 +49,28 @@ fun PikopAppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
+    val scope = rememberCoroutineScope()
     
     val userEmail by tokenManager.userEmail.collectAsState(initial = null)
     val userRole by tokenManager.userRole.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
+
+    // Push Token Registration Logic
+    LaunchedEffect(accessToken) {
+        if (accessToken != null) {
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    scope.launch {
+                        try {
+                            val api = ApiService.create(tokenManager)
+                            api.updateFCMToken(mapOf("token" to token))
+                        } catch (e: Exception) {}
+                    }
+                }
+            }
+        }
+    }
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
@@ -137,17 +156,16 @@ fun PikopAppNavigation() {
 
         composable("about_pikop/{isFulfiller}") { backStackEntry ->
             val isFulfiller = backStackEntry.arguments?.getString("isFulfiller")?.toBoolean() ?: false
-            val coroutineScope = rememberCoroutineScope()
             
             AboutPikopScreen(
                 onBack = { navController.popBackStack() },
                 onViewTerms = { role -> navController.navigate("terms_viewer/$role") },
                 onViewPrivacy = { navController.navigate("privacy_policy") },
                 onContactSupport = {
-                    coroutineScope.launch {
+                    scope.launch {
                         try {
-                            val apiServiceWithAuth = ApiService.create(tokenManager)
-                            val conv = apiServiceWithAuth.getOrCreateSupportConversation()
+                            val api = ApiService.create(tokenManager)
+                            val conv = api.getOrCreateSupportConversation()
                             navController.navigate("chat/${conv.id}")
                         } catch (e: Exception) {}
                     }
@@ -160,7 +178,7 @@ fun PikopAppNavigation() {
             val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
             ChatScreen(
                 conversationId = conversationId,
-                userId = 1, // Placeholder for alpha
+                userId = 1, // Placeholder
                 userRole = if (userRole == "FULFILLER") "FULFILLER" else "USER",
                 onBack = { navController.popBackStack() }
             )
@@ -177,11 +195,20 @@ fun PikopAppNavigation() {
 
         composable("orders_dashboard") {
             OrdersDashboardScreen(
+                userEmail = userEmail ?: "User",
                 onNewDelivery = { navController.navigate("order_quote") },
                 onTrackOrder = { orderId -> navController.navigate("track_order/$orderId") },
                 onManageAddresses = { navController.navigate("saved_addresses") },
                 onGoToWallet = { navController.navigate("wallet/false") },
-                onGoToAbout = { navController.navigate("about_pikop/false") }
+                onGoToAbout = { navController.navigate("about_pikop/false") },
+                onLogout = {
+                    scope.launch {
+                        tokenManager.clearTokens()
+                        navController.navigate("user_type_selection") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
             )
         }
 
@@ -212,6 +239,7 @@ fun PikopAppNavigation() {
 
         composable("fulfiller_dashboard") {
             FulfillerDashboardScreen(
+                userEmail = userEmail ?: "Fulfiller",
                 onAcceptOffer = { orderId ->
                     navController.navigate("active_order/$orderId")
                 },
@@ -223,6 +251,14 @@ fun PikopAppNavigation() {
                 },
                 onGoToAbout = {
                     navController.navigate("about_pikop/true")
+                },
+                onLogout = {
+                    scope.launch {
+                        tokenManager.clearTokens()
+                        navController.navigate("user_type_selection") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 }
             )
         }

@@ -76,11 +76,13 @@ const signup = async (req, res) => {
       return res.status(400).json({ error: 'Email or phone already exists' });
     }
 
-    // Check for missing columns
+    // Check for missing columns or schema errors
     if (error.message.includes('column "role" does not exist')) {
-        return res.status(500).json({ error: 'Database out of sync. Please run migrations.' });
+        console.error('SCHEMA ERROR: "role" column missing in users table.');
+        return res.status(500).json({ error: 'Database out of sync. Please run migrate:up on VPS.' });
     }
 
+    console.error('FULL SIGNUP ERROR STACK:', error);
     res.status(500).json({ error: 'Internal Server Error: ' + error.message });
   } finally {
     if (client) client.release();

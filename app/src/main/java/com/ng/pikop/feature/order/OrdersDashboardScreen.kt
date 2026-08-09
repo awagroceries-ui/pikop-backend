@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,17 +24,19 @@ import com.ng.pikop.R
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.OrderDetailsResponse
-
-import androidx.compose.material.icons.filled.LocationOn
+import com.ng.pikop.feature.auth.NavigationDrawerContent
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrdersDashboardScreen(
+    userEmail: String,
     onNewDelivery: () -> Unit,
     onTrackOrder: (String) -> Unit,
     onManageAddresses: () -> Unit,
     onGoToWallet: () -> Unit,
-    onGoToAbout: () -> Unit
+    onGoToAbout: () -> Unit,
+    onLogout: () -> Unit
 ) {
     var orders by remember { mutableStateOf<List<OrderDetailsResponse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -41,6 +44,8 @@ fun OrdersDashboardScreen(
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -53,74 +58,98 @@ fun OrdersDashboardScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            NavigationDrawerContent(
+                userEmail = userEmail,
+                userRole = "CUSTOMER",
+                onNavigate = { route ->
+                    scope.launch { drawerState.close() }
+                    when (route) {
+                        "wallet" -> onGoToWallet()
+                        "addresses" -> onManageAddresses()
+                        "about" -> onGoToAbout()
+                    }
+                },
+                onLogout = onLogout
+            )
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(id = R.drawable.pikop_logo),
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("My Deliveries")
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onGoToAbout) {
+                            Icon(Icons.Default.Info, contentDescription = "About")
+                        }
+                        IconButton(onClick = onGoToWallet) {
+                            Icon(Icons.Default.AccountBalanceWallet, contentDescription = "Wallet")
+                        }
+                        IconButton(onClick = onManageAddresses) {
+                            Icon(Icons.Default.LocationOn, contentDescription = "Saved Addresses")
+                        }
+                        IconButton(onClick = { /* Refresh */ }) {
+                            Icon(Icons.Default.History, contentDescription = "History")
+                        }
+                    }
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = onNewDelivery,
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "New Delivery")
+                }
+            }
+        ) { padding ->
+            Box(modifier = Modifier.padding(padding)) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else if (orders.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Image(
                             painter = painterResource(id = R.drawable.pikop_logo),
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(240.dp),
+                            alpha = 0.8f
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("My Deliveries")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("No deliveries yet", style = MaterialTheme.typography.bodyLarge, color = Color.Gray)
+                        Button(onClick = onNewDelivery, modifier = Modifier.padding(top = 16.dp)) {
+                            Text("Send something now")
+                        }
                     }
-                },
-                actions = {
-                    IconButton(onClick = onGoToAbout) {
-                        Icon(Icons.Default.Info, contentDescription = "About")
-                    }
-                    IconButton(onClick = onGoToWallet) {
-                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = "Wallet")
-                    }
-                    IconButton(onClick = onManageAddresses) {
-                        Icon(Icons.Default.LocationOn, contentDescription = "Saved Addresses")
-                    }
-                    IconButton(onClick = { /* Refresh */ }) {
-                        Icon(Icons.Default.History, contentDescription = "History")
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNewDelivery,
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "New Delivery")
-            }
-        }
-    ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (orders.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.pikop_logo),
-                        contentDescription = null,
-                        modifier = Modifier.size(240.dp),
-                        alpha = 0.8f
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("No deliveries yet", style = MaterialTheme.typography.bodyLarge, color = Color.Gray)
-                    Button(onClick = onNewDelivery, modifier = Modifier.padding(top = 16.dp)) {
-                        Text("Send something now")
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(orders) { order ->
-                        OrderCard(order, onTrackOrder)
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(orders) { order ->
+                            OrderCard(order, onTrackOrder)
+                        }
                     }
                 }
             }

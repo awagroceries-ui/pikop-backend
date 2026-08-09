@@ -21,8 +21,8 @@ class PikopMessagingService : FirebaseMessagingService() {
     }
 
     override fun onNewToken(token: String) {
-        // Send token to backend via ApiService if user is logged in
-        // This usually requires a repository or global state access
+        // Token will be registered in MainActivity on startup/login
+        // or we could trigger a background registration here if needed.
     }
 
     private fun sendNotification(title: String, messageBody: String) {

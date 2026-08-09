@@ -145,11 +145,7 @@ const verifyFulfiller = async (req, res) => {
   const { id } = req.params;
   try {
     await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE id = $1", [id]);
-
-    // Get Fulfiller User ID for the email
-    const { rows } = await db.query("SELECT user_id FROM fulfillers WHERE id = $1", [id]);
     notificationService.sendFulfillerApprovedEmail(id);
-
     res.redirect('/admin/kyc');
   } catch (error) {
     res.status(500).send('Error verifying fulfiller');
@@ -311,7 +307,6 @@ const addAdmin = async (req, res) => {
 const deleteAdmin = async (req, res) => {
   const { id } = req.params;
   try {
-    // Prevent deleting self
     if (parseInt(id) === req.session.adminId) {
       return res.status(400).send('You cannot delete your own account.');
     }
