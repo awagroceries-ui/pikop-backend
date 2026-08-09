@@ -24,6 +24,7 @@ const createSession = async (userId) => {
   }
 
   try {
+    console.log(`[Didit] Initializing session for User ${userId} with Workflow ${WORKFLOW_ID}`);
     const res = await axios.post("https://verification.didit.me/v3/session/", {
       workflow_id: WORKFLOW_ID,
       vendor_data: userId.toString(),
@@ -35,10 +36,15 @@ const createSession = async (userId) => {
       }
     });
 
+    console.log(`[Didit] Session created: ${res.data.session_id}`);
     return res.data;
   } catch (error) {
     const detail = error.response?.data?.detail || error.message;
     console.error('Didit Session Creation Error:', detail);
+    if (error.response) {
+      console.error('[Didit] Status:', error.response.status);
+      console.error('[Didit] Response Data:', JSON.stringify(error.response.data));
+    }
     throw new Error(`Didit Error: ${detail}`);
   }
 };
