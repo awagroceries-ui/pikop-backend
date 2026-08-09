@@ -8,10 +8,12 @@ object ErrorUtils {
         return if (e is HttpException) {
             try {
                 val errorBody = e.response()?.errorBody()?.string()
-                val response = Gson().fromJson(errorBody, AuthResponse::class.java)
-                response.message ?: "An error occurred. Please try again."
+                // Use a map to safely extract the message regardless of the response class
+                val mapType = object : com.google.gson.reflect.TypeToken<Map<String, String>>() {}.type
+                val errorMap: Map<String, String> = Gson().fromJson(errorBody, mapType)
+                errorMap["message"] ?: errorMap["error"] ?: "An error occurred. Please try again."
             } catch (ex: Exception) {
-                "Server error: ${e.code()}"
+                "Service temporary unavailable (Error ${e.code()})"
             }
         } else {
             e.localizedMessage ?: "Connection failed. Please check your internet."
