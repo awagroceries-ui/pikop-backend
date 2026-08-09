@@ -74,10 +74,10 @@ const signup = async (req, res) => {
     console.error('SIGNUP ERROR DETECTED:', error);
 
     if (error.code === '23505') {
-      return res.status(400).json({ message: 'Email or phone number is already registered.' });
+      return res.status(400).json({ message: 'This email or phone number is already registered. Please try logging in.' });
     }
 
-    res.status(500).json({ message: 'Server error: ' + error.message });
+    res.status(500).json({ message: 'Server error during registration: ' + error.message });
   } finally {
     if (client) client.release();
   }
@@ -99,7 +99,7 @@ const verifyEmail = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(400).json({ message: 'Invalid or expired verification code.' });
+      return res.status(400).json({ message: 'Invalid or expired verification code. Please request a new one.' });
     }
 
     const userId = rows[0].user_id;
@@ -118,7 +118,7 @@ const verifyEmail = async (req, res) => {
     res.status(200).json({ message: 'Email verified successfully' });
   } catch (error) {
     console.error('Verification Error:', error);
-    res.status(500).json({ message: 'Verification failed. Please try again.' });
+    res.status(500).json({ message: 'Verification failed. Please try again later.' });
   }
 };
 
