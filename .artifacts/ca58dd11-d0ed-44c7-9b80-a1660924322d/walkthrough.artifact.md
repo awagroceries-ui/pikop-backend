@@ -1,27 +1,26 @@
-# Walkthrough - Milestone 4: Viral Growth & Public Tracking
+# Walkthrough - Milestone 5: Full Account Hub & Platform Polish
 
-I have successfully implemented **Milestone 4**, introducing a suite of features designed to drive organic growth through referrals and provide a premium, transparent tracking experience for recipients.
+I have successfully completed the final milestone, delivering a professional **Account Management Hub**, robust session security, and unrestricted Paystack payment support.
 
 ## Changes Made
 
-### 1. Shareable Live Tracking (Web & Real-time)
-- **Public Tracking Portal**: Created a lightweight, responsive web page (`/track/:token`) that allows anyone with the link to watch a delivery's progress in real-time without logging in.
-- **Privacy-First Data**: The public portal automatically masks exact house addresses and sensitive item details, showing only the general pickup/delivery zones.
-- **Web-Socket Sync**: Extended the real-time engine to broadcast live driver location and status updates directly to the public web portal.
-- **Android Native Share**: Added a "Share Tracking" button in the app that leverages the system share sheet (WhatsApp, SMS, etc.) for instant link sharing.
+### 1. Advanced Session & Security (Backend)
+- **Multi-Device Tracking**: Implemented a `user_sessions` engine. Every login now creates a unique session record with device names and IP addresses.
+- **Remote Revocation**: Built the infrastructure to allow users to see all active logins and remotely log out unrecognized devices.
+- **NDPA-Compliant Deletion**: Created a secure "Account Deletion Request" flow that queues data for manual processing, meeting Nigerian data privacy standards.
 
-### 2. Viral Growth Engine (Referrals & Rewards)
-- **Automated Referral Codes**: Every new Pikop user now automatically receives a unique, 8-character referral code upon signup.
-- **Incentivized Onboarding**: Users can enter a referral code during registration.
-- **Conversion-Locked Rewards**: Implemented the "First Delivery Rule." Referral credits (₦500 for the Referrer, ₦300 for the Referee) are only issued after the new user completes their **first successful delivery**, protecting the platform from signup fraud.
+### 2. Unrestricted Payments (Paystack Integration)
+- **Full Channel Selection**: Refactored the Paystack Android checkout to remove all restrictions. Users can now pay via **USSD, QR Codes, and Direct Bank Transfers**, which are critical for the Nigerian market.
+- **Smart Webhook Updates**: Updated the backend payment controller to automatically detect and record the specific channel used (e.g., "ussd") for every successful order.
 
-### 3. Promotional Discount System
-- **Promo Code Engine**: Built a backend system to manage campaign-based discounts (Flat NGN or Percentage-based).
-- **Checkout Integration**: Added a "Promo Code" input to the order creation flow with real-time validation and instant discount calculation.
-- **Usage Gating**: Codes are automatically validated against expiration dates, usage limits, and per-user redemption rules.
+### 3. Personalization & Efficiency (Android & Backend)
+- **Saved Recipients**: Introduced a "Favorites" list for recipients. Frequent shippers can now save names and phone numbers to skip manual entry during checkout.
+- **Notification Control**: Built a granular preference center allowing users to toggle Push, Email, and SMS alerts independently.
+- **Profile Mastery**: Added the `ProfileEditScreen.kt`, allowing users to update their name, phone, and language preferences directly in the app.
 
-### 4. High-Trust Fulfiller Transparency
-- **Public Profile Injection**: The public tracking link now includes the Fulfiller's professional identity card, showing their name, tier badge, and verified star rating.
+### 4. Professional Navigation Hub
+- **Menu Centralization**: Consolidated all settings under the **Menu** tab in the Bottom Navigation Bar.
+- **Referral Visibility**: The referral system is now prominently displayed in the Menu, showing the user's code and a "One-Tap Share" button for WhatsApp/SMS.
 
 ## Verification Results
 
@@ -29,15 +28,15 @@ I have successfully implemented **Milestone 4**, introducing a suite of features
 - Ran `./gradlew :app:assembleDebug` and the build finished successfully.
 
 ### Manual Scenarios Verified
-- **Referral Flow**: Verified that a new user signed up with a code correctly links to the referrer.
-- **Tracking**: Confirmed the public URL correctly renders the live map and driver position in a standard web browser.
-- **Promo Logic**: Verified that an expired code returns a professional "Code invalid or expired" message in the app.
+- **Payment Flexibility**: Verified the Paystack checkout now presents the full "Payment Channel" selection screen.
+- **Session Wipe**: Verified the **Sign Out** button in the Menu tab correctly terminates the session and redirects to the start screen.
+- **Data Integrity**: Confirmed that updating notification preferences persists correctly in the database.
 
 ## Deployment Instructions (VPS)
-Run these commands in your VPS terminal to enable Growth & Tracking:
+Run these commands in your VPS terminal to finalize the platform:
 
 ```bash
-# 1. Update code and apply growth schema
+# 1. Update code and apply final settings schema
 cd /var/www/pikop-api
 git pull origin main
 cd backend && npm run migrate:up
@@ -47,4 +46,4 @@ pm2 restart pikop-api
 ```
 
 > [!TIP]
-> You can now manage your marketing campaigns by creating codes in the `promo_codes` table. Users can find their personal referral code under the **Menu** tab in the app!
+> The app is now at v1.4.0. Encourage your initial beta users to share their **Referral Code** from the new **Menu** tab to earn platform credits!
