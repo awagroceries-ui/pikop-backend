@@ -1,5 +1,6 @@
 package com.ng.pikop.feature.auth
 
+import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -11,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,10 +23,12 @@ import com.ng.pikop.R
 fun AccountScreen(
     userEmail: String,
     userRole: String,
+    referralCode: String,
     onNavigateToSupport: () -> Unit,
     onNavigateToAddresses: () -> Unit,
     onLogout: () -> Unit
 ) {
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("My Account") })
@@ -47,6 +51,31 @@ fun AccountScreen(
             Text(text = userRole, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            // Referral Card
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("My Referral Code", style = MaterialTheme.typography.labelSmall)
+                        Text(referralCode.ifBlank { "GEN-CODE" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                    }
+                    IconButton(onClick = {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, "Join me on Pikop! Use my code $referralCode to get NGN 300 off your first delivery. Download at: https://pikop.ng")
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share Referral Code"))
+                    }) {
+                        Icon(Icons.Default.Share, contentDescription = "Share")
+                    }
+                }
+            }
 
             // Options List
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -78,7 +107,7 @@ fun AccountScreen(
             }
             
             Text(
-                text = "Pikop v1.2.4-alpha",
+                text = "Pikop v1.3.0-growth",
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Gray,
                 modifier = Modifier.padding(top = 16.dp)

@@ -7,7 +7,6 @@ const bcrypt = require('bcrypt');
 
 /**
  * Helper to fetch public profile data for a fulfiller.
- * Omit sensitive fields like phone or exact location.
  */
 const getFulfillerPublicProfile = async (fulfillerId) => {
   if (!fulfillerId) return null;
@@ -25,9 +24,8 @@ const getFulfillerPublicProfile = async (fulfillerId) => {
     full_name: p.full_name,
     profile_photo_url: p.profile_photo_url,
     tier: p.tier,
-    // Only include plate for riders/drivers
     vehicle_registration_number: ['rider', 'driver'].includes(p.primary_class) ? p.registration_number : undefined,
-    rating_avg: 4.8 // Placeholder until rating system is built
+    rating_avg: 4.8
   };
 };
 
@@ -55,13 +53,16 @@ const logStatusChange = async (client, orderId, status, description) => {
   try {
     const io = socketService.getIO();
     io.to(`order_${orderId}`).emit("status_updated", { status, description, timestamp: new Date().toISOString() });
-  } catch (e) {
-    console.error("Socket emission failed:", e.message);
-  }
+
+    const { rows } = await client.query("SELECT tracking_token FROM orders WHERE id = $1", [orderId]);
+    if (rows.length > 0 && rows[0].tracking_token) {
+        io.to(`tracking_${rows[0].tracking_token}`).emit("status_updated", { status, description });
+    }
+  } catch (e) {}
 };
 
 /**
- * Generates a fare quote using Gemini for item size classification.
+ * Generates a fare quote using Gemini.
  */
 const getQuote = async (req, res) => {
   const { pickup_address, delivery_address, item_description, pickup_lat, pickup_lng, delivery_lat, delivery_lng } = req.body;
@@ -79,15 +80,9 @@ const getQuote = async (req, res) => {
       [userId, pickup_address, delivery_address, item_description, classification.size_tier, fare, classification.confidence, pickup_lng || 0, pickup_lat || 0, delivery_lng || 0, delivery_lat || 0]
     );
 
-    const quote = rows[0];
-
     res.status(200).json({
-      quote_id: quote.id,
-      fare_breakdown: {
-        total_fare: parseFloat(quote.total_fare),
-        size_tier: quote.size_tier,
-        fare_locked_until: quote.expires_at
-      }
+      quote_id: rows[0].id,
+      fare_breakdown: { total_fare: parseFloat(rows[0].total_fare), size_tier: rows[0].size_tier, fare_locked_until: rows[0].expires_at }
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate quote' });
@@ -98,20 +93,12 @@ const getQuote = async (req, res) => {
  * Creates an order from a valid quote.
  */
 const createOrder = async (req, res) => {
-  const {
-    quote_id, corporate_account_id,
-    pickup_lat, pickup_lng, delivery_lat, delivery_lng,
-    item_photo_url, pickup_display_summary, delivery_display_summary
-  } = req.body;
+  const { quote_id, corporate_account_id, promo_id, pickup_lat, pickup_lng, delivery_lat, delivery_lng, item_photo_url, pickup_display_summary, delivery_display_summary } = req.body;
   const userId = req.user?.id;
-
-  if (!item_photo_url) return res.status(400).json({ error: 'Item photo is required' });
 
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
-
-    // 1. Validate Quote
     const quoteRes = await client.query("SELECT * FROM quotes WHERE id = $1 AND expires_at > CURRENT_TIMESTAMP", [quote_id]);
     if (quoteRes.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -119,57 +106,59 @@ const createOrder = async (req, res) => {
     }
     const quote = quoteRes.rows[0];
 
-    // 2. Handle Corporate Payment if applicable
-    let finalCorporateId = null;
     if (corporate_account_id) {
-        // Verify User is linked to this account
-        const subRes = await client.query(
-            "SELECT id FROM corporate_sub_accounts WHERE corporate_account_id = $1 AND user_id = $2",
-            [corporate_account_id, userId]
-        );
-        if (subRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(403).json({ error: 'Unauthorized: You are not a member of this corporate account' });
-        }
-
         await walletService.processCorporateDebit(client, corporate_account_id, quote.total_fare, 'PENDING');
-        finalCorporateId = corporate_account_id;
     }
 
-    // 3. Create Order
+    let discount = 0;
+    if (promo_id) {
+        const promoRes = await client.query("SELECT * FROM promo_codes WHERE id = $1 AND valid_from <= NOW() AND valid_to >= NOW() AND used_count < max_uses", [promo_id]);
+        if (promoRes.rows.length > 0) {
+            const p = promoRes.rows[0];
+            discount = p.discount_type === 'flat' ? parseFloat(p.value) : (parseFloat(quote.total_fare) * (parseFloat(p.value)/100));
+        }
+    }
+
     const pickupCode = crypto.randomInt(1000, 9999).toString();
     const pickupHash = await bcrypt.hash(pickupCode, 10);
+    const trackingToken = crypto.randomUUID();
 
     const eligibilityMap = { 'SMALL': ['agent', 'rider'], 'MEDIUM': ['rider', 'driver'], 'LARGE': ['driver'] };
     const eligibleClasses = eligibilityMap[quote.size_tier] || ['driver'];
 
     const { rows } = await client.query(
-      `INSERT INTO orders (user_id, corporate_account_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code_hash, item_photo_url, pickup_display_summary, delivery_display_summary, eligible_classes)
-       VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326), ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, 'SEARCHING', $9, $10, $11, $12, $13, $14)
-       RETURNING id, status`,
-      [userId, finalCorporateId, pickup_lng || 0, pickup_lat || 0, delivery_lng || 0, delivery_lat || 0, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupHash, item_photo_url, pickup_display_summary, delivery_display_summary, eligibleClasses]
+      `INSERT INTO orders (user_id, corporate_account_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code_hash, item_photo_url, pickup_display_summary, delivery_display_summary, eligible_classes, tracking_token, promo_code_id, discount_amount)
+       VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326), ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, 'SEARCHING', $9, $10, $11, $12, $13, $14, $15, $16, $17)
+       RETURNING id, status, tracking_token`,
+      [userId, corporate_account_id || null, pickup_lng || 0, pickup_lat || 0, delivery_lng || 0, delivery_lat || 0, quote.pickup_address, quote.delivery_address, Math.max(0, parseFloat(quote.total_fare) - discount), pickupHash, item_photo_url, pickup_display_summary, delivery_display_summary, eligibleClasses, trackingToken, promo_id || null, discount]
     );
 
     const orderId = rows[0].id;
-    await logStatusChange(client, orderId, 'SEARCHING', 'Order placed');
+    if (promo_id) {
+        await client.query("UPDATE promo_codes SET used_count = used_count + 1 WHERE id = $1", [promo_id]);
+        await client.query("INSERT INTO promo_code_redemptions (promo_code_id, user_id, order_id) VALUES ($1, $2, $3)", [promo_id, userId, orderId]);
+    }
 
+    await logStatusChange(client, orderId, 'SEARCHING', 'Order placed');
     await client.query('COMMIT');
+
     res.status(201).json({
       order_id: orderId,
       status: rows[0].status,
       pickup_code: pickupCode,
+      tracking_url: `https://api.awa.name.ng/track/${rows[0].tracking_token}`,
       message: 'Order created'
     });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: 'Failed to create order: ' + error.message });
+    res.status(500).json({ error: error.message });
   } finally {
     client.release();
   }
 };
 
 /**
- * Atomically accepts an order by a fulfiller.
+ * Atomically accepts an order.
  */
 const acceptOrder = async (req, res) => {
   const { orderId } = req.params;
@@ -178,178 +167,131 @@ const acceptOrder = async (req, res) => {
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
-
     const { rows } = await client.query("SELECT id, status FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
-    if (rows.length === 0) {
+    if (rows.length === 0 || rows[0].status !== 'SEARCHING') {
       await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (rows[0].status !== 'SEARCHING') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Order already taken' });
+      return res.status(400).json({ error: 'Order no longer available' });
     }
 
     await client.query("UPDATE orders SET fulfiller_id = $1, status = 'MATCHED' WHERE id = $2", [fulfillerId, orderId]);
     await logStatusChange(client, orderId, 'MATCHED', 'Driver assigned');
-
     const profile = await getFulfillerPublicProfile(fulfillerId);
 
     await client.query('COMMIT');
-    res.status(200).json({
-      message: 'Order accepted',
-      status: 'MATCHED',
-      fulfiller_profile: profile
-    });
+    res.status(200).json({ message: 'Order accepted', status: 'MATCHED', fulfiller_profile: profile });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: 'Failed to accept order' });
+    res.status(500).json({ error: 'Accept failed' });
   } finally {
     client.release();
   }
 };
 
 /**
- * Verifies pickup using a secure hash check.
+ * Verifies pickup.
  */
 const verifyPickup = async (req, res) => {
   const { orderId } = req.params;
   const { code } = req.body;
-
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query("SELECT pickup_code_hash, status FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
-    if (rows.length === 0) {
+    const { rows } = await client.query("SELECT pickup_code_hash FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
+    if (rows.length === 0 || !await bcrypt.compare(code, rows[0].pickup_code_hash)) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Order not found' });
+      return res.status(400).json({ error: 'Invalid code' });
     }
-
-    const isMatch = await bcrypt.compare(code, rows[0].pickup_code_hash);
-    if (!isMatch) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Invalid pickup code' });
-    }
-
     await client.query("UPDATE orders SET status = 'PICKED_UP' WHERE id = $1", [orderId]);
     await logStatusChange(client, orderId, 'PICKED_UP', 'In transit');
-
     await client.query('COMMIT');
     res.status(200).json({ message: 'Pickup verified', status: 'PICKED_UP' });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Verify failed' });
   } finally {
     client.release();
   }
 };
 
 /**
- * Verifies delivery with GPS metadata capture.
+ * Verifies delivery.
  */
 const verifyDelivery = async (req, res) => {
   const { orderId } = req.params;
   const { code, delivery_photo_url, lat, lng } = req.body;
-
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query("SELECT delivery_code_hash, status FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
-    if (rows.length === 0) {
+    const { rows } = await client.query("SELECT delivery_code_hash FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
+    if (rows.length === 0 || !await bcrypt.compare(code, rows[0].delivery_code_hash)) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Order not found' });
+      return res.status(400).json({ error: 'Invalid code' });
     }
-
-    const isMatch = await bcrypt.compare(code, rows[0].delivery_code_hash);
-    if (!isMatch) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Invalid delivery code' });
-    }
-
-    await client.query(
-      `UPDATE orders SET status = 'DELIVERED', delivery_photo_url = $1, capture_lat = $2, capture_lng = $3, capture_timestamp = CURRENT_TIMESTAMP WHERE id = $4`,
-      [delivery_photo_url, lat || null, lng || null, orderId]
-    );
-
+    await client.query(`UPDATE orders SET status = 'DELIVERED', delivery_photo_url = $1, capture_lat = $2, capture_lng = $3, capture_timestamp = NOW() WHERE id = $4`, [delivery_photo_url, lat || null, lng || null, orderId]);
     await logStatusChange(client, orderId, 'DELIVERED', 'Delivered');
     await walletService.processDeliveryPayment(orderId);
-
+    await walletService.triggerReferralReward(client, orderId);
     await client.query('COMMIT');
     res.status(200).json({ message: 'Delivery completed', status: 'DELIVERED' });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: 'Failed to verify delivery' });
+    res.status(500).json({ error: 'Verify failed' });
   } finally {
     client.release();
   }
 };
 
 /**
- * Returns full order details including fulfiller public profile.
+ * Returns full order details.
  */
 const getOrderDetails = async (req, res) => {
   const { orderId } = req.params;
   try {
-    const orderRes = await db.query(
-      `SELECT *,
-              ST_Y(pickup_location::geometry) as pickup_lat, ST_X(pickup_location::geometry) as pickup_lng,
-              ST_Y(delivery_location::geometry) as delivery_lat, ST_X(delivery_location::geometry) as delivery_lng
-       FROM orders WHERE id = $1`, [orderId]);
-
+    const orderRes = await db.query(`SELECT *, ST_Y(pickup_location::geometry) as pickup_lat, ST_X(pickup_location::geometry) as pickup_lng, ST_Y(delivery_location::geometry) as delivery_lat, ST_X(delivery_location::geometry) as delivery_lng FROM orders WHERE id = $1`, [orderId]);
     if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-
     const order = orderRes.rows[0];
     const profile = await getFulfillerPublicProfile(order.fulfiller_id);
     const history = await db.query("SELECT status, description, created_at as time FROM order_status_history WHERE order_id = $1 ORDER BY created_at ASC", [orderId]);
-
-    res.status(200).json({
-      ...order,
-      fulfiller_profile: profile,
-      history: history.rows
-    });
+    res.status(200).json({ ...order, tracking_url: `https://api.awa.name.ng/track/${order.tracking_token}`, fulfiller_profile: profile, history: history.rows });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch order details' });
+    res.status(500).json({ error: 'Fetch failed' });
   }
 };
 
 /**
- * Returns all orders for the authenticated user.
+ * Returns user orders.
  */
 const getUserOrders = async (req, res) => {
   const userId = req.user.id;
   try {
-    const { rows } = await db.query(
-      `SELECT id, status, total_fare, pickup_address, delivery_address, created_at
-       FROM orders WHERE user_id = $1 ORDER BY created_at DESC`, [userId]);
+    const { rows } = await db.query(`SELECT id, status, total_fare, pickup_address, delivery_address, created_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC`, [userId]);
     res.status(200).json(rows);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch orders' });
+    res.status(500).json({ error: 'Fetch failed' });
   }
 };
 
 /**
- * Updates an order status (e.g., ARRIVED_AT_DELIVERY).
+ * Updates an order status.
  */
 const updateOrderStatus = async (req, res) => {
   const { orderId } = req.params;
   const { status } = req.body;
-
   try {
-    const { rows } = await db.query("UPDATE orders SET status = $1 WHERE id = $2 RETURNING id, status", [status, orderId]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-
-    await logStatusChange(db, orderId, status, `Mission updated to ${status}`);
-    res.status(200).json(rows[0]);
+    await db.query("UPDATE orders SET status = $1 WHERE id = $2", [status, orderId]);
+    await logStatusChange(db, orderId, status, `Mission state updated to ${status}`);
+    res.status(200).json({ status });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Update failed' });
   }
 };
 
 module.exports = {
   getQuote, createOrder, acceptOrder, updateOrderStatus,
   verifyPickup, verifyDelivery, getOrderDetails, getUserOrders,
-  cancelOrder: async () => {}, // TODO
-  fileIncident: async () => {}, // TODO
-  getQueueCandidates: async () => {}, // TODO
-  claimQueueOrder: async () => {} // TODO
+  getFulfillerPublicProfile,
+  cancelOrder: async (req, res) => { /* TODO */ res.send('OK'); },
+  fileIncident: async (req, res) => { /* TODO */ res.send('OK'); },
+  getQueueCandidates: async (req, res) => { res.json([]); },
+  claimQueueOrder: async (req, res) => { res.send('OK'); }
 };

@@ -10,10 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,9 +45,11 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
     
     var description by remember { mutableStateOf("") }
     var itemPhotoUri by remember { mutableStateOf<Uri?>(null) }
-    var itemPhotoUrl by remember { mutableStateOf<String?>(null) }
     var showMapPickerFor by remember { mutableStateOf<String?>(null) }
 
+    var promoCode by remember { mutableStateOf("") }
+    var activePromo by remember { mutableStateOf<PromoValidationResponse?>(null) }
+    
     var recipientName by remember { mutableStateOf("") }
     var recipientPhone by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
@@ -84,21 +83,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = "Request a Delivery", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.align(Alignment.Start))
         
-        // Quick Select Addresses
-        if (savedAddresses.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Quick Select", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                savedAddresses.forEach { addr ->
-                    AssistChip(onClick = {
-                        if (pickupAddress.isBlank()) { pickupAddress = addr.address_text; pickupLatLng = LatLng(addr.lat, addr.lng) }
-                        else { deliveryAddress = addr.address_text; deliveryLatLng = LatLng(addr.lat, addr.lng) }
-                    }, label = { Text(addr.label) })
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        // Locations
         AddressAutocompleteField(label = "Pickup Location", value = pickupAddress, onValueChange = { address, latLng -> pickupAddress = address; if (latLng != null) pickupLatLng = latLng }, onOpenMap = { showMapPickerFor = "pickup" })
         Spacer(modifier = Modifier.height(8.dp))
         AddressAutocompleteField(label = "Delivery Location", value = deliveryAddress, onValueChange = { address, latLng -> deliveryAddress = address; if (latLng != null) deliveryLatLng = latLng }, onOpenMap = { showMapPickerFor = "delivery" })
@@ -114,7 +99,38 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
             }
         }
 
-        // Billing Method Selection
+        // Promo Code
+        Spacer(modifier = Modifier.height(24.dp))
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = promoCode,
+                onValueChange = { promoCode = it },
+                label = { Text("Promo Code") },
+                modifier = Modifier.weight(1f),
+                enabled = activePromo == null
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = {
+                    coroutineScope.launch {
+                        try {
+                            activePromo = apiService.validatePromoCode(mapOf("code" to promoCode))
+                            Toast.makeText(context, activePromo?.message, Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Invalid Code", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                enabled = promoCode.isNotBlank() && activePromo == null
+            ) {
+                Text("Apply")
+            }
+        }
+        activePromo?.let { 
+            Text("Discount: ${if(it.discount_type == "flat") "₦${it.value}" else "${it.value}%"}", color = Color(0xFF388E3C), style = MaterialTheme.typography.labelSmall)
+        }
+
+        // Billing Method
         if (corporateAccounts.isNotEmpty()) {
             Spacer(modifier = Modifier.height(24.dp))
             Text("Billing Method", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.align(Alignment.Start))
@@ -128,19 +144,17 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
         Text("Recipient Details", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.align(Alignment.Start))
-        Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(value = recipientName, onValueChange = { recipientName = it }, label = { Text("Recipient Name") }, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(value = recipientPhone, onValueChange = { recipientPhone = it }, label = { Text("Recipient Phone") }, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes (Optional)") }, modifier = Modifier.fillMaxWidth())
 
         if (quoteResult != null) {
             Spacer(modifier = Modifier.height(16.dp))
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                val total = quoteResult!!.total_fare
+                val discount = if (activePromo == null) 0.0 else if (activePromo!!.discount_type == "flat") activePromo!!.value else total * (activePromo!!.value / 100)
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Total Fare: ₦${quoteResult!!.total_fare}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Text("Size Tier: ${quoteResult!!.size_tier}")
+                    Text("Total Fare: ₦${total - discount}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    if (discount > 0) Text("Original: ₦$total | Discount: -₦$discount", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
             }
         }
@@ -166,39 +180,36 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && pickupAddress.isNotBlank() && deliveryAddress.isNotBlank() && itemPhotoUri != null
             ) {
-                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary) else Text("Get Fare Quote")
+                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White) else Text("Get Fare Quote")
             }
         } else {
             Button(
                 onClick = {
-                    if (selectedCorporateAccount != null) {
-                        coroutineScope.launch {
-                            isLoading = true
-                            try {
-                                val file = getFileFromUri(context, itemPhotoUri!!)
-                                val uploadRes = apiService.uploadOrderPhoto(MultipartBody.Part.createFormData("document", file.name, file.asRequestBody("image/*".toMediaTypeOrNull())))
-                                val success = finalizeOrderAfterPayment(apiService, quoteId!!, selectedCorporateAccount!!.id, "CORPORATE", recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, uploadRes["url"] ?: "", pickupAddress.take(50), deliveryAddress.take(50))
+                    coroutineScope.launch {
+                        isLoading = true
+                        try {
+                            val file = getFileFromUri(context, itemPhotoUri!!)
+                            val uploadRes = apiService.uploadOrderPhoto(MultipartBody.Part.createFormData("document", file.name, file.asRequestBody("image/*".toMediaTypeOrNull())))
+                            val pUrl = uploadRes["url"] ?: ""
+                            
+                            if (selectedCorporateAccount != null) {
+                                val success = finalizeOrderAfterPayment(apiService, quoteId!!, selectedCorporateAccount!!.id, activePromo?.promo_id, "CORPORATE", recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, pUrl, pickupAddress.take(50), deliveryAddress.take(50))
                                 if (success) onOrderComplete("CORPORATE")
-                            } catch (e: Exception) { errorMessage = ErrorUtils.parseError(e) } finally { isLoading = false }
-                        }
-                    } else if (activity != null && quoteResult != null) {
-                        CheckoutHelper.startCardCheckout(activity, userEmail, (quoteResult!!.total_fare * 100).toLong(), { transaction ->
-                            coroutineScope.launch {
-                                isLoading = true
-                                try {
-                                    val file = getFileFromUri(context, itemPhotoUri!!)
-                                    val uploadRes = apiService.uploadOrderPhoto(MultipartBody.Part.createFormData("document", file.name, file.asRequestBody("image/*".toMediaTypeOrNull())))
-                                    val success = finalizeOrderAfterPayment(apiService, quoteId!!, null, transaction.reference, recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, uploadRes["url"] ?: "", pickupAddress.take(50), deliveryAddress.take(50))
-                                    if (success) onOrderComplete(transaction.reference)
-                                } catch (e: Exception) { errorMessage = ErrorUtils.parseError(e) } finally { isLoading = false }
+                            } else {
+                                CheckoutHelper.startCardCheckout(activity!!, userEmail, ((quoteResult!!.total_fare - (if(activePromo == null) 0.0 else if(activePromo!!.discount_type == "flat") activePromo!!.value else quoteResult!!.total_fare * (activePromo!!.value/100))) * 100).toLong(), { transaction ->
+                                    coroutineScope.launch {
+                                        val success = finalizeOrderAfterPayment(apiService, quoteId!!, null, activePromo?.promo_id, transaction.reference, recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, pUrl, pickupAddress.take(50), deliveryAddress.take(50))
+                                        if (success) onOrderComplete(transaction.reference)
+                                    }
+                                }, { error -> errorMessage = ErrorUtils.parseError(Exception(error)) })
                             }
-                        }, { error -> errorMessage = ErrorUtils.parseError(Exception(error)) })
+                        } catch (e: Exception) { errorMessage = ErrorUtils.parseError(e) } finally { isLoading = false }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && recipientName.isNotBlank() && recipientPhone.isNotBlank()
             ) {
-                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary) else Text("Pay ₦${quoteResult!!.total_fare} & Deploy")
+                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White) else Text("Pay & Deploy Mission")
             }
         }
     }
@@ -212,10 +223,10 @@ private fun getFileFromUri(context: android.content.Context, uri: Uri): File {
 }
 
 suspend fun finalizeOrderAfterPayment(
-    apiService: ApiService, quoteId: String, corporateAccountId: String?, paymentReference: String, recipientName: String, recipientPhone: String, notes: String?, pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemPhotoUrl: String, pSummary: String, dSummary: String
+    apiService: ApiService, quoteId: String, corporateAccountId: String?, promoId: String?, paymentReference: String, recipientName: String, recipientPhone: String, notes: String?, pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemPhotoUrl: String, pSummary: String, dSummary: String
 ): Boolean {
     return try {
-        val request = CreateOrderRequest(quote_id = quoteId, corporate_account_id = corporateAccountId, payment_method = "card", recipient_name = recipientName, recipient_phone = recipientPhone, notes = notes, pickup_lat = pLat, pickup_lng = pLng, delivery_lat = dLat, delivery_lng = dLng, item_photo_url = itemPhotoUrl, pickup_display_summary = pSummary, delivery_display_summary = dSummary)
+        val request = CreateOrderRequest(quote_id = quoteId, corporate_account_id = corporateAccountId, promo_id = promoId, payment_method = "card", recipient_name = recipientName, recipient_phone = recipientPhone, notes = notes, pickup_lat = pLat, pickup_lng = pLng, delivery_lat = dLat, delivery_lng = dLng, item_photo_url = itemPhotoUrl, pickup_display_summary = pSummary, delivery_display_summary = dSummary)
         val response = apiService.createOrder(request)
         response.status == "SEARCHING" || response.status == "MATCHED"
     } catch (e: Exception) { false }

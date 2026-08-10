@@ -1,63 +1,70 @@
-# Implementation Plan - Milestone 3: Corporate/SME Infrastructure
+# Implementation Plan - Milestone 4: Viral Growth & Public Tracking
 
-Introduce high-value Corporate and SME account management, enabling multi-user billing, real-time Paystack mandates, and automated monthly itemized invoicing.
+Introduce referral incentives, promotional discounts, and shareable real-time tracking links to drive growth and improve transparency.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Unified Wallet System**: I will extend the existing `wallets` table to support a new `owner_type = 'CORPORATE'`. This ensures a single source of truth for all financial transactions.
-> - **Real-Time Billing**: Even for "Monthly Invoice" accounts (Direct Debit), payments are captured in real-time per order. The invoice acts as a consolidated record-keeping document.
-> - **Sub-Account Mapping**: A single Pikop User can be linked to multiple Corporate accounts (e.g., as staff for one and billing admin for another).
+> - **Public Tracking**: Tracking links will be public (no login required). I will mask exact addresses (showing only zone names) and exclude sensitive item descriptions to maintain privacy.
+> - **Referral Rewards**: Rewards are triggered **only** after the invited user completes their first successful delivery. This prevents "signup spam" and ensures high-quality growth.
+> - **Promo Stacking**: By default, only one promo code can be applied per order.
 
 ## Proposed Changes
 
 ### 1. Database & Schema (Backend)
 
-#### [NEW] `backend/migrations/1723020000000_corporate_infrastructure.js`
-- **`corporate_accounts`**: `id` (uuid), `company_name`, `billing_email`, `billing_type` (direct_debit, prepaid_wallet), `paystack_mandate_id`, `status` (pending, active, suspended).
-- **`corporate_sub_accounts`**: `id` (uuid), `corporate_account_id` (FK), `user_id` (FK), `role` (staff, billing_admin).
-- **`orders`**: Add `corporate_account_id` (uuid, FK).
-- **`wallets`**: Add `corporate_account_id` (uuid, FK) and extend `owner_type` to include `'CORPORATE'`.
+#### [NEW] `backend/migrations/1723030000000_growth_and_tracking.js`
+- **Orders**: Add `tracking_token` (uuid, unique), `promo_code_id` (uuid, FK), and `discount_amount` (numeric).
+- **Promo Codes**: Create `promo_codes` table (id, code, discount_type, value, max_uses, used_count, valid_from, valid_to).
+- **Redemptions**: Create `promo_code_redemptions` table to track usage per user.
+- **Referrals**: Create `referral_rewards` table and add `referral_code` and `referred_by_user_id` to `users`.
 
 ---
 
-### 2. Corporate Logic & Onboarding (Backend)
+### 2. Viral Growth Logic (Backend)
 
-#### [NEW] `backend/src/controllers/corporateController.js`
-- **`createAccount`**: Initializes a corporate profile and links the requesting user as `billing_admin`.
-- **`authorizeMandate`**: Generates a Paystack authorization URL for recurring direct debit.
-- **`addStaff`**: Allows billing admins to invite staff members via email.
-- **`getInvoices`**: Retrieves generated monthly PDF summaries.
+#### [NEW] `backend/src/controllers/promoController.js`
+- `validateCode`: Checks validity, expiration, and user-specific usage limits.
 
-#### [MODIFY] `backend/src/routes/corporateRoutes.js`
-- Register corporate management endpoints.
+#### [MODIFY] `backend/src/controllers/authController.js`
+- Generate unique `referral_code` for new users.
+- Link new users to referrers via optional `referral_code` during signup.
 
----
-
-### 3. Payment & Invoice Engine (Backend)
-
-#### [MODIFY] `backend/src/controllers/orderController.js` & `walletService.js`
-- Detect if a user is ordering on behalf of a Corporate account.
-- **Prepaid**: Debit the corporate wallet instantly. Block if insufficient funds.
-- **Direct Debit**: Trigger a real-time charge against the `paystack_mandate_id`.
-
-#### [NEW] `backend/src/jobs/monthlyInvoice.js`
-- A scheduled script using `pdfkit` to generate itemized monthly summaries for all active corporate accounts.
-- Automatically emails the PDF to the registered `billing_email`.
+#### [MODIFY] `backend/src/services/walletService.js`
+- Implement `triggerReferralReward(orderId)`: Detects first-time deliveries and credits both the referrer and referee.
 
 ---
 
-### 4. Admin Command Center
+### 3. Shareable Tracking (Backend & Web)
 
-#### [NEW] `backend/src/views/corporate_accounts.ejs`
-- A dedicated management screen for Ops to monitor corporate accounts, verify mandates, and suspend accounts if necessary.
+#### [NEW] `backend/src/controllers/trackingController.js`
+- `getPublicTracking`: Returns limited, safe data for non-logged-in users.
+
+#### [NEW] `backend/src/views/public_tracking.ejs`
+- A lightweight, responsive web page with a live map (Google Maps JS) and status timeline.
+
+#### [MODIFY] `backend/src/services/socketService.js`
+- Add support for public tracking rooms (`tracking_{token}`).
+
+---
+
+### 4. Android UI Integration
+
+#### [MODIFY] `OrderQuoteScreen.kt`
+- Add **"Promo Code"** field with real-time validation and discount preview.
+
+#### [MODIFY] `TrackOrderScreen.kt`
+- Add **"Share Progress"** button that opens the native Android share sheet with the public tracking URL.
+
+#### [MODIFY] `AccountScreen.kt`
+- Display the user's **Referral Code** with a share button and a summary of earned rewards.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Corporate Signup**: Create a corporate account and verify the `billing_admin` sub-account is created.
-2.  **Staff Invitation**: Invite a staff member and verify they can see the corporate billing option in the app.
-3.  **Real-Time Mandate**: Create an order via a `direct_debit` account and verify the Paystack API is hit immediately.
-4.  **Invoice Generation**: Run the invoice job manually and verify a correctly formatted PDF is generated and emailed.
+1.  **Tracking Share**: Create an order, tap "Share Progress" in the app, and open the resulting link in an incognito browser. Verify the map updates in real-time.
+2.  **Promo Logic**: Create a promo code via DB, apply it in the app, and verify the `total_fare` is correctly reduced. Try using it twice with the same user to verify blocking.
+3.  **Referral Reward**: Sign up a new "Referee" user using a "Referrer" code. Complete a delivery. Verify both wallets are credited with the configured reward amount.
+4.  **Privacy Check**: Ensure the public tracking link **does not** reveal the recipient's phone number or exact house address.

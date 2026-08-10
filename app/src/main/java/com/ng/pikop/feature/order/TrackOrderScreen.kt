@@ -1,5 +1,6 @@
 package com.ng.pikop.feature.order
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,6 +42,7 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
     var etaMinutes by remember { mutableStateOf<Int?>(null) }
     var history by remember { mutableStateOf<List<OrderStatusStep>>(emptyList()) }
     var fulfillerProfile by remember { mutableStateOf<FulfillerPublicProfile?>(null) }
+    var trackingUrl by remember { mutableStateOf<String?>(null) }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -56,6 +58,7 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
             try {
                 val details = apiService.getOrderDetails(orderId)
                 fulfillerProfile = details.fulfiller_profile
+                trackingUrl = details.tracking_url
                 history = details.history.map { item ->
                     OrderStatusStep(
                         status = item.status,
@@ -81,14 +84,11 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
             val lng = data.getDouble("lng")
             val newLoc = LatLng(lat, lng)
             fulfillerLocation = newLoc
-            
             val distanceKm = calculateDistance(newLoc, delivery)
             etaMinutes = ((distanceKm / 30.0) * 60).roundToInt().coerceAtLeast(1)
         }
 
-        SocketManager.on("status_updated") { _ ->
-            fetchHistory()
-        }
+        SocketManager.on("status_updated") { _ -> fetchHistory() }
 
         onDispose {
             SocketManager.off("location_changed")
@@ -99,17 +99,31 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
 
     LaunchedEffect(fulfillerLocation) {
         fulfillerLocation?.let { fulfiller ->
-            val bounds = LatLngBounds.builder()
-                .include(pickup)
-                .include(delivery)
-                .include(fulfiller)
-                .build()
+            val bounds = LatLngBounds.builder().include(pickup).include(delivery).include(fulfiller).build()
             cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, 150))
         }
     }
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
+        topBar = {
+            TopAppBar(
+                title = { Text("Mission Tracking") },
+                actions = {
+                    trackingUrl?.let { url ->
+                        IconButton(onClick = {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "Track my Pikop delivery live at: $url")
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share tracking link"))
+                        }) {
+                            Icon(Icons.Default.Share, contentDescription = "Share")
+                        }
+                    }
+                }
+            )
+        },
         sheetPeekHeight = 160.dp,
         sheetContainerColor = MaterialTheme.colorScheme.surface,
         sheetContent = {
@@ -122,212 +136,69 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
                 cameraPositionState = cameraPositionState,
                 uiSettings = MapUiSettings(zoomControlsEnabled = false)
             ) {
-                Marker(
-                    state = MarkerState(position = pickup),
-                    title = "Pickup Point",
-                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
-                )
-                Marker(
-                    state = MarkerState(position = delivery),
-                    title = "Delivery Destination",
-                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
-                )
-
-                fulfillerLocation?.let {
-                    Marker(
-                        state = MarkerState(position = it),
-                        title = "Driver Location",
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
-                    )
-                }
-
-                Polyline(
-                    points = listOf(pickup, delivery),
-                    color = Color.Gray,
-                    width = 5f,
-                    pattern = listOf(Dash(20f), Gap(10f))
-                )
+                Marker(state = MarkerState(position = pickup), title = "Pickup", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                Marker(state = MarkerState(position = delivery), title = "Delivery", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                fulfillerLocation?.let { Marker(state = MarkerState(position = it), title = "Agent", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)) }
+                Polyline(points = listOf(pickup, delivery), color = Color.Gray, width = 5f, pattern = listOf(Dash(20f), Gap(10f)))
             }
         }
     }
 }
 
 @Composable
-fun TrackingBottomSheetContent(
-    orderId: String,
-    eta: Int?,
-    history: List<OrderStatusStep>,
-    profile: FulfillerPublicProfile?,
-    tokenManager: TokenManager,
-    onRefresh: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .width(40.dp)
-                .height(4.dp)
-                .background(Color.LightGray, CircleShape)
-                .align(Alignment.CenterHorizontally)
-        )
-        
+fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>, profile: FulfillerPublicProfile?, tokenManager: TokenManager, onRefresh: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+        Box(modifier = Modifier.width(40.dp).height(4.dp).background(Color.LightGray, CircleShape).align(Alignment.CenterHorizontally))
         Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
-                Text(
-                    text = if (eta != null) "Arriving in $eta mins" else "Status: ${history.lastOrNull()?.status ?: "Processing"}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Order #$orderId",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
+                Text(text = if (eta != null) "Arriving in $eta mins" else "Status: ${history.lastOrNull()?.status ?: "Processing"}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(text = "Order #$orderId", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
-            
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = CircleShape
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.DirectionsBike,
-                    contentDescription = null,
-                    modifier = Modifier.padding(12.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.DirectionsBike, contentDescription = null, modifier = Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         }
-
         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp)
-
-        // Fulfiller Profile Card
-        profile?.let { p ->
-            FulfillerCard(p)
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // Cancel Order Button
+        profile?.let { FulfillerCard(it); Spacer(modifier = Modifier.height(16.dp)) }
         val canCancel = history.none { it.status == "PICKED_UP" || it.status == "DELIVERED" || it.status == "CANCELLED" }
-        val isMatched = history.any { it.status == "MATCHED" }
-        
         if (canCancel) {
             val scope = rememberCoroutineScope()
             val apiService = remember { ApiService.create(tokenManager) }
             var showCancelConfirm by remember { mutableStateOf(false) }
-
-            OutlinedButton(
-                onClick = { showCancelConfirm = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
-            ) {
-                Text("Cancel Delivery")
+            OutlinedButton(onClick = { showCancelConfirm = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)) { Text("Cancel Delivery") }
+            if (showCancelConfirm) {
+                AlertDialog(onDismissRequest = { showCancelConfirm = false }, title = { Text("Abort Mission?") }, text = { Text("Are you sure you want to cancel this delivery request?") }, confirmButton = { Button(onClick = { scope.launch { try { apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation")); onRefresh() } catch (e: Exception) {} }; showCancelConfirm = false }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("Confirm Abort") } }, dismissButton = { TextButton(onClick = { showCancelConfirm = false }) { Text("Keep Order") } })
             }
             Spacer(modifier = Modifier.height(16.dp))
-
-            if (showCancelConfirm) {
-                AlertDialog(
-                    onDismissRequest = { showCancelConfirm = false },
-                    title = { Text("Abort Mission?") },
-                    text = {
-                        Text(
-                            if (isMatched) "A fulfiller is already on the way. Aborting now will incur a 25% cancellation fee."
-                            else "Are you sure you want to cancel this delivery request?"
-                        )
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    try {
-                                        apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation"))
-                                        onRefresh()
-                                    } catch (e: Exception) {}
-                                }
-                                showCancelConfirm = false
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                        ) {
-                            Text("Confirm Abort")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showCancelConfirm = false }) { Text("Keep Order") }
-                    }
-                )
-            }
         }
-
         Text(text = "Delivery Progress", style = MaterialTheme.typography.titleMedium)
-        
         Spacer(modifier = Modifier.height(16.dp))
-
-        if (history.isEmpty()) {
-            Text("No progress updates yet.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-        } else {
-            LazyColumn(modifier = Modifier.height(300.dp)) {
-                items(history) { step ->
-                    TimelineItem(step)
-                }
-            }
-        }
-        
+        if (history.isEmpty()) { Text("No updates yet.", style = MaterialTheme.typography.bodySmall, color = Color.Gray) } 
+        else { LazyColumn(modifier = Modifier.height(300.dp)) { items(history) { step -> TimelineItem(step) } } }
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
 @Composable
 fun FulfillerCard(profile: FulfillerPublicProfile) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Profile Photo Placeholder (Coil should be used here)
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(profile.full_name.take(1), color = Color.White, fontWeight = FontWeight.Bold)
-                }
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(modifier = Modifier.size(48.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
+                Box(contentAlignment = Alignment.Center) { Text(profile.full_name.take(1), color = Color.White, fontWeight = FontWeight.Bold) }
             }
-            
             Spacer(modifier = Modifier.width(16.dp))
-            
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = profile.full_name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val tierColor = when(profile.tier) {
-                        "gold" -> Color(0xFFFFD700)
-                        "silver" -> Color(0xFFC0C0C0)
-                        else -> Color(0xFFCD7F32)
-                    }
+                    val tierColor = when(profile.tier) { "gold" -> Color(0xFFFFD700); "silver" -> Color(0xFFC0C0C0); else -> Color(0xFFCD7F32) }
                     Icon(Icons.Default.Stars, contentDescription = null, modifier = Modifier.size(14.dp), tint = tierColor)
                     Text(text = " ${profile.tier.uppercase()} AGENT", style = MaterialTheme.typography.labelSmall, color = tierColor)
                 }
             }
-            
             Column(horizontalAlignment = Alignment.End) {
-                profile.vehicle_registration_number?.let { plate ->
-                    Text(text = plate, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFF9F0A))
-                    Text(text = " ${profile.rating_avg}", style = MaterialTheme.typography.titleSmall)
-                }
+                profile.vehicle_registration_number?.let { Text(text = it, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold) }
+                Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFF9F0A)); Text(text = " ${profile.rating_avg}", style = MaterialTheme.typography.titleSmall) }
             }
         }
     }
@@ -335,39 +206,15 @@ fun FulfillerCard(profile: FulfillerPublicProfile) {
 
 @Composable
 fun TimelineItem(step: OrderStatusStep) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 16.dp),
-        verticalAlignment = Alignment.Top
-    ) {
+    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), verticalAlignment = Alignment.Top) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .background(
-                        if (step.isCompleted) MaterialTheme.colorScheme.primary else Color.LightGray,
-                        CircleShape
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .width(2.dp)
-                    .height(40.dp)
-                    .background(Color.LightGray)
-            )
+            Box(modifier = Modifier.size(12.dp).background(if (step.isCompleted) MaterialTheme.colorScheme.primary else Color.LightGray, CircleShape))
+            Box(modifier = Modifier.width(2.dp).height(40.dp).background(Color.LightGray))
         }
-        
         Spacer(modifier = Modifier.width(16.dp))
-        
         Column {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    text = step.status,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (step.isCompleted) FontWeight.Bold else FontWeight.Normal,
-                    color = if (step.isCompleted) Color.Unspecified else Color.Gray
-                )
+                Text(text = step.status.replace('_', ' '), style = MaterialTheme.typography.bodyLarge, fontWeight = if (step.isCompleted) FontWeight.Bold else FontWeight.Normal, color = if (step.isCompleted) Color.Unspecified else Color.Gray)
                 Text(text = step.time, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
             Text(text = step.description, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
@@ -376,14 +223,9 @@ fun TimelineItem(step: OrderStatusStep) {
 }
 
 fun calculateDistance(start: LatLng, end: LatLng): Double {
-    val r = 6371
-    val dLat = Math.toRadians(end.latitude - start.latitude)
-    val dLon = Math.toRadians(end.longitude - start.longitude)
-    val a = sin(dLat / 2).pow(2) +
-            cos(Math.toRadians(start.latitude)) * cos(Math.toRadians(end.latitude)) *
-            sin(dLon / 2).pow(2)
-    val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    return r * c
+    val r = 6371; val dLat = Math.toRadians(end.latitude - start.latitude); val dLon = Math.toRadians(end.longitude - start.longitude)
+    val a = sin(dLat / 2).pow(2) + cos(Math.toRadians(start.latitude)) * cos(Math.toRadians(end.latitude)) * sin(dLon / 2).pow(2)
+    return r * 2 * atan2(sqrt(a), sqrt(1 - a))
 }
 
 fun formatTime(isoTimestamp: String): String {
@@ -391,9 +233,6 @@ fun formatTime(isoTimestamp: String): String {
         val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         parser.timeZone = TimeZone.getTimeZone("UTC")
         val date = parser.parse(isoTimestamp)
-        val formatter = SimpleDateFormat("h:mm a", Locale.getDefault())
-        formatter.format(date!!)
-    } catch (e: Exception) {
-        isoTimestamp
-    }
+        SimpleDateFormat("h:mm a", Locale.getDefault()).format(date!!)
+    } catch (e: Exception) { isoTimestamp }
 }

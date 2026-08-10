@@ -55,13 +55,22 @@ fun PikopAppNavigation() {
     
     val userEmail by tokenManager.userEmail.collectAsState(initial = null)
     val userRole by tokenManager.userRole.collectAsState(initial = null)
+    val referralCode by tokenManager.referralCode.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
+
+    // Handle Intent Deep-linking
+    val activity = context as? ComponentActivity
+    LaunchedEffect(activity?.intent) {
+        val navigateTo = activity?.intent?.getStringExtra("navigate_to")
+        if (navigateTo == "chat" && accessToken != null) {
+            navController.navigate("main") 
+        }
+    }
 
     // Push Token Registration (Safe)
     LaunchedEffect(accessToken) {
         if (accessToken != null) {
             try {
-                // Ensure Firebase is initialized before requesting token
                 if (FirebaseApp.getApps(context).isNotEmpty()) {
                     FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                         if (task.isSuccessful) {
@@ -176,6 +185,7 @@ fun PikopAppNavigation() {
                 navController = navController,
                 userEmail = userEmail ?: "",
                 userRole = userRole ?: "CUSTOMER",
+                referralCode = referralCode ?: "",
                 tokenManager = tokenManager
             )
         }
@@ -203,6 +213,7 @@ fun MainAppScaffold(
     navController: NavHostController,
     userEmail: String,
     userRole: String,
+    referralCode: String,
     tokenManager: TokenManager
 ) {
     val nestedNavController = rememberNavController()
@@ -254,7 +265,7 @@ fun MainAppScaffold(
                         onGoToWallet = { nestedNavController.navigate("wallet") },
                         onGoToKyc = { navController.navigate("kyc_upload") },
                         onGoToAbout = { nestedNavController.navigate("account") },
-                        onLogout = {} // Managed in Account tab
+                        onLogout = {} 
                     )
                 } else {
                     OrdersDashboardScreen(
@@ -282,6 +293,7 @@ fun MainAppScaffold(
                 AccountScreen(
                     userEmail = userEmail,
                     userRole = userRole,
+                    referralCode = referralCode,
                     onNavigateToSupport = {
                         scope.launch {
                             try {

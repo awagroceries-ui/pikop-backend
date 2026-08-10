@@ -8,57 +8,53 @@ const expressLayouts = require('express-ejs-layouts');
 
 const app = express();
 
-// View Engine Setup
-app.use(expressLayouts);
-app.set('view engine', 'ejs');
+// Middleware
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors());
+app.use(morgan('dev'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session for Admin Dashboard
+app.use(session({
+  secret: process.env.JWT_SECRET || 'pikop_admin_secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
+
+// View Engine (EJS)
 app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+app.use(expressLayouts);
 app.set('layout', 'layout');
 
 // Static Files
 app.use('/public', express.static(path.join(__dirname, '../public')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Middleware
-app.use(helmet({
-  contentSecurityPolicy: false, // Disable for alpha/bootstrap CDN
-}));
-app.use(cors());
-app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Root & Health
+app.get('/', (req, res) => res.json({ message: 'Pikop API v1.3.0' }));
+app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date().toISOString() }));
 
-// Session Setup
-app.use(session({
-  secret: process.env.JWT_SECRET || 'pikop_secret',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { secure: false } // Set true if using HTTPS/VPS
-}));
+// Admin Routes (Branded Mission Control)
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/admin', adminRoutes);
 
-// Health Check
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// API v1 Routes
+const { authenticateToken } = require('./middleware/authMiddleware');
+const promoController = require('./controllers/promoController');
+const trackingController = require('./controllers/trackingController');
 
-// Routes
+app.get('/track/:token', trackingController.getPublicTracking);
+
 app.use('/api/v1/auth', require('./routes/authRoutes'));
-app.use('/api/v1/payments', require('./routes/paymentRoutes'));
 app.use('/api/v1/orders', require('./routes/orderRoutes'));
 app.use('/api/v1/fulfillers', require('./routes/fulfillerRoutes'));
-app.use('/api/v1/withdrawals', require('./routes/withdrawalRoutes'));
 app.use('/api/v1/addresses', require('./routes/addressRoutes'));
 app.use('/api/v1/wallets', require('./routes/walletRoutes'));
 app.use('/api/v1/support', require('./routes/supportRoutes'));
 app.use('/api/v1/corporate', require('./routes/corporateRoutes'));
-app.use('/admin', require('./routes/adminRoutes'));
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  if (req.path.startsWith('/admin')) {
-    return res.status(500).render('error', { message: 'Something went wrong on the dashboard.', admin: req.session?.adminUsername || 'Admin' });
-  }
-  res.status(500).json({ error: 'Internal Server Error' });
-});
+app.post('/api/v1/promo-codes/validate', authenticateToken, promoController.validateCode);
 
 module.exports = app;

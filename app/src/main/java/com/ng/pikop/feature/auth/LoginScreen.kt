@@ -100,7 +100,8 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit, onGoToSignup: () -> Unit) {
                                     response.accessToken,
                                     response.refreshToken,
                                     email,
-                                    userRole
+                                    userRole,
+                                    response.referral_code
                                 )
                                 onLoginSuccess(userRole)
                             } else {

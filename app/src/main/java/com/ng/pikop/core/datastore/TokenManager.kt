@@ -16,6 +16,7 @@ class TokenManager(private val context: Context) {
         private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         private val USER_EMAIL_KEY = stringPreferencesKey("user_email")
         private val USER_ROLE_KEY = stringPreferencesKey("user_role")
+        private val REFERRAL_CODE_KEY = stringPreferencesKey("referral_code")
     }
 
     val accessToken: Flow<String?> = context.dataStore.data
@@ -33,12 +34,18 @@ class TokenManager(private val context: Context) {
             preferences[USER_ROLE_KEY]
         }
 
-    suspend fun saveTokens(accessToken: String, refreshToken: String, email: String, role: String) {
+    val referralCode: Flow<String?> = context.dataStore.data
+        .map { preferences ->
+            preferences[REFERRAL_CODE_KEY]
+        }
+
+    suspend fun saveTokens(accessToken: String, refreshToken: String, email: String, role: String, referralCode: String? = null) {
         context.dataStore.edit { preferences ->
             preferences[ACCESS_TOKEN_KEY] = accessToken
             preferences[REFRESH_TOKEN_KEY] = refreshToken
             preferences[USER_EMAIL_KEY] = email
             preferences[USER_ROLE_KEY] = role
+            if (referralCode != null) preferences[REFERRAL_CODE_KEY] = referralCode
         }
     }
 

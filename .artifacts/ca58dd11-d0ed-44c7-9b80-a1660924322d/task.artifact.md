@@ -1,29 +1,27 @@
-# Milestone 3: Corporate/SME Infrastructure Task List
+# Milestone 4: Viral Growth & Public Tracking Task List
 
 ## Phase 1: Database & Schema
-- [ ] Create `corporate_infrastructure` migration (`corporate_accounts`, `corporate_sub_accounts`, `orders` update)
-- [ ] Extend `wallets` schema for corporate owners
+- [ ] Create `growth_and_tracking` migration (`promo_codes`, `redemptions`, `referral_rewards`, `users` & `orders` update)
 
-## Phase 2: Backend Management Logic
-- [ ] Create `corporateController.js` (Account init, staff management, mandate logic)
-- [ ] Create `corporateRoutes.js`
-- [ ] Register routes in `app.js`
+## Phase 2: Growth Logic (Backend)
+- [ ] Update `authController.js` to generate referral codes
+- [ ] Create `promoController.js` for code validation
+- [ ] Update `orderController.js` to apply promos and generate tracking tokens
+- [ ] Update `walletService.js` to handle referral payouts
 
-## Phase 3: Payment & Dispatch Integration
-- [ ] Update `walletService.js` to handle corporate debiting
-- [ ] Update `orderController.js` to support corporate payment flow
-- [ ] Implement basic direct-debit charge logic (Paystack integration stub)
+## Phase 3: Public Tracking (Backend & Web)
+- [ ] Create `trackingController.js` (Public API)
+- [ ] Create `public_tracking.ejs` view
+- [ ] Update `socketService.js` to support tracking rooms
+- [ ] Register public routes in `app.js`
 
-## Phase 4: Admin Dashboard
-- [ ] Update `adminController.js` with corporate account listing
-- [ ] Create `corporate_accounts.ejs` view
-- [ ] Update `layout.ejs` with "Corporate Accounts" link
-
-## Phase 5: Invoicing System
-- [ ] Create basic `monthlyInvoice` job script
-- [ ] Implement PDF generation stub
+## Phase 4: Android App Integration
+- [ ] Update `ApiService.kt` with promo and tracking endpoints
+- [ ] Add Promo Code input to `OrderQuoteScreen.kt`
+- [ ] Add "Share Tracking" to `TrackOrderScreen.kt`
+- [ ] Update `AccountScreen.kt` with Referral Code & Rewards
 
 ## Verification
-- [ ] Verify corporate sub-account link
-- [ ] Verify real-time debit for corporate orders
-- [ ] Verify Admin listing of corporate accounts
+- [ ] Test public tracking link in browser
+- [ ] Verify promo discount calculation
+- [ ] Verify referral reward payout after first delivery

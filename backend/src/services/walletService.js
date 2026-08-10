@@ -160,8 +160,59 @@ const processCorporateDebit = async (client, corporateAccountId, amount, orderId
     return true;
 };
 
+/**
+ * Triggers referral rewards if this was the referee's first delivery.
+ */
+const triggerReferralReward = async (client, orderId) => {
+    // 1. Get Order & User info
+    const { rows: orderRows } = await client.query(`
+        SELECT o.user_id, u.referred_by_user_id
+        FROM orders o
+        JOIN users u ON u.id = o.user_id
+        WHERE o.id = $1`, [orderId]);
+
+    if (orderRows.length === 0) return;
+    const { user_id, referred_by_user_id } = orderRows[0];
+
+    if (!referred_by_user_id) return; // No referrer
+
+    // 2. Check if this is the first DELIVERED order for this user
+    const { rows: orderCount } = await client.query(
+        "SELECT COUNT(*) FROM orders WHERE user_id = $1 AND status = 'DELIVERED'",
+        [user_id]
+    );
+
+    if (parseInt(orderCount[0].count) !== 1) return; // Not the first one
+
+    // 3. Process Rewards (₦500 Referrer / ₦300 Referee)
+    const REWARD_REFERRER = 500.00;
+    const REWARD_REFEREE = 300.00;
+
+    // Credit Referrer
+    await client.query("UPDATE wallets SET balance = balance + $1 WHERE owner_id = $2 AND owner_type = 'USER'", [REWARD_REFERRER, referred_by_user_id]);
+    await client.query(
+        "INSERT INTO wallet_ledger_entries (wallet_id, amount, entry_type, purpose, reference_id) VALUES ((SELECT id FROM wallets WHERE owner_id = $1 AND owner_type = 'USER'), $2, 'CREDIT', 'REFERRAL_REWARD', $3)",
+        [referred_by_user_id, REWARD_REFERRER, orderId]
+    );
+
+    // Credit Referee
+    await client.query("UPDATE wallets SET balance = balance + $1 WHERE owner_id = $2 AND owner_type = 'USER'", [REWARD_REFEREE, user_id]);
+    await client.query(
+        "INSERT INTO wallet_ledger_entries (wallet_id, amount, entry_type, purpose, reference_id) VALUES ((SELECT id FROM wallets WHERE owner_id = $1 AND owner_type = 'USER'), $2, 'CREDIT', 'REFEREE_WELCOME', $3)",
+        [user_id, REWARD_REFEREE, orderId]
+    );
+
+    // Log Reward Record
+    await client.query(
+        `INSERT INTO referral_rewards (referrer_user_id, referee_user_id, reward_amount, status, triggered_by_order_id)
+         VALUES ($1, $2, $3, 'credited', $4)`,
+        [referred_by_user_id, user_id, REWARD_REFERRER + REWARD_REFEREE, orderId]
+    );
+};
+
 module.exports = {
   processDeliveryPayment,
   processCancellationFee,
-  processCorporateDebit
+  processCorporateDebit,
+  triggerReferralReward
 };

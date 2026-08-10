@@ -2,12 +2,13 @@ const db = require('../config/db');
 const authService = require('../services/authService');
 const jwt = require('jsonwebtoken');
 const notificationService = require('../services/notificationService');
+const crypto = require('crypto');
 
 /**
  * Registers a new user and generates an OTP.
  */
 const signup = async (req, res) => {
-  const { full_name, email, phone, password, role } = req.body;
+  const { full_name, email, phone, password, role, referral_code } = req.body;
   const userRole = (role || 'CUSTOMER').toUpperCase();
 
   const client = await db.pool.connect();
@@ -16,10 +17,22 @@ const signup = async (req, res) => {
 
     const passwordHash = await authService.hashPassword(password);
 
+    // Generate unique referral code for this user
+    const userReferralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+
+    // Check if referred by someone
+    let referredByUserId = null;
+    if (referral_code) {
+        const refRes = await client.query("SELECT id FROM users WHERE referral_code = $1", [referral_code.toUpperCase()]);
+        if (refRes.rows.length > 0) {
+            referredByUserId = refRes.rows[0].id;
+        }
+    }
+
     // 1. Create User
     const userRes = await client.query(
-      "INSERT INTO users (full_name, email, phone, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role",
-      [full_name, email, phone, passwordHash, userRole]
+      "INSERT INTO users (full_name, email, phone, password_hash, role, referral_code, referred_by_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, role",
+      [full_name, email, phone, passwordHash, userRole, userReferralCode, referredByUserId]
     );
     const user = userRes.rows[0];
 
@@ -145,6 +158,7 @@ const login = async (req, res) => {
       userId: user.id,
       email: user.email,
       role: user.role,
+      referral_code: user.referral_code,
       ...tokens
     });
   } catch (error) {

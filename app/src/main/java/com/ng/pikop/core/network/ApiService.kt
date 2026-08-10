@@ -19,7 +19,8 @@ data class SignupRequest(
     val email: String,
     val phone: String,
     val password: String,
-    val role: String
+    val role: String,
+    val referral_code: String? = null
 )
 
 data class AuthResponse(
@@ -28,7 +29,8 @@ data class AuthResponse(
     val refreshToken: String?,
     val userId: String?,
     val email: String?,
-    val role: String?
+    val role: String?,
+    val referral_code: String? = null
 )
 
 data class LoginRequest(
@@ -65,6 +67,7 @@ data class QuoteResponse(
 data class CreateOrderRequest(
     val quote_id: String,
     val corporate_account_id: String? = null,
+    val promo_id: String? = null,
     val payment_method: String,
     val recipient_name: String,
     val recipient_phone: String,
@@ -81,6 +84,7 @@ data class CreateOrderRequest(
 data class OrderResponse(
     val order_id: String,
     val status: String,
+    val tracking_url: String? = null,
     val message: String?
 )
 
@@ -109,6 +113,7 @@ data class OrderDetailsResponse(
     val delivery_lat: Double,
     val delivery_lng: Double,
     val item_photo_url: String?,
+    val tracking_url: String?,
     val fulfiller_profile: FulfillerPublicProfile?,
     val history: List<StatusHistoryItem>
 )
@@ -262,6 +267,13 @@ data class CorporateStaff(
     val created_at: String
 )
 
+data class PromoValidationResponse(
+    val promo_id: String,
+    val discount_type: String, // flat, percentage
+    val value: Double,
+    val message: String
+)
+
 interface ApiService {
     @POST("api/v1/auth/signup")
     suspend fun signup(@Body request: SignupRequest): AuthResponse
@@ -277,6 +289,9 @@ interface ApiService {
 
     @POST("api/v1/auth/fcm-token")
     suspend fun updateFCMToken(@Body request: Map<String, String>): AuthResponse
+
+    @POST("api/v1/promo-codes/validate")
+    suspend fun validatePromoCode(@Body request: Map<String, String>): PromoValidationResponse
 
     @POST("api/v1/orders/quote")
     suspend fun getQuote(@Body request: QuoteRequest): QuoteResponse

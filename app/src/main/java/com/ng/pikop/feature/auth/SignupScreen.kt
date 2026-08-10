@@ -26,7 +26,6 @@ import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ErrorUtils
 import com.ng.pikop.core.network.SignupRequest
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 @Composable
 fun SignupScreen(
@@ -43,6 +42,7 @@ fun SignupScreen(
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var referralCode by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
@@ -134,6 +134,15 @@ fun SignupScreen(
                 isError = confirmPassword.isNotEmpty() && password != confirmPassword
             )
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = referralCode,
+                onValueChange = { referralCode = it },
+                label = { Text("Referral Code (Optional)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -157,7 +166,7 @@ fun SignupScreen(
                         isLoading = true
                         errorMessage = null
                         try {
-                            val request = SignupRequest(fullName, email, phone, password, role)
+                            val request = SignupRequest(fullName, email, phone, password, role, referralCode.ifBlank { null })
                             val response = apiService.signup(request)
                             if (response.accessToken != null && response.refreshToken != null) {
                                 val userRole = response.role ?: role
@@ -165,7 +174,8 @@ fun SignupScreen(
                                     response.accessToken,
                                     response.refreshToken,
                                     email,
-                                    userRole
+                                    userRole,
+                                    response.referral_code
                                 )
                                 onSignupSuccess(email, userRole)
                             } else {
