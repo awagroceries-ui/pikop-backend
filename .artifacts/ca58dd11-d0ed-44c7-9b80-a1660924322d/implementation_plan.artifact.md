@@ -1,67 +1,63 @@
-# Implementation Plan - Milestone 2: Fulfiller 2.0 & Advanced Onboarding
+# Implementation Plan - Milestone 3: Corporate/SME Infrastructure
 
-Upgrade the fulfiller experience with automated KYC, live identity capture, class-conditional onboarding flows, and formalized public profile cards.
+Introduce high-value Corporate and SME account management, enabling multi-user billing, real-time Paystack mandates, and automated monthly itemized invoicing.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Branching Onboarding**: Agents (including Cyclists) will now skip vehicle-related documents entirely. Riders and Drivers will be required to provide vehicle registration numbers and specific licenses.
-> - **Mandatory Live Photo**: I will implement a mandatory **Profile Photo** step. To prevent fraud, the app will force a live camera capture and block gallery uploads.
-> - **Cyclist Mobility**: Agents can now select `bicycle` as a mobility type, which will widen their dispatch radius to match Riders.
-> - **Public Identity**: Users will now see a verified Fulfiller Profile (name, live photo, tier, and vehicle plate number) when matched.
+> - **Unified Wallet System**: I will extend the existing `wallets` table to support a new `owner_type = 'CORPORATE'`. This ensures a single source of truth for all financial transactions.
+> - **Real-Time Billing**: Even for "Monthly Invoice" accounts (Direct Debit), payments are captured in real-time per order. The invoice acts as a consolidated record-keeping document.
+> - **Sub-Account Mapping**: A single Pikop User can be linked to multiple Corporate accounts (e.g., as staff for one and billing admin for another).
 
 ## Proposed Changes
 
-### 1. Schema & Database (Backend)
+### 1. Database & Schema (Backend)
 
-#### [NEW] `backend/migrations/1723010000000_fulfiller_2_0.js`
-- **Fulfillers**:
-    - Add `mobility_type` (on_foot, public_transit, bicycle).
-    - Add `profile_photo_url` (varchar, nullable).
-    - Add `tier` (bronze, silver, gold, default: bronze).
-- **Vehicles**: Create `vehicles` table (id, fulfiller_id, registration_number, make, model, color).
-
----
-
-### 2. Class-Conditional Logic (Backend)
-
-#### [MODIFY] `fulfillerController.js`
-- **`updateProfile`**: New endpoint to handle branching data (mobility_type for Agents, vehicle details for Riders/Drivers, and the mandatory profile photo).
-- **`submitApplication`**: Validates that the **Live Profile Photo** and all required documents for the specific class are present before allowing submission.
-- **Dispatch radius**: Update `findNearbyFulfillers` to use a multiplier for `bicycle` mobility (configurable in settings).
+#### [NEW] `backend/migrations/1723020000000_corporate_infrastructure.js`
+- **`corporate_accounts`**: `id` (uuid), `company_name`, `billing_email`, `billing_type` (direct_debit, prepaid_wallet), `paystack_mandate_id`, `status` (pending, active, suspended).
+- **`corporate_sub_accounts`**: `id` (uuid), `corporate_account_id` (FK), `user_id` (FK), `role` (staff, billing_admin).
+- **`orders`**: Add `corporate_account_id` (uuid, FK).
+- **`wallets`**: Add `corporate_account_id` (uuid, FK) and extend `owner_type` to include `'CORPORATE'`.
 
 ---
 
-### 3. Fulfiller Public Profile (Backend & Android)
+### 2. Corporate Logic & Onboarding (Backend)
 
-#### [MODIFY] `orderController.js`
-- Create a shared `getPublicProfile(fulfillerId)` helper returning only the safe subset (Name, Photo, Tier, Plate).
-- Inject this profile into all Order and Offer responses.
+#### [NEW] `backend/src/controllers/corporateController.js`
+- **`createAccount`**: Initializes a corporate profile and links the requesting user as `billing_admin`.
+- **`authorizeMandate`**: Generates a Paystack authorization URL for recurring direct debit.
+- **`addStaff`**: Allows billing admins to invite staff members via email.
+- **`getInvoices`**: Retrieves generated monthly PDF summaries.
 
-#### [MODIFY] `ActiveOrderScreen.kt` (User App)
-- Update the "Driver Assigned" card to show:
-    - **Live Profile Photo** & Name.
-    - Tier Badge (Bronze/Silver/Gold).
-    - **Vehicle Registration Number** (if Rider/Driver).
-    - Star Rating.
+#### [MODIFY] `backend/src/routes/corporateRoutes.js`
+- Register corporate management endpoints.
 
 ---
 
-### 4. Advanced Onboarding Flow (Android)
+### 3. Payment & Invoice Engine (Backend)
 
-#### [MODIFY] `KycUploadScreen.kt`
-- Implement flow branching:
-    - **Identity Step**: Didit KYC (Shared).
-    - **Live Photo Step**: Force camera capture for the fulfiller's face.
-    - **Branch 1 (Agent)**: Skip vehicle docs -> Mobility Type Selection.
-    - **Branch 2 (Rider/Driver)**: Vehicle Details -> Vehicle Documents.
+#### [MODIFY] `backend/src/controllers/orderController.js` & `walletService.js`
+- Detect if a user is ordering on behalf of a Corporate account.
+- **Prepaid**: Debit the corporate wallet instantly. Block if insufficient funds.
+- **Direct Debit**: Trigger a real-time charge against the `paystack_mandate_id`.
+
+#### [NEW] `backend/src/jobs/monthlyInvoice.js`
+- A scheduled script using `pdfkit` to generate itemized monthly summaries for all active corporate accounts.
+- Automatically emails the PDF to the registered `billing_email`.
+
+---
+
+### 4. Admin Command Center
+
+#### [NEW] `backend/src/views/corporate_accounts.ejs`
+- A dedicated management screen for Ops to monitor corporate accounts, verify mandates, and suspend accounts if necessary.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Agent Flow**: Sign up as an Agent, complete Didit, take a live photo, and verify the app asks for Mobility Type but NOT a license.
-2.  **Rider Flow**: Sign up as a Rider and verify the app requires a Live Photo, License, and Vehicle Plate before submission.
-3.  **Photo Lockdown**: Attempt to upload a profile photo from the gallery; verify that only the camera option is available.
-4.  **Profile Visibility**: Match an order with a Driver and verify the User app correctly displays the Driver's **Live Photo** and plate number.
+1.  **Corporate Signup**: Create a corporate account and verify the `billing_admin` sub-account is created.
+2.  **Staff Invitation**: Invite a staff member and verify they can see the corporate billing option in the app.
+3.  **Real-Time Mandate**: Create an order via a `direct_debit` account and verify the Paystack API is hit immediately.
+4.  **Invoice Generation**: Run the invoice job manually and verify a correctly formatted PDF is generated and emailed.

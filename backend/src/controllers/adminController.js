@@ -317,6 +317,32 @@ const deleteAdmin = async (req, res) => {
   }
 };
 
+/**
+ * List all corporate accounts.
+ */
+const getCorporateAccounts = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT ca.*, (SELECT COUNT(*) FROM corporate_sub_accounts WHERE corporate_account_id = ca.id) as staff_count
+      FROM corporate_accounts ca
+      ORDER BY ca.created_at DESC
+    `);
+    res.render('corporate_accounts', { accounts: rows });
+  } catch (error) {
+    res.status(500).send('Error loading corporate accounts');
+  }
+};
+
+const suspendCorporateAccount = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query("UPDATE corporate_accounts SET status = 'suspended' WHERE id = $1", [id]);
+    res.redirect('/admin/corporate');
+  } catch (error) {
+    res.status(500).send('Error suspending account');
+  }
+};
+
 module.exports = {
   login,
   getDashboard,
@@ -329,6 +355,8 @@ module.exports = {
   getSupportInbox,
   getConversationDetails,
   resolveSupport,
+  getCorporateAccounts,
+  suspendCorporateAccount,
   getSettings,
   updateSettings,
   getRevenueReport,

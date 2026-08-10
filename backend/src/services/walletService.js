@@ -121,7 +121,47 @@ const processCancellationFee = async (orderId) => {
   }
 };
 
+/**
+ * Debits a Corporate account for an order.
+ */
+const processCorporateDebit = async (client, corporateAccountId, amount, orderId) => {
+    // 1. Get Account & Wallet
+    const { rows } = await client.query(`
+        SELECT ca.billing_type, ca.paystack_mandate_id, w.id as wallet_id, w.balance
+        FROM corporate_accounts ca
+        JOIN wallets w ON w.corporate_account_id = ca.id
+        WHERE ca.id = $1 AND ca.status = 'active'
+        FOR UPDATE OF ca, w`, [corporateAccountId]);
+
+    if (rows.length === 0) throw new Error('Corporate account not active or not found');
+    const acc = rows[0];
+
+    if (acc.billing_type === 'prepaid_wallet') {
+        if (parseFloat(acc.balance) < amount) throw new Error('Insufficient corporate funds');
+
+        // Debit Wallet
+        await client.query("UPDATE wallets SET balance = balance - $1 WHERE id = $2", [amount, acc.wallet_id]);
+        await client.query(
+            "INSERT INTO wallet_ledger_entries (wallet_id, amount, entry_type, purpose, reference_id) VALUES ($1, $2, 'DEBIT', 'CORPORATE_ORDER', $3)",
+            [acc.wallet_id, amount, orderId]
+        );
+    } else if (acc.billing_type === 'direct_debit') {
+        if (!acc.paystack_mandate_id) throw new Error('No valid direct-debit mandate found');
+        // STUB: Real-time Paystack Charge would happen here
+        console.log(`[PAYMENT] Charging Corporate Mandate ${acc.paystack_mandate_id} for Amount ${amount}`);
+
+        // Log in ledger anyway for reporting
+        await client.query(
+            "INSERT INTO wallet_ledger_entries (wallet_id, amount, entry_type, purpose, reference_id) VALUES ($1, $2, 'DEBIT', 'DIRECT_DEBIT_ORDER', $3)",
+            [acc.wallet_id, amount, orderId]
+        );
+    }
+
+    return true;
+};
+
 module.exports = {
   processDeliveryPayment,
-  processCancellationFee
+  processCancellationFee,
+  processCorporateDebit
 };

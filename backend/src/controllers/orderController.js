@@ -98,8 +98,12 @@ const getQuote = async (req, res) => {
  * Creates an order from a valid quote.
  */
 const createOrder = async (req, res) => {
-  const { quote_id, pickup_lat, pickup_lng, delivery_lat, delivery_lng, item_photo_url, pickup_display_summary, delivery_display_summary } = req.body;
-  const userId = req.user?.id || 1;
+  const {
+    quote_id, corporate_account_id,
+    pickup_lat, pickup_lng, delivery_lat, delivery_lng,
+    item_photo_url, pickup_display_summary, delivery_display_summary
+  } = req.body;
+  const userId = req.user?.id;
 
   if (!item_photo_url) return res.status(400).json({ error: 'Item photo is required' });
 
@@ -107,13 +111,32 @@ const createOrder = async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // 1. Validate Quote
     const quoteRes = await client.query("SELECT * FROM quotes WHERE id = $1 AND expires_at > CURRENT_TIMESTAMP", [quote_id]);
     if (quoteRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Quote expired or not found' });
     }
-
     const quote = quoteRes.rows[0];
+
+    // 2. Handle Corporate Payment if applicable
+    let finalCorporateId = null;
+    if (corporate_account_id) {
+        // Verify User is linked to this account
+        const subRes = await client.query(
+            "SELECT id FROM corporate_sub_accounts WHERE corporate_account_id = $1 AND user_id = $2",
+            [corporate_account_id, userId]
+        );
+        if (subRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: 'Unauthorized: You are not a member of this corporate account' });
+        }
+
+        await walletService.processCorporateDebit(client, corporate_account_id, quote.total_fare, 'PENDING');
+        finalCorporateId = corporate_account_id;
+    }
+
+    // 3. Create Order
     const pickupCode = crypto.randomInt(1000, 9999).toString();
     const pickupHash = await bcrypt.hash(pickupCode, 10);
 
@@ -121,10 +144,10 @@ const createOrder = async (req, res) => {
     const eligibleClasses = eligibilityMap[quote.size_tier] || ['driver'];
 
     const { rows } = await client.query(
-      `INSERT INTO orders (user_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code_hash, item_photo_url, pickup_display_summary, delivery_display_summary, eligible_classes)
-       VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, 'SEARCHING', $8, $9, $10, $11, $12, $13)
+      `INSERT INTO orders (user_id, corporate_account_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code_hash, item_photo_url, pickup_display_summary, delivery_display_summary, eligible_classes)
+       VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326), ST_SetSRID(ST_MakePoint($5, $6), 4326), $7, $8, 'SEARCHING', $9, $10, $11, $12, $13, $14)
        RETURNING id, status`,
-      [userId, pickup_lng || 0, pickup_lat || 0, delivery_lng || 0, delivery_lat || 0, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupHash, item_photo_url, pickup_display_summary, delivery_display_summary, eligibleClasses]
+      [userId, finalCorporateId, pickup_lng || 0, pickup_lat || 0, delivery_lng || 0, delivery_lat || 0, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupHash, item_photo_url, pickup_display_summary, delivery_display_summary, eligibleClasses]
     );
 
     const orderId = rows[0].id;
@@ -139,7 +162,7 @@ const createOrder = async (req, res) => {
     });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: 'Failed to create order' });
+    res.status(500).json({ error: 'Failed to create order: ' + error.message });
   } finally {
     client.release();
   }

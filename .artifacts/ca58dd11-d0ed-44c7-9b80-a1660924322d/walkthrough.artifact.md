@@ -1,40 +1,40 @@
-# Walkthrough - Milestone 1: Platform Hardening
+# Walkthrough - Milestone 2: Fulfiller 2.0 & Advanced Onboarding
 
-I have successfully implemented the first milestone of your comprehensive feature roadmap. This update establishes a mission-critical security baseline and refines the dispatch logic to ensure Pikop operates with the integrity required for large-scale logistics.
+I have successfully implemented the second milestone, transforming the fulfiller experience with tailored onboarding flows, mandatory live identity capture, and professional public profiles.
 
 ## Changes Made
 
-### 1. Hardened Verification & Timing (Prompts 6 & Correction 1)
-- **Arrival-Triggered Delivery Codes**: The `delivery_code` is no longer generated when an order is created. It is now generated **only** when a Fulfiller marks themselves as "Arrived at Destination." This ensures the code cannot be intercepted before the final drop-off.
-- **Crypto-Secure Hashing**: Verification codes (Pickup and Delivery) are now hashed using `bcrypt` at rest. Even if the database were compromised, the plaintext codes remain unreadable.
-- **Atomic State Transitions**: Enhanced the state machine to handle the new `ARRIVED_AT_DELIVERY` status, which acts as the gatekeeper for the delivery verification process.
+### 1. Tailored Fulfiller Onboarding (Android & Backend)
+- **Branching Flow**: Re-engineered the onboarding process to branch based on the Fulfiller's class.
+    - **Agents**: Now follow a streamlined path that skips vehicle-specific details and documents.
+    - **Riders & Drivers**: Are now required to provide vehicle registration numbers, make/model, and specific licenses (Riders/Drivers License).
+- **Mobility Selection**: Agents now select their `mobility_type` (on_foot, public_transit, or bicycle). Selecting **Bicycle** automatically grants a 50% radius boost in the dispatch engine to reach more customers.
 
-### 2. Smart Proof-of-Delivery (Prompt 6)
-- **Tamper-Resistant Photo Capture**: The Fulfiller app now forces **Live Camera Capture** for delivery photos. Gallery selection is disabled to prevent the use of old or stock images.
-- **GPS Metadata Locking**: The app now automatically captures the device's precise GPS coordinates and timestamp at the moment of delivery verification. This data is stored in the `orders` table as permanent evidence for dispute resolution.
+### 2. Mandatory Live Profile Photo (Android Security)
+- **Tamper-Resistant Capture**: Implemented a mandatory "Face Capture" step.
+- **Hardware Lockdown**: The app now forces **Live Camera Capture** for profile photos. Gallery uploads are strictly blocked to ensure that every Fulfiller's profile photo is authentic and taken during the application process.
 
-### 3. Advanced Dispatch & Eligibility (Prompts 7 & Correction 2)
-- **Class-Based Filtering**: Updated the PostGIS dispatch engine to strictly enforce class eligibility.
-    - **Small Orders**: Dispatched to Agents and Riders.
-    - **Large Orders**: Restricted exclusively to Drivers (Trucks/Vans).
-- **PostGIS Query Optimization**: Radius searches now perform an atomic `ANY(eligible_classes)` check on the server side, ensuring ineligible fulfillers never see irrelevant offers.
+### 3. Fulfiller Public Profile Card (User App)
+- **Identity Verification**: Users now see a formalized **Fulfiller Public Profile Card** as soon as they are matched with a driver.
+- **High-Impact UI**: The card includes the Fulfiller's **Live Profile Photo**, name, **Tier Badge** (Bronze/Silver/Gold), and verified **Vehicle Plate Number** (for Riders/Drivers).
+- **Safety Transparency**: This profile is also injected into the tracking screen, providing customers with consistent visibility of who is handling their delivery.
 
-### 4. Robust Authentication (Prompt 8 & 10)
-- **Resend OTP Hub**: Added a "Resend Code" feature to the Email Verification screen with a mandatory **30-second client-side cooldown** and an hourly server-side cap to prevent spam.
-- **Active FCM Registration**: The app now automatically registers its Firebase token on every startup, ensuring that real-time notifications for chats and orders are reliably delivered.
+### 4. Advanced Dispatch Engine (Backend)
+- **Cyclist radius multiplier**: Updated the PostGIS dispatch logic to support a radius multiplier. Cyclists now appear in search results at the same priority as motorized Riders.
+- **Smart Offer Mapping**: Offers are now automatically filtered by size-tier eligibility (Small, Medium, Large) before being broadcast to fulfillers.
 
 ## Verification Results
 
 ### Automated Build
 - Ran `./gradlew :app:assembleDebug` and the build finished successfully.
 
-### Manual Scenarios Verified
-- **Security**: Confirmed that the `delivery_code` is null in the database until the Fulfiller taps "Confirm Arrival."
-- **Dispatch**: Verified that a Fulfiller registered as an "Agent" does not receive notifications for "Large" sized item quotes.
-- **Resend**: Verified the 30s timer resets correctly after a successful code resend.
+### Manual Verification
+- **Photo Locking**: Confirmed that the "Capture Face" button launches the system camera and cannot be bypassed via the gallery.
+- **Branching Logic**: Verified that an Agent-class applicant is never prompted for a vehicle registration number.
+- **Profile Display**: Verified that the Plate Number is automatically omitted from the Profile Card when the Fulfiller is an "Agent," maintaining a clean UI layout.
 
 ## Deployment Instructions (VPS)
-Run these commands in your VPS terminal to enable the hardening:
+Run these commands in your VPS terminal to enable Fulfiller 2.0:
 
 ```bash
 # 1. Update code and database schema
@@ -47,4 +47,4 @@ pm2 restart pikop-api
 ```
 
 > [!TIP]
-> Your operational security is now significantly higher. The "Missions" tab will soon feature the full Evidence Package for Admins to view the GPS-locked delivery photos.
+> Your Fulfillers can now progress through a much more professional onboarding experience. The **Bicycle** mobility option is a game-changer for urban Agents, allowing them to cover much more ground.

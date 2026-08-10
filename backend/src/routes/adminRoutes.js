@@ -46,6 +46,10 @@ router.get('/kyc', hasRole(['ops', 'super_admin']), adminController.getKYCQueue)
 router.post('/kyc/:docId/approve', hasRole(['ops', 'super_admin']), adminController.approveKYC);
 router.post('/kyc/fulfiller/:id/verify', hasRole(['ops', 'super_admin']), adminController.verifyFulfiller);
 
+// Corporate Accounts
+router.get('/corporate', hasRole(['ops', 'super_admin']), adminController.getCorporateAccounts);
+router.post('/corporate/:id/suspend', hasRole(['ops', 'super_admin']), adminController.suspendCorporateAccount);
+
 // Placeholders for Zones and Disputes
 router.get('/zones', isAdminAuthenticated, hasRole(['ops', 'super_admin']), (req, res) => res.render('error', { message: 'Zone Editor coming soon', admin: req.session.adminUsername }));
 router.get('/disputes', isAdminAuthenticated, hasRole(['support', 'super_admin']), (req, res) => res.render('error', { message: 'Dispute Queue coming soon', admin: req.session.adminUsername }));

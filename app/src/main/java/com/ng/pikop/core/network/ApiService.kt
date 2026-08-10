@@ -64,6 +64,7 @@ data class QuoteResponse(
 
 data class CreateOrderRequest(
     val quote_id: String,
+    val corporate_account_id: String? = null,
     val payment_method: String,
     val recipient_name: String,
     val recipient_phone: String,
@@ -235,6 +236,32 @@ data class WithdrawalRequest(
     val type: String // STANDARD, INSTANT
 )
 
+data class CorporateAccount(
+    val id: String,
+    val company_name: String,
+    val billing_email: String,
+    val billing_type: String, // direct_debit, prepaid_wallet
+    val status: String
+)
+
+data class CreateCorporateRequest(
+    val company_name: String,
+    val billing_email: String,
+    val billing_type: String
+)
+
+data class MandateResponse(
+    val authorization_url: String,
+    val message: String
+)
+
+data class CorporateStaff(
+    val full_name: String,
+    val email: String,
+    val role: String,
+    val created_at: String
+)
+
 interface ApiService {
     @POST("api/v1/auth/signup")
     suspend fun signup(@Body request: SignupRequest): AuthResponse
@@ -348,6 +375,21 @@ interface ApiService {
 
     @POST("api/v1/fulfillers/kyc/start-verification")
     suspend fun startDiditVerification(): DiditSessionResponse
+
+    @POST("api/v1/corporate/accounts")
+    suspend fun createCorporateAccount(@Body request: CreateCorporateRequest): CorporateAccount
+
+    @GET("api/v1/corporate/my-accounts")
+    suspend fun getMyCorporateAccounts(): List<CorporateAccount>
+
+    @POST("api/v1/corporate/accounts/{id}/mandate/authorize")
+    suspend fun authorizeMandate(@retrofit2.http.Path("id") id: String): MandateResponse
+
+    @POST("api/v1/corporate/accounts/{id}/sub-accounts")
+    suspend fun addStaffToCorporate(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): AuthResponse
+
+    @GET("api/v1/corporate/accounts/{id}/sub-accounts")
+    suspend fun getCorporateStaff(@retrofit2.http.Path("id") id: String): List<CorporateStaff>
 
     companion object {
         private const val BASE_URL = "https://api.awa.name.ng/"
