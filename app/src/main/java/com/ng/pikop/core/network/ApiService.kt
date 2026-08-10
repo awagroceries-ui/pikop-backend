@@ -142,7 +142,9 @@ data class OfferResponse(
 
 data class VerifyCodeRequest(
     val code: String,
-    val delivery_photo_url: String? = null
+    val delivery_photo_url: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null
 )
 
 data class RatingRequest(
@@ -213,6 +215,9 @@ interface ApiService {
     @POST("api/v1/auth/verify-email")
     suspend fun verifyEmail(@Body request: VerifyEmailRequest): AuthResponse
 
+    @POST("api/v1/auth/resend-otp")
+    suspend fun resendOtp(@Body request: Map<String, String>): AuthResponse
+
     @POST("api/v1/auth/fcm-token")
     suspend fun updateFCMToken(@Body request: Map<String, String>): AuthResponse
 
@@ -227,6 +232,9 @@ interface ApiService {
 
     @GET("api/v1/orders")
     suspend fun getUserOrders(): List<OrderDetailsResponse>
+
+    @PATCH("api/v1/orders/{id}/status")
+    suspend fun updateOrderStatus(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): OrderResponse
 
     @PATCH("api/v1/fulfillers/status")
     suspend fun updateStatus(@Body request: FulfillerStatusRequest): AuthResponse

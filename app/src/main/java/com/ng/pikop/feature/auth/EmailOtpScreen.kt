@@ -1,17 +1,21 @@
 package com.ng.pikop.feature.auth
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.ErrorUtils
 import com.ng.pikop.core.network.VerifyEmailRequest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -19,11 +23,19 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
     var otp by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var resendCooldown by remember { mutableStateOf(0) }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
+
+    LaunchedEffect(resendCooldown) {
+        if (resendCooldown > 0) {
+            delay(1000)
+            resendCooldown -= 1
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -82,7 +94,7 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                                 errorMessage = response.message
                             }
                         } catch (e: Exception) {
-                            errorMessage = e.localizedMessage ?: "Verification failed"
+                            errorMessage = ErrorUtils.parseError(e)
                         } finally {
                             isLoading = false
                         }
@@ -99,6 +111,29 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                 } else {
                     Text("Verify")
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(
+                onClick = {
+                    if (resendCooldown > 0) return@TextButton
+                    coroutineScope.launch {
+                        try {
+                            apiService.resendOtp(mapOf("email" to email))
+                            Toast.makeText(context, "New code sent!", Toast.LENGTH_SHORT).show()
+                            resendCooldown = 30
+                        } catch (e: Exception) {
+                            errorMessage = ErrorUtils.parseError(e)
+                        }
+                    }
+                },
+                enabled = resendCooldown == 0
+            ) {
+                Text(
+                    text = if (resendCooldown > 0) "Resend code in ${resendCooldown}s" else "Didn't receive a code? Resend",
+                    color = if (resendCooldown > 0) Color.Gray else MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

@@ -2,15 +2,38 @@ const db = require('../config/db');
 const walletService = require('../services/walletService');
 const geminiService = require('../services/geminiService');
 const socketService = require('../services/socketService');
+const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 /**
  * Helper to log status history and emit socket events.
+ * Also handles side effects like generating delivery_code on arrival.
  */
 const logStatusChange = async (client, orderId, status, description) => {
   await client.query(
     "INSERT INTO order_status_history (order_id, status, description) VALUES ($1, $2, $3)",
     [orderId, status, description]
   );
+
+  // Side Effect: Generate Delivery Code upon Arrival
+  if (status === 'ARRIVED_AT_DELIVERY') {
+    const deliveryCode = crypto.randomInt(1000, 9999).toString();
+    const hash = await bcrypt.hash(deliveryCode, 10);
+
+    await client.query(
+      "UPDATE orders SET delivery_code_hash = $1 WHERE id = $2",
+      [hash, orderId]
+    );
+
+    // TODO: Trigger SMS/Notification to User with plaintext deliveryCode
+    console.log(`[POD] Delivery Code generated for Order ${orderId}: ${deliveryCode}`);
+
+    try {
+        const io = socketService.getIO();
+        io.to(`order_${orderId}`).emit("delivery_code_ready", { message: "Fulfiller has arrived. Your delivery code is ready." });
+    } catch (e) {}
+  }
+
   try {
     const io = socketService.getIO();
     io.to(`order_${orderId}`).emit("status_updated", { status, description, timestamp: new Date().toISOString() });
@@ -78,8 +101,18 @@ const createOrder = async (req, res) => {
     }
 
     const quote = quoteRes.rows[0];
-    const pickupCode = Math.floor(1000 + Math.random() * 9000).toString();
-    const deliveryCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Secure Crypto Code Generation
+    const pickupCode = crypto.randomInt(1000, 9999).toString();
+    const pickupHash = await bcrypt.hash(pickupCode, 10);
+
+    // Map Size Tier to Eligible Classes
+    const eligibilityMap = {
+        'SMALL': ['agent', 'rider'],
+        'MEDIUM': ['rider', 'driver'],
+        'LARGE': ['driver']
+    };
+    const eligibleClasses = eligibilityMap[quote.size_tier] || ['driver'];
 
     // Use provided coordinates if available, otherwise default to POINT(0 0)
     const pLat = pickup_lat || 0;
@@ -88,10 +121,10 @@ const createOrder = async (req, res) => {
     const dLng = delivery_lng || 0;
 
     const { rows } = await client.query(
-      `INSERT INTO orders (user_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code, delivery_code, item_photo_url, pickup_display_summary, delivery_display_summary)
+      `INSERT INTO orders (user_id, pickup_location, delivery_location, pickup_address, delivery_address, status, total_fare, pickup_code_hash, item_photo_url, pickup_display_summary, delivery_display_summary, eligible_classes)
        VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, 'SEARCHING', $8, $9, $10, $11, $12, $13)
        RETURNING id, status`,
-      [userId, pLng, pLat, dLng, dLat, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupCode, deliveryCode, item_photo_url, pickup_display_summary, delivery_display_summary]
+      [userId, pLng, pLat, dLng, dLat, quote.pickup_address, quote.delivery_address, quote.total_fare, pickupHash, item_photo_url, pickup_display_summary, delivery_display_summary, eligibleClasses]
     );
 
     const orderId = rows[0].id;
@@ -101,6 +134,7 @@ const createOrder = async (req, res) => {
     res.status(201).json({
       order_id: orderId,
       status: rows[0].status,
+      pickup_code: pickupCode, // Return plaintext ONCE at creation
       message: 'Order created and searching for fulfillers'
     });
   } catch (error) {
@@ -170,7 +204,7 @@ const acceptOrder = async (req, res) => {
 };
 
 /**
- * Verifies pickup using a 4/6-digit code.
+ * Verifies pickup using a secure hash check.
  */
 const verifyPickup = async (req, res) => {
   const { orderId } = req.params;
@@ -180,7 +214,7 @@ const verifyPickup = async (req, res) => {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      "SELECT id, pickup_code, status FROM orders WHERE id = $1 FOR UPDATE",
+      "SELECT id, pickup_code_hash, status FROM orders WHERE id = $1 FOR UPDATE",
       [orderId]
     );
 
@@ -190,12 +224,13 @@ const verifyPickup = async (req, res) => {
     }
     const order = rows[0];
 
-    if (order.status !== 'MATCHED') {
+    if (order.status !== 'MATCHED' && order.status !== 'ARRIVED_AT_PICKUP') {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Order is not in a state for pickup' });
     }
 
-    if (order.pickup_code !== code) {
+    const isMatch = await bcrypt.compare(code, order.pickup_code_hash);
+    if (!isMatch) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Invalid pickup code' });
     }
@@ -211,18 +246,18 @@ const verifyPickup = async (req, res) => {
     res.status(200).json({ message: 'Pickup verified', status: 'PICKED_UP' });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: 'Failed to verify pickup' });
+    res.status(500).json({ error: 'Failed to verify pickup: ' + error.message });
   } finally {
     client.release();
   }
 };
 
 /**
- * Verifies delivery and triggers payment split.
+ * Verifies delivery with GPS metadata capture.
  */
 const verifyDelivery = async (req, res) => {
   const { orderId } = req.params;
-  const { code, delivery_photo_url } = req.body;
+  const { code, delivery_photo_url, lat, lng } = req.body;
 
   if (!delivery_photo_url) return res.status(400).json({ error: 'Delivery proof photo is required' });
 
@@ -230,7 +265,7 @@ const verifyDelivery = async (req, res) => {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      "SELECT id, delivery_code, status FROM orders WHERE id = $1 FOR UPDATE",
+      "SELECT id, delivery_code_hash, status FROM orders WHERE id = $1 FOR UPDATE",
       [orderId]
     );
 
@@ -240,24 +275,33 @@ const verifyDelivery = async (req, res) => {
     }
     const order = rows[0];
 
-    if (order.status !== 'PICKED_UP') {
+    if (order.status !== 'PICKED_UP' && order.status !== 'ARRIVED_AT_DELIVERY') {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Order has not been picked up yet' });
+      return res.status(400).json({ error: 'Order has not reached delivery stage' });
     }
 
-    if (order.delivery_code !== code) {
+    const isMatch = await bcrypt.compare(code, order.delivery_code_hash);
+    if (!isMatch) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Invalid delivery code' });
     }
 
+    // Capture Metadata
     await client.query(
-      "UPDATE orders SET status = 'DELIVERED', delivery_photo_url = $1 WHERE id = $2",
-      [delivery_photo_url, orderId]
+      `UPDATE orders
+       SET status = 'DELIVERED',
+           delivery_photo_url = $1,
+           capture_lat = $2,
+           capture_lng = $3,
+           capture_timestamp = CURRENT_TIMESTAMP
+       WHERE id = $4`,
+      [delivery_photo_url, lat || null, lng || null, orderId]
     );
 
     await logStatusChange(client, orderId, 'DELIVERED', 'Item delivered successfully');
 
     await walletService.processDeliveryPayment(orderId);
+
 
     // 3. Auto-activation logic for queued orders
     const { rows: queuedRows } = await client.query(
@@ -600,10 +644,34 @@ const getUserOrders = async (req, res) => {
   }
 };
 
+/**
+ * Updates an order status (e.g., ARRIVED_AT_DELIVERY).
+ */
+const updateOrderStatus = async (req, res) => {
+  const { orderId } = req.params;
+  const { status } = req.body;
+
+  try {
+    const { rows } = await db.query(
+      "UPDATE orders SET status = $1 WHERE id = $2 RETURNING id, status",
+      [status, orderId]
+    );
+
+    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+
+    await logStatusChange(db, orderId, status, `Mission state updated to ${status}`);
+
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getQuote,
   createOrder,
   acceptOrder,
+  updateOrderStatus,
   verifyPickup,
   verifyDelivery,
   getOrderDetails,

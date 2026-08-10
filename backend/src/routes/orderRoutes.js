@@ -29,6 +29,7 @@ router.get('/', authenticateToken, orderController.getUserOrders);
 router.get('/:orderId', authenticateToken, orderController.getOrderDetails);
 router.post('/', authenticateToken, requireEmailVerified, orderController.createOrder);
 router.post('/:orderId/accept', authenticateToken, orderController.acceptOrder);
+router.patch('/:orderId/status', authenticateToken, orderController.updateOrderStatus);
 router.post('/:orderId/pickup', authenticateToken, orderController.verifyPickup);
 router.post('/:orderId/deliver', authenticateToken, orderController.verifyDelivery);
 router.post('/:orderId/cancel', authenticateToken, orderController.cancelOrder);

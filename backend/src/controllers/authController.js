@@ -184,9 +184,51 @@ const updateFCMToken = async (req, res) => {
   }
 };
 
+/**
+ * Resends a verification OTP with rate limiting.
+ */
+const resendOtp = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const { rows: userRows } = await db.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (userRows.length === 0) return res.status(404).json({ message: 'Account not found' });
+    const userId = userRows[0].id;
+
+    // Hourly Rate Limit check (Technical Spec 6.3)
+    const { rows: attempts } = await db.query(
+        "SELECT COUNT(*) FROM otp_verifications WHERE user_id = $1 AND created_at > CURRENT_TIMESTAMP - INTERVAL '1 hour'",
+        [userId]
+    );
+
+    if (parseInt(attempts[0].count) >= 5) {
+        return res.status(429).json({ message: 'RATE_LIMITED: Too many attempts. Please try again in 1 hour.' });
+    }
+
+    // Invalidate previous OTPs
+    await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [userId]);
+
+    // Generate new OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60000);
+
+    await db.query(
+      "INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)",
+      [userId, otp, expiresAt]
+    );
+
+    notificationService.sendOTPEmail(userId, email, otp);
+
+    res.status(200).json({ message: 'New verification code sent.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to resend code: ' + error.message });
+  }
+};
+
 module.exports = {
   signup,
   verifyEmail,
+  resendOtp,
   login,
   refreshToken,
   updateFCMToken

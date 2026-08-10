@@ -1,7 +1,7 @@
 const db = require('../config/db');
 
 /**
- * Finds nearby online fulfillers within a given radius.
+ * Finds nearby online fulfillers within a given radius, filtered by eligible classes.
  * @param {number} orderId - The ID of the order.
  * @param {number} radiusInKm - The search radius in kilometers.
  */
@@ -14,6 +14,7 @@ const findNearbyFulfillers = async (orderId, radiusInKm) => {
     WHERE o.id = $1
     AND f.online_status = 'ONLINE'
     AND f.kyc_status = 'VERIFIED'
+    AND (f.primary_class = ANY(o.eligible_classes) OR f.secondary_class = ANY(o.eligible_classes))
     AND ST_DWithin(f.location, o.pickup_location, $2)
     ORDER BY distance ASC
   `;

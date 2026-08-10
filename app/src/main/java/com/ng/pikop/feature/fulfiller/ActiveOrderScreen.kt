@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -37,6 +38,7 @@ import com.ng.pikop.core.network.SocketManager
 import com.ng.pikop.core.network.VerifyCodeRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -51,7 +53,6 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
     var fulfillerLocation by remember { mutableStateOf<LatLng?>(null) }
     
     var queueCandidates by remember { mutableStateOf<List<OfferResponse>>(emptyList()) }
-    var queuedOrder by remember { mutableStateOf<OfferResponse?>(null) }
     
     var pickupCode by remember { mutableStateOf("") }
     var deliveryCode by remember { mutableStateOf("") }
@@ -69,10 +70,14 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
     
     val cameraPositionState = rememberCameraPositionState()
 
-    val photoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        deliveryPhotoUri = uri
+    // Secure Photo Storage for POD
+    val podFile = remember { File(context.cacheDir, "pod_${orderId}.jpg") }
+    val podUri = remember { FileProvider.getUriForFile(context, "${context.packageName}.provider", podFile) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) deliveryPhotoUri = podUri
     }
 
     // Fetch Order Details on Init
@@ -82,7 +87,6 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
             orderDetails = response
             orderStatus = response.status
             
-            // Fetch queue candidates if eligible
             if (response.status == "PICKED_UP") {
                 queueCandidates = apiService.getQueueCandidates()
             }
@@ -179,7 +183,6 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                     }
                 }
                 
-                // Incident Button
                 IconButton(
                     onClick = { showIncidentDialog = true },
                     modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
@@ -230,7 +233,6 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                                     apiService.verifyPickup(orderId, VerifyCodeRequest(pickupCode))
                                     orderStatus = "PICKED_UP"
                                     Toast.makeText(context, "Pickup Verified!", Toast.LENGTH_SHORT).show()
-                                    // Fetch queue candidates after pickup success
                                     queueCandidates = apiService.getQueueCandidates()
                                 } catch (e: Exception) {
                                     Toast.makeText(context, "Invalid Pickup Code", Toast.LENGTH_SHORT).show()
@@ -246,7 +248,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                     }
                 }
 
-                if (orderStatus == "PICKED_UP") {
+                if (orderStatus == "PICKED_UP" || orderStatus == "ARRIVED_AT_DELIVERY") {
                     PhaseCard(
                         title = "Phase 2: Delivery",
                         address = orderDetails?.delivery_address ?: "Loading...",
@@ -257,100 +259,87 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Queuing Section
-                    if (queuedOrder == null) {
-                        if (queueCandidates.isNotEmpty()) {
-                            Text(text = "Queue Your Next Mission", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            queueCandidates.forEach { candidate ->
-                                IncomingOfferComponent(
-                                    offer = candidate,
-                                    onAccept = {
-                                        coroutineScope.launch {
-                                            try {
-                                                apiService.claimQueueOrder(candidate.id)
-                                                queuedOrder = candidate
-                                                Toast.makeText(context, "Mission Queued!", Toast.LENGTH_SHORT).show()
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "Failed to queue mission.", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
-                                    onDecline = { queueCandidates = queueCandidates.filter { it.id != candidate.id } }
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                            }
+                    if (orderStatus == "PICKED_UP") {
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isLoading = true
+                                    try {
+                                        apiService.updateOrderStatus(orderId, mapOf("status" to "ARRIVED_AT_DELIVERY"))
+                                        orderStatus = "ARRIVED_AT_DELIVERY"
+                                        Toast.makeText(context, "Delivery Protocol Initiated", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Arrival notification failed", Toast.LENGTH_SHORT).show()
+                                    } finally { isLoading = false }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Confirm Arrival at Destination")
                         }
-                    } else {
+                    }
+
+                    if (orderStatus == "ARRIVED_AT_DELIVERY") {
                         Card(
+                            onClick = { cameraLauncher.launch(podUri) },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                            colors = CardDefaults.cardColors(containerColor = if (deliveryPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.AssignmentTurnedIn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    Text(text = "UP NEXT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                    Text(text = "Mission Queued: ${queuedOrder!!.pickup_address}")
-                                    Text(text = "Starts automatically after current delivery.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                                }
+                                Icon(Icons.Default.AddAPhoto, contentDescription = null)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(if (deliveryPhotoUri != null) "Photo Captured ✅" else "Capture Proof of Delivery")
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // Mandatory Delivery Photo
-                    Card(
-                        onClick = { photoLauncher.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = if (deliveryPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.AddAPhoto, contentDescription = null)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(if (deliveryPhotoUri != null) "Photo Attached" else "Take Proof of Delivery")
-                        }
-                    }
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = deliveryCode,
+                            onValueChange = { deliveryCode = it },
+                            label = { Text("Enter 4-digit Delivery Code") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                    OutlinedTextField(
-                        value = deliveryCode,
-                        onValueChange = { deliveryCode = it },
-                        label = { Text("Enter 4-digit Delivery Code") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isLoading = true
+                                    try {
+                                        val location = try {
+                                            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                                        } catch (e: SecurityException) { null }
+                                        
+                                        val requestFile = podFile.asRequestBody("image/*".toMediaTypeOrNull())
+                                        val body = MultipartBody.Part.createFormData("document", podFile.name, requestFile)
+                                        val uploadRes = apiService.uploadOrderPhoto(body)
+                                        val photoUrl = uploadRes["url"] ?: ""
 
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                isLoading = true
-                                try {
-                                    // 1. Upload delivery photo
-                                    val file = getFileFromUri(context, deliveryPhotoUri!!)
-                                    val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
-                                    val body = MultipartBody.Part.createFormData("document", file.name, requestFile)
-                                    val uploadRes = apiService.uploadOrderPhoto(body)
-                                    val photoUrl = uploadRes["url"] ?: ""
-
-                                    // 2. Verify delivery
-                                    apiService.verifyDelivery(orderId, VerifyCodeRequest(deliveryCode, photoUrl))
-                                    orderStatus = "DELIVERED"
-                                    showRatingDialog = true
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Delivery Verification Failed", Toast.LENGTH_SHORT).show()
-                                } finally {
-                                    isLoading = false
+                                        apiService.verifyDelivery(
+                                            orderId, 
+                                            VerifyCodeRequest(
+                                                code = deliveryCode, 
+                                                delivery_photo_url = photoUrl,
+                                                lat = location?.latitude,
+                                                lng = location?.longitude
+                                            )
+                                        )
+                                        orderStatus = "DELIVERED"
+                                        showRatingDialog = true
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Verification Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    } finally {
+                                        isLoading = false
+                                    }
                                 }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isLoading && deliveryCode.length == 4 && deliveryPhotoUri != null
-                    ) {
-                        Text("Complete Mission")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isLoading && deliveryCode.length == 4 && deliveryPhotoUri != null
+                        ) {
+                            Text("Complete Mission")
+                        }
                     }
                 }
             }
@@ -365,7 +354,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                     try {
                         apiService.fileIncident(orderId, IncidentRequest(category, notes, resolution))
                         Toast.makeText(context, "Incident reported. Check status.", Toast.LENGTH_LONG).show()
-                        onOrderCompleted() // Navigate away
+                        onOrderCompleted()
                     } catch (e: Exception) {}
                     showIncidentDialog = false
                 }
@@ -429,16 +418,6 @@ fun IncidentReportDialog(onDismiss: () -> Unit, onReport: (String, String, Strin
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
-}
-
-private fun getFileFromUri(context: android.content.Context, uri: Uri): File {
-    val tempFile = File(context.cacheDir, "temp_upload_${System.currentTimeMillis()}.jpg")
-    context.contentResolver.openInputStream(uri)?.use { input ->
-        FileOutputStream(tempFile).use { output ->
-            input.copyTo(output)
-        }
-    }
-    return tempFile
 }
 
 @Composable
