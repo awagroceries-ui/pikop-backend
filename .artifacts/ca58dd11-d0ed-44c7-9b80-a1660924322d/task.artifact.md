@@ -1,22 +1,29 @@
-# Milestone 1: Platform Hardening [IN PROGRESS]
+# Milestone 2: Fulfiller 2.0 & Advanced Onboarding Task List
 
-Establishing production-grade security, dispatch logic, and operational baseline.
+## Phase 1: Database & Schema
+- [ ] Create `fulfiller_2_0` migration (`mobility_type`, `profile_photo_url`, `tier` for Fulfillers; new `vehicles` table)
 
-## Phase 1: Database & Crypto
-- [ ] Create `hardened_baseline` migration (`pickup_code_hash`, `capture_metadata`)
-- [ ] Implement `crypto.randomInt` and `bcrypt` hashing for verification codes
+## Phase 2: Backend Logic & Dispatch
+- [ ] Update `fulfillerController.js`:
+    - [ ] `updateProfile`: Support mobility type, vehicle details, and live photo
+    - [ ] `submitApplication`: Validate class-specific requirements
+- [ ] Update `dispatchService.js`:
+    - [ ] Implement radius multiplier for `bicycle` Agents
+- [ ] Update `orderController.js`:
+    - [ ] Create `getPublicProfile` helper
+    - [ ] Inject profile into Order/Offer responses
 
-## Phase 2: Refined Dispatch & Eligibility
-- [ ] Update `orderController.js` with delayed `delivery_code` generation
-- [ ] Update `dispatchService.js` with class-based notification filtering
-- [ ] Add `resendOtp` with rate limiting in `authController.js`
+## Phase 3: Android: Advanced Onboarding
+- [ ] Update `ApiService.kt` with new Fulfiller 2.0 endpoints
+- [ ] Refactor `KycUploadScreen.kt`:
+    - [ ] Implement mandatory Live Camera capture (gallery restricted)
+    - [ ] Implement onboarding branch for Agents (Mobility Selection)
+    - [ ] Implement onboarding branch for Riders/Drivers (Vehicle Details)
 
-## Phase 3: Android Security & POD
-- [ ] Force Camera capture in `ActiveOrderScreen.kt`
-- [ ] Attach GPS/Timestamp metadata to delivery verification
-- [ ] Add "Resend Code" with cooldown in `EmailOtpScreen.kt`
+## Phase 4: User App: Fulfiller Profile
+- [ ] Update `OrderCard` and `ActiveOrderScreen` to show the new Public Profile Card (Photo, Tier, Plate)
 
 ## Verification
-- [ ] Test cross-class offer filtering (Driver vs Small Order)
-- [ ] Verify arrival-triggered delivery code generation
-- [ ] Confirm GPS-locked delivery photo metadata
+- [ ] Verify live photo restriction (Camera only)
+- [ ] Verify branching onboarding logic (Agent vs Rider)
+- [ ] Verify Cyclist dispatch radius expansion

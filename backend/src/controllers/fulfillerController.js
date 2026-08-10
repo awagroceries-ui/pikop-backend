@@ -55,20 +55,9 @@ const handleDiditWebhook = async (req, res) => {
       [newStatus, userId]
     );
 
-    if (newStatus === 'approved') {
-      const { rows } = await db.query(`
-        SELECT COUNT(*) FROM kyc_documents
-        WHERE fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1)
-        AND status != 'APPROVED'`, [userId]);
-
-      if (rows[0].count === "0") {
-        await db.query("UPDATE fulfillers SET kyc_status = 'VERIFIED' WHERE user_id = $1", [userId]);
-      }
-    }
-
     res.status(200).send('OK');
   } catch (error) {
-    console.error('Didit Webhook Update Error:', error);
+    console.error('Didit Webhook Error:', error);
     res.status(500).send('Internal Error');
   }
 };
@@ -81,13 +70,10 @@ const updateStatus = async (req, res) => {
   const { online_status, lat, lng } = req.body;
 
   try {
-    // 1. Get fulfiller profile linked to this user
     const fulfillerRes = await db.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
     if (fulfillerRes.rows.length === 0) return res.status(404).json({ error: 'Fulfiller profile not found' });
-
     const fulfillerId = fulfillerRes.rows[0].id;
 
-    // 2. Update status and location if provided
     let query = "UPDATE fulfillers SET online_status = $1, last_ping_at = CURRENT_TIMESTAMP";
     const params = [online_status];
 
@@ -102,46 +88,120 @@ const updateStatus = async (req, res) => {
     const { rows } = await db.query(query, params);
     res.status(200).json({ message: 'Status updated', status: rows[0].online_status });
   } catch (error) {
-    console.error('Update Status Error:', error);
     res.status(500).json({ error: 'Failed to update status' });
   }
 };
 
 /**
- * Fetches available delivery offers for the fulfiller.
+ * Updates branching profile data (Mobility/Vehicle).
  */
-const getOffers = async (req, res) => {
+const updateProfile = async (req, res) => {
+  const userId = req.user.id;
+  const { mobility_type, vehicle_details } = req.body;
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    if (mobility_type) {
+      await client.query("UPDATE fulfillers SET mobility_type = $1 WHERE user_id = $2", [mobility_type, userId]);
+    }
+
+    if (vehicle_details) {
+      const { registration_number, make, model, color } = vehicle_details;
+      const fRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
+      const fId = fRes.rows[0].id;
+
+      await client.query(
+        `INSERT INTO vehicles (fulfiller_id, registration_number, make, model, color)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (registration_number) DO UPDATE SET make=$3, model=$4, color=$5`,
+        [fId, registration_number, make, model, color]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Profile updated' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Uploads a mandatory live profile photo.
+ */
+const uploadProfilePhoto = async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Live photo is required' });
+
+  const userId = req.user.id;
+  const photoUrl = `/uploads/${req.file.filename}`;
+
+  try {
+    await db.query("UPDATE fulfillers SET profile_photo_url = $1 WHERE user_id = $2", [photoUrl, userId]);
+    res.status(200).json({ message: 'Photo uploaded', url: photoUrl });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to save profile photo' });
+  }
+};
+
+/**
+ * Finalizes the application for review.
+ */
+const submitApplication = async (req, res) => {
   const userId = req.user.id;
   try {
-    const fulfillerRes = await db.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
-    if (fulfillerRes.rows.length === 0) return res.status(404).json({ error: 'Fulfiller profile not found' });
+    const { rows } = await db.query(`
+      SELECT f.*, u.role
+      FROM fulfillers f
+      JOIN users u ON u.id = f.user_id
+      WHERE f.user_id = $1`, [userId]);
 
-    const fulfillerId = fulfillerRes.rows[0].id;
+    const f = rows[0];
 
-    // For alpha: Find all SEARCHING orders within a fixed 10km radius
-    const query = `
-      SELECT o.id, o.pickup_address, o.delivery_address, o.total_fare, o.created_at, o.item_photo_url, o.pickup_display_summary
-      FROM orders o, fulfillers f
-      WHERE f.id = $1
-      AND o.status = 'SEARCHING'
-      AND ST_DWithin(f.location, o.pickup_location, 10000)
-      ORDER BY o.created_at DESC
-    `;
-    const { rows } = await db.query(query, [fulfillerId]);
+    // Validation Gating
+    if (!f.profile_photo_url) return res.status(400).json({ error: 'Live profile photo is missing' });
+    if (f.didit_verification_status !== 'approved') return res.status(400).json({ error: 'Identity verification not approved yet' });
 
-    const offers = rows.map(r => ({
-      id: r.id.toString(),
-      pickup_address: r.pickup_display_summary || 'Restricted Area', // Masked for offer
-      delivery_address: 'Hidden until accepted', // Masked for offer
-      total_fare: parseFloat(r.total_fare),
-      item_photo_url: r.item_photo_url,
-      expires_at: new Date(new Date(r.created_at).getTime() + 5 * 60000).toISOString() // 5m offer window
-    }));
+    // Class specific docs check
+    const docs = await db.query("SELECT document_type FROM kyc_documents WHERE fulfiller_id = $1", [f.id]);
+    const docTypes = docs.rows.map(d => d.document_type);
 
-    res.status(200).json(offers);
+    if (f.primary_class === 'rider' || f.primary_class === 'driver') {
+      const v = await db.query("SELECT id FROM vehicles WHERE fulfiller_id = $1", [f.id]);
+      if (v.rows.length === 0) return res.status(400).json({ error: 'Vehicle details are missing' });
+
+      const required = f.primary_class === 'rider' ? 'RIDERS_LICENSE' : 'DRIVERS_LICENSE';
+      if (!docTypes.includes(required)) return res.status(400).json({ error: `Missing ${required.replace('_', ' ')}` });
+    }
+
+    await db.query("UPDATE fulfillers SET kyc_status = 'PENDING_REVIEW' WHERE id = $1", [f.id]);
+    res.status(200).json({ message: 'Application submitted for review' });
   } catch (error) {
-    console.error('Get Offers Error:', error);
-    res.status(500).json({ error: 'Failed to fetch offers' });
+    res.status(500).json({ error: 'Submission failed' });
+  }
+};
+
+/**
+ * Returns the fulfiller profile status.
+ */
+const getProfile = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const { rows } = await db.query(`
+      SELECT f.id, f.online_status, f.kyc_status, f.didit_verification_status,
+             f.mobility_type, f.profile_photo_url, f.tier, f.primary_class,
+             v.registration_number, v.make, v.model, v.color
+      FROM fulfillers f
+      LEFT JOIN vehicles v ON v.fulfiller_id = f.id
+      WHERE f.user_id = $1`, [userId]);
+
+    if (rows.length === 0) return res.status(404).json({ error: 'Fulfiller profile not found' });
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 };
 
@@ -168,19 +228,25 @@ const getFulfillerOrders = async (req, res) => {
 };
 
 /**
- * Returns the fulfiller profile status.
+ * Fetches available delivery offers for the fulfiller.
  */
-const getProfile = async (req, res) => {
+const getOffers = async (req, res) => {
   const userId = req.user.id;
   try {
-    const { rows } = await db.query(
-      "SELECT id, online_status, kyc_status, didit_verification_status FROM fulfillers WHERE user_id = $1",
-      [userId]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Fulfiller profile not found' });
-    res.status(200).json(rows[0]);
+    const fulfillerRes = await db.query("SELECT id, location FROM fulfillers WHERE user_id = $1", [userId]);
+    if (fulfillerRes.rows.length === 0) return res.status(404).json({ error: 'Fulfiller profile not found' });
+
+    const { id: fulfillerId, location } = fulfillerRes.rows[0];
+
+    // Get nearby offers using refined dispatch logic
+    const radiusInKm = 10; // Default
+    // Note: We can implement mobility-based radius expansion here or in dispatchService
+    const offers = await dispatchService.findNearbyFulfillersForOffer(fulfillerId, radiusInKm);
+
+    res.status(200).json(offers);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch profile' });
+    console.error('Get Offers Error:', error);
+    res.status(500).json({ error: 'Failed to fetch offers' });
   }
 };
 
@@ -219,6 +285,9 @@ module.exports = {
   startDiditVerification,
   handleDiditWebhook,
   updateStatus,
+  updateProfile,
+  uploadProfilePhoto,
+  submitApplication,
   getOffers,
   getFulfillerOrders,
   getProfile,

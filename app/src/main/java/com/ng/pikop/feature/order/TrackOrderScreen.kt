@@ -20,8 +20,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.*
 import com.google.maps.android.compose.*
 import com.ng.pikop.core.datastore.TokenManager
-import com.ng.pikop.core.network.ApiService
-import com.ng.pikop.core.network.SocketManager
+import com.ng.pikop.core.network.*
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -41,6 +40,7 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
     var fulfillerLocation by remember { mutableStateOf<LatLng?>(null) }
     var etaMinutes by remember { mutableStateOf<Int?>(null) }
     var history by remember { mutableStateOf<List<OrderStatusStep>>(emptyList()) }
+    var fulfillerProfile by remember { mutableStateOf<FulfillerPublicProfile?>(null) }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -55,6 +55,7 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
         coroutineScope.launch {
             try {
                 val details = apiService.getOrderDetails(orderId)
+                fulfillerProfile = details.fulfiller_profile
                 history = details.history.map { item ->
                     OrderStatusStep(
                         status = item.status,
@@ -109,10 +110,10 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = 140.dp,
+        sheetPeekHeight = 160.dp,
         sheetContainerColor = MaterialTheme.colorScheme.surface,
         sheetContent = {
-            TrackingBottomSheetContent(orderId, etaMinutes, history, tokenManager, fetchHistory)
+            TrackingBottomSheetContent(orderId, etaMinutes, history, fulfillerProfile, tokenManager, fetchHistory)
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
@@ -156,6 +157,7 @@ fun TrackingBottomSheetContent(
     orderId: String,
     eta: Int?,
     history: List<OrderStatusStep>,
+    profile: FulfillerPublicProfile?,
     tokenManager: TokenManager,
     onRefresh: () -> Unit
 ) {
@@ -181,7 +183,7 @@ fun TrackingBottomSheetContent(
         ) {
             Column {
                 Text(
-                    text = if (eta != null) "Arriving in $eta mins" else "Finding best route...",
+                    text = if (eta != null) "Arriving in $eta mins" else "Status: ${history.lastOrNull()?.status ?: "Processing"}",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -205,7 +207,13 @@ fun TrackingBottomSheetContent(
             }
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp), thickness = 0.5.dp)
+        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp)
+
+        // Fulfiller Profile Card
+        profile?.let { p ->
+            FulfillerCard(p)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Cancel Order Button
         val canCancel = history.none { it.status == "PICKED_UP" || it.status == "DELIVERED" || it.status == "CANCELLED" }
@@ -273,6 +281,55 @@ fun TrackingBottomSheetContent(
         }
         
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+fun FulfillerCard(profile: FulfillerPublicProfile) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Profile Photo Placeholder (Coil should be used here)
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(profile.full_name.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = profile.full_name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val tierColor = when(profile.tier) {
+                        "gold" -> Color(0xFFFFD700)
+                        "silver" -> Color(0xFFC0C0C0)
+                        else -> Color(0xFFCD7F32)
+                    }
+                    Icon(Icons.Default.Stars, contentDescription = null, modifier = Modifier.size(14.dp), tint = tierColor)
+                    Text(text = " ${profile.tier.uppercase()} AGENT", style = MaterialTheme.typography.labelSmall, color = tierColor)
+                }
+            }
+            
+            Column(horizontalAlignment = Alignment.End) {
+                profile.vehicle_registration_number?.let { plate ->
+                    Text(text = plate, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFF9F0A))
+                    Text(text = " ${profile.rating_avg}", style = MaterialTheme.typography.titleSmall)
+                }
+            }
+        }
     }
 }
 

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -88,6 +89,14 @@ data class StatusHistoryItem(
     val time: String
 )
 
+data class FulfillerPublicProfile(
+    val full_name: String,
+    val profile_photo_url: String?,
+    val tier: String,
+    val vehicle_registration_number: String?,
+    val rating_avg: Double
+)
+
 data class OrderDetailsResponse(
     val id: String,
     val status: String,
@@ -99,6 +108,7 @@ data class OrderDetailsResponse(
     val delivery_lat: Double,
     val delivery_lng: Double,
     val item_photo_url: String?,
+    val fulfiller_profile: FulfillerPublicProfile?,
     val history: List<StatusHistoryItem>
 )
 
@@ -106,13 +116,33 @@ data class FulfillerProfileResponse(
     val id: Int,
     val online_status: String,
     val kyc_status: String,
-    val didit_verification_status: String
+    val didit_verification_status: String,
+    val mobility_type: String?,
+    val profile_photo_url: String?,
+    val tier: String,
+    val primary_class: String,
+    val registration_number: String?,
+    val make: String?,
+    val model: String?,
+    val color: String?
 )
 
 data class DiditSessionResponse(
     val url: String,
     val session_token: String,
     val session_id: String
+)
+
+data class VehicleDetails(
+    val registration_number: String,
+    val make: String?,
+    val model: String?,
+    val color: String?
+)
+
+data class ProfileUpdateRequest(
+    val mobility_type: String? = null,
+    val vehicle_details: VehicleDetails? = null
 )
 
 data class FulfillerStatusRequest(
@@ -239,11 +269,18 @@ interface ApiService {
     @PATCH("api/v1/fulfillers/status")
     suspend fun updateStatus(@Body request: FulfillerStatusRequest): AuthResponse
 
-    @POST("api/v1/fulfillers/kyc/start-verification")
-    suspend fun startDiditVerification(): DiditSessionResponse
-
     @GET("api/v1/fulfillers/profile")
     suspend fun getFulfillerProfile(): FulfillerProfileResponse
+
+    @PATCH("api/v1/fulfillers/profile")
+    suspend fun updateFulfillerProfile(@Body request: ProfileUpdateRequest): AuthResponse
+
+    @Multipart
+    @POST("api/v1/fulfillers/profile-photo")
+    suspend fun uploadProfilePhoto(@Part photo: MultipartBody.Part): AuthResponse
+
+    @POST("api/v1/fulfillers/submit-application")
+    suspend fun submitApplication(): AuthResponse
 
     @GET("api/v1/fulfillers/offers")
     suspend fun getOffers(): List<OfferResponse>
@@ -265,7 +302,7 @@ interface ApiService {
     ): Map<String, String>
 
     @POST("api/v1/orders/{id}/accept")
-    suspend fun acceptOrder(@retrofit2.http.Path("id") id: String): OrderResponse
+    suspend fun acceptOrder(@retrofit2.http.Path("id") id: String, @Body request: Map<String, Int>): OrderResponse
 
     @POST("api/v1/orders/{id}/pickup")
     suspend fun verifyPickup(@retrofit2.http.Path("id") id: String, @Body request: VerifyCodeRequest): OrderResponse
@@ -308,6 +345,9 @@ interface ApiService {
 
     @POST("api/v1/withdrawals")
     suspend fun requestWithdrawal(@Body request: WithdrawalRequest): AuthResponse
+
+    @POST("api/v1/fulfillers/kyc/start-verification")
+    suspend fun startDiditVerification(): DiditSessionResponse
 
     companion object {
         private const val BASE_URL = "https://api.awa.name.ng/"

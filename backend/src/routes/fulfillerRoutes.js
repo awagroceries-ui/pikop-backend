@@ -11,16 +11,20 @@ const storage = multer.diskStorage({
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
-    cb(null, `kyc-${Date.now()}${path.extname(file.originalname)}`);
+    const prefix = file.fieldname === 'photo' ? 'profile' : 'kyc';
+    cb(null, `${prefix}-${Date.now()}${path.extname(file.originalname)}`);
   }
 });
 const upload = multer({ storage });
 
 router.patch('/status', authenticateToken, fulfillerController.updateStatus);
 router.get('/profile', authenticateToken, fulfillerController.getProfile);
+router.patch('/profile', authenticateToken, fulfillerController.updateProfile);
+router.post('/profile-photo', authenticateToken, upload.single('photo'), fulfillerController.uploadProfilePhoto);
 router.get('/offers', authenticateToken, fulfillerController.getOffers);
 router.get('/orders', authenticateToken, fulfillerController.getFulfillerOrders);
 router.post('/kyc', authenticateToken, upload.single('document'), fulfillerController.uploadKYC);
+router.post('/submit-application', authenticateToken, fulfillerController.submitApplication);
 router.post('/kyc/start-verification', authenticateToken, fulfillerController.startDiditVerification);
 router.post('/kyc/webhook', fulfillerController.handleDiditWebhook); // Public webhook
 

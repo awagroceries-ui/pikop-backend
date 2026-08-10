@@ -1,57 +1,67 @@
-# Implementation Plan - Milestone 1: Platform Hardening
+# Implementation Plan - Milestone 2: Fulfiller 2.0 & Advanced Onboarding
 
-Establish production-grade security, dispatch logic, and operational baseline as specified in the Feature Build Prompts.
+Upgrade the fulfiller experience with automated KYC, live identity capture, class-conditional onboarding flows, and formalized public profile cards.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Security Window**: The `delivery_code` will no longer be visible in the database. It will only be generated and sent to the recipient the moment the Fulfiller marks the order as "Arrived at Delivery."
-> - **GPS Locking**: I will update the Fulfiller app to automatically attach GPS coordinates to the delivery photo. Fulfillers will be flagged if they attempt to complete a delivery more than 200m from the target.
-> - **Strict Eligibility**: Drivers (Trucks/Vans) will no longer see "Small" item offers (Agents and Riders only).
+> - **Branching Onboarding**: Agents (including Cyclists) will now skip vehicle-related documents entirely. Riders and Drivers will be required to provide vehicle registration numbers and specific licenses.
+> - **Mandatory Live Photo**: I will implement a mandatory **Profile Photo** step. To prevent fraud, the app will force a live camera capture and block gallery uploads.
+> - **Cyclist Mobility**: Agents can now select `bicycle` as a mobility type, which will widen their dispatch radius to match Riders.
+> - **Public Identity**: Users will now see a verified Fulfiller Profile (name, live photo, tier, and vehicle plate number) when matched.
 
 ## Proposed Changes
 
-### 1. Hardened Verification (Backend)
+### 1. Schema & Database (Backend)
 
-#### [NEW] `backend/migrations/1723000000000_hardened_baseline.js`
-- **Orders**:
-    - Rename `pickup_code` -> `pickup_code_hash`.
-    - Rename `delivery_code` -> `delivery_code_hash`.
-    - Add `capture_lat`, `capture_lng`, `capture_timestamp` for Proof-of-Delivery metadata.
-    - Add `eligible_classes` (varchar array) to track who can see the order.
+#### [NEW] `backend/migrations/1723010000000_fulfiller_2_0.js`
+- **Fulfillers**:
+    - Add `mobility_type` (on_foot, public_transit, bicycle).
+    - Add `profile_photo_url` (varchar, nullable).
+    - Add `tier` (bronze, silver, gold, default: bronze).
+- **Vehicles**: Create `vehicles` table (id, fulfiller_id, registration_number, make, model, color).
+
+---
+
+### 2. Class-Conditional Logic (Backend)
+
+#### [MODIFY] `fulfillerController.js`
+- **`updateProfile`**: New endpoint to handle branching data (mobility_type for Agents, vehicle details for Riders/Drivers, and the mandatory profile photo).
+- **`submitApplication`**: Validates that the **Live Profile Photo** and all required documents for the specific class are present before allowing submission.
+- **Dispatch radius**: Update `findNearbyFulfillers` to use a multiplier for `bicycle` mobility (configurable in settings).
+
+---
+
+### 3. Fulfiller Public Profile (Backend & Android)
 
 #### [MODIFY] `orderController.js`
-- Use `crypto.randomInt` for secure code generation.
-- Hash codes using `bcrypt` before storing.
-- Trigger `delivery_code` generation only on the `ARRIVED_AT_DELIVERY` status transition.
+- Create a shared `getPublicProfile(fulfillerId)` helper returning only the safe subset (Name, Photo, Tier, Plate).
+- Inject this profile into all Order and Offer responses.
+
+#### [MODIFY] `ActiveOrderScreen.kt` (User App)
+- Update the "Driver Assigned" card to show:
+    - **Live Profile Photo** & Name.
+    - Tier Badge (Bronze/Silver/Gold).
+    - **Vehicle Registration Number** (if Rider/Driver).
+    - Star Rating.
 
 ---
 
-### 2. Advanced Dispatch (Backend)
+### 4. Advanced Onboarding Flow (Android)
 
-#### [MODIFY] `dispatchService.js`
-- Update `findNearbyFulfillers` to filter by Fulfiller class (`agent`, `rider`, `driver`) matching the order's size tier.
-
-#### [MODIFY] `authController.js`
-- Add `resendOtp` endpoint with `RATE_LIMITED` status code and cooldown logic.
-
----
-
-### 3. Proof-of-Delivery (Android)
-
-#### [MODIFY] `ActiveOrderScreen.kt`
-- **Hardened Capture**: Force camera-only photo capture (disable gallery access).
-- **GPS Metadata**: Fetch and send high-accuracy GPS coordinates during the "Verify Delivery" step.
-
-#### [MODIFY] `EmailOtpScreen.kt`
-- Add "Resend Code" link with a visible 30-second countdown timer.
+#### [MODIFY] `KycUploadScreen.kt`
+- Implement flow branching:
+    - **Identity Step**: Didit KYC (Shared).
+    - **Live Photo Step**: Force camera capture for the fulfiller's face.
+    - **Branch 1 (Agent)**: Skip vehicle docs -> Mobility Type Selection.
+    - **Branch 2 (Rider/Driver)**: Vehicle Details -> Vehicle Documents.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Code Security**: Try to use an old pickup code from a previous test; verify the system rejects it because it's now hashed.
-2.  **Timing**: Create an order. Verify you *do not* receive the delivery code immediately. Mark the order as "Arrived at Destination" as a Fulfiller and verify the code is only sent then.
-3.  **Eligibility**: Set a Fulfiller as "Driver" class. Create a "Small" order. Verify the offer never appears on the Driver's dashboard.
-4.  **Resend**: Tap "Resend" on the OTP screen twice. Verify the second tap is blocked by the 30s timer.
+1.  **Agent Flow**: Sign up as an Agent, complete Didit, take a live photo, and verify the app asks for Mobility Type but NOT a license.
+2.  **Rider Flow**: Sign up as a Rider and verify the app requires a Live Photo, License, and Vehicle Plate before submission.
+3.  **Photo Lockdown**: Attempt to upload a profile photo from the gallery; verify that only the camera option is available.
+4.  **Profile Visibility**: Match an order with a Driver and verify the User app correctly displays the Driver's **Live Photo** and plate number.
