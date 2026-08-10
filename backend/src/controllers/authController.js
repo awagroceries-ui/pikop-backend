@@ -74,6 +74,12 @@ const signup = async (req, res) => {
 
     const tokens = authService.generateTokens(user);
 
+    // Register Session
+    await client.query(
+        "INSERT INTO user_sessions (user_id, refresh_token, device_name, ip_address) VALUES ($1, $2, $3, $4)",
+        [user.id, tokens.refreshToken, req.headers['user-agent'], req.ip]
+    );
+
     res.status(201).json({
       message: 'User registered. Please verify your email.',
       userId: user.id,
@@ -152,6 +158,12 @@ const login = async (req, res) => {
     if (!isMatch) return res.status(401).json({ message: 'Invalid email or password.' });
 
     const tokens = authService.generateTokens(user);
+
+    // Register Session
+    await db.query(
+        "INSERT INTO user_sessions (user_id, refresh_token, device_name, ip_address) VALUES ($1, $2, $3, $4)",
+        [user.id, tokens.refreshToken, req.headers['user-agent'], req.ip]
+    );
 
     res.status(200).json({
       message: 'Login successful',

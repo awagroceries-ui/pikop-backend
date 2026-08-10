@@ -39,11 +39,15 @@ const handleWebhook = async (req, res) => {
 };
 
 const handleChargeSuccess = async (data) => {
-  const { reference, customer } = data;
-  // Use metadata or reference to link back to our quote/order if needed
-  // For alpha, we assume the Android app calls createOrder after success,
-  // but we could automate it here for extra robustness.
-  console.log(`Payment successful for ${customer.email}. Ref: ${reference}`);
+  const { reference, customer, channel } = data;
+
+  // Update Order with specific Paystack channel (ussd, bank, etc.)
+  await db.query(
+      "UPDATE orders SET payment_method = $1 WHERE id = (SELECT reference_id FROM wallet_ledger_entries WHERE reference_id::text = $2 LIMIT 1)",
+      [channel, reference]
+  );
+
+  console.log(`Payment successful via ${channel} for ${customer.email}. Ref: ${reference}`);
 };
 
 const handleTransferStatus = async (data, status) => {

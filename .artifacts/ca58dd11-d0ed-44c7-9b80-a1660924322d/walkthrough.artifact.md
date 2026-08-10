@@ -1,48 +1,50 @@
-# Walkthrough - Milestone 3: Corporate/SME Infrastructure
+# Walkthrough - Milestone 4: Viral Growth & Public Tracking
 
-I have successfully implemented the **Corporate/SME Infrastructure**, enabling businesses to manage high-volume delivery operations with centralized billing and automated reporting.
+I have successfully implemented **Milestone 4**, introducing a suite of features designed to drive organic growth through referrals and provide a premium, transparent tracking experience for recipients.
 
 ## Changes Made
 
-### 1. High-Value Billing Infrastructure (Backend)
-- **Corporate Account Hierarchy**: Implemented a robust sub-account system.
-    - **Billing Admins**: Can manage payment mandates, top up wallets, and invite staff.
-    - **Staff Members**: Can create orders that are automatically billed to the company account.
-- **Dual Billing Support**:
-    - **Prepaid Wallet**: Companies can top up a centralized balance.
-    - **Direct Debit (Mandates)**: Integrated Paystack's recurring mandate logic for real-time charges per order, providing a seamless "monthly billing" feel with zero debt risk.
-- **Automated Invoicing Engine**: Created a background job that generates itemized monthly PDF summaries, providing companies with a clear audit trail of their staff's delivery activity.
+### 1. Shareable Live Tracking (Web & Real-time)
+- **Public Tracking Portal**: Created a lightweight, responsive web page (`/track/:token`) that allows anyone with the link to watch a delivery's progress in real-time without logging in.
+- **Privacy-First Data**: The public portal automatically masks exact house addresses and sensitive item details, showing only the general pickup/delivery zones.
+- **Web-Socket Sync**: Extended the real-time engine to broadcast live driver location and status updates directly to the public web portal.
+- **Android Native Share**: Added a "Share Tracking" button in the app that leverages the system share sheet (WhatsApp, SMS, etc.) for instant link sharing.
 
-### 2. Streamlined Checkout Experience (Android)
-- **Billing Selector**: Updated the `OrderQuoteScreen` with a dynamic **Billing Method** selector.
-- **Corporate Visibility**: If a user is linked to a corporate account, they can now tap their company's name to instantly pay using the corporate mandate or wallet, bypassing the individual card payment screen.
-- **Unified Error Parsing**: Implemented professional error handling that translates complex server messages (like "Insufficient corporate funds") into clear user guidance.
+### 2. Viral Growth Engine (Referrals & Rewards)
+- **Automated Referral Codes**: Every new Pikop user now automatically receives a unique, 8-character referral code upon signup.
+- **Incentivized Onboarding**: Users can enter a referral code during registration.
+- **Conversion-Locked Rewards**: Implemented the "First Delivery Rule." Referral credits (₦500 for the Referrer, ₦300 for the Referee) are only issued after the new user completes their **first successful delivery**, protecting the platform from signup fraud.
 
-### 3. Management Command Center (Dashboard)
-- **Corporate Directory**: Added a new management screen to the Admin Dashboard for monitoring business partners.
-- **Operational Controls**: Ops staff can now view staff counts, billing types, and manually suspend accounts in the event of mandate failures.
+### 3. Promotional Discount System
+- **Promo Code Engine**: Built a backend system to manage campaign-based discounts (Flat NGN or Percentage-based).
+- **Checkout Integration**: Added a "Promo Code" input to the order creation flow with real-time validation and instant discount calculation.
+- **Usage Gating**: Codes are automatically validated against expiration dates, usage limits, and per-user redemption rules.
+
+### 4. High-Trust Fulfiller Transparency
+- **Public Profile Injection**: The public tracking link now includes the Fulfiller's professional identity card, showing their name, tier badge, and verified star rating.
 
 ## Verification Results
 
 ### Automated Build
 - Ran `./gradlew :app:assembleDebug` and the build finished successfully.
 
-### Manual Logic Verified
-- **Transaction Safety**: Verified that orders are only created if the corporate wallet has a sufficient balance or a valid mandate exists.
-- **Permission Gating**: Confirmed that only "Billing Admins" can access the staff invitation and financial reporting endpoints.
+### Manual Scenarios Verified
+- **Referral Flow**: Verified that a new user signed up with a code correctly links to the referrer.
+- **Tracking**: Confirmed the public URL correctly renders the live map and driver position in a standard web browser.
+- **Promo Logic**: Verified that an expired code returns a professional "Code invalid or expired" message in the app.
 
 ## Deployment Instructions (VPS)
-Run these commands in your VPS terminal to enable Corporate Billing:
+Run these commands in your VPS terminal to enable Growth & Tracking:
 
 ```bash
-# 1. Update code and apply corporate schema
+# 1. Update code and apply growth schema
 cd /var/www/pikop-api
 git pull origin main
 cd backend && npm run migrate:up
 
-# 2. Restart the engine
+# 2. Restart the Mission Engine
 pm2 restart pikop-api
 ```
 
 > [!TIP]
-> To test the flow, create a corporate account via the API, then use the **Menu** tab in the app to switch your billing method during a delivery request.
+> You can now manage your marketing campaigns by creating codes in the `promo_codes` table. Users can find their personal referral code under the **Menu** tab in the app!

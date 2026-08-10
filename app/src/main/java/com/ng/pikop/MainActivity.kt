@@ -141,45 +141,6 @@ fun PikopAppNavigation() {
             )
         }
 
-        composable("privacy_policy") {
-            PrivacyPolicyScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable("about_pikop/{isFulfiller}") { backStackEntry ->
-            val isFulfiller = backStackEntry.arguments?.getString("isFulfiller")?.toBoolean() ?: false
-            
-            AboutPikopScreen(
-                onBack = { navController.popBackStack() },
-                onViewTerms = { role -> navController.navigate("terms_viewer/$role") },
-                onViewPrivacy = { navController.navigate("privacy_policy") },
-                onContactSupport = {
-                    scope.launch {
-                        try {
-                            val api = ApiService.create(tokenManager)
-                            val conv = api.getOrCreateSupportConversation()
-                            navController.navigate("chat/${conv.id}")
-                        } catch (e: Exception) {}
-                    }
-                },
-                isFulfiller = isFulfiller
-            )
-        }
-
-        composable("chat/{conversationId}") { backStackEntry ->
-            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
-            ChatScreen(
-                conversationId = conversationId,
-                userId = 1, // Placeholder
-                userRole = if (userRole == "FULFILLER") "FULFILLER" else "USER",
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->
-            val showFulfillerTerms = backStackEntry.arguments?.getString("showFulfillerTerms")?.toBoolean() ?: false
-            TermsScreen(onAccept = { navController.popBackStack() }, isViewer = true, showFulfillerTerms = showFulfillerTerms)
-        }
-
         composable("main") {
             MainAppScaffold(
                 navController = navController,
@@ -205,6 +166,18 @@ fun PikopAppNavigation() {
         composable("kyc_upload") {
             KycUploadScreen(onBack = { navController.popBackStack() })
         }
+        composable("chat/{conversationId}") { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            ChatScreen(conversationId = conversationId, userId = 1, userRole = userRole ?: "CUSTOMER", onBack = { navController.popBackStack() })
+        }
+        composable("privacy_policy") { PrivacyPolicyScreen(onBack = { navController.popBackStack() }) }
+        composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->
+            val showFulfillerTerms = backStackEntry.arguments?.getString("showFulfillerTerms")?.toBoolean() ?: false
+            TermsScreen(onAccept = { navController.popBackStack() }, isViewer = true, showFulfillerTerms = showFulfillerTerms)
+        }
+        composable("profile_edit") { ProfileEditScreen(onBack = { navController.popBackStack() }) }
+        composable("notifications_settings") { NotificationSettingsScreen(onBack = { navController.popBackStack() }) }
+        composable("recipients_mgmt") { RecipientManagementScreen(onBack = { navController.popBackStack() }) }
     }
 }
 
@@ -303,7 +276,12 @@ fun MainAppScaffold(
                             } catch (e: Exception) {}
                         }
                     },
-                    onNavigateToAddresses = { },
+                    onNavigateToAddresses = { 
+                        // Implementation for addresses flow
+                    },
+                    onNavigateToProfile = { navController.navigate("profile_edit") },
+                    onNavigateToNotifications = { navController.navigate("notifications_settings") },
+                    onNavigateToRecipients = { navController.navigate("recipients_mgmt") },
                     onLogout = {
                         scope.launch {
                             tokenManager.clearTokens()

@@ -3,6 +3,8 @@ package com.ng.pikop.feature.auth
 import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpCenter
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -26,6 +28,9 @@ fun AccountScreen(
     referralCode: String,
     onNavigateToSupport: () -> Unit,
     onNavigateToAddresses: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
+    onNavigateToRecipients: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -38,13 +43,15 @@ fun AccountScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp),
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(24.dp))
             Image(
                 painter = painterResource(id = R.drawable.pikop_logo),
                 contentDescription = null,
-                modifier = Modifier.size(100.dp)
+                modifier = Modifier.size(80.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(text = userEmail, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -79,13 +86,30 @@ fun AccountScreen(
 
             // Options List
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AccountOption(
+                    label = "Edit Profile",
+                    icon = Icons.Default.Edit,
+                    onClick = onNavigateToProfile
+                )
+
                 if (userRole == "CUSTOMER") {
                     AccountOption(
                         label = "Saved Addresses",
                         icon = Icons.Default.LocationOn,
                         onClick = onNavigateToAddresses
                     )
+                    AccountOption(
+                        label = "Saved Recipients",
+                        icon = Icons.Default.Person,
+                        onClick = onNavigateToRecipients
+                    )
                 }
+
+                AccountOption(
+                    label = "Notifications",
+                    icon = Icons.Default.Notifications,
+                    onClick = onNavigateToNotifications
+                )
 
                 AccountOption(
                     label = "Support & Help Center",
@@ -94,7 +118,7 @@ fun AccountScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = onLogout,
@@ -107,10 +131,10 @@ fun AccountScreen(
             }
             
             Text(
-                text = "Pikop v1.3.0-growth",
+                text = "Pikop v1.4.0-final",
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Gray,
-                modifier = Modifier.padding(top = 16.dp)
+                modifier = Modifier.padding(vertical = 24.dp)
             )
         }
     }

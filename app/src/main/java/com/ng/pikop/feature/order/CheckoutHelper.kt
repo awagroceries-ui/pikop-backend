@@ -17,6 +17,7 @@ object CheckoutHelper {
             amount = amountInKobo.toInt()
             this.email = email
             currency = "NGN"
+            // We omit setChannels to allow all active channels on the account (Prompt 9)
         }
 
         PaystackSdk.chargeCard(activity, charge, object : co.paystack.android.Paystack.TransactionCallback {

@@ -55,6 +55,7 @@ app.use('/api/v1/addresses', require('./routes/addressRoutes'));
 app.use('/api/v1/wallets', require('./routes/walletRoutes'));
 app.use('/api/v1/support', require('./routes/supportRoutes'));
 app.use('/api/v1/corporate', require('./routes/corporateRoutes'));
+app.use('/api/v1/settings', require('./routes/settingsRoutes'));
 app.post('/api/v1/promo-codes/validate', authenticateToken, promoController.validateCode);
 
 module.exports = app;
