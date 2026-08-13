@@ -148,8 +148,16 @@ data class VehicleDetails(
 )
 
 data class ProfileUpdateRequest(
+    val full_name: String? = null,
+    val phone: String? = null,
     val mobility_type: String? = null,
     val vehicle_details: VehicleDetails? = null
+)
+
+data class UserProfileResponse(
+    val full_name: String? = null,
+    val email: String? = null,
+    val phone: String? = null
 )
 
 data class FulfillerStatusRequest(
@@ -409,6 +417,12 @@ interface ApiService {
 
     @POST("api/v1/auth/refresh")
     suspend fun refresh(@Body request: Map<String, String>): AuthResponse
+
+    @GET("api/v1/settings/profile")
+    suspend fun getUserProfile(): UserProfileResponse
+
+    @PATCH("api/v1/settings/profile")
+    suspend fun updateUserProfile(@Body request: ProfileUpdateRequest): AuthResponse
 
     companion object {
         private const val BASE_URL = "https://api.awa.name.ng/"

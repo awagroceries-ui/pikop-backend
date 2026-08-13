@@ -106,10 +106,6 @@ const createOrder = async (req, res) => {
     }
     const quote = quoteRes.rows[0];
 
-    if (corporate_account_id) {
-        await walletService.processCorporateDebit(client, corporate_account_id, quote.total_fare, 'PENDING');
-    }
-
     let discount = 0;
     if (promo_id) {
         const promoRes = await client.query("SELECT * FROM promo_codes WHERE id = $1 AND valid_from <= NOW() AND valid_to >= NOW() AND used_count < max_uses", [promo_id]);
@@ -134,6 +130,10 @@ const createOrder = async (req, res) => {
     );
 
     const orderId = rows[0].id;
+
+    if (corporate_account_id) {
+        await walletService.processCorporateDebit(client, corporate_account_id, quote.total_fare, orderId);
+    }
     if (promo_id) {
         await client.query("UPDATE promo_codes SET used_count = used_count + 1 WHERE id = $1", [promo_id]);
         await client.query("INSERT INTO promo_code_redemptions (promo_code_id, user_id, order_id) VALUES ($1, $2, $3)", [promo_id, userId, orderId]);

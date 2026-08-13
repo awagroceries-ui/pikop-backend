@@ -27,7 +27,13 @@ fun ProfileEditScreen(onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        // Pre-fill from profile API if needed
+        try {
+            val profile = apiService.getUserProfile()
+            name = profile.full_name ?: ""
+            phone = profile.phone ?: ""
+        } catch (e: Exception) {
+            android.util.Log.e("PikopProfile", "Failed to load profile", e)
+        }
     }
 
     Scaffold(
@@ -64,16 +70,19 @@ fun ProfileEditScreen(onBack: () -> Unit) {
                     scope.launch {
                         isLoading = true
                         try {
-                            // Using the updateFulfillerProfile as a generic profile update for now
-                            apiService.updateFulfillerProfile(ProfileUpdateRequest(
-                                // Mobility/Vehicle omitted for generic user
+                            apiService.updateUserProfile(ProfileUpdateRequest(
+                                full_name = name,
+                                phone = phone
                             ))
                             Toast.makeText(context, "Profile Updated", Toast.LENGTH_SHORT).show()
                             onBack()
-                        } catch (e: Exception) {} finally { isLoading = false }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        } finally { isLoading = false }
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading && name.isNotBlank() && phone.isNotBlank()
             ) {
                 if (isLoading) CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(24.dp))
                 else Text("Save Changes")

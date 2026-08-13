@@ -5,6 +5,7 @@ const { authenticateToken } = require('../middleware/authMiddleware');
 
 router.use(authenticateToken);
 
+router.get('/profile', settingsController.getProfile);
 router.patch('/profile', settingsController.updateProfile);
 router.patch('/notifications', settingsController.updateNotificationPrefs);
 

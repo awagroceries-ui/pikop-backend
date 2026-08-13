@@ -41,8 +41,11 @@ const sendNotification = async (userId, title, body, data = {}) => {
     if (rows.length === 0) return;
 
     const message = {
-      notification: { title, body },
-      data: data,
+      data: {
+        title: title,
+        body: body,
+        ...data
+      },
       token: rows[0].token,
     };
 

@@ -19,10 +19,10 @@ const wipeData = async () => {
         await pool.query('BEGIN');
 
         console.log('- Wiping Transactions, History & Sessions...');
-        await pool.query('TRUNCATE wallet_ledger_entries, withdrawals, order_status_history, disputes, saved_addresses, promo_code_redemptions, referral_rewards, user_sessions, otp_verifications CASCADE');
+        await pool.query('TRUNCATE wallet_ledger_entries, withdrawals, order_status_history, disputes, saved_addresses, promo_code_redemptions, referral_rewards, user_sessions, otp_verifications, fcm_tokens CASCADE');
 
         console.log('- Wiping Missions, Quotes & Messages...');
-        await pool.query('TRUNCATE orders, quotes, messages, conversations CASCADE');
+        await pool.query('TRUNCATE orders, quotes, messages, conversations, saved_recipients CASCADE');
 
         console.log('- Wiping Fulfillers & Vehicles...');
         await pool.query('TRUNCATE fulfillers, vehicles, kyc_documents CASCADE');
