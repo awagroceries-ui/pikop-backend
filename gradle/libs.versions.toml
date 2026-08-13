@@ -16,6 +16,7 @@ socketIo = "2.1.0"
 googlePlaces = "3.5.0"
 firebaseBom = "33.1.2"
 coil = "2.6.0"
+googleServices = "4.4.2"
 
 [libraries]
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
@@ -47,4 +48,5 @@ firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 
