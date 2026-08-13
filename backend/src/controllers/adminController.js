@@ -116,7 +116,7 @@ const getKYCQueue = async (req, res) => {
       SELECT f.id as fulfiller_id, f.didit_verification_status, f.didit_session_id, u.full_name, u.email
       FROM fulfillers f
       JOIN users u ON u.id = f.user_id
-      WHERE f.kyc_status = 'PENDING' OR f.didit_verification_status = 'pending'
+      WHERE f.kyc_status != 'VERIFIED' OR f.didit_verification_status != 'approved'
     `);
 
     // For each fulfiller, also get their manual documents

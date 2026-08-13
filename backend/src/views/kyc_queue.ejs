@@ -31,16 +31,18 @@
                             <label class="text-muted small uppercase mono d-block mb-2">Identity (Didit)</label>
                             <% if (f.didit_verification_status === 'approved') { %>
                                 <span class="status-badge status-delivered">Approved</span>
-                            <% } else if (f.didit_verification_status === 'needs_review') { %>
-                                <span class="status-badge status-searching">Needs Review</span>
-                                <a href="https://business.didit.me/sessions/<%= f.didit_session_id %>" target="_blank" class="small d-block mt-1 text-primary">View on Didit</a>
-                            <% } else if (f.didit_verification_status === 'pending') { %>
-                                <span class="status-badge status-searching">Processing</span>
+                            <% } else { %>
+                                <% if (f.didit_verification_status === 'needs_review') { %>
+                                    <span class="status-badge status-searching">Needs Review</span>
+                                    <a href="https://business.didit.me/sessions/<%= f.didit_session_id %>" target="_blank" class="small d-block mt-1 text-primary">View on Didit</a>
+                                <% } else if (f.didit_verification_status === 'pending') { %>
+                                    <span class="status-badge status-searching">Processing</span>
+                                <% } else { %>
+                                    <span class="badge bg-secondary opacity-50"><%= (f.didit_verification_status || 'Not Started').toUpperCase() %></span>
+                                <% } %>
                                 <form action="/admin/kyc/fulfiller/<%= f.fulfiller_id %>/approve-identity" method="POST" class="mt-2">
                                     <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 0.6rem;">Force Approve</button>
                                 </form>
-                            <% } else { %>
-                                <span class="badge bg-secondary opacity-50">Not Started</span>
                             <% } %>
                         </div>
 

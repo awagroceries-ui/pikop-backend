@@ -130,6 +130,16 @@ fun KycUploadScreen(onBack: () -> Unit) {
         }
     }
 
+    // Auto-poll status when in identity step and pending
+    LaunchedEffect(currentStep, profile?.didit_verification_status) {
+        if (currentStep == 2 && profile?.didit_verification_status != "approved") {
+            while(true) {
+                kotlinx.coroutines.delay(10000)
+                refreshKey++
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
