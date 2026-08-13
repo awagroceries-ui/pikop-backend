@@ -3,7 +3,7 @@
     <p class="text-muted small mb-0">Review identity verifications and operational credentials.</p>
 </div>
 
-<% if (fulfillers.length === 0) { %>
+<% if (!locals.fulfillers || fulfillers.length === 0) { %>
     <div class="card p-5 text-center bg-transparent border-dashed" style="border: 2px dashed var(--border);">
         <div class="opacity-25 mb-4">
             <svg width="80" height="80" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -17,11 +17,12 @@
 <% } else { %>
     <div class="row g-4">
         <% fulfillers.forEach(f => { %>
+            <% if (!f) return; %>
             <div class="col-md-12">
                 <div class="card p-4">
                     <div class="row align-items-center">
                         <div class="col-md-3">
-                            <h5 class="mb-1 text-active"><%= f.full_name %></h5>
+                            <h5 class="mb-1 text-active"><%= f.full_name || 'Unnamed' %></h5>
                             <p class="small text-muted mb-0 mono">AGENT_ID: <%= f.fulfiller_id %></p>
                             <p class="small text-muted mb-0"><%= f.email %></p>
                         </div>
@@ -46,14 +47,15 @@
                         <div class="col-md-4">
                             <label class="text-muted small uppercase mono d-block mb-2">Operational Docs</label>
                             <div class="d-flex gap-2 flex-wrap">
-                                <% (f.documents || []).forEach(doc => { %>
-                                    <div class="position-relative">
-                                        <a href="<%= doc.document_url %>" target="_blank" class="badge <%= doc.status === 'APPROVED' ? 'bg-success' : 'bg-warning text-dark' %> text-decoration-none p-2">
-                                            <%= doc.document_type.replace('_', ' ') %>
-                                        </a>
-                                    </div>
-                                <% }) %>
-                                <% if (!f.documents || f.documents.length === 0) { %>
+                                <% if (f.documents && Array.isArray(f.documents)) { %>
+                                    <% f.documents.forEach(doc => { %>
+                                        <div class="position-relative">
+                                            <a href="<%= doc.document_url %>" target="_blank" class="badge <%= doc.status === 'APPROVED' ? 'bg-success' : 'bg-warning text-dark' %> text-decoration-none p-2">
+                                                <%= (doc.document_type || 'DOC').replace('_', ' ') %>
+                                            </a>
+                                        </div>
+                                    <% }) %>
+                                <% } else { %>
                                     <span class="text-muted small italic">None uploaded</span>
                                 <% } %>
                             </div>
@@ -61,9 +63,9 @@
 
                         <div class="col-md-2 text-end">
                             <%
-                                const hasDocs = f.documents && f.documents.length > 0;
-                                const docsApproved = hasDocs && f.documents.every(d => d.status === 'APPROVED');
-                                const canApprove = f.didit_verification_status === 'approved' && (docsApproved || !hasDocs);
+                                const docs = (f.documents && Array.isArray(f.documents)) ? f.documents : [];
+                                const docsApproved = docs.length > 0 && docs.every(d => d.status === 'APPROVED');
+                                const canApprove = f.didit_verification_status === 'approved' && (docsApproved || docs.length === 0);
                             %>
                             <form action="/admin/kyc/fulfiller/<%= f.fulfiller_id %>/verify" method="POST">
                                 <button type="submit" class="btn btn-primary w-100 fw-bold" <%= canApprove ? '' : 'disabled' %>>
