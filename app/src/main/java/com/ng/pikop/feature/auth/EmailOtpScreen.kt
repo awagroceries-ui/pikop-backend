@@ -50,7 +50,8 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
         ) {
             Text(
                 text = "Verify Your Email",
-                style = MaterialTheme.typography.headlineMedium
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
             )
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -68,14 +69,19 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                 onValueChange = { if (it.length <= 6) otp = it },
                 label = { Text("OTP Code") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                )
             )
 
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = errorMessage!!,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
 
@@ -83,15 +89,20 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
 
             Button(
                 onClick = {
+                    if (isLoading) return@Button
                     coroutineScope.launch {
                         isLoading = true
                         errorMessage = null
                         try {
                             val response = apiService.verifyEmail(VerifyEmailRequest(email, otp))
-                            if (response.message.contains("success", ignoreCase = true) || response.accessToken != null) {
+                            val isSuccess = response.accessToken != null || 
+                                           response.message?.contains("success", ignoreCase = true) == true ||
+                                           response.message == "OK"
+                            
+                            if (isSuccess) {
                                 onVerificationSuccess()
                             } else {
-                                errorMessage = response.message
+                                errorMessage = response.message ?: "Invalid verification code"
                             }
                         } catch (e: Exception) {
                             errorMessage = ErrorUtils.parseError(e)
@@ -106,7 +117,7 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = Color.White
                     )
                 } else {
                     Text("Verify")
@@ -117,14 +128,17 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
 
             TextButton(
                 onClick = {
-                    if (resendCooldown > 0) return@TextButton
+                    if (resendCooldown > 0 || isLoading) return@TextButton
                     coroutineScope.launch {
+                        isLoading = true
                         try {
-                            apiService.resendOtp(mapOf("email" to email))
-                            Toast.makeText(context, "New code sent!", Toast.LENGTH_SHORT).show()
+                            val response = apiService.resendOtp(mapOf("email" to email))
+                            Toast.makeText(context, response.message ?: "New code sent!", Toast.LENGTH_SHORT).show()
                             resendCooldown = 30
                         } catch (e: Exception) {
                             errorMessage = ErrorUtils.parseError(e)
+                        } finally {
+                            isLoading = false
                         }
                     }
                 },

@@ -3,7 +3,7 @@ const walletService = require('../services/walletService');
 const geminiService = require('../services/geminiService');
 const socketService = require('../services/socketService');
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 /**
  * Helper to fetch public profile data for a fulfiller.

@@ -37,12 +37,18 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        android.util.Log.d("PikopLifecycle", "MainActivity onCreate (Process ID: ${android.os.Process.myPid()})")
         enableEdgeToEdge()
         setContent {
             PikopTheme {
                 PikopAppNavigation()
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        android.util.Log.d("PikopLifecycle", "MainActivity onDestroy")
     }
 }
 
@@ -71,7 +77,8 @@ fun PikopAppNavigation() {
     LaunchedEffect(accessToken) {
         if (accessToken != null) {
             try {
-                if (FirebaseApp.getApps(context).isNotEmpty()) {
+                val apps = FirebaseApp.getApps(context)
+                if (apps.isNotEmpty()) {
                     FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             val token = task.result
@@ -83,8 +90,13 @@ fun PikopAppNavigation() {
                             }
                         }
                     }
+                } else {
+                    // Fallback: Try to initialize if somehow missed
+                    try {
+                        FirebaseApp.initializeApp(context)
+                    } catch (e: Exception) {}
                 }
-            } catch (e: Exception) {}
+            } catch (e: Throwable) {}
         }
     }
 

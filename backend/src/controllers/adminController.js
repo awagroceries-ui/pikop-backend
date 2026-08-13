@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const notificationService = require('../services/notificationService');
 
 /**
@@ -116,18 +116,33 @@ const getKYCQueue = async (req, res) => {
       SELECT f.id as fulfiller_id, f.didit_verification_status, f.didit_session_id, u.full_name, u.email
       FROM fulfillers f
       JOIN users u ON u.id = f.user_id
-      WHERE f.kyc_status = 'PENDING'
+      WHERE f.kyc_status = 'PENDING' OR f.didit_verification_status = 'pending'
     `);
 
     // For each fulfiller, also get their manual documents
     for (let f of rows) {
       const docs = await db.query("SELECT * FROM kyc_documents WHERE fulfiller_id = $1", [f.fulfiller_id]);
-      f.documents = docs.rows;
+      f.documents = docs.rows || []; // Ensure array is never undefined
     }
 
     res.render('kyc_queue', { fulfillers: rows });
   } catch (error) {
-    res.status(500).send('Error loading KYC queue');
+    console.error('KYC Queue Error:', error);
+    res.status(500).send('Error loading KYC queue: ' + error.message);
+  }
+};
+
+const forceApproveIdentity = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query(
+      "UPDATE fulfillers SET didit_verification_status = 'approved', didit_verified_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [id]
+    );
+    console.log(`[Admin] Force Approved Identity for Fulfiller ${id}`);
+    res.redirect('/admin/kyc');
+  } catch (error) {
+    res.status(500).send('Error force approving identity');
   }
 };
 
@@ -158,7 +173,7 @@ const verifyFulfiller = async (req, res) => {
 const getOrders = async (req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT o.*, u.full_name as customer_name, f.id as fulfiller_id
+      SELECT o.*, u.full_name as customer_name
       FROM orders o
       JOIN users u ON u.id = o.user_id
       LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
@@ -166,7 +181,8 @@ const getOrders = async (req, res) => {
     `);
     res.render('orders', { orders: rows });
   } catch (error) {
-    res.status(500).send('Error loading orders');
+    console.error('[Admin] getOrders Error:', error);
+    res.status(500).render('error', { message: 'Error loading orders: ' + error.message });
   }
 };
 
@@ -178,13 +194,14 @@ const getWithdrawals = async (req, res) => {
     const { rows } = await db.query(`
       SELECT w.*, u.full_name
       FROM withdrawals w
-      JOIN fulfillers f ON f.id = w.fulfiller_id
-      JOIN users u ON u.id = f.user_id
+      LEFT JOIN fulfillers f ON f.id = w.fulfiller_id
+      LEFT JOIN users u ON u.id = f.user_id
       ORDER BY w.created_at DESC
     `);
     res.render('withdrawals', { withdrawals: rows });
   } catch (error) {
-    res.status(500).send('Error loading withdrawals');
+    console.error('[Admin] getWithdrawals Error:', error);
+    res.status(500).render('error', { message: 'Error loading withdrawals: ' + error.message });
   }
 };
 
@@ -196,33 +213,58 @@ const getDisputes = async (req, res) => {
     const { rows } = await db.query("SELECT * FROM disputes ORDER BY created_at DESC");
     res.render('disputes', { disputes: rows });
   } catch (error) {
-    res.status(500).send('Error loading disputes');
+    console.error('[Admin] getDisputes Error:', error);
+    res.status(500).render('error', { message: 'Error loading disputes: ' + error.message });
   }
 };
 
 /**
  * Support Inbox Logic
+ * Handles both USER and FULFILLER participant types.
  */
 const getSupportInbox = async (req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT c.*, u.full_name as participant_name
+      SELECT
+        c.*,
+        CASE
+          WHEN c.participant_type = 'USER' THEN u.full_name
+          WHEN c.participant_type = 'FULFILLER' THEN fu.full_name
+          ELSE 'Unknown Participant'
+        END as participant_name
       FROM conversations c
-      JOIN users u ON u.id = c.participant_id
+      LEFT JOIN users u ON c.participant_type = 'USER' AND u.id = c.participant_id
+      LEFT JOIN fulfillers f ON c.participant_type = 'FULFILLER' AND f.id = c.participant_id
+      LEFT JOIN users fu ON f.user_id = fu.id
       WHERE c.status = 'OPEN'
       ORDER BY c.last_message_at DESC
     `);
     res.render('support_inbox', { conversations: rows });
   } catch (error) {
-    res.status(500).send('Error loading support inbox');
+    console.error('[Admin] getSupportInbox Error:', error);
+    res.status(500).render('error', { message: 'Error loading support inbox: ' + error.message });
   }
 };
 
 const getConversationDetails = async (req, res) => {
   const { id } = req.params;
   try {
-    const convRes = await db.query("SELECT c.*, u.full_name FROM conversations c JOIN users u ON u.id = c.participant_id WHERE c.id = $1", [id]);
-    if (convRes.rows.length === 0) return res.status(404).send('Conversation not found');
+    const convRes = await db.query(`
+      SELECT
+        c.*,
+        CASE
+          WHEN c.participant_type = 'USER' THEN u.full_name
+          WHEN c.participant_type = 'FULFILLER' THEN fu.full_name
+          ELSE 'Unknown Participant'
+        END as full_name
+      FROM conversations c
+      LEFT JOIN users u ON c.participant_type = 'USER' AND u.id = c.participant_id
+      LEFT JOIN fulfillers f ON c.participant_type = 'FULFILLER' AND f.id = c.participant_id
+      LEFT JOIN users fu ON f.user_id = fu.id
+      WHERE c.id = $1
+    `, [id]);
+
+    if (convRes.rows.length === 0) return res.status(404).render('error', { message: 'Conversation not found' });
 
     const msgRes = await db.query("SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC", [id]);
 
@@ -232,7 +274,8 @@ const getConversationDetails = async (req, res) => {
       adminId: req.session.adminId
     });
   } catch (error) {
-    res.status(500).send('Error loading conversation details');
+    console.error('[Admin] getConversationDetails Error:', error);
+    res.status(500).render('error', { message: 'Error loading conversation: ' + error.message });
   }
 };
 
@@ -329,7 +372,8 @@ const getCorporateAccounts = async (req, res) => {
     `);
     res.render('corporate_accounts', { accounts: rows });
   } catch (error) {
-    res.status(500).send('Error loading corporate accounts');
+    console.error('[Admin] getCorporateAccounts Error:', error);
+    res.status(500).render('error', { message: 'Error loading corporate accounts: ' + error.message });
   }
 };
 

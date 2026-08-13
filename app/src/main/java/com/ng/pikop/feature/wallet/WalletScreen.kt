@@ -44,8 +44,8 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
         isLoading = true
         try {
             val response = apiService.getWalletInfo()
-            balance = response.balance
-            transactions = response.transactions
+            balance = response.balance ?: 0.0
+            transactions = response.transactions ?: emptyList()
         } catch (e: Exception) {}
         isLoading = false
     }
@@ -71,34 +71,18 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Balance Card
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Image(
-                                painter = painterResource(id = R.drawable.pikop_logo),
-                                contentDescription = null,
-                                modifier = Modifier.size(80.dp)
-                            )
+                            Image(painter = painterResource(id = R.drawable.pikop_logo), contentDescription = null, modifier = Modifier.size(80.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Current Balance", style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                "₦${"%,.2f".format(balance)}",
-                                style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            
+                            Text("₦${"%,.2f".format(balance)}", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             if (isFulfiller && balance > 0) {
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = { showWithdrawDialog = true },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                ) {
+                                Button(onClick = { showWithdrawDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
                                     Icon(Icons.Default.AccountBalanceWallet, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Request Payout")
@@ -106,47 +90,20 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
                             }
                         }
                     }
-
-                    Text(
-                        text = "Recent Activity",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-
+                    Text(text = "Recent Activity", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                     if (transactions.isEmpty()) {
-                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Text("No transactions yet.", color = Color.Gray)
-                        }
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("No transactions yet.", color = Color.Gray) }
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(transactions) { tx ->
-                                TransactionItem(tx)
-                            }
+                        LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(transactions) { tx -> TransactionItem(tx) }
                         }
                     }
                 }
             }
         }
     }
-
     if (showWithdrawDialog) {
-        WithdrawalDialog(
-            onDismiss = { showWithdrawDialog = false },
-            onConfirm = { amount, type ->
-                scope.launch {
-                    try {
-                        apiService.requestWithdrawal(WithdrawalRequest(amount, type))
-                        showWithdrawDialog = false
-                        fetchWallet()
-                    } catch (e: Exception) {}
-                }
-            },
-            maxAmount = balance
-        )
+        WithdrawalDialog(onDismiss = { showWithdrawDialog = false }, onConfirm = { amount, type -> scope.launch { try { apiService.requestWithdrawal(WithdrawalRequest(amount, type)); showWithdrawDialog = false; fetchWallet() } catch (e: Exception) {} } }, maxAmount = balance)
     }
 }
 
@@ -154,30 +111,14 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
 fun TransactionItem(tx: WalletTransaction) {
     val isCredit = tx.entry_type == "CREDIT"
     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isCredit) Icons.AutoMirrored.Filled.CallReceived else Icons.AutoMirrored.Filled.CallMade,
-                contentDescription = null,
-                tint = if (isCredit) Color(0xFF388E3C) else Color(0xFFC62828)
-            )
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(imageVector = if (isCredit) Icons.AutoMirrored.Filled.CallReceived else Icons.AutoMirrored.Filled.CallMade, contentDescription = null, tint = if (isCredit) Color(0xFF388E3C) else Color(0xFFC62828))
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = tx.purpose.replace("_", " ").lowercase()
-                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() },
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(text = tx.created_at.take(10), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text(text = (tx.purpose ?: "Transaction").replace("_", " ").lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }, style = MaterialTheme.typography.bodyMedium)
+                Text(text = (tx.created_at ?: "").take(10), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
-            Text(
-                text = "${if (isCredit) "+" else "-"}₦${tx.amount}",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = if (isCredit) Color(0xFF388E3C) else Color(0xFFC62828)
-            )
+            Text(text = "${if (isCredit) "+" else "-"}₦${tx.amount ?: 0.0}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = if (isCredit) Color(0xFF388E3C) else Color(0xFFC62828))
         }
     }
 }
@@ -185,45 +126,6 @@ fun TransactionItem(tx: WalletTransaction) {
 @Composable
 fun WithdrawalDialog(onDismiss: () -> Unit, onConfirm: (Double, String) -> Unit, maxAmount: Double) {
     var amount by remember { mutableStateOf(maxAmount.toString()) }
-    var type by remember { mutableStateOf("INSTANT") } // Default to instant
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Request Payout") },
-        text = {
-            Column {
-                Text("Enter amount to withdraw to your linked bank account.", style = MaterialTheme.typography.bodySmall)
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount (NGN)") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = type == "INSTANT", onClick = { type = "INSTANT" })
-                    Text("Instant (Fee applies)")
-                    Spacer(modifier = Modifier.width(16.dp))
-                    RadioButton(selected = type == "STANDARD", onClick = { type = "STANDARD" })
-                    Text("Standard")
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = { 
-                val amt = amount.toDoubleOrNull() ?: 0.0
-                if (amt > 0 && amt <= maxAmount) {
-                    onConfirm(amt, type)
-                }
-            }) {
-                Text("Confirm")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
+    var type by remember { mutableStateOf("INSTANT") }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Request Payout") }, text = { Column { Text("Enter amount to withdraw to your linked bank account.", style = MaterialTheme.typography.bodySmall); Spacer(modifier = Modifier.height(16.dp)); OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (NGN)") }, modifier = Modifier.fillMaxWidth()); Spacer(modifier = Modifier.height(8.dp)); Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = type == "INSTANT", onClick = { type = "INSTANT" }); Text("Instant (Fee applies)"); Spacer(modifier = Modifier.width(16.dp)); RadioButton(selected = type == "STANDARD", onClick = { type = "STANDARD" }); Text("Standard") } } }, confirmButton = { Button(onClick = { val amt = amount.toDoubleOrNull() ?: 0.0; if (amt > 0 && amt <= maxAmount) onConfirm(amt, type) }) { Text("Confirm") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }

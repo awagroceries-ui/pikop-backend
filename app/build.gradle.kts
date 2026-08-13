@@ -79,7 +79,8 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation("me.didit:didit-sdk:1.0.0") // Adding Didit SDK
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation("me.didit:didit-sdk:1.0.0")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

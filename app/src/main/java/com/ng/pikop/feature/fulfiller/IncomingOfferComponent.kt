@@ -46,7 +46,7 @@ fun IncomingOfferComponent(
                 ) {
                     Text(text = "New Delivery Offer", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "₦${offer.total_fare}",
+                        text = "₦${offer.total_fare ?: 0.0}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -60,7 +60,7 @@ fun IncomingOfferComponent(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(text = "Pickup Region", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                        Text(text = offer.pickup_address, style = MaterialTheme.typography.bodyMedium)
+                        Text(text = offer.pickup_address ?: "N/A", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
 
@@ -71,7 +71,7 @@ fun IncomingOfferComponent(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(text = "Dropoff Info", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                        Text(text = offer.delivery_address, style = MaterialTheme.typography.bodyMedium)
+                        Text(text = offer.delivery_address ?: "N/A", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
 

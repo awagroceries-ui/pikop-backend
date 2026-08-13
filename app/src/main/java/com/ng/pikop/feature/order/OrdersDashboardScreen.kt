@@ -19,6 +19,7 @@ import com.ng.pikop.R
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.OrderDetailsResponse
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,13 +38,14 @@ fun OrdersDashboardScreen(
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         isLoading = true
         try {
             orders = apiService.getUserOrders()
         } catch (e: Exception) {
-            // Handle error
+            // Error handled by Interceptor or locally
         } finally {
             isLoading = false
         }
@@ -64,20 +66,24 @@ fun OrdersDashboardScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* Refresh */ }) {
+                    IconButton(onClick = { 
+                        scope.launch {
+                            isLoading = true
+                            try { orders = apiService.getUserOrders() } catch (e: Exception) {}
+                            isLoading = false
+                        }
+                    }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
             )
         },
         floatingActionButton = {
-            if (onNewDelivery != {}) {
-                FloatingActionButton(
-                    onClick = onNewDelivery,
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "New Delivery")
-                }
+            FloatingActionButton(
+                onClick = onNewDelivery,
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "New Delivery")
             }
         }
     ) { padding ->
@@ -98,10 +104,8 @@ fun OrdersDashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("No deliveries yet", style = MaterialTheme.typography.bodyLarge, color = Color.Gray)
-                    if (onNewDelivery != {}) {
-                        Button(onClick = onNewDelivery, modifier = Modifier.padding(top = 16.dp)) {
-                            Text("Send something now")
-                        }
+                    Button(onClick = onNewDelivery, modifier = Modifier.padding(top = 16.dp)) {
+                        Text("Send something now")
                     }
                 }
             } else {
@@ -131,14 +135,14 @@ fun OrderCard(order: OrderDetailsResponse, onTrack: (String) -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Order #${order.id.take(8)}", style = MaterialTheme.typography.titleMedium)
-                StatusBadge(order.status)
+                Text(text = "Order #${(order.id ?: "TBD").take(8)}", style = MaterialTheme.typography.titleMedium)
+                StatusBadge(order.status ?: "UNKNOWN")
             }
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            Text(text = "From: ${order.pickup_address}", style = MaterialTheme.typography.bodySmall, maxLines = 1)
-            Text(text = "To: ${order.delivery_address}", style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            Text(text = "From: ${order.pickup_address ?: "N/A"}", style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            Text(text = "To: ${order.delivery_address ?: "N/A"}", style = MaterialTheme.typography.bodySmall, maxLines = 1)
             
             Spacer(modifier = Modifier.height(12.dp))
             
@@ -148,7 +152,7 @@ fun OrderCard(order: OrderDetailsResponse, onTrack: (String) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "₦${order.total_fare}",
+                    text = "₦${order.total_fare ?: 0.0}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -156,7 +160,7 @@ fun OrderCard(order: OrderDetailsResponse, onTrack: (String) -> Unit) {
                 
                 if (order.status != "DELIVERED" && order.status != "CANCELLED") {
                     Button(
-                        onClick = { onTrack(order.id) },
+                        onClick = { onTrack(order.id ?: "") },
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
                     ) {
                         Text("Track")

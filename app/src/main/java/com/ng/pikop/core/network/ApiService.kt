@@ -13,6 +13,7 @@ import retrofit2.http.*
 import java.util.concurrent.TimeUnit
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import com.google.gson.annotations.SerializedName
 
 data class SignupRequest(
     val full_name: String,
@@ -24,12 +25,12 @@ data class SignupRequest(
 )
 
 data class AuthResponse(
-    val message: String,
-    val accessToken: String?,
-    val refreshToken: String?,
-    val userId: String?,
-    val email: String?,
-    val role: String?,
+    val message: String? = null,
+    val accessToken: String? = null,
+    val refreshToken: String? = null,
+    val userId: String? = null,
+    val email: String? = null,
+    val role: String? = null,
     val referral_code: String? = null
 )
 
@@ -54,14 +55,14 @@ data class QuoteRequest(
 )
 
 data class FareBreakdown(
-    val total_fare: Double,
-    val size_tier: String,
-    val fare_locked_until: String
+    val total_fare: Double? = null,
+    val size_tier: String? = null,
+    val fare_locked_until: String? = null
 )
 
 data class QuoteResponse(
-    val quote_id: String,
-    val fare_breakdown: FareBreakdown
+    val quote_id: String? = null,
+    val fare_breakdown: FareBreakdown? = null
 )
 
 data class CreateOrderRequest(
@@ -82,61 +83,61 @@ data class CreateOrderRequest(
 )
 
 data class OrderResponse(
-    val order_id: String,
-    val status: String,
+    val order_id: String? = null,
+    val status: String? = null,
     val tracking_url: String? = null,
-    val message: String?
+    val message: String? = null
 )
 
 data class StatusHistoryItem(
-    val status: String,
-    val description: String,
-    val time: String
+    val status: String? = null,
+    val description: String? = null,
+    val time: String? = null
 )
 
 data class FulfillerPublicProfile(
-    val full_name: String,
-    val profile_photo_url: String?,
-    val tier: String,
-    val vehicle_registration_number: String?,
-    val rating_avg: Double
+    val full_name: String? = null,
+    val profile_photo_url: String? = null,
+    val tier: String? = null,
+    val vehicle_registration_number: String? = null,
+    val rating_avg: Double? = null
 )
 
 data class OrderDetailsResponse(
-    val id: String,
-    val status: String,
-    val total_fare: Double,
-    val pickup_address: String,
-    val delivery_address: String,
-    val pickup_lat: Double,
-    val pickup_lng: Double,
-    val delivery_lat: Double,
-    val delivery_lng: Double,
-    val item_photo_url: String?,
-    val tracking_url: String?,
-    val fulfiller_profile: FulfillerPublicProfile?,
-    val history: List<StatusHistoryItem>
+    val id: String? = null,
+    val status: String? = null,
+    val total_fare: Double? = null,
+    val pickup_address: String? = null,
+    val delivery_address: String? = null,
+    val pickup_lat: Double? = null,
+    val pickup_lng: Double? = null,
+    val delivery_lat: Double? = null,
+    val delivery_lng: Double? = null,
+    val item_photo_url: String? = null,
+    val tracking_url: String? = null,
+    val fulfiller_profile: FulfillerPublicProfile? = null,
+    val history: List<StatusHistoryItem>? = null
 )
 
 data class FulfillerProfileResponse(
-    val id: Int,
-    val online_status: String,
-    val kyc_status: String,
-    val didit_verification_status: String,
-    val mobility_type: String?,
-    val profile_photo_url: String?,
-    val tier: String,
-    val primary_class: String,
-    val registration_number: String?,
-    val make: String?,
-    val model: String?,
-    val color: String?
+    val id: Int? = null,
+    val online_status: String? = null,
+    val kyc_status: String? = null,
+    val didit_verification_status: String? = null,
+    val mobility_type: String? = null,
+    val profile_photo_url: String? = null,
+    val tier: String? = null,
+    val primary_class: String? = null,
+    val registration_number: String? = null,
+    val make: String? = null,
+    val model: String? = null,
+    val color: String? = null
 )
 
 data class DiditSessionResponse(
-    val url: String,
-    val session_token: String,
-    val session_id: String
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("session_token", alternate = ["token"]) val session_token: String? = null,
+    @SerializedName("session_id") val session_id: String? = null
 )
 
 data class VehicleDetails(
@@ -158,22 +159,22 @@ data class FulfillerStatusRequest(
 )
 
 data class FulfillerOrderResponse(
-    val id: Int,
-    val status: String,
-    val total_fare: Double,
-    val earnings: Double,
-    val pickup_address: String,
-    val delivery_address: String,
-    val created_at: String
+    val id: Int? = null,
+    val status: String? = null,
+    val total_fare: Double? = null,
+    val earnings: Double? = null,
+    val pickup_address: String? = null,
+    val delivery_address: String? = null,
+    val created_at: String? = null
 )
 
 data class OfferResponse(
-    val id: String,
-    val pickup_address: String,
-    val delivery_address: String,
-    val total_fare: Double,
-    val item_photo_url: String?,
-    val expires_at: String
+    val id: String? = null,
+    val pickup_address: String? = null,
+    val delivery_address: String? = null,
+    val total_fare: Double? = null,
+    val item_photo_url: String? = null,
+    val expires_at: String? = null
 )
 
 data class VerifyCodeRequest(
@@ -195,11 +196,11 @@ data class IncidentRequest(
 )
 
 data class SavedAddress(
-    val id: Int,
-    val label: String,
-    val address_text: String,
-    val lat: Double,
-    val lng: Double
+    val id: Int? = null,
+    val label: String? = null,
+    val address_text: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null
 )
 
 data class AddressRequest(
@@ -210,30 +211,30 @@ data class AddressRequest(
 )
 
 data class WalletTransaction(
-    val id: Int,
-    val amount: Double,
-    val entry_type: String, // CREDIT, DEBIT
-    val purpose: String,
-    val created_at: String
+    val id: Int? = null,
+    val amount: Double? = null,
+    val entry_type: String? = null, // CREDIT, DEBIT
+    val purpose: String? = null,
+    val created_at: String? = null
 )
 
 data class WalletResponse(
-    val balance: Double,
-    val currency: String,
-    val transactions: List<WalletTransaction>
+    val balance: Double? = null,
+    val currency: String? = null,
+    val transactions: List<WalletTransaction>? = null
 )
 
 data class SupportConversation(
-    val id: String,
-    val status: String
+    val id: String? = null,
+    val status: String? = null
 )
 
 data class ChatMessage(
-    val id: String,
-    val sender_id: Int,
-    val sender_type: String,
-    val content: String,
-    val created_at: String
+    val id: String? = null,
+    val sender_id: Int? = null,
+    val sender_type: String? = null,
+    val content: String? = null,
+    val created_at: String? = null
 )
 
 data class WithdrawalRequest(
@@ -242,11 +243,11 @@ data class WithdrawalRequest(
 )
 
 data class CorporateAccount(
-    val id: String,
-    val company_name: String,
-    val billing_email: String,
-    val billing_type: String, // direct_debit, prepaid_wallet
-    val status: String
+    val id: String? = null,
+    val company_name: String? = null,
+    val billing_email: String? = null,
+    val billing_type: String? = null, // direct_debit, prepaid_wallet
+    val status: String? = null
 )
 
 data class CreateCorporateRequest(
@@ -256,22 +257,22 @@ data class CreateCorporateRequest(
 )
 
 data class MandateResponse(
-    val authorization_url: String,
-    val message: String
+    val authorization_url: String? = null,
+    val message: String? = null
 )
 
 data class CorporateStaff(
-    val full_name: String,
-    val email: String,
-    val role: String,
-    val created_at: String
+    val full_name: String? = null,
+    val email: String? = null,
+    val role: String? = null,
+    val created_at: String? = null
 )
 
 data class PromoValidationResponse(
-    val promo_id: String,
-    val discount_type: String, // flat, percentage
-    val value: Double,
-    val message: String
+    val promo_id: String? = null,
+    val discount_type: String? = null, // flat, percentage
+    val value: Double? = null,
+    val message: String? = null
 )
 
 interface ApiService {
@@ -406,6 +407,9 @@ interface ApiService {
     @GET("api/v1/corporate/accounts/{id}/sub-accounts")
     suspend fun getCorporateStaff(@retrofit2.http.Path("id") id: String): List<CorporateStaff>
 
+    @POST("api/v1/auth/refresh")
+    suspend fun refresh(@Body request: Map<String, String>): AuthResponse
+
     companion object {
         private const val BASE_URL = "https://api.awa.name.ng/"
 
@@ -426,9 +430,61 @@ interface ApiService {
                 chain.proceed(request)
             }
 
+            val authenticator = okhttp3.Authenticator { _, response ->
+                android.util.Log.d("PikopApi", "Authenticator triggered: ${response.code}")
+                if (response.code == 401) {
+                    synchronized(this) {
+                        val newToken = runBlocking {
+                            try {
+                                val refreshToken = tokenManager.refreshToken.first()
+                                android.util.Log.d("PikopApi", "Attempting refresh with token: ${refreshToken?.take(10)}...")
+                                if (refreshToken != null) {
+                                    val api = Retrofit.Builder()
+                                        .baseUrl(BASE_URL)
+                                        .addConverterFactory(GsonConverterFactory.create())
+                                        .build()
+                                        .create(ApiService::class.java)
+
+                                    val res = api.refresh(mapOf("refreshToken" to refreshToken))
+                                    if (res.accessToken != null && res.refreshToken != null) {
+                                        android.util.Log.d("PikopApi", "Token refresh SUCCESS")
+                                        tokenManager.saveTokens(
+                                            res.accessToken,
+                                            res.refreshToken,
+                                            tokenManager.userEmail.first() ?: "",
+                                            tokenManager.userRole.first() ?: "",
+                                            tokenManager.referralCode.first()
+                                        )
+                                        res.accessToken
+                                    } else {
+                                        android.util.Log.e("PikopApi", "Token refresh failed: Missing fields in response")
+                                        null
+                                    }
+                                } else {
+                                    android.util.Log.e("PikopApi", "Token refresh failed: No refresh token found in DataStore")
+                                    null
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("PikopApi", "Token refresh exception: ${e.message}")
+                                null
+                            }
+                        }
+
+                        if (newToken != null) {
+                            response.request.newBuilder()
+                                .header("Authorization", "Bearer $newToken")
+                                .build()
+                        } else {
+                            null
+                        }
+                    }
+                } else null
+            }
+
             val client = OkHttpClient.Builder()
                 .addInterceptor(logger)
                 .addInterceptor(authInterceptor)
+                .authenticator(authenticator)
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()

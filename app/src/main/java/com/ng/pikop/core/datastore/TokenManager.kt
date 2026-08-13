@@ -24,6 +24,11 @@ class TokenManager(private val context: Context) {
             preferences[ACCESS_TOKEN_KEY]
         }
 
+    val refreshToken: Flow<String?> = context.dataStore.data
+        .map { preferences ->
+            preferences[REFRESH_TOKEN_KEY]
+        }
+
     val userEmail: Flow<String?> = context.dataStore.data
         .map { preferences ->
             preferences[USER_EMAIL_KEY]

@@ -60,7 +60,7 @@ fun FulfillerOrdersScreen(onBack: () -> Unit) {
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
                     // Total Earnings Header
-                    val totalEarnings = orders.sumOf { it.earnings }
+                    val totalEarnings = orders.sumOf { it.earnings ?: 0.0 }
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
@@ -106,14 +106,14 @@ fun FulfillerOrderCard(order: FulfillerOrderResponse) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Order #${order.id}", style = MaterialTheme.typography.titleMedium)
-                StatusBadge(order.status)
+                Text(text = "Order #${order.id ?: 0}", style = MaterialTheme.typography.titleMedium)
+                StatusBadge(order.status ?: "UNKNOWN")
             }
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            Text(text = "Pickup: ${order.pickup_address}", style = MaterialTheme.typography.bodySmall, maxLines = 1, color = Color.Gray)
-            Text(text = "Dropoff: ${order.delivery_address}", style = MaterialTheme.typography.bodySmall, maxLines = 1, color = Color.Gray)
+            Text(text = "Pickup: ${order.pickup_address ?: "N/A"}", style = MaterialTheme.typography.bodySmall, maxLines = 1, color = Color.Gray)
+            Text(text = "Dropoff: ${order.delivery_address ?: "N/A"}", style = MaterialTheme.typography.bodySmall, maxLines = 1, color = Color.Gray)
             
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -124,11 +124,11 @@ fun FulfillerOrderCard(order: FulfillerOrderResponse) {
             ) {
                 Column {
                     Text("Your Earning", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                    Text("₦${"%.2f".format(order.earnings)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF388E3C))
+                    Text("₦${"%.2f".format(order.earnings ?: 0.0)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF388E3C))
                 }
                 
                 Text(
-                    text = order.created_at.take(10), // Simplistic date display
+                    text = (order.created_at ?: "").take(10),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Gray
                 )

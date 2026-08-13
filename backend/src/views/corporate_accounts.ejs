@@ -32,7 +32,7 @@
                     <td class="small"><%= acc.billing_email %></td>
                     <td>
                         <span class="badge bg-opacity-10 <%= acc.billing_type === 'direct_debit' ? 'bg-info text-info' : 'bg-primary text-primary' %> border">
-                            <%= acc.billing_type.replace('_', ' ') %>
+                            <%= (acc.billing_type || 'direct_debit').replace('_', ' ') %>
                         </span>
                     </td>
                     <td><%= acc.staff_count %> members</td>

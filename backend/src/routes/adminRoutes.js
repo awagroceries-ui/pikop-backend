@@ -6,31 +6,45 @@ const { isAdminAuthenticated, hasRole } = require('../middleware/adminAuth');
 // Public Login
 router.get('/login', (req, res) => res.render('login', { layout: false }));
 router.post('/login', adminController.login);
+router.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/admin/login');
+});
 
 // Global Middleware for authenticated admin routes
 router.use(isAdminAuthenticated, (req, res, next) => {
-  res.locals.admin = req.session.adminUsername;
-  res.locals.role = req.session.adminRole;
+  res.locals.admin = req.session.adminUsername || 'Admin';
+  res.locals.role = req.session.adminRole || 'staff';
   res.locals.adminId = req.session.adminId;
   next();
 });
 
-// Protected Routes
+// Dashboard & Overview
 router.get('/dashboard', adminController.getDashboard);
 
 // Analytics and Reports
-router.get('/reports/revenue', adminController.getRevenueReport);
-router.get('/reports/orders', adminController.getOrderReport);
+router.get('/reports/revenue', hasRole(['ops', 'super_admin', 'analyst']), adminController.getRevenueReport);
+router.get('/reports/orders', hasRole(['ops', 'super_admin', 'analyst']), adminController.getOrderReport);
 
-// Orders and Withdrawals
-router.get('/orders', adminController.getOrders);
-router.get('/withdrawals', adminController.getWithdrawals);
-router.get('/disputes', adminController.getDisputes);
+// Core Operational Tabs
+router.get('/orders', hasRole(['ops', 'super_admin', 'support']), adminController.getOrders);
+router.get('/withdrawals', hasRole(['finance', 'ops', 'super_admin']), adminController.getWithdrawals);
+router.get('/disputes', hasRole(['support', 'ops', 'super_admin']), adminController.getDisputes);
 
 // Support Inbox
-router.get('/support', adminController.getSupportInbox);
-router.get('/support/:id', adminController.getConversationDetails);
-router.post('/support/:id/resolve', adminController.resolveSupport);
+router.get('/support', hasRole(['support', 'ops', 'super_admin']), adminController.getSupportInbox);
+router.get('/support/:id', hasRole(['support', 'ops', 'super_admin']), adminController.getConversationDetails);
+router.post('/support/:id/resolve', hasRole(['support', 'ops', 'super_admin']), adminController.resolveSupport);
+
+// KYC Queue
+router.get('/kyc', hasRole(['ops', 'super_admin']), adminController.getKYCQueue);
+router.post('/kyc/:docId/approve', hasRole(['ops', 'super_admin']), adminController.approveKYC);
+router.post('/kyc/fulfiller/:id/verify', hasRole(['ops', 'super_admin']), adminController.verifyFulfiller);
+router.post('/kyc/fulfiller/:id/approve-identity', hasRole(['ops', 'super_admin']), adminController.forceApproveIdentity);
+
+// Corporate Accounts
+router.get('/corporate', hasRole(['ops', 'super_admin']), adminController.getCorporateAccounts);
+router.post('/corporate/:id/suspend', hasRole(['ops', 'super_admin']), adminController.suspendCorporateAccount);
 
 // Admin Management
 router.get('/admins', hasRole(['super_admin']), adminController.getAdmins);
@@ -41,22 +55,7 @@ router.post('/admins/:id/delete', hasRole(['super_admin']), adminController.dele
 router.get('/settings', hasRole(['super_admin']), adminController.getSettings);
 router.post('/settings', hasRole(['super_admin']), adminController.updateSettings);
 
-// KYC Queue (Ops and Super Admin)
-router.get('/kyc', hasRole(['ops', 'super_admin']), adminController.getKYCQueue);
-router.post('/kyc/:docId/approve', hasRole(['ops', 'super_admin']), adminController.approveKYC);
-router.post('/kyc/fulfiller/:id/verify', hasRole(['ops', 'super_admin']), adminController.verifyFulfiller);
-
-// Corporate Accounts
-router.get('/corporate', hasRole(['ops', 'super_admin']), adminController.getCorporateAccounts);
-router.post('/corporate/:id/suspend', hasRole(['ops', 'super_admin']), adminController.suspendCorporateAccount);
-
-// Placeholders for Zones and Disputes
-router.get('/zones', isAdminAuthenticated, hasRole(['ops', 'super_admin']), (req, res) => res.render('error', { message: 'Zone Editor coming soon', admin: req.session.adminUsername }));
-router.get('/disputes', isAdminAuthenticated, hasRole(['support', 'super_admin']), (req, res) => res.render('error', { message: 'Dispute Queue coming soon', admin: req.session.adminUsername }));
-
-router.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/admin/login');
-});
+// Zone Editor (Placeholder)
+router.get('/zones', hasRole(['ops', 'super_admin']), (req, res) => res.render('error', { message: 'Zone Editor coming soon', admin: req.session.adminUsername }));
 
 module.exports = router;

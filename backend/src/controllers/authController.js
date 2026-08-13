@@ -39,7 +39,7 @@ const signup = async (req, res) => {
     // 2. Initialize Role-specific data
     if (userRole === 'FULFILLER') {
       const fulfillerRes = await client.query(
-        "INSERT INTO fulfillers (user_id) VALUES ($1) RETURNING id",
+        "INSERT INTO fulfillers (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id RETURNING id",
         [user.id]
       );
       const fulfillerId = fulfillerRes.rows[0].id;
@@ -59,13 +59,13 @@ const signup = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60000); // 10 minutes
 
-    // IMPORTANT: Use 'client' inside the transaction to avoid foreign key violations
     await client.query(
       "INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)",
       [user.id, otp, expiresAt]
     );
 
     await client.query('COMMIT');
+    client.release(); // Important: Release before post-transaction async tasks
 
     // 4. Send email with OTP (Asynchronous, no longer blocks)
     notificationService.sendOTPEmail(user.id, email, otp).catch(e => {
@@ -75,7 +75,7 @@ const signup = async (req, res) => {
     const tokens = authService.generateTokens(user);
 
     // Register Session
-    await client.query(
+    await db.query(
         "INSERT INTO user_sessions (user_id, refresh_token, device_name, ip_address) VALUES ($1, $2, $3, $4)",
         [user.id, tokens.refreshToken, req.headers['user-agent'], req.ip]
     );
@@ -136,7 +136,7 @@ const verifyEmail = async (req, res) => {
     // Send Welcome Email
     notificationService.sendWelcomeEmail(userId).catch(e => console.error('Welcome email failed:', e.message));
 
-    res.status(200).json({ message: 'Email verified successfully' });
+    res.status(200).json({ message: 'Verification success' });
   } catch (error) {
     console.error('Verification Error:', error);
     res.status(500).json({ message: 'Verification failed. Please try again later.' });

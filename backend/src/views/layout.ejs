@@ -221,11 +221,11 @@
             </div>
             <div class="d-flex align-items-center gap-3">
                 <div class="text-end">
-                    <div class="fw-bold"><%= admin %></div>
-                    <div class="text-muted small uppercase mono"><%= role %></div>
+                    <div class="fw-bold"><%= locals.admin || 'Admin' %></div>
+                    <div class="text-muted small uppercase mono"><%= locals.role || 'Access Restricted' %></div>
                 </div>
                 <div class="rounded-circle bg-accent" style="width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border);">
-                    <%= admin.charAt(0).toUpperCase() %>
+                    <%= (locals.admin || 'A').charAt(0).toUpperCase() %>
                 </div>
             </div>
         </header>

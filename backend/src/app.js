@@ -29,6 +29,10 @@ app.set('view engine', 'ejs');
 app.use(expressLayouts);
 app.set('layout', 'layout');
 
+// Admin Routes (Branded Mission Control)
+// We require it inside the use to avoid any potential circular dependencies or ordering issues
+app.use('/admin', require('./routes/adminRoutes'));
+
 // Static Files
 app.use('/public', express.static(path.join(__dirname, '../public')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -36,10 +40,6 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Root & Health
 app.get('/', (req, res) => res.json({ message: 'Pikop API v1.3.0' }));
 app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date().toISOString() }));
-
-// Admin Routes (Branded Mission Control)
-const adminRoutes = require('./routes/adminRoutes');
-app.use('/admin', adminRoutes);
 
 // API v1 Routes
 const { authenticateToken } = require('./middleware/authMiddleware');

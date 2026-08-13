@@ -59,14 +59,14 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
                 val details = apiService.getOrderDetails(orderId)
                 fulfillerProfile = details.fulfiller_profile
                 trackingUrl = details.tracking_url
-                history = details.history.map { item ->
+                history = details.history?.map { item ->
                     OrderStatusStep(
-                        status = item.status,
-                        description = item.description,
-                        time = formatTime(item.time),
+                        status = item.status ?: "UNKNOWN",
+                        description = item.description ?: "",
+                        time = formatTime(item.time ?: ""),
                         isCompleted = true
                     )
-                }
+                } ?: emptyList()
             } catch (e: Exception) {}
         }
     }
@@ -185,20 +185,20 @@ fun FulfillerCard(profile: FulfillerPublicProfile) {
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(modifier = Modifier.size(48.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
-                Box(contentAlignment = Alignment.Center) { Text(profile.full_name.take(1), color = Color.White, fontWeight = FontWeight.Bold) }
+                Box(contentAlignment = Alignment.Center) { Text((profile.full_name ?: "A").take(1), color = Color.White, fontWeight = FontWeight.Bold) }
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = profile.full_name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = profile.full_name ?: "Agent", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val tierColor = when(profile.tier) { "gold" -> Color(0xFFFFD700); "silver" -> Color(0xFFC0C0C0); else -> Color(0xFFCD7F32) }
                     Icon(Icons.Default.Stars, contentDescription = null, modifier = Modifier.size(14.dp), tint = tierColor)
-                    Text(text = " ${profile.tier.uppercase()} AGENT", style = MaterialTheme.typography.labelSmall, color = tierColor)
+                    Text(text = " ${(profile.tier ?: "bronze").uppercase()} AGENT", style = MaterialTheme.typography.labelSmall, color = tierColor)
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
                 profile.vehicle_registration_number?.let { Text(text = it, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold) }
-                Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFF9F0A)); Text(text = " ${profile.rating_avg}", style = MaterialTheme.typography.titleSmall) }
+                Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFF9F0A)); Text(text = " ${profile.rating_avg ?: 0.0}", style = MaterialTheme.typography.titleSmall) }
             }
         }
     }
@@ -229,6 +229,7 @@ fun calculateDistance(start: LatLng, end: LatLng): Double {
 }
 
 fun formatTime(isoTimestamp: String): String {
+    if (isoTimestamp.isBlank()) return ""
     return try {
         val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         parser.timeZone = TimeZone.getTimeZone("UTC")

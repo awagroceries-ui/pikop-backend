@@ -30,12 +30,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.*
 import com.ng.pikop.core.datastore.TokenManager
-import com.ng.pikop.core.network.ApiService
-import com.ng.pikop.core.network.IncidentRequest
-import com.ng.pikop.core.network.OfferResponse
-import com.ng.pikop.core.network.OrderDetailsResponse
-import com.ng.pikop.core.network.SocketManager
-import com.ng.pikop.core.network.VerifyCodeRequest
+import com.ng.pikop.core.network.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -45,6 +40,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import com.ng.pikop.core.network.ImageUtils
 
 @Composable
 fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
@@ -72,7 +68,15 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
 
     // Secure Photo Storage for POD
     val podFile = remember { File(context.cacheDir, "pod_${orderId}.jpg") }
-    val podUri = remember { FileProvider.getUriForFile(context, "${context.packageName}.provider", podFile) }
+    val podUri by remember {
+        derivedStateOf {
+            try {
+                FileProvider.getUriForFile(context, "${context.packageName}.provider", podFile)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -85,13 +89,13 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
         try {
             val response = apiService.getOrderDetails(orderId)
             orderDetails = response
-            orderStatus = response.status
+            orderStatus = response.status ?: "MATCHED"
             
             if (response.status == "PICKED_UP") {
                 queueCandidates = apiService.getQueueCandidates()
             }
         } catch (e: Exception) {
-            Toast.makeText(context, "Failed to load order info", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -131,9 +135,9 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
     LaunchedEffect(fulfillerLocation, orderStatus, orderDetails) {
         if (fulfillerLocation != null && orderDetails != null) {
             val target = if (orderStatus == "MATCHED") {
-                LatLng(orderDetails!!.pickup_lat, orderDetails!!.pickup_lng) 
+                LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0) 
             } else {
-                LatLng(orderDetails!!.delivery_lat, orderDetails!!.delivery_lng)
+                LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
             }
             
             val bounds = LatLngBounds.builder()
@@ -168,9 +172,9 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                     
                     if (orderDetails != null) {
                         val targetLatLng = if (orderStatus == "MATCHED") {
-                            LatLng(orderDetails!!.pickup_lat, orderDetails!!.pickup_lng)
+                            LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0)
                         } else {
-                            LatLng(orderDetails!!.delivery_lat, orderDetails!!.delivery_lng)
+                            LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
                         }
                         
                         Marker(
@@ -235,7 +239,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                                     Toast.makeText(context, "Pickup Verified!", Toast.LENGTH_SHORT).show()
                                     queueCandidates = apiService.getQueueCandidates()
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Invalid Pickup Code", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
                                 } finally {
                                     isLoading = false
                                 }
@@ -269,7 +273,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                                         orderStatus = "ARRIVED_AT_DELIVERY"
                                         Toast.makeText(context, "Delivery Protocol Initiated", Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, "Arrival notification failed", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
                                     } finally { isLoading = false }
                                 }
                             },
@@ -281,7 +285,10 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
 
                     if (orderStatus == "ARRIVED_AT_DELIVERY") {
                         Card(
-                            onClick = { cameraLauncher.launch(podUri) },
+                            onClick = { 
+                                podUri?.let { cameraLauncher.launch(it) }
+                                    ?: Toast.makeText(context, "Storage error: Cannot launch camera", Toast.LENGTH_SHORT).show()
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = if (deliveryPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                         ) {
@@ -312,24 +319,29 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                                             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
                                         } catch (e: SecurityException) { null }
                                         
-                                        val requestFile = podFile.asRequestBody("image/*".toMediaTypeOrNull())
-                                        val body = MultipartBody.Part.createFormData("document", podFile.name, requestFile)
-                                        val uploadRes = apiService.uploadOrderPhoto(body)
-                                        val photoUrl = uploadRes["url"] ?: ""
+                                        if (podFile.exists()) {
+                                            val compressedFile = ImageUtils.compressFile(context, podFile)
+                                            val requestFile = compressedFile.asRequestBody("image/*".toMediaTypeOrNull())
+                                            val body = MultipartBody.Part.createFormData("document", compressedFile.name, requestFile)
+                                            val uploadRes = apiService.uploadOrderPhoto(body)
+                                            val photoUrl = uploadRes["url"] ?: ""
 
-                                        apiService.verifyDelivery(
-                                            orderId, 
-                                            VerifyCodeRequest(
-                                                code = deliveryCode, 
-                                                delivery_photo_url = photoUrl,
-                                                lat = location?.latitude,
-                                                lng = location?.longitude
+                                            apiService.verifyDelivery(
+                                                orderId, 
+                                                VerifyCodeRequest(
+                                                    code = deliveryCode, 
+                                                    delivery_photo_url = photoUrl,
+                                                    lat = location?.latitude,
+                                                    lng = location?.longitude
+                                                )
                                             )
-                                        )
-                                        orderStatus = "DELIVERED"
-                                        showRatingDialog = true
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Verification Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            orderStatus = "DELIVERED"
+                                            showRatingDialog = true
+                                        } else {
+                                            Toast.makeText(context, "Please capture a proof photo first.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Throwable) {
+                                        Toast.makeText(context, "Process Failure: ${e.localizedMessage ?: "Unknown error"}", Toast.LENGTH_SHORT).show()
                                     } finally {
                                         isLoading = false
                                     }

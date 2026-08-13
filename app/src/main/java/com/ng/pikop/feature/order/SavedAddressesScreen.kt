@@ -36,7 +36,7 @@ fun SavedAddressesScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
 
-    val fetchAddresses = suspend {
+    val fetchAddresses: suspend () -> Unit = {
         isLoading = true
         try {
             addresses = apiService.getSavedAddresses()
@@ -77,8 +77,10 @@ fun SavedAddressesScreen(onBack: () -> Unit) {
                             address = addr,
                             onDelete = {
                                 scope.launch {
-                                    apiService.deleteAddress(addr.id)
-                                    fetchAddresses()
+                                    try {
+                                        apiService.deleteAddress(addr.id ?: 0)
+                                        fetchAddresses()
+                                    } catch (e: Exception) {}
                                 }
                             }
                         )
@@ -110,9 +112,11 @@ fun SavedAddressesScreen(onBack: () -> Unit) {
             confirmButton = {
                 Button(onClick = {
                     scope.launch {
-                        apiService.saveAddress(AddressRequest(label, tempAddressText, showLabelDialog!!.latitude, showLabelDialog!!.longitude))
-                        showLabelDialog = null
-                        fetchAddresses()
+                        try {
+                            apiService.saveAddress(AddressRequest(label, tempAddressText, showLabelDialog!!.latitude, showLabelDialog!!.longitude))
+                            showLabelDialog = null
+                            fetchAddresses()
+                        } catch (e: Exception) {}
                     }
                 }, enabled = label.isNotBlank()) {
                     Text("Save")
@@ -133,15 +137,15 @@ fun AddressItem(address: SavedAddress, onDelete: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = if (address.label.lowercase() == "home") Icons.Default.Home else Icons.Default.Work,
+                        imageVector = if ((address.label ?: "").lowercase() == "home") Icons.Default.Home else Icons.Default.Work,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = address.label, style = MaterialTheme.typography.titleMedium)
+                    Text(text = address.label ?: "Location", style = MaterialTheme.typography.titleMedium)
                 }
-                Text(text = address.address_text, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(text = address.address_text ?: "N/A", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
@@ -149,6 +153,3 @@ fun AddressItem(address: SavedAddress, onDelete: () -> Unit) {
         }
     }
 }
-
-// Add this to ApiService.kt if missing:
-// suspend fun getSavedAddresses(): List<SavedAddress>

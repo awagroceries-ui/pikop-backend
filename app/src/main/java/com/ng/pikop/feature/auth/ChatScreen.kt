@@ -1,6 +1,5 @@
 package com.ng.pikop.feature.auth
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,13 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ChatMessage
 import com.ng.pikop.core.network.SocketManager
-import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,7 +40,7 @@ fun ChatScreen(
         isLoading = true
         try {
             messages = apiService.getSupportMessages(conversationId)
-        } catch (ignored: Exception) {}
+        } catch (_: Exception) {}
         isLoading = false
     }
 
@@ -55,9 +52,9 @@ fun ChatScreen(
         SocketManager.on("new_message") { data ->
             val newMsg = ChatMessage(
                 id = data.optString("id", "temp"),
-                sender_id = data.getInt("senderId"),
-                sender_type = data.getString("senderType"),
-                content = data.getString("content"),
+                sender_id = data.optInt("senderId", 0),
+                sender_type = data.optString("senderType", "USER"),
+                content = data.optString("content", ""),
                 created_at = data.optString("created_at", "")
             )
             messages = messages + newMsg
@@ -163,7 +160,7 @@ fun ChatBubble(msg: ChatMessage, isMe: Boolean) {
             tonalElevation = 2.dp
         ) {
             Text(
-                text = msg.content,
+                text = msg.content ?: "",
                 modifier = Modifier.padding(12.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (isMe) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant

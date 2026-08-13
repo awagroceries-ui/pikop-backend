@@ -24,7 +24,18 @@ class PikopApp : Application() {
 
         // Initialize Firebase safely
         try {
-            FirebaseApp.initializeApp(this)
-        } catch (e: Exception) {}
+            if (FirebaseApp.getApps(this).isEmpty()) {
+                FirebaseApp.initializeApp(this)
+            }
+        } catch (e: Throwable) {
+            android.util.Log.e("PikopApp", "Firebase init failed: ${e.message}")
+        }
+
+        // Initialize Didit SDK
+        try {
+            me.didit.sdk.DiditSdk.initialize(this)
+        } catch (e: Throwable) {
+            android.util.Log.e("PikopApp", "Didit init failed: ${e.message}")
+        }
     }
 }

@@ -26,6 +26,7 @@ router.get('/orders', authenticateToken, fulfillerController.getFulfillerOrders)
 router.post('/kyc', authenticateToken, upload.single('document'), fulfillerController.uploadKYC);
 router.post('/submit-application', authenticateToken, fulfillerController.submitApplication);
 router.post('/kyc/start-verification', authenticateToken, fulfillerController.startDiditVerification);
-router.post('/kyc/webhook', fulfillerController.handleDiditWebhook); // Public webhook
+router.post('/kyc/webhook', fulfillerController.handleDiditWebhook); // Correct webhook
+router.post('/kyc/done', fulfillerController.handleDiditWebhook); // Temporary alias for existing sessions
 
 module.exports = router;

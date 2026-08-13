@@ -33,7 +33,7 @@ const createSession = async (userId) => {
     const res = await axios.post("https://verification.didit.me/v3/session/", {
       workflow_id: WORKFLOW_ID,
       vendor_data: userId.toString(),
-      callback: "https://api.awa.name.ng/api/v1/fulfillers/kyc/done",
+      callback: "https://api.awa.name.ng/api/v1/fulfillers/kyc/webhook",
     }, {
       headers: {
         "x-api-key": DIDIT_API_KEY,

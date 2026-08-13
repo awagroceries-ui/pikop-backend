@@ -115,7 +115,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                     coroutineScope.launch {
                         try {
                             activePromo = apiService.validatePromoCode(mapOf("code" to promoCode))
-                            Toast.makeText(context, activePromo?.message, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, activePromo?.message ?: "Code Applied", Toast.LENGTH_SHORT).show()
                         } catch (e: Exception) {
                             Toast.makeText(context, "Invalid Code", Toast.LENGTH_SHORT).show()
                         }
@@ -127,7 +127,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
             }
         }
         activePromo?.let { 
-            Text("Discount: ${if(it.discount_type == "flat") "₦${it.value}" else "${it.value}%"}", color = Color(0xFF388E3C), style = MaterialTheme.typography.labelSmall)
+            Text("Discount: ${if(it.discount_type == "flat") "₦${it.value ?: 0.0}" else "${it.value ?: 0.0}%"}", color = Color(0xFF388E3C), style = MaterialTheme.typography.labelSmall)
         }
 
         // Billing Method
@@ -137,7 +137,7 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = selectedCorporateAccount == null, onClick = { selectedCorporateAccount = null }, label = { Text("Personal") })
                 corporateAccounts.forEach { acc ->
-                    FilterChip(selected = selectedCorporateAccount?.id == acc.id, onClick = { selectedCorporateAccount = acc }, label = { Text(acc.company_name) })
+                    FilterChip(selected = selectedCorporateAccount?.id == acc.id, onClick = { selectedCorporateAccount = acc }, label = { Text(acc.company_name ?: "Company") })
                 }
             }
         }
@@ -150,8 +150,9 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
         if (quoteResult != null) {
             Spacer(modifier = Modifier.height(16.dp))
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                val total = quoteResult!!.total_fare
-                val discount = if (activePromo == null) 0.0 else if (activePromo!!.discount_type == "flat") activePromo!!.value else total * (activePromo!!.value / 100)
+                val total = quoteResult!!.total_fare ?: 0.0
+                val promo = activePromo
+                val discount = if (promo == null) 0.0 else if (promo.discount_type == "flat") promo.value ?: 0.0 else total * ((promo.value ?: 0.0) / 100)
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Total Fare: ₦${total - discount}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     if (discount > 0) Text("Original: ₦$total | Discount: -₦$discount", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
@@ -192,13 +193,18 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                             val uploadRes = apiService.uploadOrderPhoto(MultipartBody.Part.createFormData("document", file.name, file.asRequestBody("image/*".toMediaTypeOrNull())))
                             val pUrl = uploadRes["url"] ?: ""
                             
+                            val qId = quoteId ?: ""
+                            val result = quoteResult
                             if (selectedCorporateAccount != null) {
-                                val success = finalizeOrderAfterPayment(apiService, quoteId!!, selectedCorporateAccount!!.id, activePromo?.promo_id, "CORPORATE", recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, pUrl, pickupAddress.take(50), deliveryAddress.take(50))
+                                val success = finalizeOrderAfterPayment(apiService, qId, selectedCorporateAccount!!.id, activePromo?.promo_id, "CORPORATE", recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, pUrl, pickupAddress.take(50), deliveryAddress.take(50))
                                 if (success) onOrderComplete("CORPORATE")
-                            } else {
-                                CheckoutHelper.startCardCheckout(activity!!, userEmail, ((quoteResult!!.total_fare - (if(activePromo == null) 0.0 else if(activePromo!!.discount_type == "flat") activePromo!!.value else quoteResult!!.total_fare * (activePromo!!.value/100))) * 100).toLong(), { transaction ->
+                            } else if (result != null) {
+                                val total = result.total_fare ?: 0.0
+                                val promo = activePromo
+                                val discount = if (promo == null) 0.0 else if (promo.discount_type == "flat") promo.value ?: 0.0 else total * ((promo.value ?: 0.0)/100)
+                                CheckoutHelper.startCardCheckout(activity!!, userEmail, ((total - discount) * 100).toLong(), { transaction ->
                                     coroutineScope.launch {
-                                        val success = finalizeOrderAfterPayment(apiService, quoteId!!, null, activePromo?.promo_id, transaction.reference, recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, pUrl, pickupAddress.take(50), deliveryAddress.take(50))
+                                        val success = finalizeOrderAfterPayment(apiService, qId, null, activePromo?.promo_id, transaction.reference, recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, pUrl, pickupAddress.take(50), deliveryAddress.take(50))
                                         if (success) onOrderComplete(transaction.reference)
                                     }
                                 }, { error -> errorMessage = ErrorUtils.parseError(Exception(error)) })

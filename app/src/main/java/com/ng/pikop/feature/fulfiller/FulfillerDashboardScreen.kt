@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +21,7 @@ import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.FulfillerOrderResponse
 import com.ng.pikop.core.network.FulfillerStatusRequest
 import com.ng.pikop.core.network.OfferResponse
+import com.ng.pikop.feature.auth.NavigationDrawerContent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -50,7 +50,7 @@ fun FulfillerDashboardScreen(
     LaunchedEffect(Unit) {
         try {
             val profile = apiService.getFulfillerProfile()
-            kycStatus = profile.kyc_status
+            kycStatus = profile.kyc_status ?: "PENDING"
             isOnline = profile.online_status == "ONLINE"
             history = apiService.getFulfillerOrders()
         } catch (e: Exception) {}
@@ -117,7 +117,7 @@ fun FulfillerDashboardScreen(
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Total Earnings", style = MaterialTheme.typography.labelSmall)
-                            val total = history.sumOf { it.earnings }
+                            val total = history.sumOf { it.earnings ?: 0.0 }
                             Text("₦${"%,.2f".format(total)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         }
                         TextButton(onClick = onGoToWallet) {
@@ -166,7 +166,7 @@ fun FulfillerDashboardScreen(
                             items(offers) { offer ->
                                 IncomingOfferComponent(
                                     offer = offer,
-                                    onAccept = { onAcceptOffer(offer.id) },
+                                    onAccept = { onAcceptOffer(offer.id ?: "") },
                                     onDecline = { offers = offers.filter { it.id != offer.id } }
                                 )
                             }

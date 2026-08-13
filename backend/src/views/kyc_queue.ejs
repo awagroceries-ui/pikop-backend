@@ -35,6 +35,9 @@
                                 <a href="https://business.didit.me/sessions/<%= f.didit_session_id %>" target="_blank" class="small d-block mt-1 text-primary">View on Didit</a>
                             <% } else if (f.didit_verification_status === 'pending') { %>
                                 <span class="status-badge status-searching">Processing</span>
+                                <form action="/admin/kyc/fulfiller/<%= f.fulfiller_id %>/approve-identity" method="POST" class="mt-2">
+                                    <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 0.6rem;">Force Approve</button>
+                                </form>
                             <% } else { %>
                                 <span class="badge bg-secondary opacity-50">Not Started</span>
                             <% } %>
@@ -43,14 +46,14 @@
                         <div class="col-md-4">
                             <label class="text-muted small uppercase mono d-block mb-2">Operational Docs</label>
                             <div class="d-flex gap-2 flex-wrap">
-                                <% f.documents.forEach(doc => { %>
+                                <% (f.documents || []).forEach(doc => { %>
                                     <div class="position-relative">
                                         <a href="<%= doc.document_url %>" target="_blank" class="badge <%= doc.status === 'APPROVED' ? 'bg-success' : 'bg-warning text-dark' %> text-decoration-none p-2">
                                             <%= doc.document_type.replace('_', ' ') %>
                                         </a>
                                     </div>
                                 <% }) %>
-                                <% if (f.documents.length === 0) { %>
+                                <% if (!f.documents || f.documents.length === 0) { %>
                                     <span class="text-muted small italic">None uploaded</span>
                                 <% } %>
                             </div>
@@ -58,9 +61,9 @@
 
                         <div class="col-md-2 text-end">
                             <%
-                                const canApprove = f.didit_verification_status === 'approved' &&
-                                                 f.documents.length > 0 &&
-                                                 f.documents.every(d => d.status === 'APPROVED');
+                                const hasDocs = f.documents && f.documents.length > 0;
+                                const docsApproved = hasDocs && f.documents.every(d => d.status === 'APPROVED');
+                                const canApprove = f.didit_verification_status === 'approved' && (docsApproved || !hasDocs);
                             %>
                             <form action="/admin/kyc/fulfiller/<%= f.fulfiller_id %>/verify" method="POST">
                                 <button type="submit" class="btn btn-primary w-100 fw-bold" <%= canApprove ? '' : 'disabled' %>>
