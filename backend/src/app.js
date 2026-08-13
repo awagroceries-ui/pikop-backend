@@ -8,40 +8,40 @@ const expressLayouts = require('express-ejs-layouts');
 
 const app = express();
 
-// Middleware
+// 1. Basic Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session for Admin Dashboard
+// 2. Session Middleware (MUST be before routes)
 app.use(session({
   secret: process.env.JWT_SECRET || 'pikop_admin_secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // Set to true if using HTTPS
+  cookie: { secure: false }
 }));
 
-// View Engine (EJS)
+// 3. View Engine Configuration
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(expressLayouts);
 app.set('layout', 'layout');
 
-// Admin Routes (Branded Mission Control)
-// We require it inside the use to avoid any potential circular dependencies or ordering issues
-app.use('/admin', require('./routes/adminRoutes'));
+// 4. Admin Dashboard Routes
+const adminRoutes = require('./routes/adminRoutes');
+app.use('/admin', adminRoutes);
 
-// Static Files
+// 5. Static Files
 app.use('/public', express.static(path.join(__dirname, '../public')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Root & Health
-app.get('/', (req, res) => res.json({ message: 'Pikop API v1.3.0' }));
+// 6. Public Health/Root
+app.get('/', (req, res) => res.json({ message: 'Pikop API v1.3.1', status: 'ONLINE' }));
 app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date().toISOString() }));
 
-// API v1 Routes
+// 7. API v1 Routes
 const { authenticateToken } = require('./middleware/authMiddleware');
 const promoController = require('./controllers/promoController');
 const trackingController = require('./controllers/trackingController');
