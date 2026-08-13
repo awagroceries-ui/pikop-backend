@@ -392,6 +392,7 @@ module.exports = {
   getDashboard,
   getKYCQueue,
   approveKYC,
+  forceApproveIdentity,
   verifyFulfiller,
   getOrders,
   getWithdrawals,
