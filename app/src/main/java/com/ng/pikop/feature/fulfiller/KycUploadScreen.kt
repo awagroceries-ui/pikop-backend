@@ -168,6 +168,7 @@ fun KycUploadScreen(onBack: () -> Unit) {
                 }
                 2 -> IdentityStep(
                     status = profile?.didit_verification_status ?: "not_started", 
+                    role = profile?.primary_class ?: "agent",
                     api = apiService,
                     sessionToken = activeSessionToken,
                     onSessionCreated = { token, id -> 
@@ -265,6 +266,7 @@ fun ProfilePhotoStep(uri: Uri?, onCapture: () -> Unit) {
 @Composable
 fun IdentityStep(
     status: String, 
+    role: String,
     api: ApiService, 
     sessionToken: String?,
     onSessionCreated: (String, String) -> Unit,
@@ -274,6 +276,8 @@ fun IdentityStep(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var isLaunching by remember { mutableStateOf(false) }
+    
+    var mobilityType by rememberSaveable { mutableStateOf("on_foot") }
 
     val statusColor = when (status.lowercase()) {
         "approved" -> Color(0xFF4CAF50)
@@ -344,6 +348,30 @@ fun IdentityStep(
                     Text(status.uppercase(), style = MaterialTheme.typography.labelSmall, color = statusColor)
                 }
                 IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, null) }
+            }
+        }
+
+        if (status.lowercase() == "approved" && role.lowercase() == "agent") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Select Your Mobility", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val options = listOf("on_foot" to "Walking", "public_transit" to "Public Transit", "bicycle" to "Bicycle")
+                    options.forEach { (key, label) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = mobilityType == key, onClick = { 
+                                mobilityType = key
+                                scope.launch {
+                                    try {
+                                        api.updateFulfillerProfile(ProfileUpdateRequest(mobility_type = key))
+                                    } catch (e: Exception) {}
+                                }
+                            })
+                            Text(label, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
             }
         }
 

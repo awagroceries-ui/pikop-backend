@@ -116,6 +116,18 @@ fun AccountScreen(
                     icon = Icons.AutoMirrored.Filled.HelpCenter,
                     onClick = onNavigateToSupport
                 )
+
+                AccountOption(
+                    label = "Change Password",
+                    icon = Icons.Default.Lock,
+                    onClick = { /* Navigate to change password */ }
+                )
+
+                AccountOption(
+                    label = "Delete Account",
+                    icon = Icons.Default.DeleteForever,
+                    onClick = { /* Navigate to delete request */ }
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))

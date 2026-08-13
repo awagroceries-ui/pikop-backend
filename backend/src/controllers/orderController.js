@@ -42,11 +42,18 @@ const logStatusChange = async (client, orderId, status, description) => {
     const deliveryCode = crypto.randomInt(1000, 9999).toString();
     const hash = await bcrypt.hash(deliveryCode, 10);
     await client.query("UPDATE orders SET delivery_code_hash = $1 WHERE id = $2", [hash, orderId]);
-    console.log(`[POD] Delivery Code for Order ${orderId}: ${deliveryCode}`);
+    console.log(`[POD] Secure Delivery Code for Order ${orderId}: ${deliveryCode}`);
 
     try {
         const io = socketService.getIO();
-        io.to(`order_${orderId}`).emit("delivery_code_ready", { message: "Fulfiller has arrived." });
+        io.to(`order_${orderId}`).emit("delivery_code_ready", { message: "Fulfiller has arrived. Your code is ready." });
+
+        // PUSH to user (Implementation from Prompt 6)
+        const { rows: userRow } = await client.query("SELECT user_id FROM orders WHERE id = $1", [orderId]);
+        if (userRow.length > 0) {
+            const fcmService = require('../services/fcmService');
+            fcmService.sendNotification(userRow[0].user_id, "Fulfiller Arrived", `Your delivery code is: ${deliveryCode}`);
+        }
     } catch (e) {}
   }
 
@@ -119,7 +126,11 @@ const createOrder = async (req, res) => {
     const pickupHash = await bcrypt.hash(pickupCode, 10);
     const trackingToken = crypto.randomUUID();
 
-    const eligibilityMap = { 'SMALL': ['agent', 'rider'], 'MEDIUM': ['rider', 'driver'], 'LARGE': ['driver'] };
+    const eligibilityMap = {
+        'SMALL': ['agent', 'rider'],
+        'MEDIUM': ['rider', 'driver'],
+        'LARGE': ['driver']
+    };
     const eligibleClasses = eligibilityMap[quote.size_tier] || ['driver'];
 
     const { rows } = await client.query(
