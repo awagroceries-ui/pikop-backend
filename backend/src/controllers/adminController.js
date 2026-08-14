@@ -30,38 +30,49 @@ const login = async (req, res) => {
  */
 const getDashboard = async (req, res) => {
   try {
-    const activeOrders = await db.query("SELECT COUNT(*) FROM orders WHERE status IN ('SEARCHING', 'MATCHED', 'PICKED_UP')");
-    const onlineFulfillers = await db.query("SELECT COUNT(*) FROM fulfillers WHERE online_status = 'ONLINE'");
+    const activeOrdersRes = await db.query("SELECT COUNT(*) FROM orders WHERE status IN ('SEARCHING', 'MATCHED', 'PICKED_UP')").catch(() => ({rows:[{count:0}]}));
+    const onlineFulfillersRes = await db.query("SELECT COUNT(*) FROM fulfillers WHERE online_status = 'ONLINE'").catch(() => ({rows:[{count:0}]}));
 
-    const totalRevenueQuery = await db.query(`
+    const totalRevenueRes = await db.query(`
       SELECT SUM(le.amount) as total
       FROM wallet_ledger_entries le
       JOIN wallets w ON le.wallet_id = w.id
       WHERE w.owner_type = 'PLATFORM' AND le.entry_type = 'CREDIT'
-    `);
+    `).catch(() => ({rows:[{total:0}]}));
 
     // Fulfiller Class Performance (Agent, Rider, Driver)
-    const classStats = await db.query(`
-      SELECT
-        f.primary_class,
-        COUNT(o.id) as order_count,
-        COALESCE(SUM(o.total_fare), 0) as revenue,
-        COALESCE(AVG(o.rating), 5.0) as avg_rating
-      FROM fulfillers f
-      LEFT JOIN orders o ON o.fulfiller_id = f.id AND o.status = 'DELIVERED'
-      GROUP BY f.primary_class
-    `).catch(err => {
-      console.warn('[Dashboard] Class Performance query fallback applied:', err.message);
-      return { rows: [] }; // Fallback to empty if rating column still missing
-    });
+    // We try to get real ratings, but fallback to 5.0 if column doesn't exist
+    let classStatsRows = [];
+    try {
+        const stats = await db.query(`
+          SELECT
+            f.primary_class,
+            COUNT(o.id) as order_count,
+            COALESCE(SUM(o.total_fare), 0) as revenue,
+            COALESCE(AVG(o.rating), 5.0) as avg_rating
+          FROM fulfillers f
+          LEFT JOIN orders o ON o.fulfiller_id = f.id AND o.status = 'DELIVERED'
+          GROUP BY f.primary_class
+        `);
+        classStatsRows = stats.rows;
+    } catch (e) {
+        console.warn('[Dashboard] Falling back to rating-less class stats');
+        const stats = await db.query(`
+          SELECT f.primary_class, COUNT(o.id) as order_count, COALESCE(SUM(o.total_fare), 0) as revenue
+          FROM fulfillers f
+          LEFT JOIN orders o ON o.fulfiller_id = f.id AND o.status = 'DELIVERED'
+          GROUP BY f.primary_class
+        `);
+        classStatsRows = stats.rows.map(r => ({ ...r, avg_rating: 5.0 }));
+    }
 
     // Notification Counts
-    const pendingKYC = await db.query("SELECT COUNT(*) FROM fulfillers WHERE kyc_status = 'PENDING_REVIEW'").catch(() => ({ rows: [{count:0}] }));
-    const openDisputes = await db.query("SELECT COUNT(*) FROM disputes WHERE status = 'OPEN'").catch(() => ({ rows: [{count:0}] }));
-    const unreadSupport = await db.query("SELECT COUNT(*) FROM conversations WHERE status = 'OPEN'").catch(() => ({ rows: [{count:0}] }));
+    const pendingKYC = (await db.query("SELECT COUNT(*) FROM fulfillers WHERE kyc_status = 'PENDING_REVIEW'").catch(() => ({rows:[{count:0}]}))).rows[0].count;
+    const openDisputes = (await db.query("SELECT COUNT(*) FROM disputes WHERE status = 'OPEN'").catch(() => ({rows:[{count:0}]}))).rows[0].count;
+    const unreadSupport = (await db.query("SELECT COUNT(*) FROM conversations WHERE status = 'OPEN'").catch(() => ({rows:[{count:0}]}))).rows[0].count;
 
     // Fetch 7-day sparkline data for revenue
-    const sparklineRevenue = await db.query(`
+    const sparklineRevenueRes = await db.query(`
       SELECT DATE(le.created_at) as date, SUM(le.amount) as amount
       FROM wallet_ledger_entries le
       JOIN wallets w ON le.wallet_id = w.id
@@ -69,25 +80,30 @@ const getDashboard = async (req, res) => {
       AND le.created_at >= CURRENT_DATE - INTERVAL '7 days'
       GROUP BY DATE(le.created_at)
       ORDER BY date ASC
-    `).catch(() => ({ rows: [0,0,0,0,0,0,0] }));
+    `).catch(() => ({ rows: [] }));
+
+    const revenueTrend = new Array(7).fill(0);
+    sparklineRevenueRes.rows.forEach((r, i) => {
+        if (i < 7) revenueTrend[i] = parseFloat(r.amount || 0);
+    });
 
     res.render('dashboard', {
       stats: {
-        activeOrders: activeOrders.rows[0].count,
-        onlineFulfillers: onlineFulfillers.rows[0].count,
-        totalRevenue: totalRevenueQuery.rows[0].total || 0,
-        revenueTrend: sparklineRevenue.rows.map(r => r.amount),
-        classPerformance: classStats.rows,
+        activeOrders: activeOrdersRes.rows[0].count,
+        onlineFulfillers: onlineFulfillersRes.rows[0].count,
+        totalRevenue: totalRevenueRes.rows[0].total || 0,
+        revenueTrend: revenueTrend,
+        classPerformance: classStatsRows,
         notifications: {
-          kyc: pendingKYC.rows[0].count,
-          disputes: openDisputes.rows[0].count,
-          support: unreadSupport.rows[0].count
+          kyc: pendingKYC,
+          disputes: openDisputes,
+          support: unreadSupport
         }
       }
     });
   } catch (error) {
-    console.error('Dashboard Stats Error:', error);
-    res.status(500).send('Error loading dashboard: ' + error.message);
+    console.error('CRITICAL Dashboard Render Error:', error);
+    res.status(500).render('error', { message: 'Dashboard failed to initialize. Please contact engineering.' });
   }
 };
 

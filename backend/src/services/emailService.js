@@ -38,7 +38,9 @@ const sendMail = async (to, subject, html) => {
   }
 
   try {
-    const fromAddress = process.env.EMAIL_FROM || 'awagroceries@gmail.com';
+    const fromAddress = process.env.EMAIL_FROM || '"Pikop" <awagroceries@gmail.com>';
+    console.log(`[SMTP] Attempting send to ${to} from ${fromAddress}...`);
+
     const info = await transporter.sendMail({
       from: fromAddress,
       to,
@@ -49,17 +51,14 @@ const sendMail = async (to, subject, html) => {
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error(`[SMTP] Failure: Failed to send to ${to}`);
-    console.error(`[SMTP] Details:`, {
-        code: error.code,
-        response: error.response,
-        responseCode: error.responseCode,
-        command: error.command
-    });
+    console.error(`[SMTP] Full Error:`, error);
 
-    if (error.responseCode === 535) {
-        console.error('👉 TIP: Authentication failed. Verify SMTP_USER and SMTP_PASS (API Key) in Brevo.');
-    } else if (error.code === 'EENVELOPE') {
-        console.error('👉 TIP: Sender rejected. Ensure the EMAIL_FROM is verified in Brevo.');
+    if (error.responseCode === 535 || error.message.includes('Authentication')) {
+        console.error('👉 TIP: Authentication failed. This usually means the SMTP_PASS (Brevo API Key) is wrong or expired.');
+    } else if (error.code === 'EENVELOPE' || error.message.includes('Sender address rejected')) {
+        console.error(`👉 TIP: SENDER_REJECTED. Brevo will only send from verified addresses. Ensure ${process.env.EMAIL_FROM} is verified in Brevo Dashboard.`);
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
+        console.error('👉 TIP: Connection Timeout. Your VPS provider is likely blocking port 587. Try switching to Port 465 or contact support.');
     }
 
     return { success: false, error: error.message };

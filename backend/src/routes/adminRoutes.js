@@ -16,10 +16,31 @@ router.get('/logout', (req, res) => {
 router.use(isAdminAuthenticated);
 
 // Set common locals for all dashboard pages
-router.use((req, res, next) => {
+router.use(async (req, res, next) => {
     res.locals.admin = req.session.adminUsername || 'Admin';
     res.locals.role = req.session.adminRole || 'staff';
     res.locals.adminId = req.session.adminId;
+    res.locals.adminUsername = req.session.adminUsername;
+
+    // Global Stats for Header (Safe Fetch)
+    try {
+        const activeRes = await db.query("SELECT COUNT(*) FROM orders WHERE status IN ('SEARCHING', 'MATCHED', 'PICKED_UP')").catch(() => ({rows:[{count:0}]}));
+        const pendingKYC = await db.query("SELECT COUNT(*) FROM fulfillers WHERE kyc_status = 'PENDING_REVIEW'").catch(() => ({rows:[{count:0}]}));
+        const openDisputes = await db.query("SELECT COUNT(*) FROM disputes WHERE status = 'OPEN'").catch(() => ({rows:[{count:0}]}));
+        const unreadSupport = await db.query("SELECT COUNT(*) FROM conversations WHERE status = 'OPEN'").catch(() => ({rows:[{count:0}]}));
+
+        res.locals.stats = {
+            activeOrders: activeRes.rows[0].count,
+            notifications: {
+                kyc: pendingKYC.rows[0].count,
+                disputes: openDisputes.rows[0].count,
+                support: unreadSupport.rows[0].count
+            }
+        };
+    } catch (e) {
+        res.locals.stats = { activeOrders: 0, notifications: { kyc: 0, disputes: 0, support: 0 } };
+    }
+
     next();
 });
 
