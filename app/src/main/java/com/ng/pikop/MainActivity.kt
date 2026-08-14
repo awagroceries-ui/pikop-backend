@@ -68,6 +68,7 @@ fun PikopAppNavigation() {
     val userName by tokenManager.userName.collectAsState(initial = null)
     val userPhone by tokenManager.userPhone.collectAsState(initial = null)
     val userRole by tokenManager.userRole.collectAsState(initial = null)
+    val isVerified by tokenManager.isVerified.collectAsState(initial = false)
     val referralCode by tokenManager.referralCode.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
 
@@ -128,7 +129,11 @@ fun PikopAppNavigation() {
         composable("splash") {
             SplashScreen(onAnimationFinished = {
                 if (accessToken != null) {
-                    navController.navigate("main") { popUpTo("splash") { inclusive = true } }
+                    if (isVerified) {
+                        navController.navigate("main") { popUpTo("splash") { inclusive = true } }
+                    } else {
+                        navController.navigate("email_otp/$userEmail/$userRole") { popUpTo("splash") { inclusive = true } }
+                    }
                 } else {
                     navController.navigate("user_type_selection") { popUpTo("splash") { inclusive = true } }
                 }

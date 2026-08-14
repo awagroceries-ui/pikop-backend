@@ -124,13 +124,22 @@ fun KycUploadScreen(onBack: () -> Unit) {
             val res = apiService.getFulfillerProfile()
             profile = res
             
-            // Only auto-advance if the user is literally at the start of a session
-            // or we need to sync state after a refresh.
-            if (currentStep == 0 && res.primary_class != null) currentStep = 1
-            
-            // If already submitted or verified, stay at the final step
-            if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
-                currentStep = 5
+            // Only auto-initialize currentStep if it's the very first load (refreshKey 0)
+            if (refreshKey == 0) {
+                if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
+                    currentStep = 5
+                } else if (res.profile_photo_url == null) {
+                    currentStep = if (res.primary_class == null) 0 else 1
+                } else if (res.didit_verification_status != "approved") {
+                    currentStep = 2
+                } else if (res.primary_class != "agent" && res.kyc_status == "NOT_STARTED") {
+                    // This is tricky because we don't have a 'license_uploaded' flag 
+                    // in the basic profile response yet. We'll default to the ID step
+                    // and let the user click 'Continue' to go to license.
+                    currentStep = 2
+                } else {
+                    currentStep = 5
+                }
             }
         } catch (e: Exception) {
             android.util.Log.e("PikopKyc", "Profile refresh failed", e)
@@ -176,6 +185,23 @@ fun KycUploadScreen(onBack: () -> Unit) {
                         permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
                     }
                 }
+                2 -> IdentityStep(
+                    status = profile?.didit_verification_status ?: "not_started", 
+                    role = profile?.primary_class ?: "agent",
+                    api = apiService,
+                    sessionToken = activeSessionToken,
+                    onSessionCreated = { token, id -> 
+                        activeSessionToken = token
+                        activeSessionId = id
+                    },
+                    onPermissionRequest = { 
+                        permissionLauncher.launch(arrayOf(
+                            Manifest.permission.CAMERA, 
+                            Manifest.permission.RECORD_AUDIO
+                        )) 
+                    },
+                    onRefresh = { refreshKey++ }
+                )
                 3 -> LicenseStep(
                     role = profile?.primary_class ?: "rider",
                     api = apiService,

@@ -45,6 +45,14 @@ const sendNotification = async (userId, title, body, data = {}) => {
         title: title,
         body: body
       },
+      android: {
+        priority: "high",
+        notification: {
+            channel_id: "pikop_notifications",
+            priority: "high",
+            visibility: "public"
+        }
+      },
       data: {
         title: title,
         body: body,

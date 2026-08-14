@@ -38,7 +38,7 @@ const sendMail = async (to, subject, html) => {
   }
 
   try {
-    const fromAddress = process.env.EMAIL_FROM || '"Pikop" <awagroceries@gmail.com>';
+    const fromAddress = process.env.EMAIL_FROM || 'awagroceries@gmail.com';
     console.log(`[SMTP] Attempting send to ${to} from ${fromAddress}...`);
 
     const info = await transporter.sendMail({

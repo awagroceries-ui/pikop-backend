@@ -18,6 +18,7 @@ class TokenManager(private val context: Context) {
         private val USER_NAME_KEY = stringPreferencesKey("user_name")
         private val USER_PHONE_KEY = stringPreferencesKey("user_phone")
         private val USER_ROLE_KEY = stringPreferencesKey("user_role")
+        private val IS_VERIFIED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("is_verified")
         private val REFERRAL_CODE_KEY = stringPreferencesKey("referral_code")
     }
 
@@ -51,6 +52,11 @@ class TokenManager(private val context: Context) {
             preferences[USER_ROLE_KEY]
         }
 
+    val isVerified: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[IS_VERIFIED_KEY] ?: false
+        }
+
     val referralCode: Flow<String?> = context.dataStore.data
         .map { preferences ->
             preferences[REFERRAL_CODE_KEY]
@@ -63,6 +69,7 @@ class TokenManager(private val context: Context) {
         role: String, 
         name: String? = null,
         phone: String? = null,
+        isVerified: Boolean = false,
         referralCode: String? = null
     ) {
         context.dataStore.edit { preferences ->
@@ -70,6 +77,7 @@ class TokenManager(private val context: Context) {
             preferences[REFRESH_TOKEN_KEY] = refreshToken
             preferences[USER_EMAIL_KEY] = email
             preferences[USER_ROLE_KEY] = role
+            preferences[IS_VERIFIED_KEY] = isVerified
             if (name != null) preferences[USER_NAME_KEY] = name
             if (phone != null) preferences[USER_PHONE_KEY] = phone
             if (referralCode != null) preferences[REFERRAL_CODE_KEY] = referralCode

@@ -104,6 +104,7 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                                     role = response.role ?: "CUSTOMER",
                                     name = response.full_name,
                                     phone = response.phone,
+                                    isVerified = true,
                                     referralCode = response.referral_code
                                 )
                                 onVerificationSuccess()

@@ -107,6 +107,7 @@ fun LoginScreen(
                                     role = userRole,
                                     name = response.full_name,
                                     phone = response.phone,
+                                    isVerified = true,
                                     referralCode = response.referral_code
                                 )
                                 onLoginSuccess(userRole)
