@@ -33,7 +33,11 @@ import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
+fun OrderQuoteScreen(
+    userEmail: String,
+    onOrderComplete: (String) -> Unit,
+    onNavigateToPayment: (url: String, quoteId: String, pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemUrl: String, pSum: String, dSum: String, rName: String, rPhone: String, notes: String?, promoId: String?) -> Unit
+) {
     var pickupAddress by remember { mutableStateOf("") }
     var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
     var deliveryAddress by remember { mutableStateOf("") }
@@ -265,12 +269,21 @@ fun OrderQuoteScreen(userEmail: String, onOrderComplete: (String) -> Unit) {
                                     try {
                                         val paymentInit = apiService.initializePayment(PaymentInitializationRequest(amount = amountToCharge, email = userEmail))
                                         
-                                        CheckoutHelper.startCheckout(activity!!, userEmail, amountToCharge, paymentInit.access_code, { transaction ->
-                                            coroutineScope.launch {
-                                                val success = finalizeOrderAfterPayment(apiService, qId, null, activePromo?.promo_id, transaction.reference, recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, pUrl, pickupAddress.take(50), deliveryAddress.take(50))
-                                                if (success) onOrderComplete(transaction.reference)
-                                            }
-                                        }, { error -> errorMessage = ErrorUtils.parseError(Exception(error)) })
+                                        onNavigateToPayment(
+                                            paymentInit.authorization_url,
+                                            qId,
+                                            pickupLatLng?.latitude ?: 0.0,
+                                            pickupLatLng?.longitude ?: 0.0,
+                                            deliveryLatLng?.latitude ?: 0.0,
+                                            deliveryLatLng?.longitude ?: 0.0,
+                                            pUrl,
+                                            pickupAddress.take(50),
+                                            deliveryAddress.take(50),
+                                            recipientName,
+                                            recipientPhone,
+                                            notes,
+                                            activePromo?.promo_id
+                                        )
                                     } catch (e: Exception) {
                                         errorMessage = ErrorUtils.parseError(e)
                                     }

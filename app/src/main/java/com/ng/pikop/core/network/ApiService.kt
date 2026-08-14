@@ -30,6 +30,8 @@ data class AuthResponse(
     val refreshToken: String? = null,
     val userId: String? = null,
     val email: String? = null,
+    val full_name: String? = null,
+    val phone: String? = null,
     val role: String? = null,
     val referral_code: String? = null
 )
@@ -152,6 +154,7 @@ data class ProfileUpdateRequest(
     val full_name: String? = null,
     val phone: String? = null,
     val mobility_type: String? = null,
+    val primary_class: String? = null,
     val vehicle_details: VehicleDetails? = null
 )
 

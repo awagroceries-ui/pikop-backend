@@ -72,20 +72,11 @@ const signup = async (req, res) => {
         console.error('Initial OTP send failed:', e.message);
     });
 
-    const tokens = authService.generateTokens(user);
-
-    // Register Session
-    await db.query(
-        "INSERT INTO user_sessions (user_id, refresh_token, device_name, ip_address) VALUES ($1, $2, $3, $4)",
-        [user.id, tokens.refreshToken, req.headers['user-agent'], req.ip]
-    );
-
     res.status(201).json({
       message: 'User registered. Please verify your email.',
       userId: user.id,
       email: user.email,
-      role: user.role,
-      ...tokens
+      role: user.role
     });
   } catch (error) {
     if (client) {
@@ -125,6 +116,9 @@ const verifyEmail = async (req, res) => {
 
     const userId = rows[0].user_id;
 
+    const userRes = await db.query("SELECT * FROM users WHERE id = $1", [userId]);
+    const user = userRes.rows[0];
+
     await db.query(
       "UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE id = $1",
       [userId]
@@ -136,7 +130,25 @@ const verifyEmail = async (req, res) => {
     // Send Welcome Email
     notificationService.sendWelcomeEmail(userId).catch(e => console.error('Welcome email failed:', e.message));
 
-    res.status(200).json({ message: 'Verification success' });
+    // Generate tokens after verification
+    const tokens = authService.generateTokens(user);
+
+    // Register Session
+    await db.query(
+        "INSERT INTO user_sessions (user_id, refresh_token, device_name, ip_address) VALUES ($1, $2, $3, $4)",
+        [userId, tokens.refreshToken, req.headers['user-agent'], req.ip]
+    );
+
+    res.status(200).json({
+        message: 'Verification success',
+        userId: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        phone: user.phone,
+        role: user.role,
+        referral_code: user.referral_code,
+        ...tokens
+    });
   } catch (error) {
     console.error('Verification Error:', error);
     res.status(500).json({ message: 'Verification failed. Please try again later.' });
@@ -169,6 +181,8 @@ const login = async (req, res) => {
       message: 'Login successful',
       userId: user.id,
       email: user.email,
+      full_name: user.full_name,
+      phone: user.phone,
       role: user.role,
       referral_code: user.referral_code,
       ...tokens

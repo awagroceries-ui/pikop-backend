@@ -96,11 +96,14 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                         errorMessage = null
                         try {
                             val response = apiService.verifyEmail(VerifyEmailRequest(email, otp))
-                            val isSuccess = response.accessToken != null || 
-                                           response.message?.contains("success", ignoreCase = true) == true ||
-                                           response.message == "OK"
-                            
-                            if (isSuccess) {
+                            if (response.accessToken != null) {
+                                tokenManager.saveTokens(
+                                    response.accessToken,
+                                    response.refreshToken ?: "",
+                                    email,
+                                    response.role ?: "CUSTOMER",
+                                    response.referral_code
+                                )
                                 onVerificationSuccess()
                             } else {
                                 errorMessage = response.message ?: "Invalid verification code"

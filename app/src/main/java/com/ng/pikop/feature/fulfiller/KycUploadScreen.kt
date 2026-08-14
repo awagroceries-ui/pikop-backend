@@ -65,7 +65,7 @@ fun KycUploadScreen(onBack: () -> Unit) {
     val apiService = remember { ApiService.create(tokenManager) }
     
     var profile by remember { mutableStateOf<FulfillerProfileResponse?>(null) }
-    var currentStep by rememberSaveable { mutableIntStateOf(1) }
+    var currentStep by rememberSaveable { mutableIntStateOf(0) } // Start at 0 for Class Selection
     var refreshKey by rememberSaveable { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(false) }
 
@@ -123,8 +123,14 @@ fun KycUploadScreen(onBack: () -> Unit) {
         try {
             val res = apiService.getFulfillerProfile()
             profile = res
-            if (res.profile_photo_url != null && currentStep < 2) currentStep = 2
-            if (res.didit_verification_status == "approved" && currentStep < 3) currentStep = 3
+            if (res.primary_class != null && currentStep == 0) currentStep = 1
+            if (res.profile_photo_url != null && currentStep == 1) currentStep = 2
+            if (res.didit_verification_status == "approved" && currentStep == 2) {
+                // If agent, skip to submission. If rider/driver, go to vehicle.
+                if (res.primary_class == "agent") currentStep = 4
+                else currentStep = 3
+            }
+            if (res.registration_number != null && currentStep == 3) currentStep = 4
         } catch (e: Exception) {
             android.util.Log.e("PikopKyc", "Profile refresh failed", e)
         }
@@ -158,6 +164,9 @@ fun KycUploadScreen(onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(32.dp))
 
             when (currentStep) {
+                0 -> FulfillerTypeSelectionScreen(
+                    onClassSelected = { refreshKey++ }
+                )
                 1 -> ProfilePhotoStep(profilePhotoUri) { 
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                         if (captureFile.exists()) captureFile.delete()
@@ -183,7 +192,8 @@ fun KycUploadScreen(onBack: () -> Unit) {
                     },
                     onRefresh = { refreshKey++ }
                 )
-                3 -> SubmissionStep(
+                3 -> VehicleStep(api = apiService, onComplete = { refreshKey++ })
+                4 -> SubmissionStep(
                     isLoading = isLoading,
                     status = profile?.kyc_status ?: "NOT_SUBMITTED",
                     onComplete = {
@@ -201,7 +211,7 @@ fun KycUploadScreen(onBack: () -> Unit) {
                 )
             }
 
-            if (currentStep < 3) {
+            if (currentStep < 4) {
                 Spacer(modifier = Modifier.weight(1f))
                 Button(
                     onClick = {
@@ -217,7 +227,13 @@ fun KycUploadScreen(onBack: () -> Unit) {
                                             currentStep = 2
                                         }
                                     }
-                                    2 -> if (profile?.didit_verification_status == "approved") currentStep = 3
+                                    2 -> {
+                                        if (profile?.didit_verification_status == "approved") {
+                                            if (profile?.primary_class == "agent") currentStep = 4
+                                            else currentStep = 3
+                                        }
+                                    }
+                                    3 -> if (profile?.registration_number != null) currentStep = 4
                                 }
                             } catch (e: Exception) {
                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
@@ -236,9 +252,47 @@ fun KycUploadScreen(onBack: () -> Unit) {
 }
 
 @Composable
+fun VehicleStep(api: ApiService, onComplete: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var regNum by remember { mutableStateOf("") }
+    var make by remember { mutableStateOf("") }
+    var model by remember { mutableStateOf("") }
+    var color by remember { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Vehicle Details", style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(value = regNum, onValueChange = { regNum = it }, label = { Text("Registration Number") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = make, onValueChange = { make = it }, label = { Text("Vehicle Make (e.g. Honda)") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("Vehicle Model") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = color, onValueChange = { color = it }, label = { Text("Color") }, modifier = Modifier.fillMaxWidth())
+        
+        Button(
+            onClick = {
+                scope.launch {
+                    isSaving = true
+                    try {
+                        api.updateFulfillerProfile(ProfileUpdateRequest(
+                            vehicle_details = VehicleDetails(regNum, make, model, color)
+                        ))
+                        onComplete()
+                    } catch (_: Exception) {}
+                    isSaving = false
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isSaving && regNum.isNotBlank() && make.isNotBlank()
+        ) {
+            if (isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            else Text("Save Vehicle Info")
+        }
+    }
+}
+
+@Composable
 fun StepIndicator(current: Int) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        (1..3).forEach { i ->
+        (0..4).forEach { i ->
             Box(modifier = Modifier.size(12.dp).padding(2.dp)) {
                 Surface(
                     shape = androidx.compose.foundation.shape.CircleShape,

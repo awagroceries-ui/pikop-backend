@@ -168,16 +168,8 @@ fun SignupScreen(
                         try {
                             val request = SignupRequest(fullName, email, phone, password, role, referralCode.ifBlank { null })
                             val response = apiService.signup(request)
-                            if (response.accessToken != null && response.refreshToken != null) {
-                                val userRole = response.role ?: role
-                                tokenManager.saveTokens(
-                                    response.accessToken,
-                                    response.refreshToken,
-                                    email,
-                                    userRole,
-                                    response.referral_code
-                                )
-                                onSignupSuccess(email, userRole)
+                            if (response.message?.contains("registered", ignoreCase = true) == true) {
+                                onSignupSuccess(email, role)
                             } else {
                                 errorMessage = response.message
                             }

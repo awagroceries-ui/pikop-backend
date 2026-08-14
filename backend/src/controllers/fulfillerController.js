@@ -132,7 +132,7 @@ const updateStatus = async (req, res) => {
  */
 const updateProfile = async (req, res) => {
   const userId = req.user.id;
-  const { mobility_type, vehicle_details } = req.body;
+  const { mobility_type, vehicle_details, primary_class } = req.body;
 
   const client = await db.pool.connect();
   try {
@@ -140,6 +140,10 @@ const updateProfile = async (req, res) => {
 
     if (mobility_type) {
       await client.query("UPDATE fulfillers SET mobility_type = $1 WHERE user_id = $2", [mobility_type, userId]);
+    }
+
+    if (primary_class) {
+      await client.query("UPDATE fulfillers SET primary_class = $1 WHERE user_id = $2", [primary_class.toLowerCase(), userId]);
     }
 
     if (vehicle_details) {

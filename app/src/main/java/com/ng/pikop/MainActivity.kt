@@ -32,12 +32,9 @@ import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.chat.ChatScreen
-import com.ng.pikop.feature.fulfiller.ActiveOrderScreen
-import com.ng.pikop.feature.fulfiller.FulfillerDashboardScreen
-import com.ng.pikop.feature.fulfiller.FulfillerOrdersScreen
-import com.ng.pikop.feature.fulfiller.InsightsScreen
-import com.ng.pikop.feature.fulfiller.KycUploadScreen
+import com.ng.pikop.feature.fulfiller.*
 import com.ng.pikop.feature.order.*
+import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.ui.theme.PikopTheme
 import kotlinx.coroutines.launch
@@ -202,7 +199,15 @@ fun PikopAppNavigation() {
             TrackOrderScreen(orderId = orderId, pickup = LatLng(6.5244, 3.3792), delivery = LatLng(6.4281, 3.4219))
         }
         composable("order_quote") {
-            OrderQuoteScreen(userEmail = userEmail ?: "", onOrderComplete = { navController.popBackStack() })
+            OrderQuoteScreen(
+                userEmail = userEmail ?: "", 
+                onOrderComplete = { navController.popBackStack() },
+                onNavigateToPayment = { url, qId, pLat, pLng, dLat, dLng, itemUrl, pSum, dSum, rName, rPhone, notes, promoId ->
+                    val encUrl = java.net.URLEncoder.encode(url, "UTF-8")
+                    val encItemUrl = java.net.URLEncoder.encode(itemUrl, "UTF-8")
+                    navController.navigate("payment_webview/$encUrl/$qId/$pLat/$pLng/$dLat/$dLng/$encItemUrl/$pSum/$dSum/$rName/$rPhone/${notes ?: "null"}/${promoId ?: "null"}")
+                }
+            )
         }
         composable("kyc_upload") {
             KycUploadScreen(onBack = { navController.popBackStack() })
@@ -226,6 +231,39 @@ fun PikopAppNavigation() {
         composable("session_mgmt") { SessionManagementScreen(onBack = { navController.popBackStack() }) }
         composable("corporate_dashboard") { CorporateDashboardScreen(onBack = { navController.popBackStack() }) }
         composable("insights") { InsightsScreen(onBack = { navController.popBackStack() }) }
+        
+        composable("payment_webview/{url}/{quoteId}/{pLat}/{pLng}/{dLat}/{dLng}/{itemUrl}/{pSum}/{dSummary}/{recipientName}/{recipientPhone}/{notes}/{promoId}") { backStackEntry ->
+            val url = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("url") ?: "", "UTF-8")
+            val qId = backStackEntry.arguments?.getString("quoteId") ?: ""
+            val pLat = backStackEntry.arguments?.getString("pLat")?.toDouble() ?: 0.0
+            val pLng = backStackEntry.arguments?.getString("pLng")?.toDouble() ?: 0.0
+            val dLat = backStackEntry.arguments?.getString("dLat")?.toDouble() ?: 0.0
+            val dLng = backStackEntry.arguments?.getString("dLng")?.toDouble() ?: 0.0
+            val itemUrl = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("itemUrl") ?: "", "UTF-8")
+            val pSum = backStackEntry.arguments?.getString("pSum") ?: ""
+            val dSum = backStackEntry.arguments?.getString("dSummary") ?: ""
+            val rName = backStackEntry.arguments?.getString("recipientName") ?: ""
+            val rPhone = backStackEntry.arguments?.getString("recipientPhone") ?: ""
+            val notes = backStackEntry.arguments?.getString("notes")?.let { if (it == "null") null else it }
+            val promoId = backStackEntry.arguments?.getString("promoId")?.let { if (it == "null") null else it }
+
+            PaymentWebView(
+                url = url,
+                onSuccess = { ref ->
+                    scope.launch {
+                        val api = ApiService.create(tokenManager)
+                        val success = finalizeOrderAfterPayment(api, qId, null, promoId, ref, rName, rPhone, notes, pLat, pLng, dLat, dLng, itemUrl, pSum, dSum)
+                        if (success) {
+                            navController.navigate("main") {
+                                popUpTo("order_quote") { inclusive = true }
+                            }
+                        }
+                    }
+                },
+                onCancel = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
+            )
+        }
     }
 }
 
