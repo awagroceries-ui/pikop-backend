@@ -9,7 +9,7 @@ const expressLayouts = require('express-ejs-layouts');
 const app = express();
 
 // 1. Version Check (For Troubleshooting)
-const VERSION = '1.5.6';
+const VERSION = '1.5.9';
 
 // 2. Basic Middleware
 app.use(helmet({ contentSecurityPolicy: false }));

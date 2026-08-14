@@ -48,7 +48,12 @@ class PikopMessagingService : FirebaseMessagingService() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Pikop Updates", NotificationManager.IMPORTANCE_DEFAULT)
+            val channel = NotificationChannel(channelId, "Pikop Updates", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Critical delivery and mission alerts"
+                enableLights(true)
+                enableVibration(true)
+                setShowBadge(true)
+            }
             notificationManager.createNotificationChannel(channel)
         }
 

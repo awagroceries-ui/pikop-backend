@@ -206,8 +206,8 @@ const submitApplication = async (req, res) => {
     if (f.didit_verification_status !== 'approved') return res.status(400).json({ error: 'Identity verification not approved yet' });
 
     // Class specific docs check
-    const docs = await db.query("SELECT document_type FROM kyc_documents WHERE fulfiller_id = $1", [f.id]);
-    const docTypes = docs.rows.map(d => d.document_type);
+    const docsRes = await db.query("SELECT document_type FROM kyc_documents WHERE fulfiller_id = $1", [f.id]);
+    const docTypes = docsRes.rows.map(d => d.document_type);
 
     if (f.primary_class === 'rider' || f.primary_class === 'driver') {
       const v = await db.query("SELECT id FROM vehicles WHERE fulfiller_id = $1", [f.id]);

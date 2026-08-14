@@ -126,11 +126,11 @@ fun KycUploadScreen(onBack: () -> Unit) {
             if (res.primary_class != null && currentStep == 0) currentStep = 1
             if (res.profile_photo_url != null && currentStep == 1) currentStep = 2
             if (res.didit_verification_status == "approved" && currentStep == 2) {
-                // If agent, skip to submission. If rider/driver, go to vehicle.
-                if (res.primary_class == "agent") currentStep = 4
-                else currentStep = 3
+                if (res.primary_class == "agent") currentStep = 5 // Skip to submission
+                else currentStep = 3 // Go to license
             }
-            if (res.registration_number != null && currentStep == 3) currentStep = 4
+            // Check if license is uploaded (we'll use kyc_status or a specific check)
+            // For now, we'll rely on the 'Continue' button logic
         } catch (e: Exception) {
             android.util.Log.e("PikopKyc", "Profile refresh failed", e)
         }
@@ -175,25 +175,13 @@ fun KycUploadScreen(onBack: () -> Unit) {
                         permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
                     }
                 }
-                2 -> IdentityStep(
-                    status = profile?.didit_verification_status ?: "not_started", 
-                    role = profile?.primary_class ?: "agent",
+                3 -> LicenseStep(
+                    role = profile?.primary_class ?: "rider",
                     api = apiService,
-                    sessionToken = activeSessionToken,
-                    onSessionCreated = { token, id -> 
-                        activeSessionToken = token
-                        activeSessionId = id
-                    },
-                    onPermissionRequest = { 
-                        permissionLauncher.launch(arrayOf(
-                            Manifest.permission.CAMERA, 
-                            Manifest.permission.RECORD_AUDIO
-                        )) 
-                    },
-                    onRefresh = { refreshKey++ }
+                    onComplete = { currentStep = 4 }
                 )
-                3 -> VehicleStep(api = apiService, onComplete = { refreshKey++ })
-                4 -> SubmissionStep(
+                4 -> VehicleStep(api = apiService, onComplete = { currentStep = 5 })
+                5 -> SubmissionStep(
                     isLoading = isLoading,
                     status = profile?.kyc_status ?: "NOT_SUBMITTED",
                     onComplete = {
@@ -201,7 +189,7 @@ fun KycUploadScreen(onBack: () -> Unit) {
                             isLoading = true
                             try {
                                 apiService.submitApplication()
-                                refreshKey++ // Trigger profile refresh to show PENDING_REVIEW
+                                refreshKey++ 
                                 Toast.makeText(context, "Application submitted!", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
@@ -211,7 +199,7 @@ fun KycUploadScreen(onBack: () -> Unit) {
                 )
             }
 
-            if (currentStep < 4) {
+            if (currentStep < 5) {
                 Spacer(modifier = Modifier.weight(1f))
                 Button(
                     onClick = {
@@ -229,11 +217,11 @@ fun KycUploadScreen(onBack: () -> Unit) {
                                     }
                                     2 -> {
                                         if (profile?.didit_verification_status == "approved") {
-                                            if (profile?.primary_class == "agent") currentStep = 4
+                                            if (profile?.primary_class == "agent") currentStep = 5
                                             else currentStep = 3
                                         }
                                     }
-                                    3 -> if (profile?.registration_number != null) currentStep = 4
+                                    // 3 (License) and 4 (Vehicle) have internal buttons
                                 }
                             } catch (e: Exception) {
                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
@@ -244,6 +232,7 @@ fun KycUploadScreen(onBack: () -> Unit) {
                     enabled = !isLoading && (currentStep != 1 || profilePhotoUri != null)
                 ) {
                     if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    else if (currentStep == 2) Text("Refresh Status")
                     else Text("Continue")
                 }
             }
@@ -290,10 +279,69 @@ fun VehicleStep(api: ApiService, onComplete: () -> Unit) {
 }
 
 @Composable
+fun LicenseStep(role: String, api: ApiService, onComplete: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var selectedUri by remember { mutableStateOf<Uri?>(null) }
+    var isUploading by remember { mutableStateOf(false) }
+    
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        selectedUri = uri
+    }
+
+    val docType = if (role == "rider") "RIDERS_LICENSE" else "DRIVERS_LICENSE"
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Legal Authorization", style = MaterialTheme.typography.titleLarge)
+        Text("Please upload a clear photo of your valid ${docType.replace("_", " ")}.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        
+        Card(
+            onClick = { launcher.launch("image/*") },
+            modifier = Modifier.fillMaxWidth().height(200.dp),
+            colors = CardDefaults.cardColors(containerColor = if (selectedUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                if (selectedUri != null) Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+                else Icon(Icons.Default.UploadFile, null, modifier = Modifier.size(64.dp), tint = Color.Gray)
+            }
+        }
+
+        Button(
+            onClick = {
+                scope.launch {
+                    isUploading = true
+                    try {
+                        val file = getFileFromUri(context, selectedUri!!)
+                        val compressed = ImageUtils.compressFile(context, file)
+                        val body = MultipartBody.Part.createFormData("document", "license.jpg", compressed.asRequestBody("image/*".toMediaTypeOrNull()))
+                        val typePart = docType.toRequestBody("text/plain".toMediaTypeOrNull())
+                        api.uploadKYC(typePart, body)
+                        onComplete()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Upload failed", Toast.LENGTH_SHORT).show()
+                    } finally { isUploading = false }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isUploading && selectedUri != null
+        ) {
+            if (isUploading) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            else Text("Upload License")
+        }
+    }
+}
+
+private fun getFileFromUri(context: android.content.Context, uri: Uri): File {
+    val tempFile = File(context.cacheDir, "kyc_temp_${System.currentTimeMillis()}.jpg")
+    context.contentResolver.openInputStream(uri)?.use { input -> FileOutputStream(tempFile).use { output -> input.copyTo(output) } }
+    return tempFile
+}
+
+@Composable
 fun StepIndicator(current: Int) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        (0..4).forEach { i ->
-            Box(modifier = Modifier.size(12.dp).padding(2.dp)) {
+        (0..5).forEach { i ->
+            Box(modifier = Modifier.size(10.dp).padding(2.dp)) {
                 Surface(
                     shape = androidx.compose.foundation.shape.CircleShape,
                     color = if (i <= current) MaterialTheme.colorScheme.primary else Color.LightGray,

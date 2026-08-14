@@ -104,6 +104,8 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                                     response.role ?: "CUSTOMER",
                                     response.referral_code
                                 )
+                                // Save full name and phone to local cache/datastore if needed, 
+                                // but for now, they are available in the response.
                                 onVerificationSuccess()
                             } else {
                                 errorMessage = response.message ?: "Invalid verification code"

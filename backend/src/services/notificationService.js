@@ -53,6 +53,11 @@ const sendOTPEmail = async (userId, email, otp) => {
   `;
 
   const result = await emailService.sendMail(email, subject, html);
+  if (!result.success) {
+      console.error(`[Notification] Failed to send OTP email to ${email}:`, result.error);
+  } else {
+      console.log(`[Notification] OTP email sent to ${email}`);
+  }
   await logNotification(userId, 'email', 'otp_verification', email, result.success ? 'SUCCESS' : 'FAILED', result.error);
 };
 
