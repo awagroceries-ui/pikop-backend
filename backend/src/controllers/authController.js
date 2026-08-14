@@ -228,7 +228,7 @@ const resendOtp = async (req, res) => {
     );
 
     if (parseInt(attempts[0].count) >= 5) {
-        return res.status(429).json({ message: 'RATE_LIMITED: Too many attempts. Please try again in 1 hour.' });
+        return res.status(429).json({ message: 'RATE_LIMITED', error: 'Too many attempts. Please try again in 1 hour.' });
     }
 
     // Invalidate previous OTPs

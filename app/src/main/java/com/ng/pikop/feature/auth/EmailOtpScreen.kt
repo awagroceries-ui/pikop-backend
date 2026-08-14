@@ -24,6 +24,7 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var resendCooldown by remember { mutableStateOf(0) }
+    var isRateLimited by remember { mutableStateOf(false) }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -128,7 +129,7 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
 
             TextButton(
                 onClick = {
-                    if (resendCooldown > 0 || isLoading) return@TextButton
+                    if (resendCooldown > 0 || isLoading || isRateLimited) return@TextButton
                     coroutineScope.launch {
                         isLoading = true
                         try {
@@ -136,17 +137,23 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                             Toast.makeText(context, response.message ?: "New code sent!", Toast.LENGTH_SHORT).show()
                             resendCooldown = 30
                         } catch (e: Exception) {
-                            errorMessage = ErrorUtils.parseError(e)
+                            val error = ErrorUtils.parseError(e)
+                            if (error.contains("RATE_LIMITED")) {
+                                isRateLimited = true
+                            }
+                            errorMessage = error
                         } finally {
                             isLoading = false
                         }
                     }
                 },
-                enabled = resendCooldown == 0
+                enabled = resendCooldown == 0 && !isRateLimited
             ) {
                 Text(
-                    text = if (resendCooldown > 0) "Resend code in ${resendCooldown}s" else "Didn't receive a code? Resend",
-                    color = if (resendCooldown > 0) Color.Gray else MaterialTheme.colorScheme.primary
+                    text = if (isRateLimited) "Too many attempts — try again later"
+                          else if (resendCooldown > 0) "Resend code in ${resendCooldown}s" 
+                          else "Didn't receive a code? Resend",
+                    color = if (resendCooldown > 0 || isRateLimited) Color.Gray else MaterialTheme.colorScheme.primary
                 )
             }
         }

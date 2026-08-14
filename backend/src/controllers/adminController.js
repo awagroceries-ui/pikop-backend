@@ -471,6 +471,44 @@ const replySupport = async (req, res) => {
   }
 };
 
+/**
+ * Approves a cancellation fee waiver (Prompt 6).
+ */
+const approveWaiver = async (req, res) => {
+    const { id } = req.params; // Dispute ID
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { rows } = await client.query("SELECT order_id FROM disputes WHERE id = $1", [id]);
+        if (rows.length === 0) throw new Error('Dispute not found');
+        const orderId = rows[0].order_id;
+
+        // 1. Reverse Fee (Credit back is handled manually or via system credit, here we just flag)
+        await client.query("UPDATE orders SET cancellation_fee_waived = true WHERE id = $1", [orderId]);
+
+        // 2. Resolve Dispute
+        await client.query("UPDATE disputes SET status = 'RESOLVED', resolution_notes = 'Waiver approved by admin' WHERE id = $1", [id]);
+
+        await client.query('COMMIT');
+        res.redirect('/admin/disputes');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        res.status(500).send('Waiver approval failed');
+    } finally {
+        client.release();
+    }
+};
+
+const denyWaiver = async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query("UPDATE disputes SET status = 'CLOSED', resolution_notes = 'Waiver denied by admin' WHERE id = $1", [id]);
+        res.redirect('/admin/disputes');
+    } catch (error) {
+        res.status(500).send('Waiver denial failed');
+    }
+};
+
 module.exports = {
   login,
   getDashboard,
@@ -486,6 +524,8 @@ module.exports = {
   getConversationDetails,
   resolveSupport,
   replySupport,
+  approveWaiver,
+  denyWaiver,
   getCorporateAccounts,
   suspendCorporateAccount,
   getSettings,
