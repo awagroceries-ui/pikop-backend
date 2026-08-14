@@ -158,7 +158,7 @@ fun AccountScreen(
             }
             
             Text(
-                text = "Pikop v1.5.9",
+                text = "Pikop v1.6.0",
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Gray,
                 modifier = Modifier.padding(vertical = 24.dp)

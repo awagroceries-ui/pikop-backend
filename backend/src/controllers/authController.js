@@ -169,6 +169,14 @@ const login = async (req, res) => {
     const isMatch = await authService.comparePassword(password, user.password_hash);
     if (!isMatch) return res.status(401).json({ message: 'Invalid email or password.' });
 
+    if (!user.email_verified_at) {
+        return res.status(403).json({
+            message: 'ACCOUNT_UNVERIFIED',
+            email: user.email,
+            role: user.role
+        });
+    }
+
     const tokens = authService.generateTokens(user);
 
     // Register Session
@@ -200,11 +208,17 @@ const refreshToken = (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) return res.status(401).json({ message: 'Session expired. Please login again.' });
 
-  jwt.verify(refreshToken, authService.REFRESH_TOKEN_SECRET, (err, user) => {
+  jwt.verify(refreshToken, authService.REFRESH_TOKEN_SECRET, async (err, decoded) => {
     if (err) return res.status(403).json({ message: 'Invalid session. Please login again.' });
 
+    // Fetch latest user state to check verification
+    const { rows } = await db.query("SELECT * FROM users WHERE id = $1", [decoded.id]);
+    if (rows.length === 0 || !rows[0].email_verified_at) {
+        return res.status(403).json({ message: 'ACCOUNT_UNVERIFIED' });
+    }
+
     // Generate new tokens
-    const tokens = authService.generateTokens(user);
+    const tokens = authService.generateTokens(rows[0]);
     res.json(tokens);
   });
 };

@@ -61,9 +61,9 @@ fun ChatScreen(
     DisposableEffect(conversationId, orderId) {
         SocketManager.connect()
         if (isSupport) {
-            SocketManager.emit("join_support", JSONObject().put("conversationId", conversationId))
+            SocketManager.emit("join_support", conversationId!!)
         } else {
-            SocketManager.emit("join_order", JSONObject().put("orderId", orderId))
+            SocketManager.emit("join_order", orderId!!)
         }
 
         SocketManager.on("receive_message") { data ->

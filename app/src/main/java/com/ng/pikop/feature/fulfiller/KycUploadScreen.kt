@@ -123,14 +123,15 @@ fun KycUploadScreen(onBack: () -> Unit) {
         try {
             val res = apiService.getFulfillerProfile()
             profile = res
-            if (res.primary_class != null && currentStep == 0) currentStep = 1
-            if (res.profile_photo_url != null && currentStep == 1) currentStep = 2
-            if (res.didit_verification_status == "approved" && currentStep == 2) {
-                if (res.primary_class == "agent") currentStep = 5 // Skip to submission
-                else currentStep = 3 // Go to license
+            
+            // Only auto-advance if the user is literally at the start of a session
+            // or we need to sync state after a refresh.
+            if (currentStep == 0 && res.primary_class != null) currentStep = 1
+            
+            // If already submitted or verified, stay at the final step
+            if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
+                currentStep = 5
             }
-            // Check if license is uploaded (we'll use kyc_status or a specific check)
-            // For now, we'll rely on the 'Continue' button logic
         } catch (e: Exception) {
             android.util.Log.e("PikopKyc", "Profile refresh failed", e)
         }

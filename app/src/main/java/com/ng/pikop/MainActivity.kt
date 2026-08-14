@@ -147,6 +147,9 @@ fun PikopAppNavigation() {
                 onLoginSuccess = { role ->
                     navController.navigate("main") { popUpTo("login") { inclusive = true } }
                 },
+                onUnverified = { email, role ->
+                    navController.navigate("email_otp/$email/$role")
+                },
                 onGoToSignup = { navController.navigate("user_type_selection") }
             )
         }

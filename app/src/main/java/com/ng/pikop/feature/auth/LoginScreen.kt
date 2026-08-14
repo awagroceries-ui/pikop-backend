@@ -20,7 +20,11 @@ import com.ng.pikop.core.network.LoginRequest
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(onLoginSuccess: (String) -> Unit, onGoToSignup: () -> Unit) {
+fun LoginScreen(
+    onLoginSuccess: (String) -> Unit, 
+    onUnverified: (String, String) -> Unit,
+    onGoToSignup: () -> Unit
+) {
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     
@@ -110,7 +114,14 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit, onGoToSignup: () -> Unit) {
                                 errorMessage = response.message
                             }
                         } catch (e: Exception) {
-                            errorMessage = ErrorUtils.parseError(e)
+                            val error = ErrorUtils.parseError(e)
+                            if (error.contains("ACCOUNT_UNVERIFIED")) {
+                                // Extract email/role if possible or use current state
+                                // Backend returns them in 403 body
+                                onUnverified(email, "CUSTOMER") // Role fallback
+                            } else {
+                                errorMessage = error
+                            }
                         } finally {
                             isLoading = false
                         }

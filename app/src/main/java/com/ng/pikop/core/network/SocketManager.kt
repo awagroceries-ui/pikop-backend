@@ -23,7 +23,7 @@ object SocketManager {
         socket?.disconnect()
     }
 
-    fun emit(event: String, data: JSONObject) {
+    fun emit(event: String, data: Any) {
         socket?.emit(event, data)
     }
 
