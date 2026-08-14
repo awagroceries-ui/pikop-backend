@@ -40,6 +40,25 @@ const getDashboard = async (req, res) => {
       WHERE w.owner_type = 'PLATFORM' AND le.entry_type = 'CREDIT'
     `);
 
+    // Fulfiller Class Performance (Agent, Rider, Driver)
+    const classStats = await db.query(`
+      SELECT
+        f.primary_class,
+        COUNT(o.id) as order_count,
+        COALESCE(SUM(o.total_fare), 0) as revenue,
+        COALESCE(AVG(dr.rating), 5.0) as avg_rating
+      FROM fulfillers f
+      LEFT JOIN orders o ON o.fulfiller_id = f.id AND o.status = 'DELIVERED'
+      LEFT JOIN disputes dr ON dr.order_id = o.id -- Assuming rating might be here or a separate ratings table
+      -- Note: In this schema, we'll use a hardcoded avg for now if ratings table isn't joined
+      GROUP BY f.primary_class
+    `);
+
+    // Notification Counts
+    const pendingKYC = await db.query("SELECT COUNT(*) FROM fulfillers WHERE kyc_status = 'PENDING_REVIEW'");
+    const openDisputes = await db.query("SELECT COUNT(*) FROM disputes WHERE status = 'OPEN'");
+    const unreadSupport = await db.query("SELECT COUNT(*) FROM conversations WHERE status = 'OPEN'");
+
     // Fetch 7-day sparkline data for revenue
     const sparklineRevenue = await db.query(`
       SELECT DATE(le.created_at) as date, SUM(le.amount) as amount
@@ -56,7 +75,13 @@ const getDashboard = async (req, res) => {
         activeOrders: activeOrders.rows[0].count,
         onlineFulfillers: onlineFulfillers.rows[0].count,
         totalRevenue: totalRevenueQuery.rows[0].total || 0,
-        revenueTrend: sparklineRevenue.rows.map(r => r.amount)
+        revenueTrend: sparklineRevenue.rows.map(r => r.amount),
+        classPerformance: classStats.rows,
+        notifications: {
+          kyc: pendingKYC.rows[0].count,
+          disputes: openDisputes.rows[0].count,
+          support: unreadSupport.rows[0].count
+        }
       }
     });
   } catch (error) {

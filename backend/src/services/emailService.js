@@ -44,10 +44,20 @@ const sendMail = async (to, subject, html) => {
       subject,
       html,
     });
-    console.log('Email sent: %s', info.messageId);
+    console.log(`[SMTP] Success: Email sent to ${to}. ID: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Email Send Error:', error.message);
+    console.error(`[SMTP] Failure: Failed to send to ${to}`);
+    console.error(`[SMTP] Error Code: ${error.code}`);
+    console.error(`[SMTP] Command: ${error.command}`);
+    console.error(`[SMTP] Response: ${error.response}`);
+
+    if (error.responseCode === 535) {
+        console.error('👉 TIP: Authentication failed. Check SMTP_USER and SMTP_PASS.');
+    } else if (error.code === 'EENVELOPE') {
+        console.error('👉 TIP: SENDER_REJECTED. Ensure EMAIL_FROM is verified in Brevo.');
+    }
+
     return { success: false, error: error.message };
   }
 };
