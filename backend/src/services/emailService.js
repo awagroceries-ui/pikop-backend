@@ -14,8 +14,8 @@ try {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS,
             },
-            logger: true,
-            debug: true
+            logger: true, // Enable built-in nodemailer logging
+            debug: true   // Show SMTP traffic in console
         });
         console.log('✅ Email Transporter configured.');
     } else {
@@ -33,13 +33,14 @@ const sendMail = async (to, subject, html) => {
     console.log('--- MOCK EMAIL ---');
     console.log('To:', to);
     console.log('Subject:', subject);
-    console.log('------------------');
+    // ...
     return { success: true, messageId: 'mock-id' };
   }
 
   try {
+    const fromAddress = process.env.EMAIL_FROM || 'awagroceries@gmail.com';
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Pikop" <awagroceries@gmail.com>',
+      from: fromAddress,
       to,
       subject,
       html,
@@ -48,14 +49,17 @@ const sendMail = async (to, subject, html) => {
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error(`[SMTP] Failure: Failed to send to ${to}`);
-    console.error(`[SMTP] Error Code: ${error.code}`);
-    console.error(`[SMTP] Command: ${error.command}`);
-    console.error(`[SMTP] Response: ${error.response}`);
+    console.error(`[SMTP] Details:`, {
+        code: error.code,
+        response: error.response,
+        responseCode: error.responseCode,
+        command: error.command
+    });
 
     if (error.responseCode === 535) {
-        console.error('👉 TIP: Authentication failed. Check SMTP_USER and SMTP_PASS.');
+        console.error('👉 TIP: Authentication failed. Verify SMTP_USER and SMTP_PASS (API Key) in Brevo.');
     } else if (error.code === 'EENVELOPE') {
-        console.error('👉 TIP: SENDER_REJECTED. Ensure EMAIL_FROM is verified in Brevo.');
+        console.error('👉 TIP: Sender rejected. Ensure the EMAIL_FROM is verified in Brevo.');
     }
 
     return { success: false, error: error.message };

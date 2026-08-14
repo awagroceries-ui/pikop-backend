@@ -564,6 +564,31 @@ const claimQueueOrder = async (req, res) => {
     }
 };
 
+/**
+ * Persists fulfiller feedback for a completed order.
+ */
+const rateCustomer = async (req, res) => {
+    const { orderId } = req.params;
+    const { rating, comment } = req.body;
+    const fulfillerId = req.user.fulfillerId;
+
+    try {
+        const { rows } = await db.query(
+            "UPDATE orders SET rating = $1, rating_comment = $2 WHERE id = $3 AND fulfiller_id = $4 RETURNING id",
+            [rating, comment, orderId, fulfillerId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Order not found or you are not authorized to rate it.' });
+        }
+
+        res.status(200).json({ message: 'Rating saved successfully' });
+    } catch (error) {
+        console.error('Rate Customer Error:', error);
+        res.status(500).json({ error: 'Failed to save rating' });
+    }
+};
+
 module.exports = {
   getQuote, createOrder, acceptOrder, updateOrderStatus,
   verifyPickup, verifyDelivery, getOrderDetails, getUserOrders,
@@ -571,5 +596,6 @@ module.exports = {
   cancelOrder,
   fileIncident,
   getQueueCandidates,
-  claimQueueOrder
+  claimQueueOrder,
+  rateCustomer
 };

@@ -46,11 +46,9 @@ const getDashboard = async (req, res) => {
         f.primary_class,
         COUNT(o.id) as order_count,
         COALESCE(SUM(o.total_fare), 0) as revenue,
-        COALESCE(AVG(dr.rating), 5.0) as avg_rating
+        COALESCE(AVG(o.rating), 5.0) as avg_rating
       FROM fulfillers f
       LEFT JOIN orders o ON o.fulfiller_id = f.id AND o.status = 'DELIVERED'
-      LEFT JOIN disputes dr ON dr.order_id = o.id -- Assuming rating might be here or a separate ratings table
-      -- Note: In this schema, we'll use a hardcoded avg for now if ratings table isn't joined
       GROUP BY f.primary_class
     `);
 
@@ -138,7 +136,7 @@ const getOrderReport = async (req, res) => {
 const getKYCQueue = async (req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT f.id as fulfiller_id, f.didit_verification_status, f.didit_session_id, u.full_name, u.email
+      SELECT f.id as fulfiller_id, f.didit_verification_status, f.didit_session_id, f.primary_class, u.full_name, u.email
       FROM fulfillers f
       JOIN users u ON u.id = f.user_id
       WHERE f.kyc_status != 'VERIFIED' OR f.didit_verification_status != 'approved'
@@ -429,7 +427,7 @@ const getOverviewMetrics = async (req, res) => {
     const mauUsers = await db.query("SELECT COUNT(*) FROM users WHERE last_active_at >= NOW() - INTERVAL '30 days'");
     const mauFulfillers = await db.query("SELECT COUNT(*) FROM fulfillers WHERE last_active_at >= NOW() - INTERVAL '30 days'");
 
-    // 3. Revenue Breakdown (Prompt 4, point 4)
+    // 3. Revenue Breakdown
     const revenueQuery = await db.query(`
       SELECT
         COALESCE(SUM(o.total_fare), 0) as gross,
@@ -438,6 +436,20 @@ const getOverviewMetrics = async (req, res) => {
       FROM orders o
       WHERE o.status IN ('DELIVERED', 'CLOSED')
       AND o.created_at >= NOW() - INTERVAL '${days} days'
+    `);
+
+    // 4. Class Performance (Agent, Rider, Driver)
+    const classStats = await db.query(`
+      SELECT
+        f.primary_class,
+        COUNT(o.id) as order_count,
+        COALESCE(SUM(o.total_fare), 0) as revenue,
+        COALESCE(AVG(o.rating), 5.0) as avg_rating
+      FROM fulfillers f
+      LEFT JOIN orders o ON o.fulfiller_id = f.id
+        AND o.status = 'DELIVERED'
+        AND o.created_at >= NOW() - INTERVAL '${days} days'
+      GROUP BY f.primary_class
     `);
 
     res.status(200).json({
@@ -449,7 +461,9 @@ const getOverviewMetrics = async (req, res) => {
         dau: { users: dauUsers.rows[0].count, fulfillers: dauFulfillers.rows[0].count },
         mau: { users: mauUsers.rows[0].count, fulfillers: mauFulfillers.rows[0].count }
       },
-      revenue: revenueQuery.rows[0]
+      revenue: revenueQuery.rows[0],
+      classPerformance: classStats.rows,
+      active_orders: (await db.query("SELECT COUNT(*) FROM orders WHERE status IN ('SEARCHING', 'MATCHED', 'PICKED_UP')")).rows[0].count
     });
   } catch (error) {
     console.error("Metrics Error:", error);

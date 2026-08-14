@@ -67,7 +67,17 @@
                             <%
                                 const docs = (f.documents && Array.isArray(f.documents)) ? f.documents : [];
                                 const docsApproved = docs.length > 0 && docs.every(d => d.status === 'APPROVED');
-                                const canApprove = f.didit_verification_status === 'approved' && (docsApproved || docs.length === 0);
+
+                                // Enforcement logic: Agents need ID, Riders/Drivers need License
+                                let canApprove = false;
+                                if (f.didit_verification_status === 'approved') {
+                                    if (f.primary_class === 'agent') {
+                                        canApprove = true;
+                                    } else {
+                                        // Must have at least one approved document (License)
+                                        canApprove = docsApproved;
+                                    }
+                                }
                             %>
                             <form action="/admin/kyc/fulfiller/<%= f.fulfiller_id %>/verify" method="POST">
                                 <button type="submit" class="btn btn-primary w-100 fw-bold" <%= canApprove ? '' : 'disabled' %>>
@@ -75,7 +85,9 @@
                                 </button>
                             </form>
                             <% if (!canApprove) { %>
-                                <p class="smaller text-muted mt-2">Awaiting all approvals</p>
+                                <p class="smaller text-muted mt-2">
+                                    <%= (f.primary_class !== 'agent' && !docsApproved) ? 'License required' : 'Awaiting identity' %>
+                                </p>
                             <% } %>
                         </div>
                     </div>

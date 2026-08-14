@@ -4,36 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pikop Command | Mission Control</title>
-    <!-- Fonts: Inter for UI, JetBrains Mono for Numbers -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/socket.io/socket.io.js"></script>
 
     <style>
         :root {
-            /* Brand Colors (Sampled from Logo) */
-            --brand-black: #0B0B0B;
-            --brand-gold: #FF9F0A;
-            --brand-orange: #FF5722;
-            --brand-green: #8BC34A;
+            /* Deliberate Brand Color Palette sampled from Pikop Logo */
+            --brand-black: #0B0B0B;  /* Chrome Chrome Background */
+            --brand-gold: #FF9F0A;   /* Accent & Active Nav */
+            --brand-orange: #FF5722; /* Active/In-motion Status */
+            --brand-green: #8BC34A;  /* Success/Delivered Status */
             --brand-white: #FFFFFF;
 
-            /* Functional Assignment */
             --bg-chrome: var(--brand-black);
-            --bg-main: #F8FAFC;
+            --bg-main: #F8FAFC;      /* Content Area Background - High Legibility */
             --bg-card: #FFFFFF;
 
-            --primary: var(--brand-gold);
-            --accent: var(--brand-orange);
-            --success: var(--brand-green);
-
+            --text-on-chrome: var(--brand-white);
             --text-main: #1E293B;
             --text-muted: #64748B;
-            --text-on-chrome: #F8FAFC;
             --border: #E2E8F0;
         }
 
@@ -41,122 +34,112 @@
             background-color: var(--bg-main);
             color: var(--text-main);
             font-family: 'Inter', sans-serif;
-            overflow-x: hidden;
             margin: 0;
+            overflow-x: hidden;
         }
 
         .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
         .ls-1 { letter-spacing: 0.05em; }
         .uppercase { text-transform: uppercase; }
 
-        /* Sidebar Styling */
+        /* Sidebar - Boltz Pattern Adaptation */
         .sidebar {
             min-height: 100vh;
             background: var(--bg-chrome);
-            border-right: 1px solid rgba(255,255,255,0.1);
-            padding: 0;
-            position: fixed;
             width: 260px;
+            position: fixed;
             z-index: 1000;
             display: flex;
             flex-direction: column;
+            border-right: 1px solid rgba(255,255,255,0.05);
         }
 
         .sidebar-header {
-            padding: 2.5rem 1.5rem;
+            padding: 3rem 1.5rem;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
 
         .sidebar-group-label {
             padding: 1.5rem 1.5rem 0.5rem;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 800;
-            color: rgba(255,255,255,0.4);
+            color: rgba(255,255,255,0.3);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.15em;
         }
 
         .sidebar a {
-            color: rgba(255,255,255,0.7);
+            color: rgba(255,255,255,0.6);
             text-decoration: none;
             display: flex;
             align-items: center;
-            padding: 0.8rem 1.5rem;
+            padding: 0.75rem 1.5rem;
             font-size: 0.9rem;
             font-weight: 500;
             transition: 0.2s all ease;
-            gap: 12px;
+            gap: 14px;
         }
-
-        .sidebar a svg { opacity: 0.6; transition: 0.2s all ease; }
 
         .sidebar a:hover {
             color: var(--brand-white);
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.03);
         }
-
-        .sidebar a:hover svg { opacity: 1; color: var(--brand-gold); }
 
         .active-link {
             color: var(--brand-gold) !important;
             background: rgba(255, 159, 10, 0.08);
             font-weight: 700 !important;
+            border-right: 3px solid var(--brand-gold);
         }
-        .active-link svg { opacity: 1 !important; color: var(--brand-gold); }
+        .active-link svg { color: var(--brand-gold); opacity: 1; }
 
-        /* Main Content */
-        .main-container {
-            margin-left: 260px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
+        /* Header - Multi-metric Boltz Influence */
         header.top-bar {
             background: var(--bg-chrome);
             color: var(--brand-white);
-            padding: 1rem 2.5rem;
+            padding: 0.75rem 2.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             position: sticky;
             top: 0;
             z-index: 999;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
 
-        .header-metric {
+        .live-headline {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             background: rgba(255,255,255,0.05);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
+            padding: 0.5rem 1.25rem;
+            border-radius: 100px;
             border: 1px solid rgba(255,255,255,0.1);
         }
 
         .header-actions {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 24px;
         }
 
         .notification-icon {
             position: relative;
-            cursor: pointer;
-            color: rgba(255,255,255,0.6);
+            color: rgba(255,255,255,0.5);
             transition: 0.2s color;
+            cursor: pointer;
         }
         .notification-icon:hover { color: var(--brand-gold); }
         .badge-count {
             position: absolute;
-            top: -5px;
-            right: -8px;
+            top: -4px;
+            right: -6px;
             background: var(--brand-orange);
             color: white;
-            font-size: 0.65rem;
-            padding: 2px 5px;
+            font-size: 0.6rem;
+            padding: 1px 4px;
             border-radius: 10px;
             font-weight: 800;
             border: 2px solid var(--brand-black);
@@ -166,8 +149,29 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            padding-left: 20px;
+            padding-left: 24px;
             border-left: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .avatar-circle {
+            width: 36px;
+            height: 36px;
+            background: var(--brand-gold);
+            color: var(--brand-black);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.85rem;
+        }
+
+        /* Main Content Container */
+        .main-container {
+            margin-left: 260px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .content-body {
@@ -175,39 +179,20 @@
             flex: 1;
         }
 
-        /* Card Hygiene */
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .card:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-        }
-
-        .status-pill {
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        @media (max-width: 992px) {
+        /* Responsive */
+        @media (max-width: 1200px) {
             .sidebar { width: 80px; }
-            .sidebar-group-label, .sidebar span, .sidebar-header span { display: none; }
+            .sidebar span, .sidebar-group-label, .sidebar-header span { display: none; }
             .main-container { margin-left: 80px; }
-            .sidebar a { justify-content: center; padding: 1.2rem 0; }
+            .sidebar a { justify-content: center; padding: 1.25rem 0; }
         }
     </style>
 </head>
 <body>
     <aside class="sidebar">
         <div class="sidebar-header">
-            <img src="/public/assets/logo.png" alt="Pikop" style="height: 32px;">
-            <span class="fw-bold text-white ls-1" style="font-size: 1.1rem;">PIKOP</span>
+            <img src="/public/assets/logo.png" alt="Pikop" style="height: 36px;">
+            <span class="fw-extrabold text-white ls-1" style="font-size: 1.2rem;">PIKOP</span>
         </div>
 
         <nav class="flex-grow-1">
@@ -219,7 +204,7 @@
 
             <div class="sidebar-group-label">Operations</div>
             <a href="/admin/orders" id="nav-orders">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                 <span>Missions</span>
             </a>
             <a href="/admin/kyc" id="nav-kyc">
@@ -260,7 +245,7 @@
             <% } %>
         </nav>
 
-        <div class="px-3 py-4 border-top border-secondary border-opacity-10">
+        <div class="px-3 py-4 border-top border-white border-opacity-5">
             <a href="/admin/logout" class="text-danger p-2 rounded-2 d-flex align-items-center gap-2">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 <span>Logout</span>
@@ -270,8 +255,8 @@
 
     <div class="main-container">
         <header class="top-bar">
-            <div class="header-metric">
-                <span class="text-muted small ls-1 fw-bold uppercase">Live Dispatch</span>
+            <div class="live-headline">
+                <span class="text-muted smaller ls-1 fw-bold uppercase">Missions Active</span>
                 <span class="mono fs-5 fw-bold text-white" id="header-active-missions">
                     <%= locals.stats?.activeOrders || 0 %>
                 </span>
@@ -279,6 +264,7 @@
             </div>
 
             <div class="header-actions">
+                <!-- Notifications: Bell (KYC + Disputes) -->
                 <a href="/admin/kyc" class="notification-icon">
                     <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                     <% const totalAlerts = (locals.stats?.notifications?.kyc || 0) + (locals.stats?.notifications?.disputes || 0) %>
@@ -286,6 +272,8 @@
                         <span class="badge-count"><%= totalAlerts %></span>
                     <% } %>
                 </a>
+
+                <!-- Support: Chat Bubble -->
                 <a href="/admin/support" class="notification-icon">
                     <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
                     <% if (locals.stats?.notifications?.support > 0) { %>
@@ -294,12 +282,12 @@
                 </a>
 
                 <div class="admin-profile">
-                    <div class="text-end">
-                        <div class="small fw-bold"><%= locals.admin || 'Pikop Admin' %></div>
+                    <div class="text-end me-2">
+                        <div class="small fw-bold"><%= locals.adminUsername || 'Pikop Admin' %></div>
                         <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase;"><%= locals.role || 'Restricted' %></div>
                     </div>
-                    <div class="rounded-circle" style="width: 38px; height: 38px; background: var(--brand-gold); color: var(--brand-black); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9rem;">
-                        <%= (locals.admin || 'P').charAt(0).toUpperCase() %>
+                    <div class="avatar-circle">
+                        <%= (locals.adminUsername || 'P').charAt(0).toUpperCase() %>
                     </div>
                 </div>
             </div>
@@ -311,11 +299,8 @@
     </div>
 
     <script>
-        // WebSocket Real-time Updates
         const socket = io();
         socket.on('status_updated', () => {
-            // Incremental logic or full reload for simple KPI sync
-            // For now, we'll just update the header metric if it's an active status
             fetch('/admin/metrics?range=1')
                 .then(r => r.json())
                 .then(data => {
@@ -323,7 +308,6 @@
                 });
         });
 
-        // Navigation Active State
         const path = window.location.pathname;
         const navMap = {
             'dashboard': 'nav-dashboard',
