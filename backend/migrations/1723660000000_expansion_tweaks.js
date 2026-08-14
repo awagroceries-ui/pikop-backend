@@ -17,11 +17,6 @@ exports.up = (pgm) => {
   pgm.renameColumn('messages', 'content', 'body');
 
   // Note: cancellation_fee_waived and incident_dispute_id were already added in 1722950000000_order_lifecycle_ext.js
-<<<<<<< HEAD
-=======
-  // We just ensure category is available in disputes if not already there or needs update
-  // Since 1722950000000 added it with default 'other', we might just leave it.
->>>>>>> origin/main
 };
 
 exports.down = (pgm) => {
