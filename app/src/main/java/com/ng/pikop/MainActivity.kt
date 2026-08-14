@@ -31,9 +31,11 @@ import com.google.firebase.FirebaseApp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.feature.auth.*
+import com.ng.pikop.feature.chat.ChatScreen
 import com.ng.pikop.feature.fulfiller.ActiveOrderScreen
 import com.ng.pikop.feature.fulfiller.FulfillerDashboardScreen
 import com.ng.pikop.feature.fulfiller.FulfillerOrdersScreen
+import com.ng.pikop.feature.fulfiller.InsightsScreen
 import com.ng.pikop.feature.fulfiller.KycUploadScreen
 import com.ng.pikop.feature.order.*
 import com.ng.pikop.feature.wallet.WalletScreen
@@ -222,6 +224,8 @@ fun PikopAppNavigation() {
         composable("notifications_settings") { NotificationSettingsScreen(onBack = { navController.popBackStack() }) }
         composable("recipients_mgmt") { RecipientManagementScreen(onBack = { navController.popBackStack() }) }
         composable("session_mgmt") { SessionManagementScreen(onBack = { navController.popBackStack() }) }
+        composable("corporate_dashboard") { CorporateDashboardScreen(onBack = { navController.popBackStack() }) }
+        composable("insights") { InsightsScreen(onBack = { navController.popBackStack() }) }
     }
 }
 
@@ -281,6 +285,7 @@ fun MainAppScaffold(
                         onAcceptOffer = { id -> navController.navigate("active_order/$id") },
                         onGoToWallet = { nestedNavController.navigate("wallet") },
                         onGoToKyc = { navController.navigate("kyc_upload") },
+                        onGoToInsights = { navController.navigate("insights") },
                         onGoToAbout = { nestedNavController.navigate("account") },
                         onLogout = {} 
                     )
@@ -327,6 +332,7 @@ fun MainAppScaffold(
                     onNavigateToNotifications = { navController.navigate("notifications_settings") },
                     onNavigateToRecipients = { navController.navigate("recipients_mgmt") },
                     onNavigateToSessions = { navController.navigate("session_mgmt") },
+                    onNavigateToCorporate = { navController.navigate("corporate_dashboard") },
                     onLogout = {
                         scope.launch {
                             tokenManager.clearTokens()

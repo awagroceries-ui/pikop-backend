@@ -131,7 +131,8 @@ data class FulfillerProfileResponse(
     val registration_number: String? = null,
     val make: String? = null,
     val model: String? = null,
-    val color: String? = null
+    val color: String? = null,
+    val rating_avg: Double? = null
 )
 
 data class DiditSessionResponse(
@@ -188,6 +189,7 @@ data class OfferResponse(
 data class VerifyCodeRequest(
     val code: String,
     val delivery_photo_url: String? = null,
+    val signature_photo_url: String? = null,
     val lat: Double? = null,
     val lng: Double? = null,
     val device_timestamp: Long? = null

@@ -32,6 +32,7 @@ fun AccountScreen(
     onNavigateToNotifications: () -> Unit,
     onNavigateToRecipients: () -> Unit,
     onNavigateToSessions: () -> Unit,
+    onNavigateToCorporate: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -104,6 +105,11 @@ fun AccountScreen(
                         icon = Icons.Default.Person,
                         onClick = onNavigateToRecipients
                     )
+                    AccountOption(
+                        label = "Corporate Accounts",
+                        icon = Icons.Default.Business,
+                        onClick = onNavigateToCorporate
+                    )
                 }
 
                 AccountOption(
@@ -150,7 +156,7 @@ fun AccountScreen(
             }
             
             Text(
-                text = "Pikop v1.4.0-final",
+                text = "Pikop v1.5.7",
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Gray,
                 modifier = Modifier.padding(vertical = 24.dp)

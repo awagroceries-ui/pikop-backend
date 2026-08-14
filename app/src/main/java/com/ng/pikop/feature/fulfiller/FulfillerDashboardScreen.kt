@@ -32,6 +32,7 @@ fun FulfillerDashboardScreen(
     onAcceptOffer: (String) -> Unit, 
     onGoToWallet: () -> Unit,
     onGoToKyc: () -> Unit,
+    onGoToInsights: () -> Unit,
     onGoToAbout: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -120,8 +121,13 @@ fun FulfillerDashboardScreen(
                             val total = history.sumOf { it.earnings ?: 0.0 }
                             Text("₦${"%,.2f".format(total)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         }
-                        TextButton(onClick = onGoToWallet) {
-                            Text("Wallet", style = MaterialTheme.typography.labelSmall)
+                        Row {
+                            TextButton(onClick = onGoToInsights) {
+                                Text("Insights", style = MaterialTheme.typography.labelSmall)
+                            }
+                            TextButton(onClick = onGoToWallet) {
+                                Text("Wallet", style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                     }
                 }
