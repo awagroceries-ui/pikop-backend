@@ -15,6 +15,8 @@ class TokenManager(private val context: Context) {
         private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
         private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         private val USER_EMAIL_KEY = stringPreferencesKey("user_email")
+        private val USER_NAME_KEY = stringPreferencesKey("user_name")
+        private val USER_PHONE_KEY = stringPreferencesKey("user_phone")
         private val USER_ROLE_KEY = stringPreferencesKey("user_role")
         private val REFERRAL_CODE_KEY = stringPreferencesKey("referral_code")
     }
@@ -34,6 +36,16 @@ class TokenManager(private val context: Context) {
             preferences[USER_EMAIL_KEY]
         }
 
+    val userName: Flow<String?> = context.dataStore.data
+        .map { preferences ->
+            preferences[USER_NAME_KEY]
+        }
+
+    val userPhone: Flow<String?> = context.dataStore.data
+        .map { preferences ->
+            preferences[USER_PHONE_KEY]
+        }
+
     val userRole: Flow<String?> = context.dataStore.data
         .map { preferences ->
             preferences[USER_ROLE_KEY]
@@ -44,12 +56,22 @@ class TokenManager(private val context: Context) {
             preferences[REFERRAL_CODE_KEY]
         }
 
-    suspend fun saveTokens(accessToken: String, refreshToken: String, email: String, role: String, referralCode: String? = null) {
+    suspend fun saveTokens(
+        accessToken: String, 
+        refreshToken: String, 
+        email: String, 
+        role: String, 
+        name: String? = null,
+        phone: String? = null,
+        referralCode: String? = null
+    ) {
         context.dataStore.edit { preferences ->
             preferences[ACCESS_TOKEN_KEY] = accessToken
             preferences[REFRESH_TOKEN_KEY] = refreshToken
             preferences[USER_EMAIL_KEY] = email
             preferences[USER_ROLE_KEY] = role
+            if (name != null) preferences[USER_NAME_KEY] = name
+            if (phone != null) preferences[USER_PHONE_KEY] = phone
             if (referralCode != null) preferences[REFERRAL_CODE_KEY] = referralCode
         }
     }

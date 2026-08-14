@@ -527,11 +527,13 @@ interface ApiService {
                                     if (res.accessToken != null && res.refreshToken != null) {
                                         android.util.Log.d("PikopApi", "Token refresh SUCCESS")
                                         tokenManager.saveTokens(
-                                            res.accessToken,
-                                            res.refreshToken,
-                                            tokenManager.userEmail.first() ?: "",
-                                            tokenManager.userRole.first() ?: "",
-                                            tokenManager.referralCode.first()
+                                            accessToken = res.accessToken,
+                                            refreshToken = res.refreshToken,
+                                            email = tokenManager.userEmail.first() ?: "",
+                                            role = tokenManager.userRole.first() ?: "",
+                                            name = tokenManager.userName.first(),
+                                            phone = tokenManager.userPhone.first(),
+                                            referralCode = tokenManager.referralCode.first()
                                         )
                                         res.accessToken
                                     } else {

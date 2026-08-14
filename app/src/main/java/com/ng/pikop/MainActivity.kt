@@ -65,6 +65,8 @@ fun PikopAppNavigation() {
     val scope = rememberCoroutineScope()
     
     val userEmail by tokenManager.userEmail.collectAsState(initial = null)
+    val userName by tokenManager.userName.collectAsState(initial = null)
+    val userPhone by tokenManager.userPhone.collectAsState(initial = null)
     val userRole by tokenManager.userRole.collectAsState(initial = null)
     val referralCode by tokenManager.referralCode.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
@@ -179,6 +181,8 @@ fun PikopAppNavigation() {
             MainAppScaffold(
                 navController = navController,
                 userEmail = userEmail ?: "",
+                userName = userName ?: "",
+                userPhone = userPhone ?: "",
                 userRole = userRole ?: "CUSTOMER",
                 referralCode = referralCode ?: "",
                 tokenManager = tokenManager
@@ -271,6 +275,8 @@ fun PikopAppNavigation() {
 fun MainAppScaffold(
     navController: NavHostController,
     userEmail: String,
+    userName: String,
+    userPhone: String,
     userRole: String,
     referralCode: String,
     tokenManager: TokenManager
@@ -352,6 +358,7 @@ fun MainAppScaffold(
             composable("account") {
                 AccountScreen(
                     userEmail = userEmail,
+                    userName = userName,
                     userRole = userRole,
                     referralCode = referralCode,
                     onNavigateToSupport = {

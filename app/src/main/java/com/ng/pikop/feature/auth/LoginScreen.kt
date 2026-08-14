@@ -97,11 +97,13 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit, onGoToSignup: () -> Unit) {
                             if (response.accessToken != null && response.refreshToken != null) {
                                 val userRole = response.role ?: "CUSTOMER"
                                 tokenManager.saveTokens(
-                                    response.accessToken,
-                                    response.refreshToken,
-                                    email,
-                                    userRole,
-                                    response.referral_code
+                                    accessToken = response.accessToken,
+                                    refreshToken = response.refreshToken,
+                                    email = email,
+                                    role = userRole,
+                                    name = response.full_name,
+                                    phone = response.phone,
+                                    referralCode = response.referral_code
                                 )
                                 onLoginSuccess(userRole)
                             } else {

@@ -98,14 +98,14 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                             val response = apiService.verifyEmail(VerifyEmailRequest(email, otp))
                             if (response.accessToken != null) {
                                 tokenManager.saveTokens(
-                                    response.accessToken,
-                                    response.refreshToken ?: "",
-                                    email,
-                                    response.role ?: "CUSTOMER",
-                                    response.referral_code
+                                    accessToken = response.accessToken,
+                                    refreshToken = response.refreshToken ?: "",
+                                    email = email,
+                                    role = response.role ?: "CUSTOMER",
+                                    name = response.full_name,
+                                    phone = response.phone,
+                                    referralCode = response.referral_code
                                 )
-                                // Save full name and phone to local cache/datastore if needed, 
-                                // but for now, they are available in the response.
                                 onVerificationSuccess()
                             } else {
                                 errorMessage = response.message ?: "Invalid verification code"

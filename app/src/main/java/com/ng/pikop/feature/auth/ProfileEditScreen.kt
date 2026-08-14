@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ProfileUpdateRequest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,6 +75,18 @@ fun ProfileEditScreen(onBack: () -> Unit) {
                                 full_name = name,
                                 phone = phone
                             ))
+                            
+                            // Update local store so UI refreshes immediately
+                            tokenManager.saveTokens(
+                                accessToken = tokenManager.accessToken.first() ?: "",
+                                refreshToken = tokenManager.refreshToken.first() ?: "",
+                                email = tokenManager.userEmail.first() ?: "",
+                                role = tokenManager.userRole.first() ?: "CUSTOMER",
+                                name = name,
+                                phone = phone,
+                                referralCode = tokenManager.referralCode.first()
+                            )
+                            
                             Toast.makeText(context, "Profile Updated", Toast.LENGTH_SHORT).show()
                             onBack()
                         } catch (e: Exception) {

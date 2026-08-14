@@ -24,6 +24,7 @@ import com.ng.pikop.R
 @Composable
 fun AccountScreen(
     userEmail: String,
+    userName: String,
     userRole: String,
     referralCode: String,
     onNavigateToSupport: () -> Unit,
@@ -56,7 +57,8 @@ fun AccountScreen(
                 modifier = Modifier.size(80.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Text(text = userEmail, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(text = userName.ifBlank { "User" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(text = userEmail, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
             Text(text = userRole, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
 
             Spacer(modifier = Modifier.height(32.dp))
