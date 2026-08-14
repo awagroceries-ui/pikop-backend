@@ -6,18 +6,19 @@ import co.paystack.android.Transaction
 import co.paystack.android.model.Charge
 
 object CheckoutHelper {
-    fun startCardCheckout(
+    fun startCheckout(
         activity: Activity,
         email: String,
         amountInKobo: Long,
+        accessCode: String,
         onSuccess: (Transaction) -> Unit,
         onError: (Throwable) -> Unit
     ) {
         val charge = Charge().apply {
             amount = amountInKobo.toInt()
             this.email = email
+            this.accessCode = accessCode
             currency = "NGN"
-            // We omit setChannels to allow all active channels on the account (Prompt 9)
         }
 
         PaystackSdk.chargeCard(activity, charge, object : co.paystack.android.Paystack.TransactionCallback {

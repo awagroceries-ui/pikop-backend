@@ -1,6 +1,39 @@
 const crypto = require('crypto');
 const db = require('../config/db');
+const axios = require('axios');
 require('dotenv').config();
+
+/**
+ * Initializes a Paystack transaction to get an authorization URL.
+ */
+const initializePayment = async (req, res) => {
+    const { amount, email, metadata } = req.body;
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+
+    try {
+        const response = await axios.post(
+            'https://api.paystack.co/transaction/initialize',
+            {
+                amount: Math.round(amount), // Already in Kobo
+                email,
+                metadata,
+                // Do NOT restrict channels to allow user selection (Prompt 9)
+                channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${secret}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        res.status(200).json(response.data.data);
+    } catch (error) {
+        console.error('Paystack Initialize Error:', error.response?.data || error.message);
+        res.status(500).json({ error: 'Failed to initialize payment' });
+    }
+};
 
 /**
  * Handles incoming webhooks from Paystack.

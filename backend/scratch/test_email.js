@@ -1,52 +1,33 @@
-const nodemailer = require('nodemailer');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const emailService = require('../src/services/emailService');
+require('dotenv').config({ path: __dirname + '/../.env' });
 
 const testEmail = async () => {
-    console.log('--- Pikop Email Diagnostic ---');
-    console.log('SMTP Host:', process.env.SMTP_HOST);
-    console.log('SMTP Port:', process.env.SMTP_PORT);
-    console.log('SMTP User:', process.env.SMTP_USER);
-    console.log('SMTP Pass Provided:', process.env.SMTP_PASS ? 'YES' : 'NO');
-    console.log('------------------------------');
+    console.log('Testing Email Configuration...');
+    console.log('SMTP_HOST:', process.env.SMTP_HOST);
+    console.log('SMTP_PORT:', process.env.SMTP_PORT);
+    console.log('SMTP_USER:', process.env.SMTP_USER);
+    console.log('EMAIL_FROM:', process.env.EMAIL_FROM);
 
-    const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: false,
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-        logger: true,
-        debug: true
-    });
-
-    console.log('Verifying connection...');
-    try {
-        await transporter.verify();
-        console.log('✅ SMTP Connection Successful!');
-
-        console.log('Sending test email to:', process.env.SMTP_USER);
-        const info = await transporter.sendMail({
-            from: process.env.EMAIL_FROM || '"Pikop Test" <awagroceries@gmail.com>',
-            to: process.env.SMTP_USER,
-            subject: 'Pikop Email Diagnostic Test',
-            text: 'If you are reading this, your SMTP configuration is working perfectly!',
-            html: '<b>Success!</b> Your SMTP configuration is working perfectly.'
-        });
-
-        console.log('✅ Test email sent! Message ID:', info.messageId);
-        process.exit(0);
-    } catch (error) {
-        console.error('❌ Diagnostic Failed!');
-        console.error('Error Message:', error.message);
-        console.error('Full Error Stack:', error);
-
-        if (error.code === 'ECONNTIMEOUT') {
-            console.log('\nTIP: Port 587 seems blocked by your VPS. Try using Port 465 or contact TrueHost support.');
-        }
+    const recipient = process.argv[2];
+    if (!recipient) {
+        console.error('Please provide a recipient email: node scratch/test_email.js your-email@example.com');
         process.exit(1);
+    }
+
+    try {
+        const result = await emailService.sendMail(
+            recipient,
+            'Pikop Email Test',
+            '<h1>Test Successful</h1><p>This is a test email from the Pikop server.</p>'
+        );
+
+        if (result.success) {
+            console.log('✅ Email sent successfully! Message ID:', result.messageId);
+        } else {
+            console.error('❌ Email failed to send:', result.error);
+        }
+    } catch (error) {
+        console.error('❌ Unexpected error during email test:', error.message);
     }
 };
 

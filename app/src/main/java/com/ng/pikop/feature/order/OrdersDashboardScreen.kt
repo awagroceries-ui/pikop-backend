@@ -62,7 +62,7 @@ fun OrdersDashboardScreen(
                             modifier = Modifier.size(40.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Pikop")
+                        Text("Pikop", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                 },
                 actions = {
@@ -87,35 +87,40 @@ fun OrdersDashboardScreen(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (orders.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.pikop_logo),
-                        contentDescription = null,
-                        modifier = Modifier.size(240.dp),
-                        alpha = 0.8f
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("No deliveries yet", style = MaterialTheme.typography.bodyLarge, color = Color.Gray)
-                    Button(onClick = onNewDelivery, modifier = Modifier.padding(top = 16.dp)) {
-                        Text("Send something now")
+        Surface(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Box {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else if (orders.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.pikop_logo),
+                            contentDescription = null,
+                            modifier = Modifier.size(240.dp),
+                            alpha = 0.8f
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("No deliveries yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                        Button(onClick = onNewDelivery, modifier = Modifier.padding(top = 16.dp)) {
+                            Text("Send something now")
+                        }
                     }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(orders) { order ->
-                        OrderCard(order, onTrackOrder)
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(orders) { order ->
+                            OrderCard(order, onTrackOrder)
+                        }
                     }
                 }
             }

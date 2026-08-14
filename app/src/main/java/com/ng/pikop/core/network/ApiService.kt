@@ -306,6 +306,18 @@ data class PromoValidationResponse(
     val message: String? = null
 )
 
+data class PaymentInitializationRequest(
+    val amount: Long, // in Kobo
+    val email: String,
+    val metadata: Map<String, String>? = null
+)
+
+data class PaymentInitializationResponse(
+    val authorization_url: String,
+    val access_code: String,
+    val reference: String
+)
+
 interface ApiService {
     @POST("api/v1/auth/signup")
     suspend fun signup(@Body request: SignupRequest): AuthResponse
@@ -422,6 +434,9 @@ interface ApiService {
 
     @DELETE("api/v1/settings/sessions/{id}")
     suspend fun revokeSession(@retrofit2.http.Path("id") id: String): AuthResponse
+
+    @POST("api/v1/payments/initialize")
+    suspend fun initializePayment(@retrofit2.http.Body request: PaymentInitializationRequest): PaymentInitializationResponse
 
     @POST("api/v1/addresses")
     suspend fun saveAddress(@Body request: AddressRequest): SavedAddress

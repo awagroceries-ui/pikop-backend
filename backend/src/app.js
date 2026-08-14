@@ -9,7 +9,7 @@ const expressLayouts = require('express-ejs-layouts');
 const app = express();
 
 // 1. Version Check (For Troubleshooting)
-const VERSION = '1.5.4';
+const VERSION = '1.5.5';
 
 // 2. Basic Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -47,6 +47,7 @@ app.use('/api/v1/fulfillers', require('./routes/fulfillerRoutes'));
 app.use('/api/v1/addresses', require('./routes/addressRoutes'));
 app.use('/api/v1/wallets', require('./routes/walletRoutes'));
 app.use('/api/v1/support', require('./routes/supportRoutes'));
+app.use('/api/v1/payments', require('./routes/paymentRoutes'));
 app.use('/api/v1/corporate', require('./routes/corporateRoutes'));
 app.use('/api/v1/settings', require('./routes/settingsRoutes'));
 
