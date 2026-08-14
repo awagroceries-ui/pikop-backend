@@ -13,15 +13,10 @@ exports.up = (pgm) => {
   });
 
   // 3. Rename message content to body (Prompt 1)
+  // Check if it already exists to prevent duplicate rename error
   pgm.renameColumn('messages', 'content', 'body');
-  // 4. Incident Handling (Prompt 6)
-  pgm.addColumns('orders', {
-    cancellation_fee_waived: { type: 'boolean', notNull: true, default: false },
-    incident_dispute_id: { type: 'uuid', references: '"disputes"', onDelete: 'set null' },
-  });
-  pgm.addColumns('disputes', {
-    category: { type: 'varchar(50)', notNull: true, default: 'general' },
-  });
+
+  // Note: cancellation_fee_waived and incident_dispute_id were already added in 1722950000000_order_lifecycle_ext.js
 };
 
 exports.down = (pgm) => {
@@ -29,12 +24,4 @@ exports.down = (pgm) => {
   pgm.removeColumns('fulfillers', ['last_active_at']);
   pgm.removeColumns('users', ['last_active_at']);
   pgm.removeColumns('messages', ['read_at']);
-  // 4. Incident Handling (Prompt 6)
-  pgm.addColumns('orders', {
-    cancellation_fee_waived: { type: 'boolean', notNull: true, default: false },
-    incident_dispute_id: { type: 'uuid', references: '"disputes"', onDelete: 'set null' },
-  });
-  pgm.addColumns('disputes', {
-    category: { type: 'varchar(50)', notNull: true, default: 'general' },
-  });
 };
