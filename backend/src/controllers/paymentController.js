@@ -93,5 +93,6 @@ const handleTransferStatus = async (data, status) => {
 };
 
 module.exports = {
+  initializePayment,
   handleWebhook
 };

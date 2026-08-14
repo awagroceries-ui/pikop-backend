@@ -12,7 +12,7 @@ class PikopApp : Application() {
         // Initialize Paystack
         try {
             PaystackSdk.initialize(applicationContext)
-            PaystackSdk.setPublicKey("pk_live_e458eda08e2d7d24cc96a3f0b886023f9bfd9c15")
+            PaystackSdk.setPublicKey("pk_live_346dba41298095981968ef0c243c8c9fc022311a")
         } catch (e: Exception) {}
         
         // Initialize Google Places
