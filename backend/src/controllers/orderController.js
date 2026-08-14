@@ -514,59 +514,7 @@ module.exports = {
   getQuote, createOrder, acceptOrder, updateOrderStatus,
   verifyPickup, verifyDelivery, getOrderDetails, getUserOrders,
   getFulfillerPublicProfile, getMessages,
-/**
- * Handles order cancellation with logic for fees (Prompt 6).
- */
-const cancelOrder = async (req, res) => {
-  const { orderId } = req.params;
-  const { reason } = req.body;
-  const userId = req.user.id;
-
-  const client = await db.pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    // 1. Get Order state
-    const { rows } = await client.query("SELECT * FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-    const order = rows[0];
-
-    // 2. Authorization
-    const isCustomer = order.user_id === userId;
-    const isFulfiller = order.fulfiller_id && (req.user.fulfillerId === order.fulfiller_id);
-    if (!isCustomer && !isFulfiller) return res.status(403).json({ error: 'Unauthorized' });
-
-    // 3. Logic Gating
-    if (isFulfiller && order.status !== 'SEARCHING') {
-        return res.status(400).json({ error: 'Fulfillers must file an incident report to cancel active orders.' });
-    }
-
-    let nextStatus = 'CANCELLED';
-    if (isCustomer) {
-        if (['MATCHED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'PICKED_UP', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY'].includes(order.status)) {
-            // Apply 25% fee to platform
-            const fee = (parseFloat(order.total_fare) * 0.25).toFixed(2);
-            await client.query(
-                "INSERT INTO wallet_ledger_entries (wallet_id, amount, entry_type, purpose, reference_id) VALUES ((SELECT id FROM wallets WHERE owner_type = 'PLATFORM'), $1, 'CREDIT', 'CANCELLATION_FEE', $2)",
-                [fee, orderId]
-            );
-            nextStatus = 'CANCELLED_BY_USER';
-        }
-    }
-
-    await client.query("UPDATE orders SET status = $1 WHERE id = $2", [nextStatus, orderId]);
-    await logStatusChange(client, orderId, nextStatus, `Order cancelled by ${isCustomer ? 'Customer' : 'Fulfiller'}: ${reason}`);
-
-    await client.query('COMMIT');
-    res.status(200).json({ message: 'Order cancelled', status: nextStatus });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error("Cancel Error:", error);
-    res.status(500).json({ error: 'Failed to cancel order' });
-  } finally {
-    client.release();
-  }
-};
+  cancelOrder,
   fileIncident,
   getQueueCandidates,
   claimQueueOrder
