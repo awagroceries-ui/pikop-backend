@@ -1,67 +1,91 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
-let transporter;
+const MAILJET_API_KEY = process.env.MAILJET_API_KEY;
+const MAILJET_SECRET_KEY = process.env.MAILJET_SECRET_KEY;
+const EMAIL_FROM = process.env.EMAIL_FROM || 'awagroceries@gmail.com';
 
-try {
-    if (process.env.SMTP_HOST && process.env.SMTP_PASS) {
-        transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: false,
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-            logger: true, // Enable built-in nodemailer logging
-            debug: true   // Show SMTP traffic in console
-        });
-        console.log('✅ Email Transporter configured.');
-    } else {
-        console.warn('⚠️ SMTP Configuration missing. Emails will be logged to console only.');
-    }
-} catch (error) {
-    console.error('❌ Email Config Error:', error.message);
+// Log status on startup
+if (MAILJET_API_KEY && MAILJET_SECRET_KEY) {
+    console.log('✅ Mailjet Email Service configured.');
+} else {
+    console.warn('⚠️ Mailjet configuration missing. Emails will be logged to console only.');
 }
 
 /**
- * Sends an email using the configured transporter.
+ * Sends an email using Mailjet's v3.1 Send API.
+ * @param {string} to - Recipient email address.
+ * @param {string} subject - Email subject.
+ * @param {string} html - HTML content of the email.
  */
 const sendMail = async (to, subject, html) => {
-  if (!transporter) {
-    console.log('--- MOCK EMAIL ---');
+  if (!MAILJET_API_KEY || !MAILJET_SECRET_KEY) {
+    console.log('--- MOCK EMAIL (Mailjet Not Configured) ---');
     console.log('To:', to);
     console.log('Subject:', subject);
-    // ...
+    console.log('-------------------------------------------');
     return { success: true, messageId: 'mock-id' };
   }
 
   try {
-    const fromAddress = process.env.EMAIL_FROM || 'awagroceries@gmail.com';
-    console.log(`[SMTP] Attempting send to ${to} from ${fromAddress}...`);
+    const payload = {
+      Messages: [
+        {
+          From: {
+            Email: EMAIL_FROM,
+            Name: "Pikop"
+          },
+          To: [
+            {
+              Email: to
+            }
+          ],
+          Subject: subject,
+          HTMLPart: html,
+          TextPart: html.replace(/<[^>]*>?/gm, '') // Simple HTML to Text conversion
+        }
+      ]
+    };
 
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to,
-      subject,
-      html,
-    });
-    console.log(`[SMTP] Success: Email sent to ${to}. ID: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
+    const response = await axios.post(
+      'https://api.mailjet.com/v3.1/send',
+      payload,
+      {
+        auth: {
+          username: MAILJET_API_KEY,
+          password: MAILJET_SECRET_KEY
+        },
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const messageId = response.data.Messages[0].To[0].MessageID;
+    console.log(`[Mailjet] Success: Email sent to ${to}. ID: ${messageId}`);
+    return { success: true, messageId };
+
   } catch (error) {
-    console.error(`[SMTP] Failure: Failed to send to ${to}`);
-    console.error(`[SMTP] Full Error:`, error);
+    console.error(`[Mailjet] Failure: Failed to send to ${to}`);
 
-    if (error.responseCode === 535 || error.message.includes('Authentication')) {
-        console.error('👉 TIP: Authentication failed. This usually means the SMTP_PASS (Brevo API Key) is wrong or expired.');
-    } else if (error.code === 'EENVELOPE' || error.message.includes('Sender address rejected')) {
-        console.error(`👉 TIP: SENDER_REJECTED. Brevo will only send from verified addresses. Ensure ${process.env.EMAIL_FROM} is verified in Brevo Dashboard.`);
-    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
-        console.error('👉 TIP: Connection Timeout. Your VPS provider is likely blocking port 587. Try switching to Port 465 or contact support.');
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('[Mailjet] API Error:', error.response.data);
+      console.error('[Mailjet] Status:', error.response.status);
+
+      const errorDetail = error.response.data.Messages ? error.response.data.Messages[0].Errors : error.response.data;
+      return { success: false, error: JSON.stringify(errorDetail) };
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('[Mailjet] No response received from server.');
+      return { success: false, error: 'No response from Mailjet' };
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('[Mailjet] Request Setup Error:', error.message);
+      return { success: false, error: error.message };
     }
-
-    return { success: false, error: error.message };
   }
 };
 
