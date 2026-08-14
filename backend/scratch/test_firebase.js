@@ -1,7 +1,7 @@
 const admin = require('firebase-admin');
 require('dotenv').config({ path: '../.env' });
 
-async fun testFirebase() {
+async function testFirebase() {
     console.log('--- Firebase Diagnostic Tool ---');
 
     if (!process.env.FIREBASE_SERVICE_ACCOUNT) {

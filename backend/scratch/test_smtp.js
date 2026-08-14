@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config({ path: '../.env' });
 
-async fun testSmtp() {
+async function testSmtp() {
     console.log('--- SMTP Diagnostic Tool ---');
     console.log('Checking configuration...');
 
