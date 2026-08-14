@@ -5,5 +5,6 @@ const { authenticateToken } = require('../middleware/authMiddleware');
 
 router.post('/conversations', authenticateToken, supportController.getOrCreateConversation);
 router.get('/conversations/:conversationId/messages', authenticateToken, supportController.getMessages);
+router.get('/kb', authenticateToken, supportController.getKnowledgeBase);
 
 module.exports = router;

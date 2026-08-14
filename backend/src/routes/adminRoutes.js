@@ -57,6 +57,12 @@ router.get('/support/:id', hasRole(['support', 'ops', 'super_admin']), adminCont
 router.post('/support/:id/reply', hasRole(['support', 'ops', 'super_admin']), adminController.replySupport);
 router.post('/support/:id/resolve', hasRole(['support', 'ops', 'super_admin']), adminController.resolveSupport);
 
+// Knowledge Base (KB)
+router.get('/kb', hasRole(['support', 'ops', 'super_admin']), adminController.getKnowledgeBase);
+router.post('/kb', hasRole(['support', 'ops', 'super_admin']), adminController.createKBArticle);
+router.post('/kb/:id', hasRole(['support', 'ops', 'super_admin']), adminController.updateKBArticle);
+router.post('/kb/:id/delete', hasRole(['support', 'ops', 'super_admin']), adminController.deleteKBArticle);
+
 // Fulfiller Auth (KYC)
 router.get('/kyc', hasRole(['ops', 'super_admin']), adminController.getKYCQueue);
 router.post('/kyc/:docId/approve', hasRole(['ops', 'super_admin']), adminController.approveKYC);

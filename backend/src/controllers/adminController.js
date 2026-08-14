@@ -567,6 +567,56 @@ const denyWaiver = async (req, res) => {
     }
 };
 
+/**
+ * Knowledge Base CRUD
+ */
+const getKnowledgeBase = async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT * FROM knowledge_base ORDER BY category ASC, priority DESC");
+    res.render('knowledge_base', { articles: rows });
+  } catch (error) {
+    res.status(500).send('Error loading knowledge base');
+  }
+};
+
+const createKBArticle = async (req, res) => {
+  const { title, content, category, target_audience, priority, is_active } = req.body;
+  try {
+    await db.query(
+      "INSERT INTO knowledge_base (title, content, category, target_audience, priority, is_active) VALUES ($1, $2, $3, $4, $5, $6)",
+      [title, content, category, target_audience, parseInt(priority) || 0, is_active === 'on']
+    );
+    res.redirect('/admin/kb');
+  } catch (error) {
+    console.error('KB Create Error:', error);
+    res.status(500).send('Failed to create article');
+  }
+};
+
+const updateKBArticle = async (req, res) => {
+  const { id } = req.params;
+  const { title, content, category, target_audience, priority, is_active } = req.body;
+  try {
+    await db.query(
+      "UPDATE knowledge_base SET title=$1, content=$2, category=$3, target_audience=$4, priority=$5, is_active=$6, updated_at=CURRENT_TIMESTAMP WHERE id=$7",
+      [title, content, category, target_audience, parseInt(priority) || 0, is_active === 'on', id]
+    );
+    res.redirect('/admin/kb');
+  } catch (error) {
+    res.status(500).send('Failed to update article');
+  }
+};
+
+const deleteKBArticle = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query("DELETE FROM knowledge_base WHERE id = $1", [id]);
+    res.redirect('/admin/kb');
+  } catch (error) {
+    res.status(500).send('Failed to delete article');
+  }
+};
+
 module.exports = {
   login,
   getDashboard,
@@ -592,5 +642,9 @@ module.exports = {
   getOrderReport,
   getAdmins,
   addAdmin,
-  deleteAdmin
+  deleteAdmin,
+  getKnowledgeBase,
+  createKBArticle,
+  updateKBArticle,
+  deleteKBArticle
 };

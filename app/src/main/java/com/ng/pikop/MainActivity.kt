@@ -239,6 +239,37 @@ fun PikopAppNavigation() {
         composable("corporate_dashboard") { CorporateDashboardScreen(onBack = { navController.popBackStack() }) }
         composable("insights") { InsightsScreen(onBack = { navController.popBackStack() }) }
         
+        composable("support_hub") {
+            SupportHubScreen(
+                onNavigateToFaqList = { category -> navController.navigate("faq_list/$category") },
+                onNavigateToChat = {
+                    scope.launch {
+                        try {
+                            val api = ApiService.create(tokenManager)
+                            val conv = api.getOrCreateSupportConversation()
+                            navController.navigate("chat/${conv.id}")
+                        } catch (_: Exception) {}
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("faq_list/{category}") { backStackEntry ->
+            val category = backStackEntry.arguments?.getString("category") ?: ""
+            FaqListScreen(
+                category = category,
+                onNavigateToDetail = { id -> navController.navigate("faq_detail/$id") },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("faq_detail/{articleId}") { backStackEntry ->
+            val articleId = backStackEntry.arguments?.getString("articleId") ?: ""
+            FaqDetailScreen(
+                articleId = articleId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable("payment_webview/{url}/{quoteId}/{pLat}/{pLng}/{dLat}/{dLng}/{itemUrl}/{pSum}/{dSummary}/{recipientName}/{recipientPhone}/{notes}/{promoId}") { backStackEntry ->
             val url = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("url") ?: "", "UTF-8")
             val qId = backStackEntry.arguments?.getString("quoteId") ?: ""
@@ -364,15 +395,7 @@ fun MainAppScaffold(
                     userName = userName,
                     userRole = userRole,
                     referralCode = referralCode,
-                    onNavigateToSupport = {
-                        scope.launch {
-                            try {
-                                val api = ApiService.create(tokenManager)
-                                val conv = api.getOrCreateSupportConversation()
-                                navController.navigate("chat/${conv.id}")
-                            } catch (e: Exception) {}
-                        }
-                    },
+                    onNavigateToSupport = { navController.navigate("support_hub") },
                     onNavigateToAddresses = { 
                         // Implementation for addresses flow
                     },

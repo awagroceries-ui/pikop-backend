@@ -1,6 +1,29 @@
 const db = require('../config/db');
 
 /**
+ * Fetches knowledge base articles filtered by the user's role.
+ */
+const getKnowledgeBase = async (req, res) => {
+  const userRole = req.user.role === 'FULFILLER' ? 'FULFILLER' : 'CUSTOMER';
+
+  try {
+    const { rows } = await db.query(
+      `SELECT id, title, content, category, priority
+       FROM knowledge_base
+       WHERE is_active = true
+       AND (target_audience = $1 OR target_audience = 'BOTH')
+       ORDER BY category ASC, priority DESC, created_at DESC`,
+      [userRole]
+    );
+
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error('KB Fetch Error:', error);
+    res.status(500).json({ error: 'Failed to fetch knowledge base' });
+  }
+};
+
+/**
  * Gets or creates an open support conversation for the authenticated participant.
  */
 const getOrCreateConversation = async (req, res) => {
@@ -58,6 +81,7 @@ const getMessages = async (req, res) => {
 };
 
 module.exports = {
+  getKnowledgeBase,
   getOrCreateConversation,
   getMessages
 };

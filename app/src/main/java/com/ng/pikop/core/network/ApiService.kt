@@ -264,6 +264,14 @@ data class SupportConversation(
     val status: String? = null
 )
 
+data class KnowledgeBaseArticle(
+    val id: String,
+    val title: String,
+    val content: String,
+    val category: String,
+    val priority: Int
+)
+
 data class ChatMessage(
     val id: String? = null,
     val sender_id: Int? = null,
@@ -454,6 +462,9 @@ interface ApiService {
 
     @GET("api/v1/support/conversations/{id}/messages")
     suspend fun getSupportMessages(@retrofit2.http.Path("id") id: String): List<ChatMessage>
+
+    @GET("api/v1/support/kb")
+    suspend fun getKnowledgeBase(): List<KnowledgeBaseArticle>
 
     @GET("api/v1/wallets/me")
     suspend fun getWalletInfo(): WalletResponse
