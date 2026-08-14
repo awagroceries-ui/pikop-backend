@@ -174,7 +174,18 @@ fun PikopAppNavigation() {
         composable("email_otp/{email}/{role}") { backStackEntry ->
             val email = backStackEntry.arguments?.getString("email") ?: ""
             val role = backStackEntry.arguments?.getString("role") ?: "CUSTOMER"
-            EmailOtpScreen(email = email, onVerificationSuccess = { navController.navigate("terms/$role") })
+            EmailOtpScreen(
+                email = email, 
+                onVerificationSuccess = { navController.navigate("terms/$role") },
+                onLogout = {
+                    scope.launch {
+                        tokenManager.clearTokens()
+                        navController.navigate("user_type_selection") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            )
         }
 
         composable("terms/{role}") { backStackEntry ->

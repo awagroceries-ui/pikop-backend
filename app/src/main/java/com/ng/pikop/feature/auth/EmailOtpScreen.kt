@@ -19,7 +19,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
+fun EmailOtpScreen(
+    email: String, 
+    onVerificationSuccess: () -> Unit,
+    onLogout: () -> Unit
+) {
     var otp by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -161,6 +165,12 @@ fun EmailOtpScreen(email: String, onVerificationSuccess: () -> Unit) {
                           else "Didn't receive a code? Resend",
                     color = if (resendCooldown > 0 || isRateLimited) Color.Gray else MaterialTheme.colorScheme.primary
                 )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            TextButton(onClick = onLogout) {
+                Text("Sign out and use a different account", color = Color.Gray)
             }
         }
     }
