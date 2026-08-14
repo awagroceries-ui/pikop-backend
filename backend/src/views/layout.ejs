@@ -258,7 +258,7 @@
             <div class="live-headline">
                 <span class="text-muted smaller ls-1 fw-bold uppercase">Missions Active</span>
                 <span class="mono fs-5 fw-bold text-white" id="header-active-missions">
-                    <%= locals.stats?.activeOrders || 0 %>
+                    <%= (locals.stats && locals.stats.activeOrders) ? stats.activeOrders : 0 %>
                 </span>
                 <div class="rounded-circle" style="width: 8px; height: 8px; background: var(--brand-green); box-shadow: 0 0 8px var(--brand-green);"></div>
             </div>
@@ -267,7 +267,11 @@
                 <!-- Notifications: Bell (KYC + Disputes) -->
                 <a href="/admin/kyc" class="notification-icon">
                     <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                    <% const totalAlerts = (locals.stats?.notifications?.kyc || 0) + (locals.stats?.notifications?.disputes || 0) %>
+                    <%
+                        const kycCount = (locals.stats && locals.stats.notifications) ? locals.stats.notifications.kyc : 0;
+                        const disputeCount = (locals.stats && locals.stats.notifications) ? locals.stats.notifications.disputes : 0;
+                        const totalAlerts = kycCount + disputeCount;
+                    %>
                     <% if (totalAlerts > 0) { %>
                         <span class="badge-count"><%= totalAlerts %></span>
                     <% } %>
@@ -276,8 +280,8 @@
                 <!-- Support: Chat Bubble -->
                 <a href="/admin/support" class="notification-icon">
                     <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
-                    <% if (locals.stats?.notifications?.support > 0) { %>
-                        <span class="badge-count"><%= locals.stats.notifications.support %></span>
+                    <% if (locals.stats && locals.stats.notifications && locals.stats.notifications.support > 0) { %>
+                        <span class="badge-count"><%= stats.notifications.support %></span>
                     <% } %>
                 </a>
 
