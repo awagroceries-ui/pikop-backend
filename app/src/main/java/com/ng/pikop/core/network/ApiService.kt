@@ -189,7 +189,8 @@ data class VerifyCodeRequest(
     val code: String,
     val delivery_photo_url: String? = null,
     val lat: Double? = null,
-    val lng: Double? = null
+    val lng: Double? = null,
+    val device_timestamp: Long? = null
 )
 
 data class RatingRequest(

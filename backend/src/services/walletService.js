@@ -161,22 +161,29 @@ const processCorporateDebit = async (client, corporateAccountId, amount, orderId
 };
 
 /**
- * Triggers referral rewards if this was the referee's first delivery.
+ * Triggers referral rewards if this was the referee's first delivery (Prompt 19).
  */
 const triggerReferralReward = async (client, orderId) => {
     // 1. Get Order & User info
     const { rows: orderRows } = await client.query(`
-        SELECT o.user_id, u.referred_by_user_id
+        SELECT o.user_id, u.referred_by_user_id, u.phone, u.email
         FROM orders o
         JOIN users u ON u.id = o.user_id
         WHERE o.id = $1`, [orderId]);
 
     if (orderRows.length === 0) return;
-    const { user_id, referred_by_user_id } = orderRows[0];
+    const { user_id, referred_by_user_id, phone: refereePhone } = orderRows[0];
 
     if (!referred_by_user_id) return; // No referrer
 
-    // 2. Check if this is the first DELIVERED order for this user
+    // 2. Abuse check: same phone or same bank account (Prompt 19, point 3)
+    const { rows: referrerInfo } = await client.query("SELECT phone FROM users WHERE id = $1", [referred_by_user_id]);
+    if (referrerInfo.length > 0 && referrerInfo[0].phone === refereePhone) {
+        console.warn(`[Referral] Blocked potential abuse: User ${user_id} and Referrer ${referred_by_user_id} share phone ${refereePhone}`);
+        return;
+    }
+
+    // 3. Check if this is the first DELIVERED order for this user
     const { rows: orderCount } = await client.query(
         "SELECT COUNT(*) FROM orders WHERE user_id = $1 AND status = 'DELIVERED'",
         [user_id]

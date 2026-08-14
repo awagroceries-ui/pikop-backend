@@ -80,6 +80,9 @@ const getQuote = async (req, res) => {
     const pricing = { 'SMALL': 500.00, 'MEDIUM': 1000.00, 'LARGE': 2000.00 };
     const fare = pricing[classification.size_tier] || 2000.00;
 
+    const eligibilityMap = { 'SMALL': ['agent', 'rider'], 'MEDIUM': ['rider', 'driver'], 'LARGE': ['driver'] };
+    const eligibleClasses = eligibilityMap[classification.size_tier] || ['driver'];
+
     const { rows } = await db.query(
       `INSERT INTO quotes (user_id, pickup_address, delivery_address, item_description, size_tier, total_fare, confidence_score, pickup_location, delivery_location)
        VALUES ($1, $2, $3, $4, $5, $6, $7, ST_SetSRID(ST_MakePoint($8, $9), 4326), ST_SetSRID(ST_MakePoint($10, $11), 4326))
@@ -89,7 +92,12 @@ const getQuote = async (req, res) => {
 
     res.status(200).json({
       quote_id: rows[0].id,
-      fare_breakdown: { total_fare: parseFloat(rows[0].total_fare), size_tier: rows[0].size_tier, fare_locked_until: rows[0].expires_at }
+      fare_breakdown: {
+        total_fare: parseFloat(rows[0].total_fare),
+        size_tier: rows[0].size_tier,
+        required_classes: eligibleClasses,
+        fare_locked_until: rows[0].expires_at
+      }
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate quote' });
@@ -229,7 +237,7 @@ const verifyPickup = async (req, res) => {
  */
 const verifyDelivery = async (req, res) => {
   const { orderId } = req.params;
-  const { code, delivery_photo_url, lat, lng } = req.body;
+  const { code, delivery_photo_url, lat, lng, device_timestamp } = req.body;
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
@@ -239,9 +247,17 @@ const verifyDelivery = async (req, res) => {
       return res.status(400).json({ error: 'Invalid code' });
     }
 
-    // --- SECURE POD CROSS-CHECK (Prompt 6) ---
+    // --- SECURE POD CROSS-CHECK (Prompt 13) ---
     const metadata = { gps_mismatch: false, timestamp_mismatch: false };
     const serverTime = new Date();
+
+    if (device_timestamp) {
+        const diff = Math.abs(serverTime.getTime() - device_timestamp);
+        if (diff > 10 * 60 * 1000) { // 10 minutes (Prompt 13, point 3)
+            metadata.timestamp_mismatch = true;
+            console.warn(`[POD] Timestamp Mismatch detected for Order ${orderId}: ${diff / 1000}s`);
+        }
+    }
 
     if (lat && lng) {
         // Query to check distance between capture point and actual delivery location

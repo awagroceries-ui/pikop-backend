@@ -343,7 +343,8 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                                     code = deliveryCode, 
                                                     delivery_photo_url = photoUrl,
                                                     lat = location?.latitude,
-                                                    lng = location?.longitude
+                                                    lng = location?.longitude,
+                                                    device_timestamp = System.currentTimeMillis()
                                                 )
                                             )
                                             orderStatus = "DELIVERED"
