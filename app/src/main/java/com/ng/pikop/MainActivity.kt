@@ -189,7 +189,11 @@ fun PikopAppNavigation() {
         // Sub-flows (Full screen)
         composable("active_order/{orderId}") { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
-            ActiveOrderScreen(orderId = orderId, onOrderCompleted = { navController.popBackStack() })
+            ActiveOrderScreen(
+                orderId = orderId, 
+                onOrderCompleted = { navController.popBackStack() },
+                onNavigateToChat = { id -> navController.navigate("order_chat/$id") }
+            )
         }
         composable("track_order/{orderId}") { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
@@ -205,6 +209,10 @@ fun PikopAppNavigation() {
             val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
             ChatScreen(conversationId = conversationId, userId = 1, userRole = userRole ?: "CUSTOMER", onBack = { navController.popBackStack() })
         }
+        composable("order_chat/{orderId}") { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+            ChatScreen(orderId = orderId, userId = 1, userRole = userRole ?: "CUSTOMER", onBack = { navController.popBackStack() })
+        }
         composable("privacy_policy") { PrivacyPolicyScreen(onBack = { navController.popBackStack() }) }
         composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->
             val showFulfillerTerms = backStackEntry.arguments?.getString("showFulfillerTerms")?.toBoolean() ?: false
@@ -213,6 +221,7 @@ fun PikopAppNavigation() {
         composable("profile_edit") { ProfileEditScreen(onBack = { navController.popBackStack() }) }
         composable("notifications_settings") { NotificationSettingsScreen(onBack = { navController.popBackStack() }) }
         composable("recipients_mgmt") { RecipientManagementScreen(onBack = { navController.popBackStack() }) }
+        composable("session_mgmt") { SessionManagementScreen(onBack = { navController.popBackStack() }) }
     }
 }
 
@@ -317,6 +326,7 @@ fun MainAppScaffold(
                     onNavigateToProfile = { navController.navigate("profile_edit") },
                     onNavigateToNotifications = { navController.navigate("notifications_settings") },
                     onNavigateToRecipients = { navController.navigate("recipients_mgmt") },
+                    onNavigateToSessions = { navController.navigate("session_mgmt") },
                     onLogout = {
                         scope.launch {
                             tokenManager.clearTokens()

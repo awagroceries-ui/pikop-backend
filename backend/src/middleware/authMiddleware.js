@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const db = require('../config/db');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'pikop_secret';
@@ -12,9 +13,28 @@ const authenticateToken = (req, res, next) => {
 
   if (!token) return res.status(401).json({ error: 'Access token required' });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, async (err, user) => {
     if (err) return res.status(401).json({ error: 'Invalid or expired token' });
     req.user = user;
+
+    // Track Activity (Prompt 4)
+    // Throttled to once every 5 minutes
+    try {
+        const fiveMinsAgo = new Date(Date.now() - 5 * 60000);
+        await db.query(
+            "UPDATE users SET last_active_at = CURRENT_TIMESTAMP WHERE id = $1 AND (last_active_at IS NULL OR last_active_at < $2)",
+            [user.id, fiveMinsAgo]
+        );
+        if (user.role === 'FULFILLER') {
+            await db.query(
+                "UPDATE fulfillers SET last_active_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND (last_active_at IS NULL OR last_active_at < $2)",
+                [user.id, fiveMinsAgo]
+            );
+        }
+    } catch (e) {
+        console.error("Activity tracking failed:", e.message);
+    }
+
     next();
   });
 };

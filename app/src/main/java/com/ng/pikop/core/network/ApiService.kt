@@ -211,6 +211,27 @@ data class SavedAddress(
     val lng: Double? = null
 )
 
+data class SavedRecipient(
+    val id: String? = null,
+    val name: String? = null,
+    val phone: String? = null,
+    val label: String? = null
+)
+
+data class RecipientRequest(
+    val name: String,
+    val phone: String,
+    val label: String? = null
+)
+
+data class UserSession(
+    val id: String? = null,
+    val device_name: String? = null,
+    val ip_address: String? = null,
+    val last_active: String? = null,
+    val created_at: String? = null
+)
+
 data class AddressRequest(
     val label: String,
     val address_text: String,
@@ -241,7 +262,8 @@ data class ChatMessage(
     val id: String? = null,
     val sender_id: Int? = null,
     val sender_type: String? = null,
-    val content: String? = null,
+    val body: String? = null,
+    val content: String? = null, // Support backward compatibility
     val created_at: String? = null
 )
 
@@ -298,6 +320,9 @@ interface ApiService {
 
     @POST("api/v1/auth/fcm-token")
     suspend fun updateFCMToken(@Body request: Map<String, String>): AuthResponse
+
+    @PATCH("api/v1/settings/notifications")
+    suspend fun updateNotificationPrefs(@Body request: Map<String, Boolean>): AuthResponse
 
     @POST("api/v1/promo-codes/validate")
     suspend fun validatePromoCode(@Body request: Map<String, String>): PromoValidationResponse
@@ -361,6 +386,9 @@ interface ApiService {
     @POST("api/v1/orders/{id}/deliver")
     suspend fun verifyDelivery(@retrofit2.http.Path("id") id: String, @Body request: VerifyCodeRequest): OrderResponse
 
+    @GET("api/v1/orders/{orderId}/messages")
+    suspend fun getOrderMessages(@retrofit2.http.Path("orderId") orderId: String): List<ChatMessage>
+
     @POST("api/v1/orders/{id}/cancel")
     suspend fun cancelOrder(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): AuthResponse
 
@@ -378,6 +406,21 @@ interface ApiService {
 
     @GET("api/v1/addresses")
     suspend fun getSavedAddresses(): List<SavedAddress>
+
+    @GET("api/v1/settings/recipients")
+    suspend fun getSavedRecipients(): List<SavedRecipient>
+
+    @POST("api/v1/settings/recipients")
+    suspend fun addRecipient(@Body request: RecipientRequest): SavedRecipient
+
+    @DELETE("api/v1/settings/recipients/{id}")
+    suspend fun deleteRecipient(@retrofit2.http.Path("id") id: String): AuthResponse
+
+    @GET("api/v1/settings/sessions")
+    suspend fun getActiveSessions(): List<UserSession>
+
+    @DELETE("api/v1/settings/sessions/{id}")
+    suspend fun revokeSession(@retrofit2.http.Path("id") id: String): AuthResponse
 
     @POST("api/v1/addresses")
     suspend fun saveAddress(@Body request: AddressRequest): SavedAddress

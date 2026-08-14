@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const bcrypt = require('bcryptjs');
 
 /**
  * Returns basic profile information.
@@ -129,10 +130,46 @@ const requestDeletion = async (req, res) => {
   }
 };
 
+/**
+ * Standard password update flow.
+ */
+const changePassword = async (req, res) => {
+  const userId = req.user.id;
+  const { current_password, new_password } = req.body;
+
+  try {
+    const { rows } = await db.query("SELECT password_hash FROM users WHERE id = $1", [userId]);
+    if (!await bcrypt.compare(current_password, rows[0].password_hash)) {
+      return res.status(400).json({ error: 'Current password incorrect' });
+    }
+
+    const newHash = await bcrypt.hash(new_password, 10);
+    await db.query("UPDATE users SET password_hash = $1 WHERE id = $2", [newHash, userId]);
+    res.status(200).json({ message: 'Password updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+};
+
+/**
+ * Self-service toggle for fulfiller availability.
+ */
+const toggleFulfillerPause = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        await db.query("UPDATE fulfillers SET is_paused = NOT is_paused WHERE user_id = $1", [userId]);
+        res.status(200).json({ message: 'Availability updated' });
+    } catch (error) {
+        res.status(500).json({ error: 'Update failed' });
+    }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
+  changePassword,
   updateNotificationPrefs,
+  toggleFulfillerPause,
   getRecipients,
   addRecipient,
   deleteRecipient,

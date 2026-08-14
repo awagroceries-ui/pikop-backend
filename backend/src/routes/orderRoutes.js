@@ -34,6 +34,10 @@ router.post('/:orderId/pickup', authenticateToken, orderController.verifyPickup)
 router.post('/:orderId/deliver', authenticateToken, orderController.verifyDelivery);
 router.post('/:orderId/cancel', authenticateToken, orderController.cancelOrder);
 router.post('/:orderId/incident', authenticateToken, orderController.fileIncident);
+
+// Chat (Prompt 1)
+router.get('/:orderId/messages', authenticateToken, orderController.getMessages);
+
 router.get('/me/queue-candidates', authenticateToken, orderController.getQueueCandidates);
 router.post('/:orderId/queue/claim', authenticateToken, orderController.claimQueueOrder);
 

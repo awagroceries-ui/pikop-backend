@@ -7,7 +7,9 @@ router.use(authenticateToken);
 
 router.get('/profile', settingsController.getProfile);
 router.patch('/profile', settingsController.updateProfile);
+router.patch('/change-password', settingsController.changePassword);
 router.patch('/notifications', settingsController.updateNotificationPrefs);
+router.post('/fulfiller/toggle-pause', settingsController.toggleFulfillerPause);
 
 router.get('/recipients', settingsController.getRecipients);
 router.post('/recipients', settingsController.addRecipient);

@@ -18,7 +18,7 @@
         <% messages.forEach(msg => { %>
             <div class="d-flex <%= msg.sender_type === 'ADMIN' ? 'justify-content-end' : 'justify-content-start' %>">
                 <div class="p-3 rounded-3" style="max-width: 70%; background: <%= msg.sender_type === 'ADMIN' ? 'var(--primary)' : 'var(--bg-accent)' %>; color: <%= msg.sender_type === 'ADMIN' ? '#0B0B0B' : 'white' %>;">
-                    <p class="mb-1 small"><%= msg.content %></p>
+                    <p class="mb-1 small"><%= msg.body || msg.content %></p>
                     <div class="text-end" style="font-size: 0.65rem; opacity: 0.6;">
                         <%= new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %>
                     </div>
@@ -45,7 +45,7 @@
 
     socket.emit('join_support', convId);
 
-    socket.on('new_message', (msg) => {
+    socket.on('receive_message', (msg) => {
         appendMessage(msg);
         chatWindow.scrollTop = chatWindow.scrollHeight;
     });
@@ -56,7 +56,7 @@
         div.className = `d-flex ${isMe ? 'justify-content-end' : 'justify-content-start'}`;
         div.innerHTML = `
             <div class="p-3 rounded-3" style="max-width: 70%; background: ${isMe ? 'var(--primary)' : 'var(--bg-accent)'}; color: ${isMe ? '#0B0B0B' : 'white'};">
-                <p class="mb-1 small">${msg.content}</p>
+                <p class="mb-1 small">${msg.body || msg.content}</p>
                 <div class="text-end" style="font-size: 0.65rem; opacity: 0.6;">Now</div>
             </div>
         `;

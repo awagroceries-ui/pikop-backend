@@ -14,20 +14,21 @@
 
     <style>
         :root {
-            --bg-deep: #0F172A;
-            --bg-surface: #1E293B;
-            --bg-accent: #334155;
+            --bg-deep: #0B0E14;
+            --bg-surface: #161B22;
+            --bg-accent: #21262D;
             --primary: #FF9F0A;
             --active: #38BDF8;
             --waiting: #FBBF24;
             --critical: #EF4444;
-            --text-muted: #E2E8F0; /* Brighter for Mission Control visibility */
-            --border: #334155;
+            --text-main: #E6EDF3;
+            --text-muted: #8B949E;
+            --border: #30363D;
         }
 
         body {
             background-color: var(--bg-deep);
-            color: #FFFFFF; /* Absolute white for main text */
+            color: var(--text-main);
             font-family: 'Inter', sans-serif;
             overflow-x: hidden;
         }
@@ -41,7 +42,8 @@
             border-right: 1px solid var(--border);
             padding: 0;
             position: fixed;
-            width: 240px;
+            width: 260px;
+            z-index: 1000;
         }
 
         .sidebar-header {

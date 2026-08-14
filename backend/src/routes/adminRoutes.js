@@ -25,10 +25,12 @@ router.use((req, res, next) => {
 
 // Operational Tabs
 router.get('/dashboard', adminController.getDashboard);
+router.get('/metrics', hasRole(['ops', 'super_admin', 'analyst']), adminController.getOverviewMetrics);
 router.get('/orders', hasRole(['ops', 'super_admin', 'support']), adminController.getOrders);
 router.get('/withdrawals', hasRole(['finance', 'ops', 'super_admin']), adminController.getWithdrawals);
 router.get('/support', hasRole(['support', 'ops', 'super_admin']), adminController.getSupportInbox);
 router.get('/support/:id', hasRole(['support', 'ops', 'super_admin']), adminController.getConversationDetails);
+router.post('/support/:id/reply', hasRole(['support', 'ops', 'super_admin']), adminController.replySupport);
 router.post('/support/:id/resolve', hasRole(['support', 'ops', 'super_admin']), adminController.resolveSupport);
 
 // Fulfiller Auth (KYC)

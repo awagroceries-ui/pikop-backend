@@ -238,11 +238,51 @@ const verifyDelivery = async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Invalid code' });
     }
-    await client.query(`UPDATE orders SET status = 'DELIVERED', delivery_photo_url = $1, capture_lat = $2, capture_lng = $3, capture_timestamp = NOW() WHERE id = $4`, [delivery_photo_url, lat || null, lng || null, orderId]);
+
+    // --- SECURE POD CROSS-CHECK (Prompt 6) ---
+    const metadata = { gps_mismatch: false, timestamp_mismatch: false };
+    const serverTime = new Date();
+
+    if (lat && lng) {
+        // Query to check distance between capture point and actual delivery location
+        const distRes = await client.query(`
+            SELECT ST_Distance(
+                ST_SetSRID(ST_MakePoint($1, $2), 4326),
+                delivery_location
+            ) as distance FROM orders WHERE id = $3
+        `, [lng, lat, orderId]);
+
+        if (distRes.rows.length > 0 && distRes.rows[0].distance > 200) {
+            metadata.gps_mismatch = true;
+            console.warn(`[POD] GPS Mismatch detected for Order ${orderId}: ${distRes.rows[0].distance}m`);
+        }
+    }
+
+    await client.query(
+        `UPDATE orders SET
+            status = 'DELIVERED',
+            delivery_photo_url = $1,
+            capture_lat = $2,
+            capture_lng = $3,
+            capture_timestamp = $4,
+            verification_metadata = $5
+         WHERE id = $6`,
+        [delivery_photo_url, lat || null, lng || null, serverTime, JSON.stringify(metadata), orderId]
+    );
+
     await logStatusChange(client, orderId, 'DELIVERED', 'Delivered');
     await walletService.processDeliveryPayment(orderId);
     await walletService.triggerReferralReward(client, orderId);
     await client.query('COMMIT');
+
+    // Prompt 7: Check for queued order
+    const nextOrder = await db.query("SELECT id FROM orders WHERE queued_for_fulfiller_id = (SELECT fulfiller_id FROM orders WHERE id = $1) AND status = 'QUEUED' LIMIT 1", [orderId]);
+    if (nextOrder.rows.length > 0) {
+        const nextId = nextOrder.rows[0].id;
+        await db.query("UPDATE orders SET status = 'EN_ROUTE_TO_PICKUP', fulfiller_id = (SELECT fulfiller_id FROM orders WHERE id = $1), queued_for_fulfiller_id = NULL WHERE id = $2", [orderId, nextId]);
+        await logStatusChange(db, nextId, 'EN_ROUTE_TO_PICKUP', 'System activated your next queued mission');
+    }
+
     res.status(200).json({ message: 'Delivery completed', status: 'DELIVERED' });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -297,12 +337,169 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+/**
+ * Fetches order-scoped messages (Prompt 1).
+ */
+const getMessages = async (req, res) => {
+  const { orderId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    // Auth: Must be participant
+    const { rows: order } = await db.query("SELECT user_id, fulfiller_id FROM orders WHERE id = $1", [orderId]);
+    if (order.length === 0) return res.status(404).json({ error: 'Order not found' });
+
+    const isParticipant = order[0].user_id === userId || (order[0].fulfiller_id && order[0].fulfiller_id === req.user.fulfillerId);
+    if (!isParticipant) return res.status(403).json({ error: 'Unauthorized' });
+
+    const { rows } = await db.query(
+      "SELECT * FROM messages WHERE order_id = $1 ORDER BY created_at ASC LIMIT 100",
+      [orderId]
+    );
+    res.status(200).json(rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load messages' });
+  }
+};
+
+/**
+ * Files an incident report (Prompt 6).
+ */
+const fileIncident = async (req, res) => {
+  const { orderId } = req.params;
+  const { category, description, resolution_requested } = req.body;
+  const fulfillerId = req.user.fulfillerId;
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Create Dispute/Incident Record
+    const disputeRes = await client.query(
+      `INSERT INTO disputes (order_id, reporter_id, reason, status, category)
+       VALUES ($1, (SELECT user_id FROM fulfillers WHERE id = $2), $3, 'OPEN', $4)
+       RETURNING id`,
+      [orderId, fulfillerId, description, `incident_${category}`]
+    );
+    const disputeId = disputeRes.rows[0].id;
+
+    if (resolution_requested === 'handoff') {
+        // HANDOFF path: Reset to SEARCHING
+        await client.query(
+            "UPDATE orders SET status = 'SEARCHING', fulfiller_id = NULL, incident_dispute_id = $1 WHERE id = $2",
+            [disputeId, orderId]
+        );
+        await logStatusChange(client, orderId, 'SEARCHING', `Fulfiller handoff: ${description}`);
+    } else if (resolution_requested === 'cancel_with_waiver_request') {
+        // CANCEL path: Charge 25% immediately
+        const orderRes = await client.query("SELECT total_fare FROM orders WHERE id = $1", [orderId]);
+        const fare = orderRes.rows[0].total_fare;
+        const fee = (fare * 0.25).toFixed(2);
+
+        // Logic for auto-waive (security_risk)
+        let waived = false;
+        if (category === 'security_risk') waived = true;
+
+        await client.query(
+            "UPDATE orders SET status = 'CANCELLED', incident_dispute_id = $1, cancellation_fee_waived = $2 WHERE id = $3",
+            [disputeId, waived, orderId]
+        );
+
+        // Record fee if not waived
+        if (!waived) {
+            await client.query(
+                "INSERT INTO wallet_ledger_entries (wallet_id, amount, entry_type, purpose, reference_id) VALUES ((SELECT id FROM wallets WHERE owner_type = 'PLATFORM'), $1, 'CREDIT', 'CANCELLATION_FEE', $2)",
+                [fee, orderId]
+            );
+        }
+
+        await logStatusChange(client, orderId, 'CANCELLED', `Fulfiller cancelled: ${description}`);
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Incident reported successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error("Incident Error:", error);
+    res.status(500).json({ error: 'Failed to file incident' });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Fetches eligible queue candidates for a fulfiller (Prompt 7).
+ */
+const getQueueCandidates = async (req, res) => {
+    const fulfillerId = req.user.fulfillerId;
+
+    try {
+        // 1. Eligibility Check: Must have an active order past pickup
+        const activeRes = await db.query(
+            "SELECT id, status, ST_X(delivery_location::geometry) as lng, ST_Y(delivery_location::geometry) as lat FROM orders WHERE fulfiller_id = $1 AND status IN ('PICKED_UP', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY') LIMIT 1",
+            [fulfillerId]
+        );
+
+        if (activeRes.rows.length === 0) return res.status(200).json([]); // Ineligible, return empty
+
+        const activeOrder = activeRes.rows[0];
+
+        // 2. Queue Slot Check: Must not already have a queued order
+        const queueCheck = await db.query("SELECT id FROM orders WHERE queued_for_fulfiller_id = $1", [fulfillerId]);
+        if (queueCheck.rows.length > 0) return res.status(200).json([]); // Hard cap of 1
+
+        // 3. Proximity Filter: Pickup within 3km of active order delivery point
+        const { rows: candidates } = await db.query(`
+            SELECT id, pickup_address, delivery_address, total_fare, item_photo_url, pickup_display_summary
+            FROM orders
+            WHERE status = 'SEARCHING'
+            AND ST_DWithin(
+                pickup_location,
+                ST_SetSRID(ST_MakePoint($1, $2), 4326),
+                3000
+            )
+            LIMIT 5
+        `, [activeOrder.lng, activeOrder.lat]);
+
+        res.status(200).json(candidates);
+    } catch (error) {
+        console.error("Queue candidates error:", error);
+        res.status(500).json({ error: 'Failed to fetch queue' });
+    }
+};
+
+/**
+ * Claims an order into the queue slot (Prompt 7).
+ */
+const claimQueueOrder = async (req, res) => {
+    const { id } = req.params;
+    const fulfillerId = req.user.fulfillerId;
+
+    try {
+        // Eligibility check
+        const activeRes = await db.query("SELECT id FROM orders WHERE fulfiller_id = $1 AND status IN ('PICKED_UP', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY')", [fulfillerId]);
+        if (activeRes.rows.length === 0) return res.status(400).json({ error: 'Not eligible to queue' });
+
+        const queueCheck = await db.query("SELECT id FROM orders WHERE queued_for_fulfiller_id = $1", [fulfillerId]);
+        if (queueCheck.rows.length > 0) return res.status(400).json({ error: 'Queue slot already filled' });
+
+        await db.query(
+            "UPDATE orders SET status = 'QUEUED', queued_for_fulfiller_id = $1 WHERE id = $2 AND status = 'SEARCHING'",
+            [fulfillerId, id]
+        );
+
+        res.status(200).json({ message: 'Order queued. It will activate after your current delivery.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to claim queued order' });
+    }
+};
+
 module.exports = {
   getQuote, createOrder, acceptOrder, updateOrderStatus,
   verifyPickup, verifyDelivery, getOrderDetails, getUserOrders,
-  getFulfillerPublicProfile,
+  getFulfillerPublicProfile, getMessages,
   cancelOrder: async (req, res) => { /* TODO */ res.send('OK'); },
-  fileIncident: async (req, res) => { /* TODO */ res.send('OK'); },
-  getQueueCandidates: async (req, res) => { res.json([]); },
-  claimQueueOrder: async (req, res) => { res.send('OK'); }
+  fileIncident,
+  getQueueCandidates,
+  claimQueueOrder
 };

@@ -387,9 +387,94 @@ const suspendCorporateAccount = async (req, res) => {
   }
 };
 
+/**
+ * Provides comprehensive platform metrics (Prompt 4).
+ */
+const getOverviewMetrics = async (req, res) => {
+  const days = parseInt(req.query.range) || 30;
+
+  try {
+    // 1. Registered Totals
+    const totalUsers = await db.query("SELECT COUNT(*) FROM users");
+    const totalFulfillers = await db.query("SELECT COUNT(*) FROM fulfillers");
+
+    // 2. Active Users (DAU/MAU)
+    const dauUsers = await db.query("SELECT COUNT(*) FROM users WHERE last_active_at >= NOW() - INTERVAL '24 hours'");
+    const dauFulfillers = await db.query("SELECT COUNT(*) FROM fulfillers WHERE last_active_at >= NOW() - INTERVAL '24 hours'");
+    const mauUsers = await db.query("SELECT COUNT(*) FROM users WHERE last_active_at >= NOW() - INTERVAL '30 days'");
+    const mauFulfillers = await db.query("SELECT COUNT(*) FROM fulfillers WHERE last_active_at >= NOW() - INTERVAL '30 days'");
+
+    // 3. Revenue Breakdown (Prompt 4, point 4)
+    const revenueQuery = await db.query(`
+      SELECT
+        COALESCE(SUM(o.total_fare), 0) as gross,
+        (SELECT COALESCE(SUM(le.amount), 0) FROM wallet_ledger_entries le JOIN wallets w ON le.wallet_id = w.id WHERE w.owner_type = 'PLATFORM' AND le.entry_type = 'CREDIT' AND le.created_at >= NOW() - INTERVAL '${days} days') as platform,
+        (SELECT COALESCE(SUM(le.amount), 0) FROM wallet_ledger_entries le JOIN wallets w ON le.wallet_id = w.id WHERE w.owner_type = 'FULFILLER' AND le.entry_type = 'CREDIT' AND le.created_at >= NOW() - INTERVAL '${days} days') as fulfiller
+      FROM orders o
+      WHERE o.status IN ('DELIVERED', 'CLOSED')
+      AND o.created_at >= NOW() - INTERVAL '${days} days'
+    `);
+
+    res.status(200).json({
+      registered: {
+        total_users: totalUsers.rows[0].count,
+        total_fulfillers: totalFulfillers.rows[0].count
+      },
+      active: {
+        dau: { users: dauUsers.rows[0].count, fulfillers: dauFulfillers.rows[0].count },
+        mau: { users: mauUsers.rows[0].count, fulfillers: mauFulfillers.rows[0].count }
+      },
+      revenue: revenueQuery.rows[0]
+    });
+  } catch (error) {
+    console.error("Metrics Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Admin reply to support chat (Prompt 2).
+ */
+const replySupport = async (req, res) => {
+  const { id } = req.params;
+  const { body } = req.body;
+  const adminId = req.session.adminId;
+
+  try {
+    const { rows } = await db.query(
+      "INSERT INTO messages (conversation_id, sender_id, sender_type, body) VALUES ($1, $2, 'ADMIN', $3) RETURNING id, created_at",
+      [id, adminId, body]
+    );
+
+    const socketService = require('../services/socketService');
+    const io = socketService.getIO();
+    io.to(`support_${id}`).emit("receive_message", {
+        id: rows[0].id,
+        conversationId: id,
+        senderId: adminId,
+        senderType: 'ADMIN',
+        body: body,
+        created_at: rows[0].created_at
+    });
+
+    // PUSH notification to participant
+    const { rows: conv } = await db.query("SELECT participant_id FROM conversations WHERE id = $1", [id]);
+    if (conv.length > 0) {
+        const fcmService = require('../services/fcmService');
+        await fcmService.sendNotification(conv[0].participant_id, "New Support Reply", body, { type: "SUPPORT_CHAT" });
+    }
+
+    res.redirect(`/admin/support/${id}`);
+  } catch (error) {
+    console.error("Support Reply Error:", error);
+    res.status(500).send('Failed to send reply');
+  }
+};
+
 module.exports = {
   login,
   getDashboard,
+  getOverviewMetrics,
   getKYCQueue,
   approveKYC,
   forceApproveIdentity,
@@ -400,6 +485,7 @@ module.exports = {
   getSupportInbox,
   getConversationDetails,
   resolveSupport,
+  replySupport,
   getCorporateAccounts,
   suspendCorporateAccount,
   getSettings,

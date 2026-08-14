@@ -31,6 +31,7 @@ fun AccountScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToRecipients: () -> Unit,
+    onNavigateToSessions: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -115,6 +116,12 @@ fun AccountScreen(
                     label = "Support & Help Center",
                     icon = Icons.AutoMirrored.Filled.HelpCenter,
                     onClick = onNavigateToSupport
+                )
+
+                AccountOption(
+                    label = "Manage Active Sessions",
+                    icon = Icons.Default.Devices,
+                    onClick = onNavigateToSessions
                 )
 
                 AccountOption(

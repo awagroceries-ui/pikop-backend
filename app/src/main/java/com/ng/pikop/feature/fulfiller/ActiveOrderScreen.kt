@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,7 +45,7 @@ import java.io.FileOutputStream
 import com.ng.pikop.core.network.ImageUtils
 
 @Composable
-fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
+fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateToChat: (String) -> Unit) {
     var orderDetails by remember { mutableStateOf<OrderDetailsResponse?>(null) }
     var orderStatus by remember { mutableStateOf("MATCHED") }
     var fulfillerLocation by remember { mutableStateOf<LatLng?>(null) }
@@ -189,10 +191,19 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit) {
                 
                 IconButton(
                     onClick = { showIncidentDialog = true },
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).padding(top = 64.dp),
                     colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                 ) {
                     Icon(Icons.Default.ReportProblem, contentDescription = "Report Incident", tint = MaterialTheme.colorScheme.error)
+                }
+
+                // Chat Button (Prompt 1)
+                IconButton(
+                    onClick = { onNavigateToChat(orderId) },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat", tint = MaterialTheme.colorScheme.primary)
                 }
             }
 
