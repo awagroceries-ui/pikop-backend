@@ -24,7 +24,7 @@ class _SignupScreenState extends State<SignupScreen> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthUnverified) {
-            // TODO: Navigate to OTP
+            Navigator.pushNamed(context, '/otp', arguments: state.email);
           } else if (state is AuthFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message), backgroundColor: Colors.red),

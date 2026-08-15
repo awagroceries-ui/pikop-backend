@@ -23,9 +23,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Login Successful')),
             );
-            // TODO: Navigate to Home
+            // TODO: Navigate to Home Dashboard
           } else if (state is AuthUnverified) {
-            // TODO: Navigate to OTP Screen
+            Navigator.pushNamed(context, '/otp', arguments: state.email);
           } else if (state is AuthFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message), backgroundColor: Colors.red),
@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 TextButton(
                   onPressed: () {
-                    // TODO: Navigate to Signup
+                    Navigator.pushNamed(context, '/signup');
                   },
                   child: const Text('Don\'t have an account? Sign Up'),
                 ),

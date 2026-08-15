@@ -22,6 +22,8 @@ app.get('/', (req, res) => res.json({ message: 'Pikop V3 API - Professional Mult
 
 // 3. API v1 Routes
 app.use('/api/v1/auth', require('./routes/authRoutes'));
+app.use('/api/v1/orders', require('./routes/orderRoutes'));
+app.use('/api/v1/payments', require('./routes/paymentRoutes'));
 
 // 4. Global Error Handler (Harden Core)
 app.use((err, req, res, next) => {
