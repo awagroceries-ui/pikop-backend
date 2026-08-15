@@ -37,10 +37,13 @@ app.use(session({
 }));
 
 // 3. View Engine
-app.set('views', path.join(__dirname, 'views'));
+const viewsPath = path.join(__dirname, 'views');
+app.set('views', viewsPath);
 app.set('view engine', 'ejs');
 app.use(expressLayouts);
 app.set('layout', 'layout');
+
+console.log(`[System] Views directory set to: ${viewsPath}`);
 
 // 4. Static Files
 app.use('/public', express.static(path.join(__dirname, '../public')));

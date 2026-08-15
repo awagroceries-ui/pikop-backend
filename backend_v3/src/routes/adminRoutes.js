@@ -4,7 +4,14 @@ const adminController = require('../controllers/adminController');
 const { isAdminAuthenticated, hasRole } = require('../middleware/adminAuth');
 
 // Public
-router.get('/login', (req, res) => res.render('login', { layout: false }));
+router.get('/login', (req, res) => {
+    try {
+        res.render('login', { layout: false });
+    } catch (e) {
+        console.error('[Admin] Login Render Error:', e.message);
+        res.status(500).send(`Render Error: ${e.message}`);
+    }
+});
 router.post('/login', adminController.login);
 router.get('/logout', (req, res) => {
     req.session.destroy();
