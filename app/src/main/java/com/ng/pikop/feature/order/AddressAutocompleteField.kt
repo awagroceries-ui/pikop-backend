@@ -71,16 +71,24 @@ fun AddressAutocompleteField(
                                 isSearching = false
                             }
                             .addOnFailureListener {
+                                suggestions = emptyList()
                                 isSearching = false
                             }
                     }
                 } else {
                     suggestions = emptyList()
+                    isSearching = false
                 }
             },
             label = { Text(label) },
             modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            leadingIcon = { 
+                if (isSearching) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                } else {
+                    Icon(Icons.Default.Search, contentDescription = null)
+                }
+            },
             trailingIcon = {
                 IconButton(onClick = onOpenMap) {
                     Icon(Icons.Default.Map, contentDescription = "Select on Map", tint = MaterialTheme.colorScheme.primary)

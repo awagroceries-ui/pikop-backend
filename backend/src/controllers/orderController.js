@@ -77,8 +77,29 @@ const getQuote = async (req, res) => {
 
   try {
     const classification = await geminiService.classifyItemSize(item_description);
-    const pricing = { 'SMALL': 500.00, 'MEDIUM': 1000.00, 'LARGE': 2000.00 };
-    const fare = pricing[classification.size_tier] || 2000.00;
+
+    // 1. Dynamic Pricing: Calculate distance using PostGIS geography (meters to km)
+    let distanceKm = 0;
+    if (pickup_lat && pickup_lng && delivery_lat && delivery_lng) {
+        try {
+            const distRes = await db.query(
+                "SELECT ST_Distance(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography) / 1000 as dist",
+                [pickup_lng, pickup_lat, delivery_lng, delivery_lat]
+            );
+            distanceKm = parseFloat(distRes.rows[0].dist || 0);
+            console.log(`[Quote] Distance calculated: ${distanceKm.toFixed(2)} km`);
+        } catch (e) {
+            console.error('[Quote] Distance calculation failed, falling back to base price only.', e.message);
+        }
+    }
+
+    const basePricing = { 'SMALL': 500.00, 'MEDIUM': 1000.00, 'LARGE': 1500.00 };
+    const perKmRate = 150.00;
+    const baseFare = basePricing[classification.size_tier] || 1500.00;
+
+    // 2. Final Fare: Base + (Distance * Rate) with a profit floor
+    const calculatedFare = Math.ceil(baseFare + (distanceKm * perKmRate));
+    const fare = Math.max(700, calculatedFare); // Minimum floor of 700 NGN
 
     const eligibilityMap = { 'SMALL': ['agent', 'rider'], 'MEDIUM': ['rider', 'driver'], 'LARGE': ['driver'] };
     const eligibleClasses = eligibilityMap[classification.size_tier] || ['driver'];
@@ -94,12 +115,14 @@ const getQuote = async (req, res) => {
       quote_id: rows[0].id,
       fare_breakdown: {
         total_fare: parseFloat(rows[0].total_fare),
+        distance_km: parseFloat(distanceKm.toFixed(2)),
         size_tier: rows[0].size_tier,
         required_classes: eligibleClasses,
         fare_locked_until: rows[0].expires_at
       }
     });
   } catch (error) {
+    console.error('[Quote] Error:', error);
     res.status(500).json({ error: 'Failed to generate quote' });
   }
 };

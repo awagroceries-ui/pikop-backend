@@ -276,17 +276,18 @@
                         const disputeCount = (locals.stats && locals.stats.notifications) ? locals.stats.notifications.disputes : 0;
                         const totalAlerts = kycCount + disputeCount;
                     %>
-                    <% if (totalAlerts > 0) { %>
-                        <span class="badge-count"><%= totalAlerts %></span>
-                    <% } %>
+                    <span class="badge-count" id="kyc-badge" style="<%= totalAlerts > 0 ? '' : 'display: none;' %>">
+                        <%= totalAlerts %>
+                    </span>
                 </a>
 
                 <!-- Support: Chat Bubble -->
                 <a href="/admin/support" class="notification-icon">
                     <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
-                    <% if (locals.stats && locals.stats.notifications && locals.stats.notifications.support > 0) { %>
-                        <span class="badge-count"><%= stats.notifications.support %></span>
-                    <% } %>
+                    <% const supportCount = (locals.stats && locals.stats.notifications) ? locals.stats.notifications.support : 0; %>
+                    <span class="badge-count" id="support-badge" style="<%= supportCount > 0 ? '' : 'display: none;' %>">
+                        <%= supportCount %>
+                    </span>
                 </a>
 
                 <div class="admin-profile">
@@ -315,6 +316,43 @@
                     document.getElementById('header-active-missions').innerText = data.active_orders || 0;
                 });
         });
+
+        // Real-time Admin Alerts (v2.2.1)
+        socket.on('new_support_alert', (data) => {
+            showToast('New Message', data.body);
+            updateBadge('support-badge', 1);
+        });
+
+        socket.on('new_kyc_alert', (data) => {
+            showToast('KYC Upload', `New ${data.type} document submitted.`);
+            updateBadge('kyc-badge', 1);
+        });
+
+        function showToast(title, body) {
+            // Simple visual cue - can be enhanced with a real toast library
+            const notification = document.createElement('div');
+            notification.className = 'position-fixed bottom-0 end-0 p-3';
+            notification.style.zIndex = '9999';
+            notification.innerHTML = `
+                <div class="card bg-dark text-white border-primary shadow" style="min-width: 250px;">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-primary mb-1">${title}</h6>
+                        <p class="small mb-0">${body}</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 5000);
+        }
+
+        function updateBadge(id, increment) {
+            const el = document.getElementById(id);
+            if (el) {
+                const current = parseInt(el.innerText || '0');
+                el.innerText = current + increment;
+                el.style.display = 'block';
+            }
+        }
 
         const path = window.location.pathname;
         const navMap = {

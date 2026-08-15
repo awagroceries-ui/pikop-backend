@@ -70,14 +70,18 @@ const init = (server) => {
         const savedMsg = { ...data, id: rows[0].id, created_at: rows[0].created_at, body };
         io.to(room).emit("receive_message", savedMsg);
 
-        if (conversationId && senderType === 'ADMIN') {
-            const convRes = await db.query("SELECT participant_id FROM conversations WHERE id = $1", [conversationId]);
-            if (convRes.rows.length > 0) {
-                await fcmService.sendNotification(convRes.rows[0].participant_id, "New Support Message", body, { type: "SUPPORT_CHAT" });
-            }
-        }
-
         if (conversationId) {
+            // Real-time Dashboard Alerts (Prompt 2.2.1)
+            if (senderType !== 'ADMIN') {
+                io.emit("new_support_alert", { conversationId, body: body.substring(0, 50) });
+            }
+
+            if (senderType === 'ADMIN') {
+                const convRes = await db.query("SELECT participant_id FROM conversations WHERE id = $1", [conversationId]);
+                if (convRes.rows.length > 0) {
+                    await fcmService.sendNotification(convRes.rows[0].participant_id, "New Support Message", body, { type: "SUPPORT_CHAT" });
+                }
+            }
             await db.query("UPDATE conversations SET last_message_at = CURRENT_TIMESTAMP WHERE id = $1", [conversationId]);
         }
       } catch (e) {

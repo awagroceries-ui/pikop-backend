@@ -40,7 +40,11 @@ try {
  * Sends a push notification to a specific user.
  */
 const sendNotification = async (userId, title, body, data = {}) => {
-  if (!admin.apps.length) return;
+  if (!admin.apps.length) {
+      console.warn('[FCM] Notification skipped: Firebase Admin not initialized.');
+      return;
+  }
+
   try {
     const { rows } = await db.query("SELECT token FROM fcm_tokens WHERE user_id = $1", [userId]);
     if (rows.length === 0) return;
@@ -55,7 +59,19 @@ const sendNotification = async (userId, title, body, data = {}) => {
         notification: {
             channel_id: "pikop_notifications",
             priority: "high",
-            visibility: "public"
+            visibility: "public",
+            sound: "default"
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            alert: {
+              title: title,
+              body: body
+            },
+            sound: "default"
+          }
         }
       },
       data: {
@@ -66,10 +82,10 @@ const sendNotification = async (userId, title, body, data = {}) => {
       token: rows[0].token,
     };
 
-    await admin.messaging().send(message);
-    console.log(`Notification sent to user ${userId}`);
+    const response = await admin.messaging().send(message);
+    console.log(`[FCM] Successfully sent to User ${userId}:`, response);
   } catch (error) {
-    console.error('FCM Error:', error.message);
+    console.error(`[FCM] Error sending to User ${userId}:`, error.message);
   }
 };
 

@@ -331,6 +331,12 @@ const uploadKYC = async (req, res) => {
       [fulfillerId, document_type, documentUrl]
     );
 
+    // Emit real-time alert for admin (v2.2.1)
+    try {
+        const socketService = require('../services/socketService');
+        socketService.getIO().emit("new_kyc_alert", { fulfillerId, type: document_type });
+    } catch (e) {}
+
     res.status(201).json({ message: 'Document uploaded successfully', document: rows[0] });
   } catch (error) {
     console.error('KYC Upload Error:', error);
