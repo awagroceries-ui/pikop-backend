@@ -22,7 +22,6 @@ import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.KnowledgeBaseArticle
 import com.ng.pikop.ui.theme.PikopBlack
 import com.ng.pikop.ui.theme.PikopOrange
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +36,6 @@ fun SupportHubScreen(
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -47,7 +45,7 @@ fun SupportHubScreen(
         isLoading = false
     }
 
-    val categories = articles.map { it.category }.distinct()
+    val categories = articles.map { it.category ?: "General" }.distinct()
 
     Scaffold(
         topBar = {
@@ -97,9 +95,13 @@ fun SupportHubScreen(
 
             if (isLoading) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = PikopOrange)
+            } else if (categories.isEmpty()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("No help articles found.", color = Color.Gray)
+                }
             }
 
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 items(categories) { category ->
                     CategoryItem(category) { onNavigateToFaqList(category) }
                 }

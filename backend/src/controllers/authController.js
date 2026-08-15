@@ -102,22 +102,35 @@ const verifyEmail = async (req, res) => {
   const { email, otp } = req.body;
 
   try {
-    const { rows } = await db.query(
-      `SELECT ov.*, u.id as user_id
-       FROM otp_verifications ov
-       JOIN users u ON u.id = ov.user_id
-       WHERE u.email = $1 AND ov.otp_code = $2 AND ov.expires_at > CURRENT_TIMESTAMP`,
-      [email, otp]
-    );
+    // 1. Check Master OTP (Development Bypass)
+    const masterOtp = process.env.MASTER_OTP;
+    let userId;
+    let user;
 
-    if (rows.length === 0) {
-      return res.status(400).json({ message: 'Invalid or expired verification code. Please request a new one.' });
+    if (masterOtp && otp === masterOtp) {
+        console.log(`[Auth] MASTER_OTP used for ${email}`);
+        const userRes = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+        if (userRes.rows.length === 0) return res.status(404).json({ message: 'Account not found' });
+        user = userRes.rows[0];
+        userId = user.id;
+    } else {
+        // 2. Standard DB Check
+        const { rows } = await db.query(
+          `SELECT ov.*, u.id as user_id
+           FROM otp_verifications ov
+           JOIN users u ON u.id = ov.user_id
+           WHERE u.email = $1 AND ov.otp_code = $2 AND ov.expires_at > CURRENT_TIMESTAMP`,
+          [email, otp]
+        );
+
+        if (rows.length === 0) {
+          return res.status(400).json({ message: 'Invalid or expired verification code. Please request a new one.' });
+        }
+
+        userId = rows[0].user_id;
+        const userRes = await db.query("SELECT * FROM users WHERE id = $1", [userId]);
+        user = userRes.rows[0];
     }
-
-    const userId = rows[0].user_id;
-
-    const userRes = await db.query("SELECT * FROM users WHERE id = $1", [userId]);
-    const user = userRes.rows[0];
 
     await db.query(
       "UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE id = $1",

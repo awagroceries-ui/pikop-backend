@@ -3,17 +3,20 @@ const db = require('../config/db');
 
 // Safe Initialization
 try {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const rawConfig = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (rawConfig) {
         let serviceAccount;
         try {
-            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            // 1. Try direct JSON parse
+            serviceAccount = JSON.parse(rawConfig);
         } catch (e) {
-            // Check if it's a file path
+            // 2. Try file path
             const fs = require('fs');
-            if (fs.existsSync(process.env.FIREBASE_SERVICE_ACCOUNT)) {
-                serviceAccount = JSON.parse(fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT, 'utf8'));
+            if (fs.existsSync(rawConfig)) {
+                serviceAccount = JSON.parse(fs.readFileSync(rawConfig, 'utf8'));
             } else {
-                throw new Error('FIREBASE_SERVICE_ACCOUNT is neither valid JSON nor a valid file path.');
+                console.error('❌ FIREBASE_SERVICE_ACCOUNT Error: Not valid JSON and file not found.');
+                throw e;
             }
         }
 
@@ -24,11 +27,13 @@ try {
             console.log('✅ Firebase Admin initialized successfully.');
         }
     } else {
-        console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT missing. Push notifications disabled.');
+        console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT missing in .env. Push notifications disabled.');
     }
 } catch (error) {
-    console.error('❌ Firebase Init Error:', error.message);
-    console.warn('⚠️ App will continue without Push Notification support.');
+    console.error('❌ Firebase Init Failed:', error.message);
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        console.error('👉 Tip: Ensure FIREBASE_SERVICE_ACCOUNT is a single-line JSON string wrapped in single quotes in .env');
+    }
 }
 
 /**
