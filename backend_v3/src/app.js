@@ -12,6 +12,9 @@ require('dotenv').config();
 const app = express();
 const server = http.createServer(app);
 
+// 0. Trust Proxy (Crucial for secure cookies behind Nginx)
+app.set('trust proxy', 1);
+
 // Initialize Sockets
 const socketService = require('./services/socketService');
 socketService.init(server);

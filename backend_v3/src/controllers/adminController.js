@@ -8,11 +8,11 @@ const login = async (req, res) => {
   const { username, password } = req.body;
   try {
     const { rows } = await db.query('SELECT * FROM admin_users WHERE username = $1', [username]);
-    if (rows.length === 0) return res.render('login', { error: 'Invalid credentials', layout: false });
+    if (rows.length === 0) return res.render('login', { error: 'Access Denied: User not found', layout: false });
 
     const admin = rows[0];
     const match = await bcrypt.compare(password, admin.password_hash);
-    if (!match) return res.render('login', { error: 'Invalid credentials', layout: false });
+    if (!match) return res.render('login', { error: 'Access Denied: Invalid credentials', layout: false });
 
     req.session.adminId = admin.id;
     req.session.adminRole = admin.role;
