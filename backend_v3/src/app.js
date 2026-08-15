@@ -28,7 +28,12 @@ app.use(session({
   secret: process.env.JWT_SECRET || 'pikop_admin_secret_v3',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // Set to true if using HTTPS
+  name: 'pikop.sid',
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
 }));
 
 // 3. View Engine

@@ -13,11 +13,15 @@ const init = (server) => {
       origin: "*",
       methods: ["GET", "POST"]
     },
-    transports: ['websocket', 'polling']
+    transports: ['websocket', 'polling'],
+    allowEIO3: true,
+    pingTimeout: 60000,
+    pingInterval: 25000
   });
 
   io.on("connection", (socket) => {
-    console.log(`[Socket] Connection attempt: ${socket.id} from ${socket.handshake.address}`);
+    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+    console.log(`[Socket] Connection attempt: ${socket.id} from ${clientIp} using ${socket.conn.transport.name}`);
 
     // Join room for specific mission tracking
     socket.on("join_order", (orderId) => {
