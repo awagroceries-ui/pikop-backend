@@ -1,5 +1,5 @@
 exports.up = (pgm) => {
-  // 1. Knowledge Base Table
+  // 1. Knowledge Base Table (Safe Create)
   pgm.createTable('knowledge_base', {
     id: 'id',
     title: { type: 'varchar(255)', notNull: true },
@@ -17,20 +17,21 @@ exports.up = (pgm) => {
       notNull: true,
       default: pgm.func('current_timestamp'),
     },
-  });
+  }, { ifNotExists: true });
 
-  // 2. Add module_type to Orders
-  pgm.addColumns('orders', {
-    module_type: {
-      type: 'varchar(50)',
-      notNull: true,
-      default: 'DELIVERY'
-      // Options: DELIVERY, MARKETPLACE, FOODS
-    },
-  });
+  // 2. Add module_type to Orders (Safe Add)
+  // node-pg-migrate addColumns doesn't have ifNotExists, so we use SQL
+  pgm.sql(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='module_type') THEN
+        ALTER TABLE orders ADD COLUMN module_type varchar(50) NOT NULL DEFAULT 'DELIVERY';
+      END IF;
+    END $$;
+  `);
 
-  pgm.createIndex('knowledge_base', ['target_audience', 'category']);
-  pgm.createIndex('orders', 'module_type');
+  pgm.createIndex('knowledge_base', ['target_audience', 'category'], { ifNotExists: true });
+  pgm.createIndex('orders', 'module_type', { ifNotExists: true });
 };
 
 exports.down = (pgm) => {
