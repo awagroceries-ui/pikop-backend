@@ -3,6 +3,7 @@ const authService = require('../services/authService');
 const jwt = require('jsonwebtoken');
 const notificationService = require('../services/notificationService');
 const crypto = require('crypto');
+require('dotenv').config();
 
 /**
  * Registers a new user and generates an OTP.
@@ -107,8 +108,14 @@ const verifyEmail = async (req, res) => {
     let userId;
     let user;
 
-    if (masterOtp && otp === masterOtp) {
-        console.log(`[Auth] MASTER_OTP used for ${email}`);
+    console.log(`[Auth] VERIFY: ${email} | Input OTP: [${otp}] | MASTER_OTP: [${masterOtp}]`);
+
+    // Robust comparison (force string and trim)
+    const inputStr = otp ? otp.toString().trim() : "";
+    const masterStr = masterOtp ? masterOtp.toString().trim() : "";
+
+    if (masterStr && inputStr === masterStr) {
+        console.log(`[Auth] MASTER_OTP MATCH for ${email}`);
         const userRes = await db.query("SELECT * FROM users WHERE email = $1", [email]);
         if (userRes.rows.length === 0) return res.status(404).json({ message: 'Account not found' });
         user = userRes.rows[0];
