@@ -12,11 +12,12 @@ const init = (server) => {
     cors: {
       origin: "*",
       methods: ["GET", "POST"]
-    }
+    },
+    transports: ['websocket', 'polling']
   });
 
   io.on("connection", (socket) => {
-    console.log(`[Socket] Connected: ${socket.id}`);
+    console.log(`[Socket] Connection attempt: ${socket.id} from ${socket.handshake.address}`);
 
     // Join room for specific mission tracking
     socket.on("join_order", (orderId) => {
