@@ -3,13 +3,26 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
 const session = require('express-session');
 const expressLayouts = require('express-ejs-layouts');
 
 const app = express();
 
+// 0. Ensure Directories Exist
+const UPLOADS_DIR = path.join(__dirname, '../uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  console.log('✅ Created missing uploads directory');
+}
+
 // 1. Version Check (For Troubleshooting)
-const VERSION = '2.1.1-modular';
+const VERSION = '2.1.2-stable';
+if (process.env.MASTER_OTP) {
+    console.log(`✅ Master OTP feature is ACTIVE (Code: ${process.env.MASTER_OTP})`);
+} else {
+    console.warn('⚠️ MASTER_OTP not found in environment.');
+}
 
 // 2. Basic Middleware
 app.use(helmet({ contentSecurityPolicy: false }));

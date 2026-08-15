@@ -111,10 +111,10 @@ const verifyEmail = async (req, res) => {
     console.log(`[Auth] VERIFY: ${email} | Input OTP: [${otp}] | MASTER_OTP: [${masterOtp}]`);
 
     // Robust comparison (force string and trim)
-    const inputStr = otp ? otp.toString().trim() : "";
-    const masterStr = masterOtp ? masterOtp.toString().trim() : "";
+    const inputStr = String(otp || "").trim();
+    const masterStr = String(masterOtp || "").trim();
 
-    if (masterStr && inputStr === masterStr) {
+    if (masterStr !== "" && inputStr === masterStr) {
         console.log(`[Auth] MASTER_OTP MATCH for ${email}`);
         const userRes = await db.query("SELECT * FROM users WHERE email = $1", [email]);
         if (userRes.rows.length === 0) return res.status(404).json({ message: 'Account not found' });
