@@ -1,16 +1,35 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const { isAdminAuthenticated, hasRole } = require('../middleware/adminAuth');
 
+// Public
 router.get('/login', (req, res) => res.render('login', { layout: false }));
 router.post('/login', adminController.login);
-
 router.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/admin/login');
 });
 
-// Dashboard
+// Protected
+router.use(isAdminAuthenticated);
+
+// Set common locals for all dashboard pages
+router.use((req, res, next) => {
+    res.locals.adminUsername = req.session.adminUsername;
+    res.locals.role = req.session.adminRole;
+    next();
+});
+
 router.get('/dashboard', adminController.getDashboard);
+router.get('/orders', adminController.getOrders);
+
+// Support
+router.get('/support', adminController.getSupportInbox);
+router.get('/support/:id', adminController.getConversationDetails);
+
+// Settings
+router.get('/settings', hasRole(['super_admin']), adminController.getSettings);
+router.post('/settings', hasRole(['super_admin']), adminController.updateSettings);
 
 module.exports = router;

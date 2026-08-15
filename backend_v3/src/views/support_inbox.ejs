@@ -1,0 +1,41 @@
+<div class="mb-5">
+    <h3 class="fw-extrabold mb-1 ls-1">Support Command</h3>
+    <p class="text-muted small">Manage real-time communication with users and fleet.</p>
+</div>
+
+<div class="row g-4">
+    <% if (conversations.length === 0) { %>
+        <div class="col-12">
+            <div class="card bg-card border-0 p-5 text-center">
+                <p class="text-muted mb-0">No active support sessions found.</p>
+            </div>
+        </div>
+    <% } else { %>
+        <% conversations.forEach(conv => { %>
+            <div class="col-md-12">
+                <a href="/admin/support/<%= conv.id %>" class="text-decoration-none">
+                    <div class="card bg-card border-0 p-4 transition-hover">
+                        <div class="row align-items-center">
+                            <div class="col-md-4">
+                                <h6 class="mb-1 text-white fw-bold"><%= conv.participant_name %></h6>
+                                <span class="badge bg-primary text-black smaller uppercase"><%= conv.participant_type %></span>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <span class="text-muted small ls-1 uppercase fw-bold">Last Active</span>
+                                <div class="text-white small mono"><%= new Date(conv.last_message_at).toLocaleString() %></div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="text-primary small fw-bold">Open Session <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="ms-1"><path d="M9 5l7 7-7 7"></path></svg></span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        <% }) %>
+    <% } %>
+</div>
+
+<style>
+    .transition-hover { transition: 0.2s transform ease, 0.2s background; }
+    .transition-hover:hover { transform: translateX(5px); background: #2D3748 !important; }
+</style>

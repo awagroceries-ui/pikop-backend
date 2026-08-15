@@ -3,30 +3,55 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const http = require('http');
-require('express-async-errors'); // Automatic handling of async errors
+const path = require('path');
+const session = require('express-session');
+const expressLayouts = require('express-ejs-layouts');
+require('express-async-errors');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 
+// Initialize Sockets
+const socketService = require('./services/socketService');
+socketService.init(server);
+
 // 1. Basic Middleware
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 2. Health & Base Routes
-app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date(), version: '3.0.0-core' }));
-app.get('/', (req, res) => res.json({ message: 'Pikop V3 API - Professional Multi-Platform Logistics', status: 'ONLINE' }));
+// 2. Session Middleware (For Admin)
+app.use(session({
+  secret: process.env.JWT_SECRET || 'pikop_admin_secret_v3',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
 
-// 3. API v1 Routes
+// 3. View Engine
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+app.use(expressLayouts);
+app.set('layout', 'layout');
+
+// 4. Static Files
+app.use('/public', express.static(path.join(__dirname, '../public')));
+
+// 5. Routes
+app.use('/admin', require('./routes/adminRoutes'));
 app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/orders', require('./routes/orderRoutes'));
 app.use('/api/v1/payments', require('./routes/paymentRoutes'));
 app.use('/api/v1/fulfillers', require('./routes/fulfillerRoutes'));
 
-// 4. Global Error Handler (Harden Core)
+// 6. Health & Base Routes
+app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date(), version: '3.0.0-core' }));
+app.get('/', (req, res) => res.json({ message: 'Pikop V3 API - Professional Multi-Platform Logistics', status: 'ONLINE' }));
+
+// 7. Global Error Handler (Harden Core)
 app.use((err, req, res, next) => {
     console.error(`[Error] ${req.method} ${req.path} >>`, err.stack);
 
