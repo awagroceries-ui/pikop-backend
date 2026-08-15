@@ -11,16 +11,27 @@ const initializePayment = async (req, res) => {
   const { quote_id, amount, email } = req.body;
   const userId = req.user.id;
 
-  if (!PAYSTACK_SECRET) throw new Error('Paystack not configured');
+  if (!PAYSTACK_SECRET || PAYSTACK_SECRET.includes('your_')) {
+      console.error('[Paystack] ERROR: Missing or invalid secret key in .env');
+      return res.status(500).json({ success: false, message: 'Payment gateway not configured' });
+  }
 
   try {
-    const response = await axios.post('https://api.paystack.co/transaction/initialize', {
-      amount: Math.round(amount * 100), // Naira to Kobo
+    const payload = {
+      amount: Math.round(parseFloat(amount) * 100), // Ensure it's Kobo and an integer
       email,
       metadata: { quote_id, user_id: userId },
       channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
-    }, {
-      headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` }
+    };
+
+    console.log(`[Paystack] Initializing for ${email}. Amount: ${payload.amount} kobo. Quote: ${quote_id}`);
+
+    const response = await axios.post('https://api.paystack.co/transaction/initialize', payload, {
+      headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET.trim()}`,
+          'Content-Type': 'application/json'
+      },
+      timeout: 10000
     });
 
     res.status(200).json({
@@ -28,8 +39,9 @@ const initializePayment = async (req, res) => {
       data: response.data.data
     });
   } catch (error) {
-    console.error('[Paystack] Init Error:', error.response?.data || error.message);
-    res.status(400).json({ success: false, message: 'Could not initialize payment' });
+    console.error('[Paystack] API Error:', error.response?.data || error.message);
+    const detail = error.response?.data?.message || error.message;
+    res.status(400).json({ success: false, message: `Paystack failed: ${detail}` });
   }
 };
 
@@ -42,7 +54,7 @@ const handleWebhook = async (req, res) => {
 
   const event = req.body;
   if (event.event === 'charge.success') {
-    const { reference, metadata, channel } = event.data;
+    const { reference, metadata, channel, paid_at } = event.data;
     const client = await db.pool.connect();
 
     try {
@@ -53,17 +65,17 @@ const handleWebhook = async (req, res) => {
         if (quoteRes.rows.length === 0) throw new Error('Quote not found');
         const q = quoteRes.rows[0];
 
-        // 2. Persist Addresses (Master Brief requires ID linkage)
+        // 2. Persist Addresses
         const pAddr = await client.query(
-            "INSERT INTO addresses (user_id, formatted_address, location, landmark_description) VALUES ($1, $2, $3, $4) RETURNING id",
-            [metadata.user_id, q.pickup_address, q.pickup_location, 'Standard Pickup']
+            "INSERT INTO addresses (user_id, formatted_address, location, landmark_description) VALUES ($1, $2, $3, 'Standard Pickup') RETURNING id",
+            [metadata.user_id, q.pickup_address, q.pickup_location]
         );
         const dAddr = await client.query(
-            "INSERT INTO addresses (user_id, formatted_address, location, landmark_description) VALUES ($1, $2, $3, $4) RETURNING id",
-            [metadata.user_id, q.delivery_address, q.delivery_location, 'Standard Delivery']
+            "INSERT INTO addresses (user_id, formatted_address, location, landmark_description) VALUES ($1, $2, $3, 'Standard Delivery') RETURNING id",
+            [metadata.user_id, q.delivery_address, q.delivery_location]
         );
 
-        // 3. Create Unified Order (v3)
+        // 3. Create Unified Order
         await client.query(
             `INSERT INTO orders (
                 order_type, user_id, quote_id, status,
@@ -71,7 +83,7 @@ const handleWebhook = async (req, res) => {
                 pickup_address_id, delivery_address_id,
                 pickup_address, delivery_address,
                 pickup_location, delivery_location,
-                total_fare, payment_reference, payment_status, payment_channel, payment_method,
+                total_fare, payment_reference, payment_status, payment_channel,
                 pickup_code_hash, delivery_code_hash
             ) VALUES (
                 'pickup_delivery', $1, $2, 'SEARCHING',
@@ -79,7 +91,7 @@ const handleWebhook = async (req, res) => {
                 $5, $6,
                 $7, $8,
                 $9, $10,
-                $11, $12, 'PAID', $13, 'online',
+                $11, $12, 'PAID', $13,
                 $14, $15
             )`,
             [
@@ -89,7 +101,7 @@ const handleWebhook = async (req, res) => {
                 q.pickup_address, q.delivery_address,
                 q.pickup_location, q.delivery_location,
                 q.total_fare, reference, channel,
-                'v3_mock_hash', 'v3_mock_hash' // Will implement real hashing in next step
+                'v3_pending_hash', 'v3_pending_hash'
             ]
         );
 
@@ -97,7 +109,7 @@ const handleWebhook = async (req, res) => {
         console.log(`[Webhook] Mission Activated: ${reference}`);
     } catch (e) {
         await client.query('ROLLBACK');
-        console.error('[Webhook] V3 Activation Error:', e.message);
+        console.error('[Webhook] Activation Failure:', e.message);
     } finally {
         client.release();
     }
