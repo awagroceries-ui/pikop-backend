@@ -4,6 +4,8 @@ const db = require('../config/db');
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
+const dispatchService = require('../services/dispatchService');
+
 /**
  * Initializes a Paystack transaction.
  */
@@ -107,6 +109,13 @@ const handleWebhook = async (req, res) => {
 
         await client.query('COMMIT');
         console.log(`[Webhook] Mission Activated: ${reference}`);
+
+        // 4. TRIGGER DISPATCH (Master Brief Milestone 6)
+        const orderRes = await db.query("SELECT * FROM orders WHERE payment_reference = $1", [reference]);
+        if (orderRes.rows.length > 0) {
+            const nearby = await dispatchService.findNearbyFulfillers(orderRes.rows[0]);
+            await dispatchService.broadcastOffer(orderRes.rows[0], nearby);
+        }
     } catch (e) {
         await client.query('ROLLBACK');
         console.error('[Webhook] Activation Failure:', e.message);

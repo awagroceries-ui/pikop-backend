@@ -22,4 +22,8 @@ router.post('/kyc/start', authenticateToken, fulfillerController.startIdentityVe
 router.post('/kyc/document', authenticateToken, upload.single('file'), fulfillerController.uploadDocument);
 router.post('/kyc/webhook', fulfillerController.handleDiditWebhook); // Public for Didit
 
+// Fleet Operations
+router.get('/profile', authenticateToken, fulfillerController.getProfile);
+router.patch('/status', authenticateToken, fulfillerController.updateStatus);
+
 module.exports = router;

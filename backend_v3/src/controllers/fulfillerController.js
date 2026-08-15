@@ -87,8 +87,61 @@ const uploadDocument = async (req, res) => {
   }
 };
 
+/**
+ * Updates fulfiller online status and current GPS location.
+ */
+const updateStatus = async (req, res) => {
+  const { online_status, lat, lng } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const query = `
+      UPDATE fulfillers
+      SET online_status = $1,
+          current_location = ST_SetSRID(ST_MakePoint($2, $3), 4326),
+          last_ping_at = CURRENT_TIMESTAMP,
+          last_active_at = CURRENT_TIMESTAMP
+      WHERE user_id = $4
+      RETURNING id, online_status
+    `;
+
+    const { rows } = await db.query(query, [online_status || 'OFFLINE', lng || 0, lat || 0, userId]);
+
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller profile not found' });
+
+    console.log(`[Fleet] Fulfiller ${rows[0].id} is now ${rows[0].online_status}`);
+
+    res.status(200).json({
+      success: true,
+      data: { status: rows[0].online_status }
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Fetches the fulfiller's own profile and stats.
+ */
+const getProfile = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const { rows } = await db.query(
+        "SELECT * FROM fulfillers WHERE user_id = $1",
+        [userId]
+    );
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Profile not found' });
+
+    res.status(200).json({ success: true, data: rows[0] });
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   startIdentityVerification,
   handleDiditWebhook,
-  uploadDocument
+  uploadDocument,
+  updateStatus,
+  getProfile
 };

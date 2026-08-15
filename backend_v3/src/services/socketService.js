@@ -23,6 +23,13 @@ const init = (server) => {
     const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
     console.log(`[Socket] Connection attempt: ${socket.id} from ${clientIp} using ${socket.conn.transport.name}`);
 
+    // Milestone 2/4: Join self-room for targeted dispatch
+    const userId = socket.handshake.query.userId;
+    if (userId) {
+        socket.join(`user_${userId}`);
+        console.log(`[Socket] User ${userId} joined their private channel.`);
+    }
+
     // Join room for specific mission tracking
     socket.on("join_order", (orderId) => {
       socket.join(`order_${orderId}`);
