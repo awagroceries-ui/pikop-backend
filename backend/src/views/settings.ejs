@@ -12,17 +12,42 @@
 
                 <form action="/admin/settings" method="POST" class="mt-4">
                     <div class="mb-4">
-                        <label class="form-label small fw-bold">Platform Commission Rate</label>
+                        <label class="form-label small fw-bold uppercase ls-1 text-muted">Platform Commission</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-accent border-secondary text-muted mono">Ratio</span>
                             <input type="number" step="0.01" name="platform_commission" class="form-control bg-surface border-secondary text-white mono" value="<%= settings.platform_commission %>" required>
+                            <span class="input-group-text bg-accent border-secondary text-muted mono">% Decimal</span>
                         </div>
                         <div class="form-text text-muted smaller mt-2">
-                            Current extraction: <span class="text-active fw-bold"><%= settings.platform_commission * 100 %>%</span>. This applies to the Gross Fare of all successful deliveries.
+                            Current extraction: <span class="text-active fw-bold"><%= (parseFloat(settings.platform_commission || 0) * 100).toFixed(0) %>%</span>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary px-4 py-2 fw-bold">Commit Changes</button>
+                    <h6 class="text-muted small fw-bold uppercase ls-1 mb-3">Fare Pricing Dynamics (NGN)</h6>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label smaller fw-bold text-muted">Base (SMALL)</label>
+                            <input type="number" name="base_fare_small" class="form-control bg-surface border-secondary text-white mono" value="<%= settings.base_fare_small || 500 %>" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label smaller fw-bold text-muted">Base (MEDIUM)</label>
+                            <input type="number" name="base_fare_medium" class="form-control bg-surface border-secondary text-white mono" value="<%= settings.base_fare_medium || 1000 %>" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label smaller fw-bold text-muted">Base (LARGE)</label>
+                            <input type="number" name="base_fare_large" class="form-control bg-surface border-secondary text-white mono" value="<%= settings.base_fare_large || 1500 %>" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold uppercase ls-1 text-muted">Distance Rate (Per KM)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-accent border-secondary text-muted mono">₦</span>
+                            <input type="number" name="per_km_rate" class="form-control bg-surface border-secondary text-white mono" value="<%= settings.per_km_rate || 150 %>" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold ls-1">COMMIT PLATFORM CHANGES</button>
                 </form>
             </div>
         </div>

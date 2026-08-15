@@ -14,12 +14,12 @@
 </div>
 
 <div class="card d-flex flex-column" style="height: 60vh;">
-    <div id="chat-window" class="card-body overflow-auto p-4 d-flex flex-column gap-3" style="background: var(--bg-deep);">
+    <div id="chat-window" class="card-body overflow-auto p-4 d-flex flex-column gap-3" style="background: var(--bg-chrome); height: 500px;">
         <% messages.forEach(msg => { %>
             <div class="d-flex <%= msg.sender_type === 'ADMIN' ? 'justify-content-end' : 'justify-content-start' %>">
-                <div class="p-3 rounded-3" style="max-width: 70%; background: <%= msg.sender_type === 'ADMIN' ? 'var(--primary)' : 'var(--bg-accent)' %>; color: <%= msg.sender_type === 'ADMIN' ? '#0B0B0B' : 'white' %>;">
-                    <p class="mb-1 small"><%= msg.body || msg.content %></p>
-                    <div class="text-end" style="font-size: 0.65rem; opacity: 0.6;">
+                <div class="p-3 rounded-3 shadow-sm" style="max-width: 75%; background: <%= msg.sender_type === 'ADMIN' ? 'var(--brand-gold)' : 'rgba(255,255,255,0.05)' %>; color: <%= msg.sender_type === 'ADMIN' ? 'black' : 'white' %>; border: 1px solid rgba(255,255,255,0.1);">
+                    <p class="mb-1" style="font-size: 0.9rem; line-height: 1.5;"><%= msg.content %></p>
+                    <div class="text-end" style="font-size: 0.65rem; opacity: 0.5; margin-top: 4px;">
                         <%= new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %>
                     </div>
                 </div>

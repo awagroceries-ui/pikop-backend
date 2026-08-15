@@ -38,10 +38,15 @@ const sendMail = async (to, subject, html) => {
         try {
             console.log(`[Email] Attempting Brevo SMTP delivery to ${to} from ${cleanFrom}...`);
             const info = await brevoTransporter.sendMail({
-                from: `"Pikop" <${cleanFrom}>`,
+                from: `"Pikop Support" <${cleanFrom}>`,
                 to,
                 subject,
-                html
+                html,
+                headers: {
+                    'X-Priority': '1 (Highest)',
+                    'X-MSMail-Priority': 'High',
+                    'Importance': 'High'
+                }
             });
             console.log(`[Brevo] SUCCESS: Message delivered. ID: ${info.messageId}`);
             return { success: true, messageId: info.messageId };

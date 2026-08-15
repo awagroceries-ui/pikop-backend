@@ -350,15 +350,36 @@ const getSettings = async (req, res) => {
 };
 
 const updateSettings = async (req, res) => {
-  const { platform_commission } = req.body;
+  const { platform_commission, base_fare_small, base_fare_medium, base_fare_large, per_km_rate } = req.body;
+  const client = await db.pool.connect();
   try {
-    await db.query(
-      "UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'platform_commission'",
-      [platform_commission]
-    );
+    await client.query('BEGIN');
+
+    const queries = [
+        { key: 'platform_commission', value: platform_commission },
+        { key: 'base_fare_small', value: base_fare_small },
+        { key: 'base_fare_medium', value: base_fare_medium },
+        { key: 'base_fare_large', value: base_fare_large },
+        { key: 'per_km_rate', value: per_km_rate }
+    ];
+
+    for (const q of queries) {
+        if (q.value !== undefined) {
+            await client.query(
+                "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP",
+                [q.key, q.value]
+            );
+        }
+    }
+
+    await client.query('COMMIT');
     res.redirect('/admin/settings');
   } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Update Settings Error:', error);
     res.status(500).send('Error updating settings');
+  } finally {
+    client.release();
   }
 };
 
@@ -500,7 +521,7 @@ const replySupport = async (req, res) => {
 
   try {
     const { rows } = await db.query(
-      "INSERT INTO messages (conversation_id, sender_id, sender_type, body) VALUES ($1, $2, 'ADMIN', $3) RETURNING id, created_at",
+      "INSERT INTO messages (conversation_id, sender_id, sender_type, content) VALUES ($1, $2, 'ADMIN', $3) RETURNING id, created_at",
       [id, adminId, body]
     );
 

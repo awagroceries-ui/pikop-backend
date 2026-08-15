@@ -62,12 +62,12 @@ const init = (server) => {
         if (hasContact) console.log(`[Chat Audit] Flagged message with contact info from ${senderType} ${senderId} in room ${room}`);
 
         const { rows } = await db.query(
-          `INSERT INTO messages (conversation_id, order_id, sender_id, sender_type, body)
+          `INSERT INTO messages (conversation_id, order_id, sender_id, sender_type, content)
            VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
           [conversationId || null, orderId || null, senderId, senderType, body]
         );
 
-        const savedMsg = { ...data, id: rows[0].id, created_at: rows[0].created_at, body };
+        const savedMsg = { ...data, id: rows[0].id, created_at: rows[0].created_at, content: body };
         io.to(room).emit("receive_message", savedMsg);
 
         if (conversationId) {

@@ -93,11 +93,20 @@ const getQuote = async (req, res) => {
         }
     }
 
-    const basePricing = { 'SMALL': 500.00, 'MEDIUM': 1000.00, 'LARGE': 1500.00 };
-    const perKmRate = 150.00;
-    const baseFare = basePricing[classification.size_tier] || 1500.00;
+    // 2. Fetch Pricing Logic from Settings
+    const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate')");
+    const settingsMap = {};
+    settingsRes.rows.forEach(r => settingsMap[r.key] = parseFloat(r.value));
 
-    // 2. Final Fare: Base + (Distance * Rate) with a profit floor
+    const basePricing = {
+        'SMALL': settingsMap.base_fare_small || 500.00,
+        'MEDIUM': settingsMap.base_fare_medium || 1000.00,
+        'LARGE': settingsMap.base_fare_large || 1500.00
+    };
+    const perKmRate = settingsMap.per_km_rate || 150.00;
+    const baseFare = basePricing[classification.size_tier] || basePricing['LARGE'];
+
+    // 3. Final Fare: Base + (Distance * Rate) with a profit floor
     const calculatedFare = Math.ceil(baseFare + (distanceKm * perKmRate));
     const fare = Math.max(700, calculatedFare); // Minimum floor of 700 NGN
 
