@@ -51,6 +51,12 @@ class AccountScreen extends StatelessWidget {
                     Icons.help_outline,
                     () => Navigator.pushNamed(context, '/support_hub'),
                   ),
+                  _buildOption(
+                    context,
+                    'Merchant Portal',
+                    Icons.business_center_outlined,
+                    () => Navigator.pushNamed(context, '/merchant_dashboard'),
+                  ),
                   const SizedBox(height: 32),
                   ElevatedButton.icon(
                     onPressed: () => context.read<AuthBloc>().add(LogoutRequested()),

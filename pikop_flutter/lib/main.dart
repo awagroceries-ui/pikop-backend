@@ -24,6 +24,9 @@ import 'features/marketplace/presentation/screens/manage_catalog_screen.dart';
 import 'features/marketplace/presentation/screens/product_detail_screen.dart';
 import 'features/marketplace/presentation/screens/shop_browser_screen.dart';
 import 'features/marketplace/presentation/screens/vendor_onboarding_screen.dart';
+import 'features/merchant/data/merchant_repository.dart';
+import 'features/merchant/presentation/bloc/merchant_bloc.dart';
+import 'features/merchant/presentation/screens/merchant_dashboard_screen.dart';
 import 'features/support/data/support_repository.dart';
 import 'features/support/presentation/bloc/support_bloc.dart';
 import 'features/support/presentation/screens/support_hub_screen.dart';
@@ -51,6 +54,7 @@ class PikopApp extends StatelessWidget {
         RepositoryProvider(create: (context) => MarketplaceRepository()),
         RepositoryProvider(create: (context) => KitchenRepository()),
         RepositoryProvider(create: (context) => WalletRepository()),
+        RepositoryProvider(create: (context) => MerchantRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -75,6 +79,9 @@ class PikopApp extends StatelessWidget {
           BlocProvider(
             create: (context) => WalletBloc(walletRepository: context.read<WalletRepository>()),
           ),
+          BlocProvider(
+            create: (context) => MerchantBloc(merchantRepository: context.read<MerchantRepository>()),
+          ),
         ],
         child: MaterialApp(
           title: 'Pikop',
@@ -95,6 +102,7 @@ class PikopApp extends StatelessWidget {
             '/manage_catalog': (context) => const ManageCatalogScreen(),
             '/foods': (context) => const FoodBrowserScreen(),
             '/wallet': (context) => const WalletScreen(),
+            '/merchant_dashboard': (context) => const MerchantDashboardScreen(),
           },
           onGenerateRoute: (settings) {
             if (settings.name == '/otp') {

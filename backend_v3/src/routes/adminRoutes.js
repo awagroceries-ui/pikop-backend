@@ -37,6 +37,7 @@ router.get('/kyc', adminController.getKYCQueue);
 // Partners
 router.get('/vendors', adminController.getVendors);
 router.get('/kitchens', adminController.getKitchens);
+router.get('/merchants', (req, res) => res.render('merchants', { merchants: [] })); // Placeholder for now
 
 // Support
 router.get('/support', adminController.getSupportInbox);
