@@ -9,7 +9,8 @@ const path = require('path');
 // Setup Multer for disk storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    const uploadPath = path.join(__dirname, '../../uploads');
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     cb(null, `order-${Date.now()}${path.extname(file.originalname)}`);

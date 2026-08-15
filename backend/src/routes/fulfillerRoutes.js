@@ -8,7 +8,8 @@ const { authenticateToken } = require('../middleware/authMiddleware');
 // Setup Multer for disk storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    const uploadPath = path.join(__dirname, '../../uploads');
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const prefix = file.fieldname === 'photo' ? 'profile' : 'kyc';

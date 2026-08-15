@@ -126,10 +126,11 @@ const getMyAccounts = async (req, res) => {
             SELECT ca.id, ca.company_name, ca.billing_type, csa.role
             FROM corporate_accounts ca
             JOIN corporate_sub_accounts csa ON csa.corporate_account_id = ca.id
-            WHERE csa.user_id = $1 AND ca.status = 'active'`, [userId]);
+            WHERE csa.user_id = $1`, [userId]);
         res.status(200).json(rows);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch your corporate accounts' });
+        console.error('[Corporate] getMyAccounts Error:', error.message);
+        res.status(500).json({ error: 'Failed to fetch your corporate accounts', detail: error.message });
     }
 };
 
