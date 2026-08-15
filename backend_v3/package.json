@@ -1,0 +1,35 @@
+{
+  "name": "pikop-backend-v3",
+  "version": "3.0.0",
+  "description": "Pikop Multi-Platform Logistics API (v3)",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
+    "migrate": "node-pg-migrate",
+    "migrate:up": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.17.0",
+    "axios": "^1.7.5",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-async-errors": "^3.1.1",
+    "express-session": "^1.18.0",
+    "firebase-admin": "^12.4.0",
+    "helmet": "^7.1.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "node-pg-migrate": "^7.6.1",
+    "nodemailer": "^6.9.14",
+    "pg": "^8.12.0",
+    "socket.io": "^4.7.5",
+    "uuid": "^10.0.0",
+    "winston": "^3.14.2"
+  }
+}
