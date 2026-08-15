@@ -94,16 +94,28 @@ const getQuote = async (req, res) => {
     }
 
     // 2. Fetch Pricing Logic from Settings
-    const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate')");
-    const settingsMap = {};
-    settingsRes.rows.forEach(r => settingsMap[r.key] = parseFloat(r.value));
+    let settingsMap = {
+        base_fare_small: 500,
+        base_fare_medium: 1000,
+        base_fare_large: 1500,
+        per_km_rate: 150
+    };
+
+    try {
+        const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate')");
+        settingsRes.rows.forEach(r => {
+            if (r.value) settingsMap[r.key] = parseFloat(r.value);
+        });
+    } catch (e) {
+        console.warn('[Quote] Settings fetch failed, using internal defaults.');
+    }
 
     const basePricing = {
-        'SMALL': settingsMap.base_fare_small || 500.00,
-        'MEDIUM': settingsMap.base_fare_medium || 1000.00,
-        'LARGE': settingsMap.base_fare_large || 1500.00
+        'SMALL': settingsMap.base_fare_small,
+        'MEDIUM': settingsMap.base_fare_medium,
+        'LARGE': settingsMap.base_fare_large
     };
-    const perKmRate = settingsMap.per_km_rate || 150.00;
+    const perKmRate = settingsMap.per_km_rate;
     const baseFare = basePricing[classification.size_tier] || basePricing['LARGE'];
 
     // 3. Final Fare: Base + (Distance * Rate) with a profit floor
