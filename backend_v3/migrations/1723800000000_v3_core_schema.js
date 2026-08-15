@@ -1,5 +1,5 @@
 exports.up = (pgm) => {
-  // 1. Users Table (Compliant with Master Brief Milestone 2)
+  // 1. Users Table
   pgm.createTable('users', {
     id: 'id',
     full_name: { type: 'varchar(255)', notNull: true },
@@ -22,7 +22,6 @@ exports.up = (pgm) => {
       references: '"users"',
       onDelete: 'set null',
     },
-    wallet_id: { type: 'uuid' }, // Linked after wallet table creation
     language: { type: 'varchar(10)', notNull: true, default: 'en' },
     created_at: {
       type: 'timestamp',
@@ -54,7 +53,7 @@ exports.up = (pgm) => {
     },
   });
 
-  // 3. User Sessions Table (Shared state for Clustered environments)
+  // 3. User Sessions Table
   pgm.createTable('user_sessions', {
     id: { type: 'uuid', primaryKey: true, default: pgm.func('gen_random_uuid()') },
     user_id: {
@@ -80,9 +79,7 @@ exports.up = (pgm) => {
   });
 
   pgm.createIndex('users', 'email');
-  pgm.createIndex('users', 'role');
   pgm.createIndex('otp_verifications', 'user_id');
-  pgm.createIndex('user_sessions', 'user_id');
 };
 
 exports.down = (pgm) => {

@@ -1,5 +1,5 @@
 exports.up = (pgm) => {
-  // 1. FCM Tokens Table
+  // 1. FCM Tokens
   pgm.createTable('user_fcm_tokens', {
     user_id: {
       type: 'integer',
@@ -8,7 +8,6 @@ exports.up = (pgm) => {
       onDelete: 'cascade',
     },
     token: { type: 'text', notNull: true },
-    device_info: { type: 'jsonb' },
     updated_at: {
       type: 'timestamp',
       notNull: true,
@@ -16,13 +15,12 @@ exports.up = (pgm) => {
     },
   });
 
-  // 2. Notification Logs (Milestone 9)
+  // 2. Notifications Log
   pgm.createTable('notifications', {
     id: 'id',
     user_id: { type: 'integer', references: '"users"' },
-    type: { type: 'varchar(50)', notNull: true }, // email, push
+    type: { type: 'varchar(50)', notNull: true },
     template: { type: 'varchar(100)' },
-    recipient: { type: 'varchar(255)' },
     status: { type: 'varchar(20)', default: 'SENT' },
     created_at: {
       type: 'timestamp',
