@@ -1,19 +1,25 @@
 #!/bin/bash
 
-# PIKOP V3 NGINX FIX
-# Replaces the current Nginx config with a guaranteed WebSocket-compatible one.
+# PIKOP V3 NGINX FIX (v3.0.12)
+# This script completely rebuilds the Nginx config for api.awa.name.ng
+# to resolve duplicate directives and enable WebSocket support.
 
-CONFIG_FILE=$(grep -l "api.awa.name.ng" /etc/nginx/conf.d/*.conf /etc/nginx/sites-enabled/* 2>/dev/null | head -n 1)
+DOMAIN="api.awa.name.ng"
+CONFIG_FILE=$(grep -l "$DOMAIN" /etc/nginx/conf.d/*.conf /etc/nginx/sites-enabled/* 2>/dev/null | head -n 1)
 
 if [ -z "$CONFIG_FILE" ]; then
-  echo "❌ Config file not found."
-  exit 1
+  echo "❌ Config file for $DOMAIN not found. Creating a new one in /etc/nginx/conf.d/api.awa.name.ng.conf..."
+  CONFIG_FILE="/etc/nginx/conf.d/api.awa.name.ng.conf"
 fi
 
-echo "✅ Found config: $CONFIG_FILE"
+echo "✅ Target Config: $CONFIG_FILE"
 
-# Create a clean version of the config
-cat << 'EOF' > /tmp/pikop_nginx.conf
+# Backup the current config
+cp "$CONFIG_FILE" "${CONFIG_FILE}.bak"
+echo "💾 Backup created at ${CONFIG_FILE}.bak"
+
+# Create a clean, validated configuration
+cat << 'EOF' > /tmp/pikop_v3_nginx.conf
 server {
     server_name api.awa.name.ng;
 
@@ -29,11 +35,12 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    listen 443 ssl; # managed by Certbot
-    ssl_certificate /etc/letsencrypt/live/api.awa.name.ng/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/api.awa.name.ng/privkey.pem; # managed by Certbot
-    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+    # SSL Configuration (Managed by Certbot)
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/api.awa.name.ng/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.awa.name.ng/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 }
 
 server {
@@ -46,10 +53,16 @@ server {
 }
 EOF
 
-# Move to the actual config path
-mv /tmp/pikop_nginx.conf $CONFIG_FILE
+# Move and apply
+mv /tmp/pikop_v3_nginx.conf "$CONFIG_FILE"
 
-# Test and reload
-nginx -t && systemctl reload nginx
-
-echo "🚀 Nginx fixed and reloaded."
+echo "🧪 Testing Nginx configuration..."
+if nginx -t; then
+    echo "✅ Syntax check passed. Reloading Nginx..."
+    systemctl reload nginx
+    echo "🚀 PIKOP V3 Gateway Restored."
+else
+    echo "❌ ERROR: Nginx syntax check failed. Reverting to backup..."
+    mv "${CONFIG_FILE}.bak" "$CONFIG_FILE"
+    exit 1
+fi
