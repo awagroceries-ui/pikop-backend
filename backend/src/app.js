@@ -68,4 +68,17 @@ app.use('/api/v1/settings', require('./routes/settingsRoutes'));
 app.get('/health', (req, res) => res.json({ status: 'UP', version: VERSION }));
 app.get('/', (req, res) => res.json({ message: `Pikop API v${VERSION}`, status: 'ONLINE' }));
 
+// 9. GLOBAL ERROR HANDLER (Last Middleware)
+app.use((err, req, res, next) => {
+  console.error('--- INTERNAL SERVER ERROR ---');
+  console.error('Path:', req.path);
+  console.error('Stack:', err.stack);
+  console.error('-----------------------------');
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: err.message,
+    path: req.path
+  });
+});
+
 module.exports = app;

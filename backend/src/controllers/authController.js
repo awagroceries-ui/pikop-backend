@@ -66,7 +66,6 @@ const signup = async (req, res) => {
     );
 
     await client.query('COMMIT');
-    client.release(); // Important: Release before post-transaction async tasks
 
     // 4. Send email with OTP (Asynchronous, no longer blocks)
     notificationService.sendOTPEmail(user.id, email, otp).catch(e => {
