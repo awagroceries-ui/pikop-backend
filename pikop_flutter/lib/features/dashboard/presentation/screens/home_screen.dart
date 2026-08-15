@@ -88,7 +88,7 @@ class CustomerDashboard extends StatelessWidget {
               'Order fresh meals from kitchens.',
               Icons.restaurant,
               PikopTheme.teal ?? Colors.teal,
-              () {}, // TODO: Foods
+              () => Navigator.pushNamed(context, '/foods'),
             ),
             const SizedBox(height: 32),
             const Divider(color: Colors.white10),

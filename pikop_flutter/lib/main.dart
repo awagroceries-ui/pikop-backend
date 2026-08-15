@@ -14,6 +14,9 @@ import 'features/fulfiller/data/fulfiller_repository.dart';
 import 'features/fulfiller/presentation/bloc/fulfiller_bloc.dart';
 import 'features/fulfiller/presentation/screens/fulfiller_onboarding_screen.dart';
 
+import 'features/foods/data/kitchen_repository.dart';
+import 'features/foods/presentation/bloc/foods_bloc.dart';
+import 'features/foods/presentation/screens/food_browser_screen.dart';
 import 'features/marketplace/data/marketplace_repository.dart';
 import 'features/marketplace/presentation/bloc/marketplace_bloc.dart';
 import 'features/marketplace/presentation/screens/manage_catalog_screen.dart';
@@ -41,6 +44,7 @@ class PikopApp extends StatelessWidget {
         RepositoryProvider(create: (context) => SocketService()),
         RepositoryProvider(create: (context) => SupportRepository()),
         RepositoryProvider(create: (context) => MarketplaceRepository()),
+        RepositoryProvider(create: (context) => KitchenRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -59,6 +63,9 @@ class PikopApp extends StatelessWidget {
           BlocProvider(
             create: (context) => MarketplaceBloc(marketplaceRepository: context.read<MarketplaceRepository>()),
           ),
+          BlocProvider(
+            create: (context) => FoodsBloc(kitchenRepository: context.read<KitchenRepository>()),
+          ),
         ],
         child: MaterialApp(
           title: 'Pikop',
@@ -76,6 +83,7 @@ class PikopApp extends StatelessWidget {
             '/marketplace': (context) => const ShopBrowserScreen(),
             '/vendor_onboarding': (context) => const VendorOnboardingScreen(),
             '/manage_catalog': (context) => const ManageCatalogScreen(),
+            '/foods': (context) => const FoodBrowserScreen(),
           },
           onGenerateRoute: (settings) {
             if (settings.name == '/otp') {
