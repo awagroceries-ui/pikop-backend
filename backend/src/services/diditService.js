@@ -29,26 +29,29 @@ const createSession = async (userId) => {
   }
 
   try {
-    console.log(`[Didit] Initializing session for User ${userId} with Workflow ${WORKFLOW_ID}`);
-    const res = await axios.post("https://verification.didit.me/v3/session/", {
+    const payload = {
       workflow_id: WORKFLOW_ID,
       vendor_data: userId.toString(),
       callback: "https://api.awa.name.ng/api/v1/fulfillers/kyc/webhook",
-    }, {
+    };
+    console.log(`[Didit] Initializing session for User ${userId}. Payload:`, payload);
+
+    const res = await axios.post("https://verification.didit.me/v3/session/", payload, {
       headers: {
         "x-api-key": DIDIT_API_KEY,
         "Content-Type": "application/json",
       }
     });
 
-    console.log(`[Didit] Session created: ${res.data.session_id}`);
+    console.log(`[Didit] SUCCESS: Session created. ID: ${res.data.session_id}`);
     return res.data;
   } catch (error) {
     const detail = error.response?.data?.detail || error.message;
-    console.error('Didit Session Creation Error:', detail);
+    console.error(`[Didit] FAILURE: Session creation failed for User ${userId}`);
+    console.error(`[Didit] Error Detail:`, detail);
     if (error.response) {
       console.error('[Didit] Status:', error.response.status);
-      console.error('[Didit] Response Data:', JSON.stringify(error.response.data));
+      console.error('[Didit] Response Body:', JSON.stringify(error.response.data));
     }
     throw new Error(`Didit Error: ${detail}`);
   }

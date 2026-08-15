@@ -115,7 +115,13 @@ fun KycUploadScreen(onBack: () -> Unit) {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions[Manifest.permission.CAMERA] == true) {
-            cameraLauncher.launch(captureUri)
+            if (currentStep == 1) {
+                cameraLauncher.launch(captureUri)
+            } else if (currentStep == 2) {
+                // Permissions granted for Step 2, re-trigger the launch logic 
+                // but handled by the IdentityStep click or auto-launch
+                refreshKey++
+            }
         }
     }
 
@@ -124,22 +130,19 @@ fun KycUploadScreen(onBack: () -> Unit) {
             val res = apiService.getFulfillerProfile()
             profile = res
             
-            // Only auto-initialize currentStep if it's the very first load (refreshKey 0)
-            if (refreshKey == 0) {
-                if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
-                    currentStep = 5
-                } else if (res.profile_photo_url == null) {
-                    currentStep = if (res.primary_class == null) 0 else 1
-                } else if (res.didit_verification_status != "approved") {
-                    currentStep = 2
-                } else if (res.primary_class != "agent" && res.kyc_status == "NOT_STARTED") {
-                    // This is tricky because we don't have a 'license_uploaded' flag 
-                    // in the basic profile response yet. We'll default to the ID step
-                    // and let the user click 'Continue' to go to license.
-                    currentStep = 2
-                } else {
-                    currentStep = 5
-                }
+            // Auto-advance logic: Sync step with backend state
+            if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
+                currentStep = 5
+            } else if (res.profile_photo_url == null) {
+                currentStep = if (res.primary_class == null) 0 else 1
+            } else if (res.didit_verification_status != "approved") {
+                currentStep = 2
+            } else if (res.primary_class != "agent" && (res.registration_number == null)) {
+                // If not an agent and no vehicle info, go to License/Vehicle steps
+                // We'll start at Step 3 (License)
+                currentStep = 3
+            } else {
+                currentStep = 5
             }
         } catch (e: Exception) {
             android.util.Log.e("PikopKyc", "Profile refresh failed", e)
@@ -434,7 +437,12 @@ fun IdentityStep(
                 return@Card
             }
             
-            val activity = context.findActivity() ?: return@Card
+            val activity = context.findActivity() 
+            if (activity == null) {
+                Toast.makeText(context, "Error: App environment not ready.", Toast.LENGTH_SHORT).show()
+                return@Card
+            }
+
             scope.launch {
                 isLaunching = true
                 try {
@@ -447,7 +455,9 @@ fun IdentityStep(
                         if (!session.session_token.isNullOrBlank()) {
                             onSessionCreated(session.session_token, session.session_id ?: "")
                             session.session_token
-                        } else null
+                        } else {
+                            throw Exception("Server returned empty session token.")
+                        }
                     }
 
                     if (!tokenToUse.isNullOrBlank()) {
@@ -456,11 +466,12 @@ fun IdentityStep(
                         }
                         DiditSdk.launchVerificationUI(activity)
                     } else {
-                        Toast.makeText(context, "Verification server returned no token", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Verification token missing.", Toast.LENGTH_LONG).show()
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("PikopKyc", "Launch failed", e)
-                    Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    val errorMsg = ErrorUtils.parseError(e)
+                    Toast.makeText(context, "Identity Launch Failed: $errorMsg", Toast.LENGTH_LONG).show()
                 } finally { isLaunching = false }
             }
         }) {

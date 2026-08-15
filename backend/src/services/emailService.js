@@ -28,13 +28,16 @@ const sendMail = async (to, subject, html) => {
     return { success: true, messageId: 'mock-id' };
   }
 
+  // Clean the sender address (Remove quotes and shell-induced garbage)
+  const cleanFrom = EMAIL_FROM.replace(/["'<>]/g, '').trim();
+
   try {
     const payload = {
       Messages: [
         {
           From: {
-            Email: EMAIL_FROM,
-            Name: "Pikop"
+            Email: cleanFrom,
+            Name: "Pikop Support"
           },
           To: [
             {
@@ -43,10 +46,12 @@ const sendMail = async (to, subject, html) => {
           ],
           Subject: subject,
           HTMLPart: html,
-          TextPart: html.replace(/<[^>]*>?/gm, '') // Simple HTML to Text conversion
+          TextPart: html.replace(/<[^>]*>?/gm, '')
         }
       ]
     };
+
+    console.log(`[Mailjet] Dispatching to ${to} from ${cleanFrom}...`);
 
     const response = await axios.post(
       'https://api.mailjet.com/v3.1/send',
@@ -63,27 +68,21 @@ const sendMail = async (to, subject, html) => {
     );
 
     const messageId = response.data.Messages[0].To[0].MessageID;
-    console.log(`[Mailjet] Success: Email sent to ${to}. ID: ${messageId}`);
+    console.log(`[Mailjet] SUCCESS: Message delivered. ID: ${messageId}`);
     return { success: true, messageId };
 
   } catch (error) {
-    console.error(`[Mailjet] Failure: Failed to send to ${to}`);
+    console.error(`[Mailjet] FAILURE: Failed to send to ${to}`);
 
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      console.error('[Mailjet] API Error:', error.response.data);
-      console.error('[Mailjet] Status:', error.response.status);
+      const errorData = error.response.data;
+      console.error('[Mailjet] API Status:', error.response.status);
+      console.error('[Mailjet] Error Details:', JSON.stringify(errorData));
 
-      const errorDetail = error.response.data.Messages ? error.response.data.Messages[0].Errors : error.response.data;
-      return { success: false, error: JSON.stringify(errorDetail) };
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error('[Mailjet] No response received from server.');
-      return { success: false, error: 'No response from Mailjet' };
+      const errorMessage = errorData.Messages ? JSON.stringify(errorData.Messages[0].Errors) : JSON.stringify(errorData);
+      return { success: false, error: errorMessage };
     } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error('[Mailjet] Request Setup Error:', error.message);
+      console.error('[Mailjet] Request Error:', error.message);
       return { success: false, error: error.message };
     }
   }

@@ -72,6 +72,19 @@ fun PikopAppNavigation() {
     val referralCode by tokenManager.referralCode.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
 
+    // Redirect to OTP if not verified (Strict Gating)
+    LaunchedEffect(accessToken, isVerified) {
+        if (accessToken != null && !isVerified) {
+            // Check current destination to avoid infinite loop
+            val current = navController.currentDestination?.route
+            if (current != null && !current.startsWith("email_otp") && current != "splash" && current != "terms") {
+                navController.navigate("email_otp/$userEmail/$userRole") {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        }
+    }
+
     // Notification Permission Request
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()

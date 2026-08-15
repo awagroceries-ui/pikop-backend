@@ -51,6 +51,10 @@ fun SignupScreen(
 
     val isFulfiller = role == "FULFILLER"
 
+    LaunchedEffect(Unit) {
+        tokenManager.clearTokens() // Hard clear on entry to prevent stale session bypass
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
