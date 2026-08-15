@@ -12,12 +12,13 @@ const testRealtime = () => {
         socket.emit('send_message', {
             sender_id: 1,
             sender_type: 'USER',
-            content: 'Hello, I need help with my delivery!',
+            content: 'V3 Real-time Test Message',
             conversation_id: '550e8400-e29b-41d4-a716-446655440000'
         });
     });
 
-    socket.on('admin_notification', (data) => {
+    // V3 Aligned Listener
+    socket.on('new_support_alert', (data) => {
         console.log('🔔 RECEIVED ADMIN ALERT:', data);
         console.log('✅ Real-time alert system is functional.');
         socket.disconnect();
@@ -30,7 +31,7 @@ const testRealtime = () => {
     });
 
     setTimeout(() => {
-        console.error('⏱️ Timeout: No alert received.');
+        console.error('⏱️ Timeout: No alert received. Check if backend emitted "new_support_alert"');
         process.exit(1);
     }, 5000);
 };
