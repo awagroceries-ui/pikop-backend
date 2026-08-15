@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const geminiService = require('../services/geminiService');
+const walletService = require('../services/walletService');
 
 /**
  * Generates a dynamic, distance-based quote.
@@ -154,6 +155,11 @@ const updateStatus = async (req, res) => {
     // Sync participants
     const socketService = require('../services/socketService');
     socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status });
+
+    // 2. Trigger Settlement on Delivery (v3)
+    if (status === 'DELIVERED') {
+        await walletService.processMissionSettlement(orderId);
+    }
 
     res.status(200).json({ success: true, data: rows[0] });
   } catch (error) {

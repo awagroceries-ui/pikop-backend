@@ -60,6 +60,7 @@ app.use('/api/v1/fulfillers', require('./routes/fulfillerRoutes'));
 app.use('/api/v1/support', require('./routes/supportRoutes'));
 app.use('/api/v1/marketplace', require('./routes/marketplaceRoutes'));
 app.use('/api/v1/kitchens', require('./routes/kitchenRoutes'));
+app.use('/api/v1/wallets', require('./routes/walletRoutes'));
 
 // 6. Health & Base Routes
 app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date(), version: '3.0.0-core' }));

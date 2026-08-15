@@ -52,8 +52,8 @@ class CustomerDashboard extends StatelessWidget {
         title: const Text('PIKOP', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => context.read<AuthBloc>().add(LogoutRequested()),
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => Navigator.pushNamed(context, '/account'),
           )
         ],
       ),
@@ -165,6 +165,10 @@ class _FulfillerDashboardState extends State<FulfillerDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('FLEET COMMAND'),
+        leading: IconButton(
+          icon: const Icon(Icons.person_outline),
+          onPressed: () => Navigator.pushNamed(context, '/account'),
+        ),
         actions: [
           Switch(
             value: _isOnline,

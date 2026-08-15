@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/theme/pikop_theme.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/screens/account_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/otp_screen.dart';
 import 'features/auth/presentation/screens/signup_screen.dart';
@@ -27,6 +28,10 @@ import 'features/support/data/support_repository.dart';
 import 'features/support/presentation/bloc/support_bloc.dart';
 import 'features/support/presentation/screens/support_hub_screen.dart';
 
+import 'features/wallet/data/wallet_repository.dart';
+import 'features/wallet/presentation/bloc/wallet_bloc.dart';
+import 'features/wallet/presentation/screens/wallet_screen.dart';
+
 void main() {
   runApp(const PikopApp());
 }
@@ -45,6 +50,7 @@ class PikopApp extends StatelessWidget {
         RepositoryProvider(create: (context) => SupportRepository()),
         RepositoryProvider(create: (context) => MarketplaceRepository()),
         RepositoryProvider(create: (context) => KitchenRepository()),
+        RepositoryProvider(create: (context) => WalletRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -66,6 +72,9 @@ class PikopApp extends StatelessWidget {
           BlocProvider(
             create: (context) => FoodsBloc(kitchenRepository: context.read<KitchenRepository>()),
           ),
+          BlocProvider(
+            create: (context) => WalletBloc(walletRepository: context.read<WalletRepository>()),
+          ),
         ],
         child: MaterialApp(
           title: 'Pikop',
@@ -77,6 +86,7 @@ class PikopApp extends StatelessWidget {
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(role: 'CUSTOMER'),
             '/home': (context) => const HomeScreen(),
+            '/account': (context) => const AccountScreen(),
             '/request_delivery': (context) => const RequestDeliveryScreen(),
             '/fulfiller_onboarding': (context) => const FulfillerOnboardingScreen(),
             '/support_hub': (context) => const SupportHubScreen(),
@@ -84,6 +94,7 @@ class PikopApp extends StatelessWidget {
             '/vendor_onboarding': (context) => const VendorOnboardingScreen(),
             '/manage_catalog': (context) => const ManageCatalogScreen(),
             '/foods': (context) => const FoodBrowserScreen(),
+            '/wallet': (context) => const WalletScreen(),
           },
           onGenerateRoute: (settings) {
             if (settings.name == '/otp') {
