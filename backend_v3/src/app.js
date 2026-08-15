@@ -57,6 +57,7 @@ app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/orders', require('./routes/orderRoutes'));
 app.use('/api/v1/payments', require('./routes/paymentRoutes'));
 app.use('/api/v1/fulfillers', require('./routes/fulfillerRoutes'));
+app.use('/api/v1/support', require('./routes/supportRoutes'));
 
 // 6. Health & Base Routes
 app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date(), version: '3.0.0-core' }));

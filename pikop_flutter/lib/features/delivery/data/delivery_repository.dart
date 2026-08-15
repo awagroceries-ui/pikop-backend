@@ -24,15 +24,13 @@ class DeliveryRepository {
     });
   }
 
-  Future<Response> initializePayment({
-    required String quoteId,
-    required double amount,
-    required String email,
-  }) async {
-    return await _apiClient.instance.post('/payments/initialize', data: {
-      'quote_id': quoteId,
-      'amount': amount,
-      'email': email,
+  Future<Response> updateStatus(int missionId, String status) async {
+    return await _apiClient.instance.patch('/orders/$missionId/status', data: {
+      'status': status,
     });
+  }
+
+  Future<Response> getOrderDetails(int missionId) async {
+    return await _apiClient.instance.get('/orders/$missionId');
   }
 }

@@ -24,4 +24,23 @@ class FulfillerRepository {
       data: formData,
     );
   }
+
+  Future<Response> updateStatus({
+    required String status,
+    double? lat,
+    double? lng,
+  }) async {
+    return await _apiClient.instance.patch('/fulfillers/status', data: {
+      'online_status': status,
+      'lat': lat,
+      'lng': lng,
+    });
+  }
+
+  Future<Response> acceptMission(int missionId) async {
+    return await _apiClient.instance.post(
+      '/orders/$missionId/accept',
+      data: {'missionId': missionId},
+    );
+  }
 }

@@ -42,6 +42,12 @@ const init = (server) => {
       console.log(`[Socket] Client joined support: ${conversationId}`);
     });
 
+    // Mission Location Stream (Fulfiller -> Room)
+    socket.on("update_mission_location", (data) => {
+        const { orderId, lat, lng } = data;
+        io.to(`order_${orderId}`).emit("location_updated", { lat, lng });
+    });
+
     // Message handler (Master Brief Milestone 8)
     socket.on("send_message", async (data) => {
       const { conversation_id, order_id, sender_id, sender_type, content } = data;

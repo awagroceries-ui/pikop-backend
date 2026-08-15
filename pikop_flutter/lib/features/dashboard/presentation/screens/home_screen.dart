@@ -1,10 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/pikop_theme.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../fulfiller/presentation/bloc/fulfiller_bloc.dart';
+import '../../../fulfiller/presentation/widgets/mission_offer_dialog.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthSuccess) {
+      final userId = authState.userData['user']['id'];
+      context.read<SocketService>().connect(userId);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +140,17 @@ class _FulfillerDashboardState extends State<FulfillerDashboard> {
   bool _isOnline = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Listen for socket offers
+    context.read<SocketService>().on('new_mission_offer', (data) {
+      if (_isOnline) {
+        context.read<FulfillerBloc>().add(MissionOfferReceived(data));
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -129,31 +158,66 @@ class _FulfillerDashboardState extends State<FulfillerDashboard> {
         actions: [
           Switch(
             value: _isOnline,
-            onChanged: (v) => setState(() => _isOnline = v),
+            onChanged: (v) {
+              setState(() => _isOnline = v);
+              context.read<FulfillerBloc>().add(
+                FulfillerStatusUpdated(status: v ? 'ONLINE' : 'OFFLINE'),
+              );
+            },
             activeColor: PikopTheme.green,
           )
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _isOnline ? Icons.radar : Icons.power_settings_new,
-              size: 100,
-              color: _isOnline ? PikopTheme.green : PikopTheme.grey,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              _isOnline ? 'SCANNING FOR MISSIONS' : 'YOU ARE OFFLINE',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
+      body: BlocListener<FulfillerBloc, FulfillerState>(
+        listener: (context, state) {
+          if (state is NewMissionOffer) {
+            _showOfferDialog(state.offer);
+          } else if (state is MissionAcceptSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Mission Secured!'), backgroundColor: PikopTheme.green),
+            );
+          } else if (state is FulfillerFailure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+            );
+          }
+        },
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                _isOnline ? Icons.radar : Icons.power_settings_new,
+                size: 100,
                 color: _isOnline ? PikopTheme.green : PikopTheme.grey,
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+              Text(
+                _isOnline ? 'SCANNING FOR MISSIONS' : 'YOU ARE OFFLINE',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                  color: _isOnline ? PikopTheme.green : PikopTheme.grey,
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  void _showOfferDialog(Map<String, dynamic> offer) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => MissionOfferDialog(
+        offer: offer,
+        onAccept: () {
+          Navigator.pop(dialogContext);
+          context.read<FulfillerBloc>().add(MissionAccepted(offer['order_id']));
+        },
+        onDecline: () => Navigator.pop(dialogContext),
       ),
     );
   }

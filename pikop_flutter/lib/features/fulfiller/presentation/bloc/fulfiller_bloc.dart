@@ -11,6 +11,36 @@ class FulfillerBloc extends Bloc<FulfillerEvent, FulfillerState> {
   FulfillerBloc({required this.fulfillerRepository}) : super(FulfillerInitial()) {
     on<KycSessionStarted>(_onKycSessionStarted);
     on<DocumentUploadRequested>(_onDocumentUploadRequested);
+    on<MissionOfferReceived>(_onMissionOfferReceived);
+    on<MissionAccepted>(_onMissionAccepted);
+    on<FulfillerStatusUpdated>(_onFulfillerStatusUpdated);
+  }
+
+  Future<void> _onFulfillerStatusUpdated(FulfillerStatusUpdated event, Emitter<FulfillerState> emit) async {
+    try {
+      await fulfillerRepository.updateStatus(status: event.status, lat: event.lat, lng: event.lng);
+    } catch (e) {
+      print('[FulfillerBloc] Status update failed: $e');
+    }
+  }
+
+  void _onMissionOfferReceived(MissionOfferReceived event, Emitter<FulfillerState> emit) {
+    emit(NewMissionOffer(event.offer));
+  }
+
+  Future<void> _onMissionAccepted(MissionAccepted event, Emitter<FulfillerState> emit) async {
+    emit(KycLoading()); // Reuse loading for generic fulfiller loading
+    try {
+      final response = await fulfillerRepository.acceptMission(event.missionId);
+      final data = response.data;
+      if (data['success'] == true) {
+        emit(MissionAcceptSuccess());
+      } else {
+        emit(FulfillerFailure(data['message'] ?? 'Failed to accept mission'));
+      }
+    } catch (e) {
+      emit(FulfillerFailure(e.toString()));
+    }
   }
 
   Future<void> _onKycSessionStarted(KycSessionStarted event, Emitter<FulfillerState> emit) async {

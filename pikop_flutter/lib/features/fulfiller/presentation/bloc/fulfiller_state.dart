@@ -30,3 +30,19 @@ class KycFailure extends FulfillerState {
   @override
   List<Object?> get props => [message];
 }
+
+class NewMissionOffer extends FulfillerState {
+  final Map<String, dynamic> offer;
+  const NewMissionOffer(this.offer);
+  @override
+  List<Object?> get props => [offer];
+}
+
+class MissionAcceptSuccess extends FulfillerState {}
+
+class FulfillerFailure extends FulfillerState {
+  final String message;
+  const FulfillerFailure(this.message);
+  @override
+  List<Object?> get props => [message];
+}
