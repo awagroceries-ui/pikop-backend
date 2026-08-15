@@ -1,11 +1,15 @@
 exports.up = (pgm) => {
-  // 1. Users Table
+  // 1. Users Table (Compliant with Master Brief Milestone 2)
   pgm.createTable('users', {
     id: 'id',
     full_name: { type: 'varchar(255)', notNull: true },
     email: { type: 'varchar(255)', notNull: true, unique: true },
+    email_verified_at: { type: 'timestamp' },
     phone: { type: 'varchar(20)', notNull: true, unique: true },
     password_hash: { type: 'text', notNull: true },
+    auth_provider: { type: 'varchar(50)', notNull: true, default: 'local' },
+    profile_photo_url: { type: 'text' },
+    status: { type: 'varchar(20)', notNull: true, default: 'active' },
     role: {
       type: 'varchar(20)',
       notNull: true,
@@ -18,7 +22,8 @@ exports.up = (pgm) => {
       references: '"users"',
       onDelete: 'set null',
     },
-    email_verified_at: { type: 'timestamp' },
+    wallet_id: { type: 'uuid' }, // Linked after wallet table creation
+    language: { type: 'varchar(10)', notNull: true, default: 'en' },
     created_at: {
       type: 'timestamp',
       notNull: true,
@@ -49,7 +54,7 @@ exports.up = (pgm) => {
     },
   });
 
-  // 3. User Sessions Table (For Refresh Tokens)
+  // 3. User Sessions Table (Shared state for Clustered environments)
   pgm.createTable('user_sessions', {
     id: { type: 'uuid', primaryKey: true, default: pgm.func('gen_random_uuid()') },
     user_id: {

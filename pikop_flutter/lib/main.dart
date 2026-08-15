@@ -7,9 +7,9 @@ import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/otp_screen.dart';
 import 'features/auth/presentation/screens/signup_screen.dart';
 
-import 'features/delivery/data/delivery_repository.dart';
-import 'features/delivery/presentation/bloc/delivery_bloc.dart';
-import 'features/delivery/presentation/screens/request_delivery_screen.dart';
+import 'features/fulfiller/data/fulfiller_repository.dart';
+import 'features/fulfiller/presentation/bloc/fulfiller_bloc.dart';
+import 'features/fulfiller/presentation/screens/fulfiller_onboarding_screen.dart';
 
 void main() {
   runApp(const PikopApp());
@@ -24,6 +24,7 @@ class PikopApp extends StatelessWidget {
       providers: [
         RepositoryProvider(create: (context) => AuthRepository()),
         RepositoryProvider(create: (context) => DeliveryRepository()),
+        RepositoryProvider(create: (context) => FulfillerRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -32,6 +33,9 @@ class PikopApp extends StatelessWidget {
           ),
           BlocProvider(
             create: (context) => DeliveryBloc(deliveryRepository: context.read<DeliveryRepository>()),
+          ),
+          BlocProvider(
+            create: (context) => FulfillerBloc(fulfillerRepository: context.read<FulfillerRepository>()),
           ),
         ],
         child: MaterialApp(
@@ -44,6 +48,7 @@ class PikopApp extends StatelessWidget {
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(role: 'CUSTOMER'),
             '/request_delivery': (context) => const RequestDeliveryScreen(),
+            '/fulfiller_onboarding': (context) => const FulfillerOnboardingScreen(),
           },
           onGenerateRoute: (settings) {
             if (settings.name == '/otp') {
