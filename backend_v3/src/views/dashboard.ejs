@@ -1,0 +1,110 @@
+<div class="mb-5">
+    <h3 class="fw-extrabold mb-1 ls-1">Mission Control</h3>
+    <p class="text-muted small">Real-time oversight of the Pikop multi-module ecosystem.</p>
+</div>
+
+<!-- KPI Row -->
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-2">Live Missions</span>
+            <div class="d-flex align-items-center justify-content-between">
+                <h2 class="mb-0 fw-black mono"><%= stats.activeOrders %></h2>
+                <div class="rounded-circle bg-success" style="width: 8px; height: 8px; box-shadow: 0 0 10px var(--brand-green);"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-2">Online Fleet</span>
+            <h2 class="mb-0 fw-black mono"><%= stats.onlineFulfillers %></h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-2">Gross Revenue (24h)</span>
+            <h2 class="mb-0 fw-black mono">₦<%= stats.totalRevenue.toLocaleString() %></h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card border-primary" style="background: rgba(255, 159, 10, 0.05);">
+            <span class="text-primary smaller fw-bold uppercase ls-1 d-block mb-2">System Health</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary text-black fw-bold">OPTIMAL</span>
+                <span class="text-muted smaller">v3.0.0</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card bg-card border-0 p-4" style="min-height: 400px;">
+            <h6 class="text-muted small fw-bold uppercase ls-1 mb-4">Module Performance Breakdown</h6>
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-card border-0 p-4 h-100">
+            <h6 class="text-muted small fw-bold uppercase ls-1 mb-4">Alert Priority Queue</h6>
+
+            <div class="d-flex flex-column gap-3">
+                <div class="p-3 rounded-3 border border-white border-opacity-5 d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="d-block small fw-bold">Pending KYC</span>
+                        <span class="smaller text-muted">Fleet Auth Queue</span>
+                    </div>
+                    <span class="badge bg-danger"><%= stats.notifications.kyc %></span>
+                </div>
+                <div class="p-3 rounded-3 border border-white border-opacity-5 d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="d-block small fw-bold">Open Support</span>
+                        <span class="smaller text-muted">Customer/Fleet Help Desk</span>
+                    </div>
+                    <span class="badge bg-warning text-dark"><%= stats.notifications.support %></span>
+                </div>
+            </div>
+
+            <div class="mt-auto pt-4 text-center">
+                <button class="btn btn-outline-secondary btn-sm w-100 fw-bold">View Full Activity Log</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Logistics',
+                data: [12, 19, 3, 5, 2, 3, 10],
+                borderColor: '#FF5722',
+                tension: 0.4
+            }, {
+                label: 'Marketplace',
+                data: [5, 12, 8, 12, 10, 15, 12],
+                borderColor: '#8BC34A',
+                tension: 0.4
+            }, {
+                label: 'Foods',
+                data: [2, 5, 1, 8, 14, 18, 20],
+                borderColor: '#00BCD4',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                x: { grid: { display: false } }
+            },
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94A3B8' } }
+            }
+        }
+    });
+</script>
