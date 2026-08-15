@@ -20,8 +20,8 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date(), version: '3.0.0-core' }));
 app.get('/', (req, res) => res.json({ message: 'Pikop V3 API - Professional Multi-Platform Logistics', status: 'ONLINE' }));
 
-// 3. API v1 Routes (To be implemented)
-// app.use('/api/v1/auth', require('./routes/authRoutes'));
+// 3. API v1 Routes
+app.use('/api/v1/auth', require('./routes/authRoutes'));
 
 // 4. Global Error Handler (Harden Core)
 app.use((err, req, res, next) => {
