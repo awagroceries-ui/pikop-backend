@@ -1,0 +1,44 @@
+<div class="mb-5">
+    <h3 class="fw-extrabold mb-1 ls-1">Fleet Authentication Queue</h3>
+    <p class="text-muted small">Sequential review of fulfiller identity and operational credentials.</p>
+</div>
+
+<div class="row g-4">
+    <% if (fulfillers.length === 0) { %>
+        <div class="col-12">
+            <div class="card bg-card border-0 p-5 text-center">
+                <p class="text-muted mb-0">No pending fleet authentications.</p>
+            </div>
+        </div>
+    <% } else { %>
+        <% fulfillers.forEach(f => { %>
+            <div class="col-md-12">
+                <div class="card bg-card border-0 p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <h6 class="mb-1 text-white fw-bold"><%= f.full_name %></h6>
+                            <span class="badge bg-primary text-black smaller uppercase"><%= f.primary_class %></span>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="text-muted small ls-1 uppercase fw-bold">Identity (Didit)</span>
+                            <div class="mt-1">
+                                <span class="badge <%= f.didit_verification_status === 'approved' ? 'bg-success' : 'bg-warning text-dark' %>">
+                                    <%= f.didit_verification_status.toUpperCase() %>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="text-muted small ls-1 uppercase fw-bold">KYC Progress</span>
+                            <div class="mt-1">
+                                <span class="text-white small fw-bold"><%= f.kyc_status %></span>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <button class="btn btn-sm btn-primary px-4 fw-bold">Review Documents</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    <% } %>
+</div>

@@ -24,6 +24,13 @@ router.use((req, res, next) => {
 router.get('/dashboard', adminController.getDashboard);
 router.get('/orders', adminController.getOrders);
 
+// Fleet & KYC
+router.get('/kyc', adminController.getKYCQueue);
+
+// Partners
+router.get('/vendors', adminController.getVendors);
+router.get('/kitchens', adminController.getKitchens);
+
 // Support
 router.get('/support', adminController.getSupportInbox);
 router.get('/support/:id', adminController.getConversationDetails);

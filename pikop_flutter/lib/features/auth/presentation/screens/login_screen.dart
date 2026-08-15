@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Login Successful')),
             );
-            // TODO: Navigate to Home Dashboard
+            Navigator.pushReplacementNamed(context, '/home');
           } else if (state is AuthUnverified) {
             Navigator.pushNamed(context, '/otp', arguments: state.email);
           } else if (state is AuthFailure) {

@@ -158,6 +158,45 @@ const getConversationDetails = async (req, res) => {
     }
 };
 
+/**
+ * KYC Review Queue (v3)
+ */
+const getKYCQueue = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT f.*, u.full_name, u.email
+            FROM fulfillers f
+            JOIN users u ON u.id = f.user_id
+            WHERE f.kyc_status != 'VERIFIED'
+            ORDER BY f.created_at DESC
+        `);
+        res.render('kyc_queue', { fulfillers: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Business Entity Management
+ */
+const getVendors = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM vendors ORDER BY created_at DESC");
+        res.render('vendors', { vendors: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const getKitchens = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM kitchens ORDER BY created_at DESC");
+        res.render('kitchens', { kitchens: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
 module.exports = {
   login,
   getDashboard,
@@ -165,5 +204,8 @@ module.exports = {
   getSettings,
   updateSettings,
   getSupportInbox,
-  getConversationDetails
+  getConversationDetails,
+  getKYCQueue,
+  getVendors,
+  getKitchens
 };

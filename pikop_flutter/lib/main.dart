@@ -6,6 +6,8 @@ import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/otp_screen.dart';
 import 'features/auth/presentation/screens/signup_screen.dart';
+import 'features/dashboard/presentation/screens/home_screen.dart';
+import 'features/delivery/data/delivery_repository.dart';
 
 import 'features/fulfiller/data/fulfiller_repository.dart';
 import 'features/fulfiller/presentation/bloc/fulfiller_bloc.dart';
@@ -47,6 +49,7 @@ class PikopApp extends StatelessWidget {
             '/': (context) => const SplashScreen(),
             '/login': (context) => const LoginScreen(),
             '/signup': (context) => const SignupScreen(role: 'CUSTOMER'),
+            '/home': (context) => const HomeScreen(),
             '/request_delivery': (context) => const RequestDeliveryScreen(),
             '/fulfiller_onboarding': (context) => const FulfillerOnboardingScreen(),
           },
