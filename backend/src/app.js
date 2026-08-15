@@ -17,7 +17,7 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 }
 
 // 1. Version Check (For Troubleshooting)
-const VERSION = '2.1.2-stable';
+const VERSION = '2.1.6-stable';
 if (process.env.MASTER_OTP) {
     console.log(`✅ Master OTP feature is ACTIVE (Code: ${process.env.MASTER_OTP})`);
 } else {

@@ -1,10 +1,10 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 require('dotenv').config();
 
-// Force use of stable v1 API to avoid v1beta 404 errors
+// Validate API Key exists
 const API_KEY = process.env.GEMINI_API_KEY;
-if (!API_KEY || API_KEY.length < 20 || !API_KEY.startsWith('AIza')) {
-    console.error('❌ INVALID GEMINI_API_KEY: Keys should start with "AIza". Please check your .env');
+if (!API_KEY || API_KEY.length < 10) {
+    console.error('❌ INVALID GEMINI_API_KEY: Please check your .env');
 }
 
 const genAI = new GoogleGenerativeAI(API_KEY);
