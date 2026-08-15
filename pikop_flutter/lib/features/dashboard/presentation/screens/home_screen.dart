@@ -79,7 +79,7 @@ class CustomerDashboard extends StatelessWidget {
               'Buy items from verified vendors.',
               Icons.shopping_bag,
               PikopTheme.green,
-              () {}, // TODO: Marketplace
+              () => Navigator.pushNamed(context, '/marketplace'),
             ),
             const SizedBox(height: 16),
             _buildActionCard(
@@ -89,6 +89,16 @@ class CustomerDashboard extends StatelessWidget {
               Icons.restaurant,
               PikopTheme.teal ?? Colors.teal,
               () {}, // TODO: Foods
+            ),
+            const SizedBox(height: 32),
+            const Divider(color: Colors.white10),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.storefront, color: PikopTheme.gold),
+              title: const Text('Sell on Pikop', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Register as a Vendor or Kitchen', style: TextStyle(fontSize: 10)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.pushNamed(context, '/vendor_onboarding'),
             ),
           ],
         ),

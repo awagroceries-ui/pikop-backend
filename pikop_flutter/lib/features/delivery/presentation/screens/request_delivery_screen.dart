@@ -24,6 +24,22 @@ class _RequestDeliveryScreenState extends State<RequestDeliveryScreen> {
   Map<String, dynamic>? _currentQuote;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null) {
+        setState(() {
+          if (args['itemDescription'] != null) _descriptionController.text = args['itemDescription'];
+          if (args['pickupAddress'] != null) _pickupAddress = args['pickupAddress'];
+          if (args['pickupLat'] != null) _pickupLat = args['pickupLat'];
+          if (args['pickupLng'] != null) _pickupLng = args['pickupLng'];
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(

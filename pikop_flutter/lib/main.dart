@@ -14,6 +14,12 @@ import 'features/fulfiller/data/fulfiller_repository.dart';
 import 'features/fulfiller/presentation/bloc/fulfiller_bloc.dart';
 import 'features/fulfiller/presentation/screens/fulfiller_onboarding_screen.dart';
 
+import 'features/marketplace/data/marketplace_repository.dart';
+import 'features/marketplace/presentation/bloc/marketplace_bloc.dart';
+import 'features/marketplace/presentation/screens/manage_catalog_screen.dart';
+import 'features/marketplace/presentation/screens/product_detail_screen.dart';
+import 'features/marketplace/presentation/screens/shop_browser_screen.dart';
+import 'features/marketplace/presentation/screens/vendor_onboarding_screen.dart';
 import 'features/support/data/support_repository.dart';
 import 'features/support/presentation/bloc/support_bloc.dart';
 import 'features/support/presentation/screens/support_hub_screen.dart';
@@ -34,6 +40,7 @@ class PikopApp extends StatelessWidget {
         RepositoryProvider(create: (context) => FulfillerRepository()),
         RepositoryProvider(create: (context) => SocketService()),
         RepositoryProvider(create: (context) => SupportRepository()),
+        RepositoryProvider(create: (context) => MarketplaceRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -49,6 +56,9 @@ class PikopApp extends StatelessWidget {
           BlocProvider(
             create: (context) => SupportBloc(supportRepository: context.read<SupportRepository>()),
           ),
+          BlocProvider(
+            create: (context) => MarketplaceBloc(marketplaceRepository: context.read<MarketplaceRepository>()),
+          ),
         ],
         child: MaterialApp(
           title: 'Pikop',
@@ -63,11 +73,18 @@ class PikopApp extends StatelessWidget {
             '/request_delivery': (context) => const RequestDeliveryScreen(),
             '/fulfiller_onboarding': (context) => const FulfillerOnboardingScreen(),
             '/support_hub': (context) => const SupportHubScreen(),
+            '/marketplace': (context) => const ShopBrowserScreen(),
+            '/vendor_onboarding': (context) => const VendorOnboardingScreen(),
+            '/manage_catalog': (context) => const ManageCatalogScreen(),
           },
           onGenerateRoute: (settings) {
             if (settings.name == '/otp') {
               final email = settings.arguments as String;
               return MaterialPageRoute(builder: (context) => OtpScreen(email: email));
+            }
+            if (settings.name == '/product_detail') {
+              final product = settings.arguments as Map<String, dynamic>;
+              return MaterialPageRoute(builder: (context) => ProductDetailScreen(product: product));
             }
             if (settings.name == '/mission_tracking') {
               final args = settings.arguments as Map<String, dynamic>;
