@@ -158,7 +158,7 @@ fun AccountScreen(
             }
             
             Text(
-                text = "Pikop v1.6.2",
+                text = "Pikop v2.0.0-reset",
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Gray,
                 modifier = Modifier.padding(vertical = 24.dp)
