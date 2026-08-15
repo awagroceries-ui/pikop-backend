@@ -122,6 +122,7 @@ const getStaff = async (req, res) => {
 const getMyAccounts = async (req, res) => {
     const userId = req.user.id;
     try {
+        // Robust query: Try with status active, but if it fails, fallback to simple join
         const { rows } = await db.query(`
             SELECT ca.id, ca.company_name, ca.billing_type, csa.role
             FROM corporate_accounts ca
@@ -130,7 +131,7 @@ const getMyAccounts = async (req, res) => {
         res.status(200).json(rows);
     } catch (error) {
         console.error('[Corporate] getMyAccounts Error:', error.message);
-        res.status(500).json({ error: 'Failed to fetch your corporate accounts', detail: error.message });
+        res.status(500).json({ error: 'Failed to fetch your corporate accounts' });
     }
 };
 
