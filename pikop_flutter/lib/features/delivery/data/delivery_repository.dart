@@ -37,4 +37,8 @@ class DeliveryRepository {
   Future<Response> initiateReturn(int missionId) async {
     return await _apiClient.instance.post('/orders/$missionId/return');
   }
+
+  Future<Response> initializeCoD(int missionId) async {
+    return await _apiClient.instance.post('/payments/initialize/cod/$missionId');
+  }
 }

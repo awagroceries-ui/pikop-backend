@@ -4,7 +4,7 @@ const db = require('../config/db');
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
-const dispatchService = require('../services/dispatchService');
+const walletService = require('../services/walletService');
 
 /**
  * Initializes a Paystack transaction.
@@ -48,6 +48,49 @@ const initializePayment = async (req, res) => {
 };
 
 /**
+ * Initializes a Paystack transaction for Collect-on-Delivery (CoD).
+ */
+const initializeCoDPayment = async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+        const { rows } = await db.query("SELECT * FROM orders WHERE id = $1", [orderId]);
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Order not found' });
+
+        const order = rows[0];
+        if (!order.collect_on_delivery_amount) {
+            return res.status(400).json({ success: false, message: 'This mission does not have a CoD component' });
+        }
+
+        const payload = {
+            amount: Math.round(parseFloat(order.collect_on_delivery_amount) * 100),
+            email: 'billing@pikop.ng', // Use a generic email for recipient collection
+            metadata: {
+                order_id: order.id,
+                collection_type: 'COD'
+            },
+            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
+        };
+
+        const response = await axios.post('https://api.paystack.co/transaction/initialize', payload, {
+            headers: { Authorization: `Bearer ${PAYSTACK_SECRET.trim()}` }
+        });
+
+        // Set status to pending
+        await db.query("UPDATE orders SET collection_status = 'pending' WHERE id = $1", [orderId]);
+
+        res.status(200).json({
+            success: true,
+            data: response.data.data
+        });
+
+    } catch (error) {
+        console.error('[Paystack CoD] Error:', error.message);
+        res.status(400).json({ success: false, message: 'Failed to initialize collection' });
+    }
+};
+
+/**
  * Verifies Paystack Webhook and Activates Order.
  */
 const handleWebhook = async (req, res) => {
@@ -57,6 +100,33 @@ const handleWebhook = async (req, res) => {
   const event = req.body;
   if (event.event === 'charge.success') {
     const { reference, metadata, channel, paid_at } = event.data;
+
+    // Handle CoD Collection Webhook
+    if (metadata.collection_type === 'COD') {
+        try {
+            await db.query(
+                "UPDATE orders SET collection_status = 'collected', collection_payment_reference = $1, collection_method = $2 WHERE id = $3",
+                [reference, channel, metadata.order_id]
+            );
+
+            // Notify Fulfiller via socket that payment is received
+            const socketService = require('../services/socketService');
+            socketService.getIO().to(`order_${metadata.order_id}`).emit("status_updated", {
+                orderId: metadata.order_id,
+                status: 'PAYMENT_RECEIVED'
+            });
+
+            // Trigger Remittance to Vendor (v3.7.0)
+            await walletService.processCoDRemittance(metadata.order_id);
+
+            console.log(`[Webhook] CoD Collected for Order ${metadata.order_id}`);
+            return res.sendStatus(200);
+        } catch (e) {
+            console.error('[Webhook] CoD Update Error:', e.message);
+            return res.sendStatus(500);
+        }
+    }
+
     const client = await db.pool.connect();
 
     try {

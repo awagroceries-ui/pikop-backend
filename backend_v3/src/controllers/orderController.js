@@ -173,6 +173,17 @@ const updateStatus = async (req, res) => {
   const userId = req.user.id;
 
   try {
+    // 1. CoD Gate for Delivery Completion (Milestone 2 Expansion)
+    if (status === 'DELIVERED') {
+        const { rows: o } = await db.query("SELECT collection_status, collect_on_delivery_amount FROM orders WHERE id = $1", [orderId]);
+        if (o[0].collect_on_delivery_amount && o[0].collection_status !== 'collected') {
+            return res.status(400).json({
+                success: false,
+                message: 'Collection required. This order has a mandatory CoD amount that must be paid via app before delivery closure.'
+            });
+        }
+    }
+
     const { rows } = await db.query(
         "UPDATE orders SET status = $1 WHERE id = $2 RETURNING id, status",
         [status, orderId]

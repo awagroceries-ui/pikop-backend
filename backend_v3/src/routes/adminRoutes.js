@@ -38,6 +38,7 @@ router.get('/kyc', adminController.getKYCQueue);
 router.get('/vendors', adminController.getVendors);
 router.get('/kitchens', adminController.getKitchens);
 router.get('/merchants', (req, res) => res.render('merchants', { merchants: [] }));
+router.get('/coupons', hasRole(['super_admin']), (req, res) => res.render('coupons_admin'));
 
 // System Management
 router.get('/users', hasRole(['super_admin']), adminController.getAdminUsers);

@@ -41,6 +41,12 @@ class AccountScreen extends StatelessWidget {
                   ),
                   _buildOption(
                     context,
+                    'Rewards & Referrals',
+                    Icons.card_giftcard,
+                    () => Navigator.pushNamed(context, '/loyalty_hub'),
+                  ),
+                  _buildOption(
+                    context,
                     'Mission History',
                     Icons.history,
                     () {}, // TODO

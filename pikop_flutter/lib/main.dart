@@ -19,6 +19,9 @@ import 'features/fulfiller/presentation/screens/fulfiller_onboarding_screen.dart
 import 'features/foods/data/kitchen_repository.dart';
 import 'features/foods/presentation/bloc/foods_bloc.dart';
 import 'features/foods/presentation/screens/food_browser_screen.dart';
+import 'features/growth/data/growth_repository.dart';
+import 'features/growth/presentation/bloc/growth_bloc.dart';
+import 'features/growth/presentation/screens/loyalty_hub_screen.dart';
 import 'features/marketplace/data/marketplace_repository.dart';
 import 'features/marketplace/presentation/bloc/marketplace_bloc.dart';
 import 'features/marketplace/presentation/screens/manage_catalog_screen.dart';
@@ -56,6 +59,7 @@ class PikopApp extends StatelessWidget {
         RepositoryProvider(create: (context) => KitchenRepository()),
         RepositoryProvider(create: (context) => WalletRepository()),
         RepositoryProvider(create: (context) => MerchantRepository()),
+        RepositoryProvider(create: (context) => GrowthRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -83,6 +87,9 @@ class PikopApp extends StatelessWidget {
           BlocProvider(
             create: (context) => MerchantBloc(merchantRepository: context.read<MerchantRepository>()),
           ),
+          BlocProvider(
+            create: (context) => GrowthBloc(growthRepository: context.read<GrowthRepository>()),
+          ),
         ],
         child: MaterialApp(
           title: 'Pikop',
@@ -104,6 +111,7 @@ class PikopApp extends StatelessWidget {
             '/foods': (context) => const FoodBrowserScreen(),
             '/wallet': (context) => const WalletScreen(),
             '/merchant_dashboard': (context) => const MerchantDashboardScreen(),
+            '/loyalty_hub': (context) => const LoyaltyHubScreen(),
           },
           onGenerateRoute: (settings) {
             if (settings.name == '/otp') {
@@ -113,6 +121,12 @@ class PikopApp extends StatelessWidget {
             if (settings.name == '/product_detail') {
               final product = settings.arguments as Map<String, dynamic>;
               return MaterialPageRoute(builder: (context) => ProductDetailScreen(product: product));
+            }
+            if (settings.name == '/cod_payment') {
+              final args = settings.arguments as Map<String, dynamic>;
+              return MaterialPageRoute(
+                builder: (context) => CodPaymentScreen(checkoutUrl: args['url'], orderId: args['orderId']),
+              );
             }
             if (settings.name == '/policy') {
               final args = settings.arguments as Map<String, dynamic>;

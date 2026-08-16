@@ -285,6 +285,8 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen> {
   }
 
   Widget _buildActionPanel() {
+    final bool isCoDPending = _missionData?['collect_on_delivery_amount'] != null && _status != 'PAYMENT_RECEIVED' && _status != 'DELIVERED';
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
@@ -296,6 +298,15 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (widget.isFulfiller) ...[
+            if (isCoDPending && _showArrivalPrompt)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: ElevatedButton(
+                  onPressed: _initializeCoD,
+                  style: ElevatedButton.styleFrom(backgroundColor: PikopTheme.gold, foregroundColor: Colors.black),
+                  child: const Text('COLLECT ITEM COST (₦)'),
+                ),
+              ),
             if (_status == 'MATCHED')
               Row(
                 children: [
@@ -315,7 +326,7 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen> {
                   ),
                 ],
               ),
-            if (_status == 'PICKED_UP')
+            if (_status == 'PICKED_UP' || _status == 'PAYMENT_RECEIVED')
               Row(
                 children: [
                   Expanded(
@@ -328,14 +339,23 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _updateStatus('DELIVERED'),
+                      onPressed: isCoDPending ? null : () => _updateStatus('DELIVERED'),
                       style: ElevatedButton.styleFrom(backgroundColor: PikopTheme.green),
-                      child: const Text('DELIVERED'),
+                      child: Text(isCoDPending ? 'AWAITING PAYMENT' : 'DELIVERED'),
                     ),
                   ),
                 ],
               ),
           ] else ...[
+            if (isCoDPending)
+                const Card(
+                    color: Colors.orange,
+                    child: Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Text('Payment of item cost is required upon arrival.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                    ),
+                ),
+            const SizedBox(height: 8),
             const Text('Your fulfiller is on the way.', style: TextStyle(color: PikopTheme.grey)),
             const SizedBox(height: 16),
             OutlinedButton(
@@ -348,6 +368,20 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen> {
         ],
       ),
     );
+  }
+
+  void _initializeCoD() async {
+    try {
+      final res = await context.read<DeliveryRepository>().initializeCoD(widget.missionId);
+      if (res.data['success'] == true) {
+          Navigator.pushNamed(context, '/cod_payment', arguments: {
+              'url': res.data['data']['authorization_url'],
+              'orderId': widget.missionId
+          });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to start collection: $e')));
+    }
   }
 
   void _updateStatus(String newStatus) async {

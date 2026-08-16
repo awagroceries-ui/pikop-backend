@@ -86,8 +86,37 @@ const processMissionSettlement = async (orderId) => {
   }
 };
 
+/**
+ * Remits collected CoD funds to the Vendor.
+ */
+const processCoDRemittance = async (orderId) => {
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const { rows } = await db.query(
+            "SELECT id, vendor_id, collect_on_delivery_amount FROM orders WHERE id = $1",
+            [orderId]
+        );
+        const order = rows[0];
+        if (!order.vendor_id) throw new Error('Order is not a vendor order');
+
+        const vWalletId = await ensureWalletExists(client, 'VENDOR', order.vendor_id);
+        await recordEntry(client, vWalletId, 'CREDIT', order.collect_on_delivery_amount, 'COD_COLLECTION', `Payment collected for Order #${order.id}`, order.id);
+
+        await client.query('COMMIT');
+        console.log(`[Wallet] CoD Remitted to Vendor ${order.vendor_id} for Order ${order.id}`);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[Wallet] CoD Remittance Failed:', error.message);
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   ensureWalletExists,
   recordEntry,
-  processMissionSettlement
+  processMissionSettlement,
+  processCoDRemittance
 };
