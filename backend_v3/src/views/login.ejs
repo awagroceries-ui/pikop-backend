@@ -12,8 +12,8 @@
             --brand-white: #FFFFFF;
         }
         body {
-            background-color: var(--brand-black);
-            color: var(--brand-white);
+            background-color: #000000 !important;
+            color: #FFFFFF !important;
             height: 100vh;
             display: flex;
             align-items: center;
@@ -22,27 +22,28 @@
             margin: 0;
         }
         .login-card {
-            background: #0A0A0A;
+            background: #050505 !important;
             padding: 3rem;
             border-radius: 24px;
             width: 100%;
             max-width: 400px;
-            border: 2px solid var(--brand-gold);
-            box-shadow: 0 0 20px rgba(255, 159, 10, 0.2);
+            border: 2px solid var(--brand-gold) !important;
+            box-shadow: 0 0 30px rgba(255, 159, 10, 0.2);
         }
         .form-control {
-            background: var(--brand-black) !important;
-            border: 1px solid rgba(255,255,255,0.4) !important;
-            color: var(--brand-white) !important;
+            background: #000000 !important;
+            border: 2px solid rgba(255,255,255,0.4) !important;
+            color: #FFFFFF !important;
             padding: 0.8rem;
             font-weight: 800;
+            border-radius: 12px;
         }
         .form-control:focus {
             border-color: var(--brand-gold) !important;
             box-shadow: none;
         }
         .form-label {
-            color: var(--brand-white) !important;
+            color: #FFFFFF !important;
             font-weight: 900;
             text-transform: uppercase;
             font-size: 0.8rem;
@@ -50,34 +51,37 @@
             margin-bottom: 8px;
         }
         .btn-primary {
-            background: var(--brand-gold);
+            background: var(--brand-gold) !important;
             border: none;
-            color: var(--brand-black);
+            color: #000000 !important;
             font-weight: 900;
-            padding: 0.9rem;
+            padding: 1rem;
             letter-spacing: 2px;
             text-transform: uppercase;
             margin-top: 10px;
+            border-radius: 12px;
         }
         .btn-primary:hover {
-            background: #FFFFFF;
-            color: var(--brand-black);
+            background: #FFFFFF !important;
+            color: #000000 !important;
         }
         .alert-danger {
-            background: #FF0000;
-            color: #FFFFFF;
+            background: #FF0000 !important;
+            color: #FFFFFF !important;
             border: none;
             font-weight: 900;
             text-transform: uppercase;
             font-size: 0.7rem;
             letter-spacing: 1px;
+            border-radius: 10px;
         }
         .meta-text {
-            color: var(--brand-white);
+            color: #FFFFFF !important;
             font-weight: 700;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             letter-spacing: 1px;
             opacity: 0.9;
+            margin-top: 20px;
         }
     </style>
 </head>
