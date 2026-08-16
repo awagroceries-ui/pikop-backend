@@ -11,7 +11,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Global Socket initialization
         const socket = io({ transports: ['websocket'] });
     </script>
 
@@ -30,212 +29,210 @@
             font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
+            overflow-x: hidden;
         }
 
         /* Sidebar - Mandatory Visibility Fix */
         .sidebar {
-            width: 300px;
+            width: 280px;
             height: 100vh;
             background-color: #000000 !important;
             position: fixed;
             left: 0;
             top: 0;
-            border-right: 4px solid #FFFFFF !important;
+            border-right: 3px solid #FFFFFF !important;
             z-index: 2000;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--gold) #000;
         }
 
-        .sidebar::-webkit-scrollbar { width: 6px; }
-        .sidebar::-webkit-scrollbar-thumb { background: var(--gold); }
-
         .sidebar-header {
-            padding: 3rem 1.5rem;
+            padding: 2.5rem 1.5rem;
             border-bottom: 2px solid #FFFFFF;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 15px;
+            background: #000;
         }
 
-        .nav-group { margin-bottom: 3rem; }
+        .sidebar-nav-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-bottom: 40px;
+        }
+
+        .sidebar-nav-container::-webkit-scrollbar { width: 4px; }
+        .sidebar-nav-container::-webkit-scrollbar-thumb { background: var(--gold); }
+
+        .nav-group { margin-bottom: 2rem; }
 
         .nav-label {
-            padding: 0 2rem 0.8rem;
+            padding: 0 1.5rem 0.5rem;
             color: var(--gold) !important;
             font-weight: 900;
             text-transform: uppercase;
-            font-size: 0.85rem;
-            letter-spacing: 2.5px;
+            font-size: 0.75rem;
+            letter-spacing: 2px;
         }
 
         .sidebar a {
             display: flex;
             align-items: center;
-            gap: 18px;
-            padding: 1.2rem 2rem;
+            gap: 15px;
+            padding: 0.9rem 1.5rem;
             color: #FFFFFF !important;
             text-decoration: none;
-            font-weight: 900;
-            font-size: 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.15);
+            font-weight: 800;
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
             transition: all 0.2s;
         }
 
         .sidebar a:hover {
-            background-color: rgba(255, 159, 10, 0.15);
+            background-color: rgba(255, 159, 10, 0.1);
             color: var(--gold) !important;
         }
 
-        /* DEFINITIVE ACTIVE TAB HIGHLIGHTING */
         .active-link {
             background-color: var(--gold) !important;
             color: #000000 !important;
-            border-right: 12px solid #FFFFFF !important;
-            box-shadow: inset -10px 0 20px rgba(0,0,0,0.2);
+            border-right: 10px solid #FFFFFF !important;
         }
 
         .main-content {
-            margin-left: 300px;
+            margin-left: 280px;
             min-height: 100vh;
             background-color: #000000 !important;
-            padding-bottom: 150px;
         }
 
         /* Top Bar - High Contrast */
         .top-bar {
-            height: 90px;
+            height: 80px;
             background-color: #000000 !important;
-            border-bottom: 4px solid #FFFFFF !important;
+            border-bottom: 3px solid #FFFFFF !important;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 3rem;
+            padding: 0 2rem;
             position: sticky;
             top: 0;
             z-index: 1001;
         }
 
         .notification-btn {
-            background: #000;
-            border: 3px solid #FFFFFF;
+            background: none;
+            border: 2px solid #FFFFFF;
             color: #FFFFFF;
-            padding: 10px 20px;
+            padding: 8px 12px;
             cursor: pointer;
             position: relative;
             font-weight: 900;
             display: flex;
             align-items: center;
-            gap: 15px;
-            letter-spacing: 1.5px;
+            gap: 10px;
+            text-transform: uppercase;
+            font-size: 0.75rem;
         }
 
         .notification-btn:hover { background: #FFFFFF; color: #000; }
 
         .red-dot {
-            width: 14px;
-            height: 14px;
+            width: 10px;
+            height: 10px;
             background-color: var(--red);
             border-radius: 50%;
             display: none;
             border: 2px solid #FFF;
-            box-shadow: 0 0 10px var(--red);
         }
 
         .profile-box {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
             border-left: 2px solid #FFFFFF;
-            padding-left: 25px;
+            padding-left: 20px;
         }
 
-        .content-inner { padding: 4rem; }
+        .content-inner { padding: 3rem; }
 
-        /* KPI and Table Hardening */
-        .badge-pikop {
-            padding: 6px 15px;
+        .badge-v3 {
+            padding: 5px 10px;
             background-color: var(--gold);
             color: #000;
             font-weight: 900;
-            border-radius: 2px;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
         }
 
-        /* NO WHITE ON WHITE AUDIT */
-        .btn-primary { background-color: var(--gold) !important; color: #000 !important; font-weight: 900 !important; }
-        .btn-outline-light { border: 2px solid #FFF !important; color: #FFF !important; font-weight: 900 !important; }
-        .card { background-color: #0A0A0A !important; border: 2px solid #FFF !important; border-radius: 0 !important; }
+        /* REMOVE ALL GREY/BLUE INSTANCES */
+        .text-muted { color: #FFFFFF !important; opacity: 0.8; }
+        .bg-card { background-color: #050505 !important; border: 1px solid #FFFFFF !important; }
+        .small, .smaller { color: #FFFFFF !important; font-weight: 600; }
 
     </style>
 </head>
 <body>
-    <aside class="sidebar" id="sidebar-scroll-box">
+    <aside class="sidebar">
         <div class="sidebar-header">
-            <img src="/public/assets/logo.png" alt="Pikop Logo" style="height: 70px; width: auto;">
-            <div class="mt-2"><span class="badge-pikop">CORE v3.5.5</span></div>
+            <img src="/public/assets/logo.png" alt="Pikop Logo" style="height: 60px; width: auto;">
+            <div class="badge-v3">V3 OPERATIONAL HUB</div>
         </div>
 
-        <nav>
+        <div class="sidebar-nav-container">
             <div class="nav-group">
-                <div class="nav-label">INTELLIGENCE</div>
-                <a href="/admin/dashboard">📊 MISSION CONTROL</a>
-                <a href="/admin/reports">📈 ANALYTICS HUB</a>
+                <div class="nav-label">Intelligence</div>
+                <a href="/admin/dashboard" id="nav-dashboard">📊 Mission Control</a>
+                <a href="/admin/reports" id="nav-reports">📈 Analytics Hub</a>
             </div>
 
             <div class="nav-group">
-                <div class="nav-label">OPERATIONS</div>
-                <a href="/admin/orders">📦 LIVE MISSIONS</a>
-                <a href="/admin/kyc">🪪 FLEET AUTH</a>
+                <div class="nav-label">Operations</div>
+                <a href="/admin/orders" id="nav-orders">LIVE MISSIONS</a>
+                <a href="/admin/kyc" id="nav-kyc">FLEET AUTHENTICATION</a>
             </div>
 
             <div class="nav-group">
-                <div class="nav-label">PARTNERS</div>
-                <a href="/admin/vendors">🏪 MARKETPLACE</a>
-                <a href="/admin/kitchens">🍳 KITCHENS</a>
-                <a href="/admin/merchants">💼 MERCHANT HUB</a>
+                <div class="nav-label">Partners</div>
+                <a href="/admin/vendors" id="nav-vendors">VENDORS</a>
+                <a href="/admin/kitchens" id="nav-kitchens">KITCHENS</a>
+                <a href="/admin/merchants" id="nav-merchants">MERCHANT HUB</a>
             </div>
 
             <div class="nav-group">
-                <div class="nav-label">SYSTEM & SECURITY</div>
-                <a href="/admin/support" id="nav-support">💬 Support Inbox</a>
-                <a href="/admin/coupons" id="nav-coupons">🎟️ Coupon Engine</a>
-                <a href="/admin/settings" id="nav-settings">⚙️ Global Settings</a>
-                <a href="/admin/users" id="nav-users">👥 Admin Users</a>
-                <a href="/admin/profile" id="nav-profile">👤 My Profile</a>
+                <div class="nav-label">System Admin</div>
+                <a href="/admin/support" id="nav-support">SUPPORT INBOX</a>
+                <a href="/admin/coupons" id="nav-coupons">COUPON ENGINE</a>
+                <a href="/admin/settings" id="nav-settings">GLOBAL SETTINGS</a>
+                <a href="/admin/users" id="nav-users">ADMIN USERS</a>
+                <a href="/admin/profile" id="nav-profile">MY PROFILE</a>
             </div>
 
-            <div class="nav-group" style="padding-bottom: 50px;">
-                <div class="nav-label">SESSION</div>
-                <a href="/admin/logout" style="color: #FF0000 !important; border: 3px solid #FF0000; margin: 0 1rem; text-align: center; justify-content: center; background: rgba(255,0,0,0.1);">
-                    🚪 EXIT SYSTEM
+            <div class="nav-group" style="padding: 0 1.5rem;">
+                <a href="/admin/logout" style="color: var(--red) !important; border: 2px solid var(--red); justify-content: center; background: rgba(255,0,0,0.1);">
+                    SIGN OUT SYSTEM
                 </a>
             </div>
-        </nav>
+        </div>
     </aside>
 
     <div class="main-content">
         <header class="top-bar">
-            <div>
-                <span class="fw-black text-white" style="letter-spacing: 2px; font-size: 1.1rem;">PIKOP STATUS: <span style="color: var(--green);">OPERATIONAL</span></span>
+            <div class="fw-black text-white" style="letter-spacing: 1px;">
+                STATUS: <span style="color: var(--green);">OPERATIONAL</span>
             </div>
 
             <div class="d-flex align-items-center gap-4">
                 <button class="notification-btn" onclick="window.location.href='/admin/support'">
-                    <span>SYSTEM ALERTS</span>
-                    <div class="red-dot" id="global-dot"></div>
+                    ALERTS <div class="red-dot" id="global-dot"></div>
                 </button>
 
                 <div class="profile-box">
                     <div class="text-end">
-                        <div class="fw-black text-white" style="font-size: 1rem;"><%= adminUsername %></div>
-                        <div class="fw-black" style="color: var(--gold); font-size: 0.75rem; letter-spacing: 1.5px;"><%= role ? role.toUpperCase() : 'STAFF' %></div>
+                        <div class="fw-bold text-white small"><%= adminUsername %></div>
+                        <div class="smaller fw-black" style="color: var(--gold);"><%= role ? role.toUpperCase() : 'STAFF' %></div>
                     </div>
-                    <div class="rounded-circle bg-primary text-black fw-black d-flex align-items-center justify-content-center shadow-lg" style="width: 45px; height: 45px; border: 3px solid white; font-size: 1.2rem;">OP</div>
+                    <div class="rounded-circle bg-primary text-black fw-black d-flex align-items-center justify-content-center" style="width: 35px; height: 35px; border: 2px solid white;">OP</div>
                 </div>
             </div>
         </header>
@@ -246,32 +243,29 @@
     </div>
 
     <script>
-        // Definitive High Contrast Notifications
-        function flashAlert(title, msg) {
+        function showFlash(title, msg) {
             const el = document.createElement('div');
-            el.style.cssText = 'position:fixed; bottom:40px; right:40px; background:#FF9F0A; color:#000; padding:30px; font-weight:900; border:6px solid #FFF; z-index:9999; box-shadow: 0 0 50px rgba(255,159,10,0.5);';
-            el.innerHTML = `<div style="font-size:1.2rem; margin-bottom:10px;">${title.toUpperCase()}</div><div style="font-size:0.9rem;">${msg}</div>`;
+            el.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#FF9F0A; color:#000; padding:20px; font-weight:900; border:4px solid #FFF; z-index:9999;';
+            el.innerHTML = `<div>${title.toUpperCase()}</div><div style="font-size: 0.75rem;">${msg}</div>`;
             document.body.appendChild(el);
-            setTimeout(() => el.remove(), 8000);
+            setTimeout(() => el.remove(), 6000);
         }
 
         socket.on('new_support_alert', (data) => {
-            flashAlert('NEW MESSAGE', data.body);
+            showFlash('New Message', data.body);
             document.getElementById('global-dot').style.display = 'block';
         });
 
         socket.on('new_kyc_alert', (data) => {
-            flashAlert('KYC UPLOAD', 'A new document requires authentication.');
+            showFlash('KYC Upload', 'A new document requires authentication.');
             document.getElementById('global-dot').style.display = 'block';
         });
 
-        // HIGH CONTRAST ACTIVE LINK DETECTION
+        // Active Tab Highlighting
         const path = window.location.pathname;
-        const navLinks = document.querySelectorAll('.sidebar a');
-        navLinks.forEach(link => {
-            if (path === link.getAttribute('href')) {
-                link.classList.add('active-link');
-                // Ensure parent group is visible (if we had collapsible)
+        document.querySelectorAll('.sidebar a').forEach(l => {
+            if (path === l.getAttribute('href')) {
+                l.classList.add('active-link');
             }
         });
     </script>

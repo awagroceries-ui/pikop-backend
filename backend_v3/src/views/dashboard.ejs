@@ -10,26 +10,26 @@
 <div class="row g-4 mb-5">
     <div class="col-md-3">
         <div class="p-4" style="background: #000; border: 3px solid #FFF;">
-            <div class="text-primary fw-black smaller uppercase ls-1 mb-2">Active Missions</div>
+            <div class="text-primary fw-black smaller uppercase ls-1 mb-2" style="color: var(--gold) !important;">Active Missions</div>
             <h2 class="mb-0 fw-black text-white"><%= stats.activeOrders %></h2>
         </div>
     </div>
     <div class="col-md-3">
         <div class="p-4" style="background: #000; border: 3px solid #FFF;">
-            <div class="text-primary fw-black smaller uppercase ls-1 mb-2">Fleet Online</div>
+            <div class="text-primary fw-black smaller uppercase ls-1 mb-2" style="color: var(--gold) !important;">Fleet Online</div>
             <h2 class="mb-0 fw-black text-white"><%= stats.onlineFulfillers %></h2>
         </div>
     </div>
     <div class="col-md-3">
         <div class="p-4" style="background: #000; border: 3px solid #FFF;">
-            <div class="text-primary fw-black smaller uppercase ls-1 mb-2">Revenue (24h)</div>
+            <div class="text-primary fw-black smaller uppercase ls-1 mb-2" style="color: var(--gold) !important;">Revenue (24h)</div>
             <h2 class="mb-0 fw-black text-white">₦<%= stats.totalRevenue.toLocaleString() %></h2>
         </div>
     </div>
     <div class="col-md-3">
         <div class="p-4" style="background: #FF9F0A; border: 3px solid #FFF;">
             <div class="text-black fw-black smaller uppercase ls-1 mb-2">System Status</div>
-            <h2 class="mb-0 fw-black text-black">V3.5.5</h2>
+            <h2 class="mb-0 fw-black text-black">V3.5.6</h2>
         </div>
     </div>
 </div>
@@ -40,7 +40,7 @@
         <div style="background: #000; border: 3px solid #FFF; padding: 2rem;">
             <h4 class="text-white fw-black mb-4 ls-1">VOLUME PERFORMANCE</h4>
             <!-- HARD LOCK ON HEIGHT TO PREVENT STRETCHING -->
-            <div style="height: 350px !important; width: 100%; position: relative;">
+            <div style="height: 350px !important; width: 100%; position: relative; overflow: hidden;">
                 <canvas id="performanceChart"></canvas>
             </div>
         </div>
@@ -52,11 +52,11 @@
             <h4 class="text-white fw-black mb-4 ls-1">CRITICAL QUEUE</h4>
 
             <div class="d-flex flex-column gap-3">
-                <div class="p-3 d-flex justify-content-between align-items-center" style="border: 2px solid #FFFFFF; background: #000;">
+                <div class="p-3 d-flex justify-content-between align-items-center" style="border: 3px solid #FF0000; background: #000;">
                     <span class="text-white fw-black">PENDING KYC</span>
                     <span class="badge bg-danger text-white fw-black px-3"><%= stats.notifications.kyc %></span>
                 </div>
-                <div class="p-3 d-flex justify-content-between align-items-center" style="border: 2px solid #FFFFFF; background: #000;">
+                <div class="p-3 d-flex justify-content-between align-items-center" style="border: 3px solid #FF9F0A; background: #000;">
                     <span class="text-white fw-black">OPEN TICKETS</span>
                     <span class="badge bg-warning text-black fw-black px-3"><%= stats.notifications.support %></span>
                 </div>
@@ -101,10 +101,11 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    grid: { color: 'rgba(255,255,255,0.2)' },
                     ticks: { color: '#FFFFFF', font: { weight: 'bold' } }
                 },
                 x: {
@@ -118,8 +119,18 @@
         }
     });
 
-    // Handle Resize Stability
-    window.addEventListener('resize', () => {
-        window.pikopChart.resize();
-    });
+    async function refreshChart() {
+        try {
+            const res = await fetch('/admin/reports/api/performance?days=7');
+            const json = await res.json();
+            if (json.success) {
+                const data = json.data;
+                window.pikopChart.data.datasets[0].data[6] = data.pickup_delivery.volume;
+                window.pikopChart.data.datasets[1].data[6] = data.marketplace.volume;
+                window.pikopChart.update();
+            }
+        } catch (e) {}
+    }
+
+    window.onload = refreshChart;
 </script>

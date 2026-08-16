@@ -1,32 +1,32 @@
 <div class="mb-5">
-    <h3 class="fw-extrabold mb-1 ls-1">Marketplace Partners</h3>
-    <p class="text-muted small">Manage Vendors and Storefronts across the platform.</p>
+    <h3 class="fw-black mb-1 ls-1 text-white">MARKETPLACE PARTNERS</h3>
+    <p class="text-white opacity-75 small fw-bold">Manage Vendors and Storefronts across the platform.</p>
 </div>
 
 <div class="row g-4">
     <% if (vendors.length === 0) { %>
         <div class="col-12">
-            <div class="card bg-card border-0 p-5 text-center">
-                <p class="text-muted mb-0">No active vendors found. Marketplace expansion ready.</p>
+            <div class="card p-5 text-center" style="background: #000; border: 3px solid #FFF;">
+                <p class="text-white fw-black mb-0">NO ACTIVE VENDORS FOUND. MARKETPLACE EXPANSION READY.</p>
             </div>
         </div>
     <% } else { %>
         <% vendors.forEach(v => { %>
             <div class="col-md-12">
-                <div class="card bg-card border-0 p-4">
+                <div class="card p-4" style="background: #0A0A0A; border: 2px solid #FFF;">
                     <div class="row align-items-center">
                         <div class="col-md-4">
-                            <h6 class="mb-1 text-white fw-bold"><%= v.business_name %></h6>
-                            <span class="text-muted small">CAC: <%= v.cac_number || 'N/A' %></span>
+                            <h5 class="mb-1 text-white fw-black"><%= v.business_name.toUpperCase() %></h5>
+                            <span class="text-primary fw-black small ls-1">CAC: <%= v.cac_number || 'NOT REGISTERED' %></span>
                         </div>
                         <div class="col-md-3">
-                            <span class="badge <%= v.status === 'active' ? 'bg-success' : 'bg-warning text-dark' %>">
+                            <span class="badge <%= v.status === 'active' ? 'bg-success' : 'bg-warning text-black' %> fw-black px-4">
                                 <%= v.status.toUpperCase() %>
                             </span>
                         </div>
                         <div class="col-md-5 text-end">
-                            <button class="btn btn-sm btn-outline-secondary px-3">Catalog</button>
-                            <button class="btn btn-sm btn-outline-primary px-3 ms-2">Edit</button>
+                            <button class="btn btn-outline-light fw-black px-4 ls-1">CATALOG</button>
+                            <button class="btn btn-primary fw-black px-4 ls-1 ms-3">EDIT PROFILE</button>
                         </div>
                     </div>
                 </div>
