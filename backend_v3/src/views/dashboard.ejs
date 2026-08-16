@@ -1,37 +1,37 @@
 <div class="mb-5">
-    <h3 class="fw-extrabold mb-1 ls-1">Mission Control</h3>
-    <p class="text-muted small">Real-time oversight of the Pikop multi-module ecosystem.</p>
+    <h3 class="fw-black mb-1 ls-1 text-white">MISSION CONTROL</h3>
+    <p class="text-white opacity-75 small fw-bold">Real-time oversight of the Pikop multi-module ecosystem.</p>
 </div>
 
 <!-- KPI Row -->
 <div class="row g-4 mb-5">
     <div class="col-md-3">
-        <div class="kpi-card">
-            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-2">Live Missions</span>
+        <div class="kpi-card border-white border-opacity-25" style="background: #0A0A0A;">
+            <span class="text-primary smaller fw-black uppercase ls-1 d-block mb-2">Live Missions</span>
             <div class="d-flex align-items-center justify-content-between">
-                <h2 class="mb-0 fw-black mono"><%= stats.activeOrders %></h2>
-                <div class="rounded-circle bg-success" style="width: 8px; height: 8px; box-shadow: 0 0 10px var(--brand-green);"></div>
+                <h2 class="mb-0 fw-black text-white mono"><%= stats.activeOrders %></h2>
+                <div class="rounded-circle bg-success shadow-sm" style="width: 10px; height: 10px;"></div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="kpi-card">
-            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-2">Online Fleet</span>
-            <h2 class="mb-0 fw-black mono"><%= stats.onlineFulfillers %></h2>
+        <div class="kpi-card border-white border-opacity-25" style="background: #0A0A0A;">
+            <span class="text-primary smaller fw-black uppercase ls-1 d-block mb-2">Online Fleet</span>
+            <h2 class="mb-0 fw-black text-white mono"><%= stats.onlineFulfillers %></h2>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="kpi-card">
-            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-2">Gross Revenue (24h)</span>
-            <h2 class="mb-0 fw-black mono">₦<%= stats.totalRevenue.toLocaleString() %></h2>
+        <div class="kpi-card border-white border-opacity-25" style="background: #0A0A0A;">
+            <span class="text-primary smaller fw-black uppercase ls-1 d-block mb-2">Gross Revenue (24h)</span>
+            <h2 class="mb-0 fw-black text-white mono">₦<%= stats.totalRevenue.toLocaleString() %></h2>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="kpi-card border-primary" style="background: rgba(255, 159, 10, 0.05);">
-            <span class="text-primary smaller fw-bold uppercase ls-1 d-block mb-2">System Health</span>
+        <div class="kpi-card border-primary" style="background: rgba(255, 159, 10, 0.05); border-width: 2px;">
+            <span class="text-primary smaller fw-black uppercase ls-1 d-block mb-2">System Health</span>
             <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-primary text-black fw-bold">OPTIMAL</span>
-                <span class="text-muted smaller">v3.0.0</span>
+                <span class="badge bg-primary text-black fw-black">OPTIMAL</span>
+                <span class="text-white smaller fw-bold">v3.5.3</span>
             </div>
         </div>
     </div>
@@ -39,36 +39,36 @@
 
 <div class="row g-4">
     <div class="col-md-8">
-        <div class="card bg-card border-0 p-4" style="height: 450px;">
-            <h6 class="text-white small fw-bold uppercase ls-1 mb-4">Module Performance Breakdown</h6>
-            <div style="position: relative; height: 350px; width: 100%;">
+        <div class="card border-white border-opacity-25 p-4" style="background: #0A0A0A; height: 450px; overflow: hidden;">
+            <h6 class="text-white small fw-black uppercase ls-1 mb-4">Module Performance Breakdown</h6>
+            <div style="position: relative; height: 320px; width: 100%;">
                 <canvas id="performanceChart"></canvas>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card bg-card border-0 p-4 h-100">
-            <h6 class="text-white small fw-bold uppercase ls-1 mb-4">Alert Priority Queue</h6>
+        <div class="card border-white border-opacity-25 p-4 h-100" style="background: #0A0A0A;">
+            <h6 class="text-white small fw-black uppercase ls-1 mb-4">Alert Priority Queue</h6>
 
             <div class="d-flex flex-column gap-3">
-                <div class="p-3 rounded-3 border border-white border-opacity-10 d-flex justify-content-between align-items-center">
+                <div class="p-3 rounded-3 border border-white border-opacity-20 d-flex justify-content-between align-items-center bg-black">
                     <div>
-                        <span class="d-block small fw-bold text-white">Pending KYC</span>
-                        <span class="smaller text-white opacity-75">Fleet Auth Queue</span>
+                        <span class="d-block small fw-black text-white">Pending KYC</span>
+                        <span class="smaller text-white opacity-75 fw-bold">Fleet Auth Queue</span>
                     </div>
-                    <span class="badge bg-danger"><%= stats.notifications.kyc %></span>
+                    <span class="badge bg-danger text-white fw-black"><%= stats.notifications.kyc %></span>
                 </div>
-                <div class="p-3 rounded-3 border border-white border-opacity-10 d-flex justify-content-between align-items-center">
+                <div class="p-3 rounded-3 border border-white border-opacity-20 d-flex justify-content-between align-items-center bg-black">
                     <div>
-                        <span class="d-block small fw-bold text-white">Open Support</span>
-                        <span class="smaller text-white opacity-75">Help Desk</span>
+                        <span class="d-block small fw-black text-white">Open Support</span>
+                        <span class="smaller text-white opacity-75 fw-bold">Help Desk</span>
                     </div>
-                    <span class="badge bg-warning text-dark"><%= stats.notifications.support %></span>
+                    <span class="badge bg-warning text-black fw-black"><%= stats.notifications.support %></span>
                 </div>
             </div>
 
             <div class="mt-auto pt-4 text-center">
-                <button class="btn btn-outline-light btn-sm w-100 fw-bold">View Full Activity Log</button>
+                <button class="btn btn-outline-light btn-sm w-100 fw-black ls-1">VIEW FULL ACTIVITY LOG</button>
             </div>
         </div>
     </div>
@@ -86,42 +86,45 @@
                 borderColor: '#FF5722',
                 backgroundColor: 'rgba(255, 87, 34, 0.1)',
                 tension: 0.4,
-                fill: true
+                fill: true,
+                borderWidth: 3
             }, {
                 label: 'Marketplace',
                 data: [0, 0, 0, 0, 0, 0, 0],
                 borderColor: '#8BC34A',
                 backgroundColor: 'rgba(139, 195, 74, 0.1)',
                 tension: 0.4,
-                fill: true
+                fill: true,
+                borderWidth: 3
             }, {
                 label: 'Foods',
                 data: [0, 0, 0, 0, 0, 0, 0],
                 borderColor: '#00BCD4',
                 backgroundColor: 'rgba(0, 188, 212, 0.1)',
                 tension: 0.4,
-                fill: true
+                fill: true,
+                borderWidth: 3
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: false, // Performance and stability
+            animation: false,
             scales: {
                 y: {
                     beginAtZero: true,
                     grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#FFFFFF', font: { weight: 'bold' } }
+                    ticks: { color: '#FFFFFF', font: { weight: 'bold', size: 11 } }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#FFFFFF', font: { weight: 'bold' } }
+                    ticks: { color: '#FFFFFF', font: { weight: 'bold', size: 11 } }
                 }
             },
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { color: '#FFFFFF', font: { weight: 'bold', size: 12 } }
+                    labels: { color: '#FFFFFF', font: { weight: 'bold', size: 12 }, padding: 20 }
                 }
             }
         }

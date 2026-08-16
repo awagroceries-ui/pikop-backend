@@ -23,12 +23,12 @@
             --brand-green: #8BC34A;
             --brand-teal: #00BCD4;
             --brand-white: #FFFFFF;
-            --bg-chrome: var(--brand-black);
+            --bg-chrome: #000000;
             --bg-main: #000000;
             --bg-card: #0A0A0A;
             --text-main: #FFFFFF;
-            --text-muted: #E2E8F0;
-            --border: rgba(255,255,255,0.1);
+            --text-muted: #F8FAFC; /* High contrast off-white */
+            --border: rgba(255,255,255,0.15);
         }
 
         body {
@@ -47,23 +47,23 @@
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid var(--border);
+            border-right: 2px solid var(--border);
         }
 
         .sidebar-header {
             padding: 2.5rem 1.5rem;
             display: flex;
             align-items: center;
+            border-bottom: 1px solid var(--border);
         }
 
         .sidebar-group-label {
             padding: 1.5rem 1.5rem 0.5rem;
-            font-size: 0.7rem;
-            font-weight: 800;
-            color: #FFFFFF;
+            font-size: 0.75rem;
+            font-weight: 900;
+            color: var(--brand-gold);
             text-transform: uppercase;
             letter-spacing: 0.15em;
-            opacity: 0.9;
         }
 
         .sidebar a {
@@ -71,22 +71,22 @@
             text-decoration: none;
             display: flex;
             align-items: center;
-            padding: 0.75rem 1.5rem;
+            padding: 0.85rem 1.5rem;
             font-size: 0.95rem;
-            font-weight: 600;
+            font-weight: 700;
             transition: 0.2s all ease;
             gap: 14px;
         }
 
         .sidebar a:hover {
             color: var(--brand-gold);
-            background: rgba(255, 159, 10, 0.05);
+            background: rgba(255, 159, 10, 0.1);
         }
 
         .active-link {
             color: var(--brand-gold) !important;
-            background: rgba(255, 159, 10, 0.1);
-            border-right: 4px solid var(--brand-gold);
+            background: rgba(255, 159, 10, 0.15);
+            border-right: 5px solid var(--brand-gold);
         }
 
         .main-container {
@@ -105,14 +105,14 @@
             position: sticky;
             top: 0;
             z-index: 999;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 2px solid var(--border);
         }
 
         .content-body { padding: 2.5rem; }
 
         .kpi-card {
             background: var(--bg-card);
-            border: 1px solid var(--border);
+            border: 2px solid var(--border);
             border-radius: 16px;
             padding: 1.5rem;
         }
@@ -120,30 +120,39 @@
         .badge-count {
             background: var(--brand-orange);
             color: white;
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border-radius: 10px;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
             margin-left: auto;
+            font-weight: 900;
+        }
+
+        .btn-outline-light {
+            border-color: #FFFFFF;
+            color: #FFFFFF;
             font-weight: 800;
         }
 
-        /* High Contrast Overrides */
-        .text-muted { color: var(--text-muted) !important; }
-        .small, .smaller { color: #FFFFFF !important; opacity: 0.95; }
-        .badge { font-weight: 800; }
+        .text-muted { color: var(--text-muted) !important; font-weight: 500; }
+
+        /* Utility for high contrast */
+        .fw-black { font-weight: 900; }
+        .ls-1 { letter-spacing: 1px; }
+        .bg-card { background-color: #0A0A0A !important; }
+
     </style>
 </head>
 <body>
     <aside class="sidebar">
         <div class="sidebar-header">
             <span class="fw-black text-white ls-1" style="font-size: 1.4rem;">PIKOP <span class="text-primary">V3</span></span>
-            <div class="badge bg-danger ms-2" style="font-size: 0.5rem;">CORE</div>
+            <div class="badge bg-danger ms-2" style="font-size: 0.6rem; font-weight: 900;">CORE</div>
         </div>
 
         <nav class="flex-grow-1">
             <div class="sidebar-group-label">Intelligence</div>
             <a href="/admin/dashboard" id="nav-dashboard">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                 <span>Mission Control</span>
             </a>
             <a href="/admin/reports" id="nav-reports">
@@ -184,10 +193,19 @@
                 <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 <span>Settings</span>
             </a>
-            <div class="sidebar-group-label">Exit</div>
+            <a href="/admin/users" id="nav-users">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <span>Admin Users</span>
+            </a>
+            <a href="/admin/profile" id="nav-profile">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>My Profile</span>
+            </a>
+
+            <div class="sidebar-group-label" style="margin-top: 2rem;">Exit</div>
             <a href="/admin/logout" style="color: #FF5722 !important;">
                 <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                <span>End Session (Logout)</span>
+                <span class="fw-black">SIGN OUT SYSTEM</span>
             </a>
         </nav>
     </aside>
@@ -195,17 +213,17 @@
     <div class="main-container">
         <header class="top-bar">
             <div class="d-flex align-items-center gap-3">
-                <span class="text-muted smaller ls-1 fw-bold uppercase">Network Status</span>
-                <span class="badge bg-success mono" style="font-size: 0.6rem;">OPERATIONAL</span>
+                <span class="text-white smaller ls-1 fw-black uppercase">Platform Status:</span>
+                <span class="badge bg-success text-black fw-black mono" style="font-size: 0.7rem;">OPERATIONAL</span>
             </div>
 
             <div class="d-flex align-items-center gap-4">
-                <div class="admin-profile d-flex align-items-center gap-2">
+                <div class="admin-profile d-flex align-items-center gap-3">
                     <div class="text-end">
-                        <div class="small fw-bold">Pikop Operations</div>
-                        <div class="text-muted" style="font-size: 0.6rem;"><%= role ? role.toUpperCase() : 'STAFF' %></div>
+                        <div class="small fw-black text-white"><%= adminUsername %></div>
+                        <div class="text-primary fw-black ls-1" style="font-size: 0.65rem;"><%= role ? role.toUpperCase() : 'STAFF' %></div>
                     </div>
-                    <div class="rounded-circle bg-primary text-black fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem;">OP</div>
+                    <div class="rounded-circle bg-primary text-black fw-black d-flex align-items-center justify-content-center" style="width: 36px; height: 32px; border: 2px solid white;">OP</div>
                 </div>
             </div>
         </header>
@@ -239,10 +257,10 @@
             notification.className = 'position-fixed bottom-0 end-0 p-3';
             notification.style.zIndex = '9999';
             notification.innerHTML = `
-                <div class="card bg-dark text-white border-primary shadow" style="min-width: 250px;">
+                <div class="card bg-dark text-white border-primary shadow-lg" style="min-width: 250px; border-width: 2px;">
                     <div class="card-body">
-                        <h6 class="fw-bold text-primary mb-1">${title}</h6>
-                        <p class="small mb-0">${body}</p>
+                        <h6 class="fw-black text-primary mb-1">${title}</h6>
+                        <p class="small mb-0 fw-bold">${body}</p>
                     </div>
                 </div>
             `;
@@ -253,12 +271,15 @@
         const path = window.location.pathname;
         const navMap = {
             'dashboard': 'nav-dashboard',
+            'reports': 'nav-reports',
             'orders': 'nav-orders',
             'kyc': 'nav-kyc',
             'vendors': 'nav-vendors',
             'kitchens': 'nav-kitchens',
             'support': 'nav-support',
-            'settings': 'nav-settings'
+            'settings': 'nav-settings',
+            'users': 'nav-users',
+            'profile': 'nav-profile'
         };
         Object.entries(navMap).forEach(([segment, id]) => {
             if (path.includes(segment)) {
