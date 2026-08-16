@@ -44,7 +44,9 @@
             z-index: 2000;
             display: flex;
             flex-direction: column;
-            overflow-y: scroll; /* Force scrolling for all items */
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--gold) #000;
         }
 
         .sidebar::-webkit-scrollbar { width: 6px; }
@@ -200,11 +202,11 @@
 
             <div class="nav-group">
                 <div class="nav-label">SYSTEM & SECURITY</div>
-                <a href="/admin/support">💬 SUPPORT INBOX</a>
-                <a href="/admin/coupons">🎟️ COUPON ENGINE</a>
-                <a href="/admin/settings">⚙️ GLOBAL SETTINGS</a>
-                <a href="/admin/users">👥 ADMIN USERS</a>
-                <a href="/admin/profile">👤 MY PROFILE</a>
+                <a href="/admin/support" id="nav-support">💬 Support Inbox</a>
+                <a href="/admin/coupons" id="nav-coupons">🎟️ Coupon Engine</a>
+                <a href="/admin/settings" id="nav-settings">⚙️ Global Settings</a>
+                <a href="/admin/users" id="nav-users">👥 Admin Users</a>
+                <a href="/admin/profile" id="nav-profile">👤 My Profile</a>
             </div>
 
             <div class="nav-group" style="padding-bottom: 50px;">

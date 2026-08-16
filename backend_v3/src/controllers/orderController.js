@@ -199,6 +199,12 @@ const updateStatus = async (req, res) => {
         await walletService.processMissionSettlement(orderId);
     }
 
+    // 3. No-Refund Policy for Recipient Absence (v3.8.1)
+    if (status === 'RECIPIENT_ABSENT') {
+        console.log(`[Policy] Mission #${orderId} marked RECIPIENT_ABSENT. No refund eligible.`);
+        // Note: No wallet reverse call here.
+    }
+
     res.status(200).json({ success: true, data: rows[0] });
   } catch (error) {
     throw error;

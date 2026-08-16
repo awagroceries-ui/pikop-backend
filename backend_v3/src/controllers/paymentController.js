@@ -199,5 +199,6 @@ const handleWebhook = async (req, res) => {
 
 module.exports = {
   initializePayment,
+  initializeCoDPayment,
   handleWebhook
 };
