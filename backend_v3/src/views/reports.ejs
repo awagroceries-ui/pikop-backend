@@ -1,30 +1,27 @@
 <div class="d-flex justify-content-between align-items-center mb-5">
     <div>
-        <h3 class="fw-black mb-1 ls-1 text-white">INTELLIGENCE & ANALYTICS</h3>
-        <p class="text-white small fw-bold">Deep insights into module performance and user growth.</p>
+        <h4 class="fw-bold mb-1 text-white">Management Reports</h4>
+        <p class="text-white opacity-50 small mb-0">Aggregate performance across all business units.</p>
     </div>
-    <div class="d-flex gap-3">
-        <a href="/admin/reports/export/missions" class="btn btn-outline-light fw-black btn-sm px-4 ls-1">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24" class="me-2"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-            EXPORT MISSIONS (CSV)
-        </a>
-    </div>
+    <a href="/admin/reports/export/missions" class="btn-pikop-outline py-2 px-3 ls-1">
+        EXPORT MISSIONS (CSV)
+    </a>
 </div>
 
 <div class="row g-4">
     <div class="col-md-6">
-        <div class="card p-4 h-100" style="background: #000; border: 3px solid #FFF;">
-            <h6 class="text-white small fw-black uppercase ls-1 mb-4">GMV Breakdown by Module</h6>
-            <div style="position: relative; height: 300px; width: 100%;">
+        <div class="card-pikop p-4 h-100">
+            <h6 class="text-white small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Revenue Share (GMV)</h6>
+            <div style="position: relative; height: 250px; width: 100%;">
                 <canvas id="gmvPieChart"></canvas>
             </div>
             <div class="mt-4">
-                <table class="table table-dark table-borderless mb-0">
+                <table class="table-pikop">
                     <tbody>
                         <% moduleStats.forEach(stat => { %>
                             <tr>
-                                <td class="text-white fw-black uppercase ls-1 small"><%= stat.order_type.replace('_', ' ') %></td>
-                                <td class="text-end fw-black text-primary" style="color: var(--gold) !important;">₦<%= parseFloat(stat.gmv || 0).toLocaleString() %></td>
+                                <td class="text-white opacity-75 small uppercase fw-bold"><%= stat.order_type.replace('_', ' ') %></td>
+                                <td class="text-end fw-bold text-white">₦<%= parseFloat(stat.gmv || 0).toLocaleString() %></td>
                             </tr>
                         <% }) %>
                     </tbody>
@@ -34,43 +31,43 @@
     </div>
 
     <div class="col-md-6">
-        <div class="card p-4 h-100" style="background: #000; border: 3px solid #FFF;">
-            <h6 class="text-white small fw-black uppercase ls-1 mb-4">User Engagement (DAU/MAU)</h6>
+        <div class="card-pikop p-4 h-100">
+            <h6 class="text-white small fw-bold uppercase mb-4" style="letter-spacing: 1px;">User Engagement</h6>
             <div class="row g-3 mb-4">
                 <div class="col-6">
-                    <div class="p-3 bg-black border border-white">
-                        <span class="text-white smaller fw-black d-block mb-1 uppercase">Users (24h)</span>
-                        <h3 class="mb-0 fw-black text-primary" id="val-dau" style="color: var(--gold) !important;">...</h3>
+                    <div class="p-3 bg-black border border-white border-opacity-10">
+                        <span class="text-white opacity-50 smaller fw-bold d-block mb-1">DAU (24H)</span>
+                        <h4 class="mb-0 fw-bold text-white" id="val-dau">...</h4>
                     </div>
                 </div>
                 <div class="col-6">
-                    <div class="p-3 bg-black border border-white">
-                        <span class="text-white smaller fw-black d-block mb-1 uppercase">Fleet Active</span>
-                        <h3 class="mb-0 fw-black text-primary" id="val-fleet" style="color: var(--gold) !important;">...</h3>
+                    <div class="p-3 bg-black border border-white border-opacity-10">
+                        <span class="text-white opacity-50 smaller fw-bold d-block mb-1">FLEET (24H)</span>
+                        <h4 class="mb-0 fw-bold text-white" id="val-fleet">...</h4>
                     </div>
                 </div>
             </div>
-            <div style="position: relative; height: 200px; width: 100%;">
+            <div style="position: relative; height: 180px; width: 100%;">
                 <canvas id="userTrendChart"></canvas>
             </div>
         </div>
     </div>
 
     <div class="col-md-12">
-        <div class="card p-4" style="background: #000; border: 3px solid #FFF;">
-            <h6 class="text-white small fw-black uppercase ls-1 mb-4">Market Density by City</h6>
+        <div class="card-pikop p-4">
+            <h6 class="text-white small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Market Density by Region</h6>
             <div class="row g-4 align-items-center">
                 <div class="col-md-8">
-                    <div style="position: relative; height: 350px; width: 100%;">
+                    <div style="position: relative; height: 300px; width: 100%;">
                         <canvas id="cityDensityChart"></canvas>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="d-flex flex-column gap-3">
+                    <div class="d-flex flex-column gap-2">
                         <% cityStats.forEach(city => { %>
-                            <div class="p-3 border border-white d-flex justify-content-between bg-black">
-                                <span class="fw-black text-white uppercase"><%= city.city %></span>
-                                <span class="badge bg-primary text-black fw-black"><%= city.count %> PARTNERS</span>
+                            <div class="p-3 border border-white border-opacity-10 d-flex justify-content-between bg-black">
+                                <span class="fw-bold text-white uppercase" style="font-size: 12px;"><%= city.city %></span>
+                                <span class="badge bg-gold text-black fw-bold"><%= city.count %> Partners</span>
                             </div>
                         <% }) %>
                     </div>
@@ -92,9 +89,9 @@
                     <%= moduleStats.find(s => s.order_type === 'marketplace')?.gmv || 0 %>,
                     <%= moduleStats.find(s => s.order_type === 'food')?.gmv || 0 %>
                 ],
-                backgroundColor: ['#FF5722', '#8BC34A', '#00BCD4'],
+                backgroundColor: ['#FF5722', '#34C759', '#00BCD4'],
                 borderWidth: 0,
-                cutout: '75%'
+                cutout: '80%'
             }]
         },
         options: {
@@ -109,18 +106,18 @@
         data: {
             labels: <%- JSON.stringify(cityStats.map(s => s.city)) %>,
             datasets: [{
-                label: 'Partner Density',
+                label: 'Density',
                 data: <%- JSON.stringify(cityStats.map(s => s.count)) %>,
                 backgroundColor: '#FF9F0A',
-                borderRadius: 0
+                borderRadius: 2
             }]
         },
         options: {
             indexAxis: 'y',
             maintainAspectRatio: false,
             scales: {
-                x: { grid: { color: 'rgba(255,255,255,0.2)' }, ticks: { color: '#FFFFFF', font: { weight: 'bold' } } },
-                y: { grid: { display: false }, ticks: { color: '#FFFFFF', font: { weight: 'bold' } } }
+                x: { grid: { color: '#222' }, ticks: { color: '#FFF', font: { size: 10 } } },
+                y: { grid: { display: false }, ticks: { color: '#FFF', font: { size: 10 } } }
             },
             plugins: { legend: { display: false } }
         }

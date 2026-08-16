@@ -1,41 +1,42 @@
 <div class="mb-5">
-    <h3 class="fw-black mb-1 ls-1 text-white">SUPPORT COMMAND</h3>
-    <p class="text-white opacity-75 small fw-bold">Manage real-time communication with users and fleet.</p>
+    <h4 class="fw-bold mb-1 text-white">Support Command</h4>
+    <p class="text-white opacity-50 small mb-0">Active communication with users and fleet.</p>
 </div>
 
-<div class="row g-4">
+<div class="card-pikop">
     <% if (conversations.length === 0) { %>
-        <div class="col-12">
-            <div class="card p-5 text-center" style="background: #000; border: 3px solid #FFF;">
-                <p class="text-white fw-black mb-0">NO ACTIVE SUPPORT SESSIONS FOUND.</p>
-            </div>
+        <div class="p-5 text-center">
+            <p class="text-white opacity-50 mb-0">No active support sessions found.</p>
         </div>
     <% } else { %>
-        <% conversations.forEach(conv => { %>
-            <div class="col-md-12">
-                <a href="/admin/support/<%= conv.id %>" class="text-decoration-none">
-                    <div class="card p-4 transition-hover" style="background: #0A0A0A; border: 2px solid #FFF;">
-                        <div class="row align-items-center">
-                            <div class="col-md-4">
-                                <h5 class="mb-1 text-white fw-black"><%= conv.participant_name.toUpperCase() %></h5>
-                                <span class="badge bg-primary text-black fw-black"><%= conv.participant_type %></span>
-                            </div>
-                            <div class="col-md-4 text-center">
-                                <span class="text-white opacity-75 small ls-1 fw-black">LAST ACTIVE</span>
-                                <div class="text-white fw-black"><%= new Date(conv.last_message_at).toLocaleString() %></div>
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <span class="text-primary fw-black ls-1">OPEN SESSION <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24" class="ms-1"><path d="M9 5l7 7-7 7"></path></svg></span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-            </div>
-        <% }) %>
+        <div class="table-responsive">
+            <table class="table-pikop">
+                <thead>
+                    <tr>
+                        <th>Participant</th>
+                        <th>User Type</th>
+                        <th class="text-center">Last Active</th>
+                        <th class="text-end">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% conversations.forEach(conv => { %>
+                        <tr class="align-middle clickable-row" onclick="window.location.href='/admin/support/<%= conv.id %>'">
+                            <td><span class="fw-bold text-white"><%= conv.participant_name %></span></td>
+                            <td><span class="badge bg-gold text-black fw-bold" style="font-size: 10px;"><%= conv.participant_type %></span></td>
+                            <td class="text-center text-white opacity-75 small"><%= new Date(conv.last_message_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) %></td>
+                            <td class="text-end">
+                                <span class="text-gold fw-bold small">Open Session &rarr;</span>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
     <% } %>
 </div>
 
 <style>
-    .transition-hover { transition: 0.2s transform ease; }
-    .transition-hover:hover { transform: translateX(10px); border-color: var(--brand-gold) !important; }
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover { background-color: #111 !important; }
 </style>

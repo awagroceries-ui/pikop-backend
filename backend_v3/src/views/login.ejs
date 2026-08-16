@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | Pikop Command</title>
+    <title>PIKOP COMMAND | AUTHORIZED ACCESS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             background-color: #000000 !important;
@@ -13,83 +14,88 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: sans-serif;
+            font-family: 'Inter', sans-serif;
             margin: 0;
         }
         .login-card {
-            background: #000000 !important;
-            padding: 3.5rem;
-            border-radius: 0;
+            background: #0A0A0A !important;
+            padding: 3rem;
+            border-radius: 8px;
             width: 100%;
-            max-width: 420px;
-            border: 4px solid #FF9F0A !important;
-            box-shadow: 0 0 50px rgba(255, 159, 10, 0.2);
+            max-width: 400px;
+            border: 1px solid #333 !important;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
         .form-control {
-            background: #000000 !important;
-            border: 2px solid #FFFFFF !important;
+            background: #000 !important;
+            border: 1px solid #444 !important;
             color: #FFFFFF !important;
-            padding: 1rem;
-            font-weight: 900;
-            border-radius: 0;
-            font-size: 1.1rem;
+            padding: 0.75rem 1rem;
+            font-weight: 500;
+            border-radius: 4px;
+            font-size: 14px;
         }
         .form-control:focus {
             border-color: #FF9F0A !important;
             box-shadow: none;
+            outline: none;
         }
         .form-label {
             color: #FFFFFF !important;
-            font-weight: 900;
+            font-weight: 700;
             text-transform: uppercase;
-            font-size: 0.9rem;
-            letter-spacing: 2px;
-            margin-bottom: 12px;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
             display: block;
+            opacity: 0.7;
         }
         .btn-primary {
             background: #FF9F0A !important;
             border: none;
             color: #000000 !important;
-            font-weight: 900;
-            padding: 1.2rem;
-            letter-spacing: 3px;
+            font-weight: 700;
+            padding: 0.85rem;
+            letter-spacing: 1px;
             text-transform: uppercase;
             margin-top: 20px;
-            border-radius: 0;
+            border-radius: 4px;
             width: 100%;
+            font-size: 13px;
         }
         .btn-primary:hover {
             background: #FFFFFF !important;
             color: #000000 !important;
         }
         .alert-danger {
-            background: #FF0000 !important;
+            background: #FF3B30 !important;
             color: #FFFFFF !important;
             border: none;
-            font-weight: 900;
-            text-transform: uppercase;
-            padding: 1rem;
+            font-weight: 600;
+            font-size: 12px;
+            padding: 12px;
             margin-bottom: 2rem;
+            border-radius: 4px;
         }
+        .brand-logo { height: 45px; width: auto; margin-bottom: 30px; }
         .version-tag {
-            color: #FF9F0A !important;
-            font-weight: 900;
-            font-size: 0.8rem;
-            letter-spacing: 2px;
+            color: #FFFFFF !important;
+            font-weight: 500;
+            font-size: 10px;
+            letter-spacing: 1px;
             margin-top: 30px;
+            opacity: 0.3;
             text-transform: uppercase;
         }
     </style>
 </head>
 <body>
     <div class="login-card text-center">
-        <div class="mb-5">
-            <img src="/public/assets/logo.png" alt="Pikop Logo" style="height: 80px; width: auto;">
-        </div>
+        <img src="/public/assets/logo.png" alt="Pikop Logo" class="brand-logo">
+        <div style="font-size: 12px; font-weight: 700; color: #FF9F0A; letter-spacing: 2px; margin-bottom: 40px;">COMMAND CENTER</div>
 
         <% if (locals.error) { %>
-            <div class="alert alert-danger"><%= error %></div>
+            <div class="alert alert-danger">Access Denied: <%= error %></div>
         <% } %>
 
         <form action="/admin/login" method="POST">
@@ -101,8 +107,8 @@
                 <label class="form-label">PASSWORD</label>
                 <input type="password" name="password" class="form-control" required>
             </div>
-            <button type="submit" class="btn btn-primary">AUTHORIZE SYSTEM ACCESS</button>
-            <div class="version-tag">V3.5.6 - HIGH CONTRAST HARDENED</div>
+            <button type="submit" class="btn btn-primary">AUTHORIZE ACCESS</button>
+            <div class="version-tag">STABLE CORE v3.5.7</div>
         </form>
     </div>
 </body>

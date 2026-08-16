@@ -1,36 +1,54 @@
 <div class="mb-5">
-    <h3 class="fw-black mb-1 ls-1 text-white">MARKETPLACE PARTNERS</h3>
-    <p class="text-white opacity-75 small fw-bold">Manage Vendors and Storefronts across the platform.</p>
+    <h4 class="fw-bold mb-1 text-white">Marketplace Stores</h4>
+    <p class="text-white opacity-50 small mb-0">Manage Vendors and Storefronts across the platform.</p>
 </div>
 
-<div class="row g-4">
+<div class="card-pikop">
     <% if (vendors.length === 0) { %>
-        <div class="col-12">
-            <div class="card p-5 text-center" style="background: #000; border: 3px solid #FFF;">
-                <p class="text-white fw-black mb-0">NO ACTIVE VENDORS FOUND. MARKETPLACE EXPANSION READY.</p>
-            </div>
+        <div class="p-5 text-center">
+            <p class="text-white opacity-50 mb-0">No active vendors found. Marketplace expansion ready.</p>
         </div>
     <% } else { %>
-        <% vendors.forEach(v => { %>
-            <div class="col-md-12">
-                <div class="card p-4" style="background: #0A0A0A; border: 2px solid #FFF;">
-                    <div class="row align-items-center">
-                        <div class="col-md-4">
-                            <h5 class="mb-1 text-white fw-black"><%= v.business_name.toUpperCase() %></h5>
-                            <span class="text-primary fw-black small ls-1">CAC: <%= v.cac_number || 'NOT REGISTERED' %></span>
-                        </div>
-                        <div class="col-md-3">
-                            <span class="badge <%= v.status === 'active' ? 'bg-success' : 'bg-warning text-black' %> fw-black px-4">
-                                <%= v.status.toUpperCase() %>
-                            </span>
-                        </div>
-                        <div class="col-md-5 text-end">
-                            <button class="btn btn-outline-light fw-black px-4 ls-1">CATALOG</button>
-                            <button class="btn btn-primary fw-black px-4 ls-1 ms-3">EDIT PROFILE</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        <% }) %>
+        <div class="table-responsive">
+            <table class="table-pikop">
+                <thead>
+                    <tr>
+                        <th>Business Entity</th>
+                        <th class="text-center">CAC Status</th>
+                        <th class="text-center">Account Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% vendors.forEach(v => { %>
+                        <tr class="align-middle">
+                            <td>
+                                <div class="fw-bold text-white"><%= v.business_name %></div>
+                                <div class="smaller text-white opacity-50"><%= v.contact_email %></div>
+                            </td>
+                            <td class="text-center text-white small fw-bold">
+                                <%= v.cac_number || 'NOT REGISTERED' %>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge <%= v.status === 'active' ? 'bg-green' : 'bg-gold' %> text-black fw-bold px-3">
+                                    <%= v.status.toUpperCase() %>
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button class="btn-pikop-outline py-1 px-3" style="font-size: 11px;">CATALOG</button>
+                                    <button class="btn-pikop-primary py-1 px-3" style="font-size: 11px;">EDIT</button>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
     <% } %>
 </div>
+
+<style>
+    .bg-green { background-color: var(--green) !important; }
+    .bg-gold { background-color: var(--gold) !important; }
+</style>

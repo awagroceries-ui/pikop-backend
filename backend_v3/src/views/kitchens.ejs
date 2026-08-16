@@ -1,40 +1,54 @@
 <div class="mb-5">
-    <h3 class="fw-black mb-1 ls-1 text-white">KITCHEN PARTNERS</h3>
-    <p class="text-white opacity-75 small fw-bold">Manage Foods & Meals kitchen operations.</p>
+    <h4 class="fw-bold mb-1 text-white">Kitchen Partners</h4>
+    <p class="text-white opacity-50 small mb-0">Management of Foods & Meals kitchen operations.</p>
 </div>
 
-<div class="row g-4">
+<div class="card-pikop">
     <% if (kitchens.length === 0) { %>
-        <div class="col-12">
-            <div class="card p-5 text-center" style="background: #000; border: 3px solid #FFF;">
-                <p class="text-white fw-black mb-0">NO ACTIVE KITCHENS FOUND. READY FOR FOOD MODULE ROLLOUT.</p>
-            </div>
+        <div class="p-5 text-center">
+            <p class="text-white opacity-50 mb-0">No active kitchens found. Ready for Food module rollout.</p>
         </div>
     <% } else { %>
-        <% kitchens.forEach(k => { %>
-            <div class="col-md-12">
-                <div class="card p-4" style="background: #0A0A0A; border: 2px solid #FFF;">
-                    <div class="row align-items-center">
-                        <div class="col-md-4">
-                            <h5 class="mb-1 text-white fw-black"><%= k.business_name.toUpperCase() %></h5>
-                            <span class="badge bg-teal text-white fw-black small uppercase"><%= k.cuisine_type || 'GENERAL CUISINE' %></span>
-                        </div>
-                        <div class="col-md-3">
-                            <span class="badge <%= k.status === 'active' ? 'bg-success' : 'bg-warning text-black' %> fw-black px-4">
-                                <%= k.status.toUpperCase() %>
-                            </span>
-                        </div>
-                        <div class="col-md-5 text-end">
-                            <button class="btn btn-outline-light fw-black px-4 ls-1">MENU</button>
-                            <button class="btn btn-primary fw-black px-4 ls-1 ms-3">EDIT PROFILE</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        <% }) %>
+        <div class="table-responsive">
+            <table class="table-pikop">
+                <thead>
+                    <tr>
+                        <th>Kitchen Entity</th>
+                        <th class="text-center">Cuisine</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% kitchens.forEach(k => { %>
+                        <tr class="align-middle">
+                            <td>
+                                <div class="fw-bold text-white"><%= k.business_name %></div>
+                                <div class="smaller text-white opacity-50"><%= k.contact_email %></div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-white text-black fw-bold small uppercase"><%= k.cuisine_type || 'GENERAL' %></span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge <%= k.status === 'active' ? 'bg-green' : 'bg-gold' %> text-black fw-bold px-3">
+                                    <%= k.status.toUpperCase() %>
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button class="btn-pikop-outline py-1 px-3" style="font-size: 11px;">MENU</button>
+                                    <button class="btn-pikop-primary py-1 px-3" style="font-size: 11px;">EDIT</button>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
     <% } %>
 </div>
 
 <style>
-    .bg-teal { background-color: #00BCD4 !important; color: #000 !important; }
+    .bg-green { background-color: var(--green) !important; }
+    .bg-gold { background-color: var(--gold) !important; }
 </style>
