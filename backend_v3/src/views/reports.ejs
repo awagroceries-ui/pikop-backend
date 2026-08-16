@@ -1,0 +1,146 @@
+<div class="d-flex justify-content-between align-items-center mb-5">
+    <div>
+        <h3 class="fw-extrabold mb-1 ls-1">Intelligence & Analytics</h3>
+        <p class="text-muted small">Deep insights into module performance and user growth.</p>
+    </div>
+    <div class="d-flex gap-3">
+        <a href="/admin/reports/export/missions" class="btn btn-outline-primary fw-bold btn-sm px-4">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-2"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Export Missions (CSV)
+        </a>
+    </div>
+</div>
+
+<!-- Analytics Grid -->
+<div class="row g-4">
+    <!-- Revenue Distribution -->
+    <div class="col-md-6">
+        <div class="card bg-card border-0 p-4 h-100">
+            <h6 class="text-muted small fw-bold uppercase ls-1 mb-4">GMV Breakdown by Module</h6>
+            <div style="height: 300px;">
+                <canvas id="gmvPieChart"></canvas>
+            </div>
+            <div class="mt-4">
+                <table class="table table-dark table-borderless small mb-0">
+                    <tbody>
+                        <% moduleStats.forEach(stat => { %>
+                            <tr>
+                                <td class="text-muted uppercase"><%= stat.order_type.replace('_', ' ') %></td>
+                                <td class="text-end fw-bold">₦<%= parseFloat(stat.gmv || 0).toLocaleString() %></td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active User Trends -->
+    <div class="col-md-6">
+        <div class="card bg-card border-0 p-4 h-100">
+            <h6 class="text-muted small fw-bold uppercase ls-1 mb-4">User Engagement (DAU/MAU)</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-6">
+                    <div class="p-3 rounded-3 bg-dark border border-white border-opacity-5">
+                        <span class="text-muted smaller d-block mb-1">Users (24h)</span>
+                        <h3 class="mb-0 fw-black text-primary" id="val-dau">...</h3>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 rounded-3 bg-dark border border-white border-opacity-5">
+                        <span class="text-muted smaller d-block mb-1">Fleet Active</span>
+                        <h3 class="mb-0 fw-black text-active" id="val-fleet">...</h3>
+                    </div>
+                </div>
+            </div>
+            <div style="height: 200px;">
+                <canvas id="userTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Geographic Spread -->
+    <div class="col-md-12">
+        <div class="card bg-card border-0 p-4">
+            <h6 class="text-muted small fw-bold uppercase ls-1 mb-4">Market Density by City</h6>
+            <div class="row g-4 align-items-center">
+                <div class="col-md-8">
+                    <canvas id="cityDensityChart" height="300"></canvas>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex flex-column gap-2">
+                        <% cityStats.forEach(city => { %>
+                            <div class="p-3 rounded-3 border border-white border-opacity-5 d-flex justify-content-between">
+                                <span class="fw-bold"><%= city.city %></span>
+                                <span class="badge bg-secondary px-3"><%= city.count %> Partners</span>
+                            </div>
+                        <% }) %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. GMV Pie Chart
+    const gmvCtx = document.getElementById('gmvPieChart').getContext('2d');
+    new Chart(gmvCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Logistics', 'Marketplace', 'Foods'],
+            datasets: [{
+                data: [
+                    <%= moduleStats.find(s => s.order_type === 'pickup_delivery')?.gmv || 0 %>,
+                    <%= moduleStats.find(s => s.order_type === 'marketplace')?.gmv || 0 %>,
+                    <%= moduleStats.find(s => s.order_type === 'food')?.gmv || 0 %>
+                ],
+                backgroundColor: ['#FF5722', '#8BC34A', '#00BCD4'],
+                borderWidth: 0,
+                cutout: '70%'
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            maintainAspectRatio: false
+        }
+    });
+
+    // 2. City Density Chart
+    const cityCtx = document.getElementById('cityDensityChart').getContext('2d');
+    new Chart(cityCtx, {
+        type: 'bar',
+        data: {
+            labels: <%- JSON.stringify(cityStats.map(s => s.city)) %>,
+            datasets: [{
+                label: 'Partner Density',
+                data: <%- JSON.stringify(cityStats.map(s => s.count)) %>,
+                backgroundColor: '#FF9F0A',
+                borderRadius: 8
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { grid: { display: false } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 3. Dynamic Fetch for User Stats
+    fetch('/admin/reports/api/users')
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                document.getElementById('val-dau').innerText = res.data.dau;
+                document.getElementById('val-fleet').innerText = res.data.active_fulfillers;
+            }
+        });
+</script>
+
+<style>
+    .text-active { color: var(--brand-orange) !important; }
+    .fw-black { font-weight: 900; }
+</style>

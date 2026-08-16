@@ -53,6 +53,7 @@ app.use('/public', express.static(path.join(__dirname, '../public')));
 
 // 5. Routes
 app.use('/admin', require('./routes/adminRoutes'));
+app.use('/admin/reports', require('./routes/reportRoutes'));
 app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/orders', require('./routes/orderRoutes'));
 app.use('/api/v1/payments', require('./routes/paymentRoutes'));
