@@ -6,11 +6,6 @@
     <title>Login | Pikop Command</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root {
-            --brand-black: #000000;
-            --brand-gold: #FF9F0A;
-            --brand-white: #FFFFFF;
-        }
         body {
             background-color: #000000 !important;
             color: #FFFFFF !important;
@@ -22,44 +17,47 @@
             margin: 0;
         }
         .login-card {
-            background: #050505 !important;
-            padding: 3rem;
-            border-radius: 24px;
+            background: #000000 !important;
+            padding: 3.5rem;
+            border-radius: 0;
             width: 100%;
-            max-width: 400px;
-            border: 2px solid var(--brand-gold) !important;
-            box-shadow: 0 0 30px rgba(255, 159, 10, 0.2);
+            max-width: 420px;
+            border: 4px solid #FF9F0A !important;
+            box-shadow: 0 0 50px rgba(255, 159, 10, 0.2);
         }
         .form-control {
             background: #000000 !important;
-            border: 2px solid rgba(255,255,255,0.4) !important;
+            border: 2px solid #FFFFFF !important;
             color: #FFFFFF !important;
-            padding: 0.8rem;
-            font-weight: 800;
-            border-radius: 12px;
+            padding: 1rem;
+            font-weight: 900;
+            border-radius: 0;
+            font-size: 1.1rem;
         }
         .form-control:focus {
-            border-color: var(--brand-gold) !important;
+            border-color: #FF9F0A !important;
             box-shadow: none;
         }
         .form-label {
             color: #FFFFFF !important;
             font-weight: 900;
             text-transform: uppercase;
-            font-size: 0.8rem;
-            letter-spacing: 1.5px;
-            margin-bottom: 8px;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            display: block;
         }
         .btn-primary {
-            background: var(--brand-gold) !important;
+            background: #FF9F0A !important;
             border: none;
             color: #000000 !important;
             font-weight: 900;
-            padding: 1rem;
-            letter-spacing: 2px;
+            padding: 1.2rem;
+            letter-spacing: 3px;
             text-transform: uppercase;
-            margin-top: 10px;
-            border-radius: 12px;
+            margin-top: 20px;
+            border-radius: 0;
+            width: 100%;
         }
         .btn-primary:hover {
             background: #FFFFFF !important;
@@ -71,39 +69,38 @@
             border: none;
             font-weight: 900;
             text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 1px;
-            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 2rem;
         }
-        .meta-text {
-            color: #FFFFFF !important;
-            font-weight: 700;
-            font-size: 0.75rem;
-            letter-spacing: 1px;
-            opacity: 0.9;
-            margin-top: 20px;
+        .version-tag {
+            color: #FF9F0A !important;
+            font-weight: 900;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            margin-top: 30px;
+            text-transform: uppercase;
         }
     </style>
 </head>
 <body>
     <div class="login-card text-center">
-        <h3 class="fw-bold mb-4" style="color: var(--brand-white); letter-spacing: 2px;">PIKOP <span style="color: var(--brand-gold);">COMMAND</span></h3>
+        <h2 class="fw-black mb-5" style="color: #FFFFFF; letter-spacing: 4px;">PIKOP <span style="color: #FF9F0A;">COMMAND</span></h2>
 
         <% if (locals.error) { %>
-            <div class="alert alert-danger py-2 mb-4"><%= error %></div>
+            <div class="alert alert-danger"><%= error %></div>
         <% } %>
 
         <form action="/admin/login" method="POST">
-            <div class="mb-3 text-start">
-                <label class="form-label">ADMIN USERNAME</label>
-                <input type="text" name="username" class="form-control" required>
-            </div>
             <div class="mb-4 text-start">
-                <label class="form-label">SECURE PASSWORD</label>
+                <label class="form-label">USERNAME</label>
+                <input type="text" name="username" class="form-control" required autocomplete="off">
+            </div>
+            <div class="mb-5 text-start">
+                <label class="form-label">PASSWORD</label>
                 <input type="password" name="password" class="form-control" required>
             </div>
-            <button type="submit" class="btn btn-primary w-100 mb-4">AUTHORIZE ACCESS</button>
-            <p class="meta-text mb-0">V3.5.4 STABLE BASELINE</p>
+            <button type="submit" class="btn btn-primary">AUTHORIZE SYSTEM ACCESS</button>
+            <div class="version-tag">V3.5.5 - HIGH CONTRAST HARDENED</div>
         </form>
     </div>
 </body>

@@ -1,74 +1,66 @@
 <div class="mb-5">
-    <h3 class="fw-black mb-1 ls-1 text-white">MISSION CONTROL</h3>
-    <p class="text-white opacity-75 small fw-bold">Real-time oversight of the Pikop multi-module ecosystem.</p>
+    <h1 class="fw-black mb-1 text-white" style="letter-spacing: 2px;">MISSION CONTROL</h1>
+    <p class="text-white opacity-75 fw-bold">Live operational overview across all modules.</p>
 </div>
 
-<!-- KPI Row -->
+<!-- KPI Row (High Contrast) -->
 <div class="row g-4 mb-5">
     <div class="col-md-3">
-        <div class="kpi-card border-white border-opacity-25" style="background: #0A0A0A;">
-            <span class="text-primary smaller fw-black uppercase ls-1 d-block mb-2">Live Missions</span>
-            <div class="d-flex align-items-center justify-content-between">
-                <h2 class="mb-0 fw-black text-white mono"><%= stats.activeOrders %></h2>
-                <div class="rounded-circle bg-success shadow-sm" style="width: 10px; height: 10px;"></div>
-            </div>
+        <div class="p-4" style="background: #000; border: 3px solid #FFF;">
+            <div class="text-primary fw-black smaller uppercase ls-1 mb-2">Active Missions</div>
+            <h2 class="mb-0 fw-black text-white"><%= stats.activeOrders %></h2>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="kpi-card border-white border-opacity-25" style="background: #0A0A0A;">
-            <span class="text-primary smaller fw-black uppercase ls-1 d-block mb-2">Online Fleet</span>
-            <h2 class="mb-0 fw-black text-white mono"><%= stats.onlineFulfillers %></h2>
+        <div class="p-4" style="background: #000; border: 3px solid #FFF;">
+            <div class="text-primary fw-black smaller uppercase ls-1 mb-2">Fleet Online</div>
+            <h2 class="mb-0 fw-black text-white"><%= stats.onlineFulfillers %></h2>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="kpi-card border-white border-opacity-25" style="background: #0A0A0A;">
-            <span class="text-primary smaller fw-black uppercase ls-1 d-block mb-2">Gross Revenue (24h)</span>
-            <h2 class="mb-0 fw-black text-white mono">₦<%= stats.totalRevenue.toLocaleString() %></h2>
+        <div class="p-4" style="background: #000; border: 3px solid #FFF;">
+            <div class="text-primary fw-black smaller uppercase ls-1 mb-2">Revenue (24h)</div>
+            <h2 class="mb-0 fw-black text-white">₦<%= stats.totalRevenue.toLocaleString() %></h2>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="kpi-card border-primary" style="background: rgba(255, 159, 10, 0.05); border-width: 2px;">
-            <span class="text-primary smaller fw-black uppercase ls-1 d-block mb-2">System Health</span>
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-primary text-black fw-black">OPTIMAL</span>
-                <span class="text-white smaller fw-bold">v3.5.3</span>
-            </div>
+        <div class="p-4" style="background: #FF9F0A; border: 3px solid #FFF;">
+            <div class="text-black fw-black smaller uppercase ls-1 mb-2">System Status</div>
+            <h2 class="mb-0 fw-black text-black">V3.5.5</h2>
         </div>
     </div>
 </div>
 
 <div class="row g-4">
+    <!-- Graph Container -->
     <div class="col-md-8">
-        <div class="card border-white border-opacity-25 p-4" style="background: #0A0A0A; height: 480px; overflow: hidden;">
-            <h6 class="text-white small fw-black uppercase ls-1 mb-4">Module Performance Breakdown</h6>
-            <div style="height: 380px !important; width: 100% !important; overflow: hidden !important;">
-                <canvas id="performanceChart" style="max-height: 380px !important;"></canvas>
+        <div style="background: #000; border: 3px solid #FFF; padding: 2rem;">
+            <h4 class="text-white fw-black mb-4 ls-1">VOLUME PERFORMANCE</h4>
+            <!-- HARD LOCK ON HEIGHT TO PREVENT STRETCHING -->
+            <div style="height: 350px !important; width: 100%; position: relative;">
+                <canvas id="performanceChart"></canvas>
             </div>
         </div>
     </div>
+
+    <!-- Alert Queue -->
     <div class="col-md-4">
-        <div class="card border-white border-opacity-25 p-4 h-100" style="background: #0A0A0A;">
-            <h6 class="text-white small fw-black uppercase ls-1 mb-4">Alert Priority Queue</h6>
+        <div style="background: #000; border: 3px solid #FFF; padding: 2rem; height: 100%;">
+            <h4 class="text-white fw-black mb-4 ls-1">CRITICAL QUEUE</h4>
 
             <div class="d-flex flex-column gap-3">
-                <div class="p-3 rounded-3 border border-white border-opacity-20 d-flex justify-content-between align-items-center bg-black">
-                    <div>
-                        <span class="d-block small fw-black text-white">Pending KYC</span>
-                        <span class="smaller text-white opacity-75 fw-bold">Fleet Auth Queue</span>
-                    </div>
-                    <span class="badge bg-danger text-white fw-black"><%= stats.notifications.kyc %></span>
+                <div class="p-3 d-flex justify-content-between align-items-center" style="border: 2px solid #FF0000; background: rgba(255,0,0,0.1);">
+                    <span class="text-white fw-black">PENDING KYC</span>
+                    <span class="badge bg-danger text-white fw-black px-3"><%= stats.notifications.kyc %></span>
                 </div>
-                <div class="p-3 rounded-3 border border-white border-opacity-20 d-flex justify-content-between align-items-center bg-black">
-                    <div>
-                        <span class="d-block small fw-black text-white">Open Support</span>
-                        <span class="smaller text-white opacity-75 fw-bold">Help Desk</span>
-                    </div>
-                    <span class="badge bg-warning text-black fw-black"><%= stats.notifications.support %></span>
+                <div class="p-3 d-flex justify-content-between align-items-center" style="border: 2px solid #FF9F0A; background: rgba(255,159,10,0.1);">
+                    <span class="text-white fw-black">OPEN TICKETS</span>
+                    <span class="badge bg-warning text-black fw-black px-3"><%= stats.notifications.support %></span>
                 </div>
             </div>
 
-            <div class="mt-auto pt-4 text-center">
-                <button class="btn btn-outline-light btn-sm w-100 fw-black ls-1">VIEW FULL ACTIVITY LOG</button>
+            <div class="mt-5">
+                <button class="btn btn-primary w-100 fw-black py-3 ls-1" onclick="window.location.href='/admin/reports'">VIEW ANALYTICS HUB</button>
             </div>
         </div>
     </div>
@@ -76,75 +68,55 @@
 
 <script>
     const ctx = document.getElementById('performanceChart').getContext('2d');
-    const chart = new Chart(ctx, {
+
+    // Explicitly destroy existing chart if it exists
+    if (window.pikopChart) window.pikopChart.destroy();
+
+    window.pikopChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
-            datasets: [{
-                label: 'Logistics',
-                data: [0, 0, 0, 0, 0, 0, 0],
-                borderColor: '#FF5722',
-                backgroundColor: 'rgba(255, 87, 34, 0.1)',
-                tension: 0.4,
-                fill: true,
-                borderWidth: 3
-            }, {
-                label: 'Marketplace',
-                data: [0, 0, 0, 0, 0, 0, 0],
-                borderColor: '#8BC34A',
-                backgroundColor: 'rgba(139, 195, 74, 0.1)',
-                tension: 0.4,
-                fill: true,
-                borderWidth: 3
-            }, {
-                label: 'Foods',
-                data: [0, 0, 0, 0, 0, 0, 0],
-                borderColor: '#00BCD4',
-                backgroundColor: 'rgba(0, 188, 212, 0.1)',
-                tension: 0.4,
-                fill: true,
-                borderWidth: 3
-            }]
+            labels: ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'],
+            datasets: [
+                {
+                    label: 'LOGISTICS',
+                    data: [0, 0, 0, 0, 0, 0, 10],
+                    borderColor: '#FF5722',
+                    backgroundColor: 'rgba(255, 87, 34, 0.2)',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'MARKETPLACE',
+                    data: [0, 0, 0, 0, 0, 0, 5],
+                    borderColor: '#8BC34A',
+                    backgroundColor: 'rgba(139, 195, 74, 0.2)',
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: false,
             scales: {
                 y: {
                     beginAtZero: true,
                     grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#FFFFFF', font: { weight: 'bold', size: 11 } }
+                    ticks: { color: '#FFFFFF', font: { weight: 'bold' } }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#FFFFFF', font: { weight: 'bold', size: 11 } }
+                    ticks: { color: '#FFFFFF', font: { weight: 'bold' } }
                 }
             },
             plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: '#FFFFFF', font: { weight: 'bold', size: 12 }, padding: 20 }
-                }
+                legend: { labels: { color: '#FFFFFF', font: { weight: 'bold' } } }
             }
         }
     });
 
-    async function refreshChart() {
-        try {
-            const res = await fetch('/admin/reports/api/performance?days=7');
-            const json = await res.json();
-            if (json.success) {
-                const data = json.data;
-                chart.data.datasets[0].data[6] = data.pickup_delivery.volume;
-                chart.data.datasets[1].data[6] = data.marketplace.volume;
-                chart.data.datasets[2].data[6] = data.food.volume;
-                chart.update();
-            }
-        } catch (e) {
-            console.error('[Dashboard] Chart Refresh Failed:', e);
-        }
-    }
-
-    window.onload = refreshChart;
+    // Handle Resize Stability
+    window.addEventListener('resize', () => {
+        window.pikopChart.resize();
+    });
 </script>
