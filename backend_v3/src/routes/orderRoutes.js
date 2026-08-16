@@ -22,6 +22,7 @@ router.post('/quote', authenticateToken, orderController.getQuote);
 router.get('/:orderId', authenticateToken, orderController.getOrderDetails);
 router.patch('/:orderId/status', authenticateToken, orderController.updateStatus);
 router.post('/:orderId/accept', authenticateToken, orderController.acceptOrder);
+router.post('/:orderId/return', authenticateToken, orderController.initiateReturn);
 router.post('/upload', authenticateToken, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
   res.status(200).json({ success: true, url: `/uploads/${req.file.filename}` });

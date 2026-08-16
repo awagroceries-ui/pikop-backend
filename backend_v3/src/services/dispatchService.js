@@ -9,14 +9,23 @@ const findNearbyFulfillers = async (order) => {
   const radiusMeters = 10000; // 10km base radius
 
   try {
-    // 1. Geography-based proximity search
-    // Filter: Must be ONLINE, VERIFIED, and match Size-tier eligibility
+    // V3 Advanced Dispatch (Milestone 6 + Prompt 5 Capacity)
+    // Filter:
+    // 1. Must be ONLINE and VERIFIED
+    // 2. Must be within Radius
+    // 3. Must have remaining Queue Capacity based on class
     const query = `
-      SELECT f.user_id, f.id, ST_Distance(f.current_location, $1) as dist
+      SELECT f.user_id, f.id, f.primary_class, ST_Distance(f.current_location, $1) as dist,
+             (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) as load
       FROM fulfillers f
       WHERE f.online_status = 'ONLINE'
       AND f.kyc_status = 'VERIFIED'
       AND ST_DWithin(f.current_location, $1, $2)
+      AND (
+          (f.primary_class = 'agent' AND (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) < 2)
+          OR (f.primary_class = 'rider' AND (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) < 5)
+          OR (f.primary_class = 'driver' AND (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) < 15)
+      )
       ORDER BY dist ASC
       LIMIT 20
     `;

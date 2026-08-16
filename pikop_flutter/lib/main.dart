@@ -5,6 +5,7 @@ import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/screens/account_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/policy_screen.dart';
 import 'features/auth/presentation/screens/otp_screen.dart';
 import 'features/auth/presentation/screens/signup_screen.dart';
 import 'core/services/socket_service.dart';
@@ -112,6 +113,12 @@ class PikopApp extends StatelessWidget {
             if (settings.name == '/product_detail') {
               final product = settings.arguments as Map<String, dynamic>;
               return MaterialPageRoute(builder: (context) => ProductDetailScreen(product: product));
+            }
+            if (settings.name == '/policy') {
+              final args = settings.arguments as Map<String, dynamic>;
+              return MaterialPageRoute(
+                builder: (context) => PolicyScreen(title: args['title'], url: args['url']),
+              );
             }
             if (settings.name == '/mission_tracking') {
               final args = settings.arguments as Map<String, dynamic>;

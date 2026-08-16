@@ -33,4 +33,8 @@ class DeliveryRepository {
   Future<Response> getOrderDetails(int missionId) async {
     return await _apiClient.instance.get('/orders/$missionId');
   }
+
+  Future<Response> initiateReturn(int missionId) async {
+    return await _apiClient.instance.post('/orders/$missionId/return');
+  }
 }

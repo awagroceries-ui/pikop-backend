@@ -148,6 +148,7 @@ class FulfillerDashboard extends StatefulWidget {
 
 class _FulfillerDashboardState extends State<FulfillerDashboard> {
   bool _isOnline = false;
+  List<dynamic> _queue = [];
 
   @override
   void initState() {
@@ -158,6 +159,17 @@ class _FulfillerDashboardState extends State<FulfillerDashboard> {
         context.read<FulfillerBloc>().add(MissionOfferReceived(data));
       }
     });
+
+    // Listen for queue updates (v3.6.0)
+    context.read<SocketService>().on('status_updated', (data) {
+        if (data['status'] == 'QUEUED') {
+            _refreshQueue();
+        }
+    });
+  }
+
+  void _refreshQueue() async {
+    // TODO: Fetch queued missions from API
   }
 
   @override
@@ -196,26 +208,42 @@ class _FulfillerDashboardState extends State<FulfillerDashboard> {
             );
           }
         },
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                _isOnline ? Icons.radar : Icons.power_settings_new,
-                size: 100,
-                color: _isOnline ? PikopTheme.green : PikopTheme.grey,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                _isOnline ? 'SCANNING FOR MISSIONS' : 'YOU ARE OFFLINE',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                  color: _isOnline ? PikopTheme.green : PikopTheme.grey,
-                ),
-              ),
-            ],
-          ),
+        child: SingleChildScrollView(
+            child: Column(
+                children: [
+                    const SizedBox(height: 60),
+                    Center(
+                        child: Column(
+                            children: [
+                                Icon(
+                                    _isOnline ? Icons.radar : Icons.power_settings_new,
+                                    size: 100,
+                                    color: _isOnline ? PikopTheme.green : PikopTheme.grey,
+                                ),
+                                const SizedBox(height: 24),
+                                Text(
+                                    _isOnline ? 'SCANNING FOR MISSIONS' : 'YOU ARE OFFLINE',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.5,
+                                        color: _isOnline ? PikopTheme.green : PikopTheme.grey,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                    if (_isOnline && _queue.isNotEmpty) ...[
+                        const Padding(
+                            padding: EdgeInsets.fromLTRB(24, 60, 24, 16),
+                            child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text('UPCOMING QUEUE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.2, color: PikopTheme.grey)),
+                            ),
+                        ),
+                        // List queued items here
+                    ]
+                ],
+            ),
         ),
       ),
     );

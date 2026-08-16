@@ -98,23 +98,38 @@ const acceptOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Order is no longer available' });
     }
 
-    // 3. Assign Fulfiller
-    await client.query(
-        "UPDATE orders SET fulfiller_id = $1, status = 'MATCHED', matched_at = CURRENT_TIMESTAMP WHERE id = $2",
-        [fulfillerId, orderId]
+    // 3. Assign Fulfiller or Add to Queue
+    const activeCheck = await client.query(
+        "SELECT id FROM orders WHERE fulfiller_id = $1 AND status NOT IN ('DELIVERED', 'CANCELLED')",
+        [fulfillerId]
     );
 
+    if (activeCheck.rows.length > 0) {
+        // Fulfiller is busy, add to queue
+        await client.query(
+            "UPDATE orders SET queued_for_fulfiller_id = $1, status = 'QUEUED' WHERE id = $2",
+            [fulfillerId, orderId]
+        );
+        console.log(`[Dispatch] Order ${orderId} QUEUED for Fulfiller ${fulfillerId}`);
+    } else {
+        // Fulfiller is free, assign as primary
+        await client.query(
+            "UPDATE orders SET fulfiller_id = $1, status = 'MATCHED', matched_at = CURRENT_TIMESTAMP WHERE id = $2",
+            [fulfillerId, orderId]
+        );
+        console.log(`[Dispatch] Order ${orderId} CLAIMED by Fulfiller ${fulfillerId}`);
+    }
+
     await client.query('COMMIT');
-    console.log(`[Dispatch] Order ${orderId} CLAIMED by Fulfiller ${fulfillerId}`);
 
     // Notify participants via socket
     const socketService = require('../services/socketService');
-    socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: 'MATCHED' });
+    socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: activeCheck.rows.length > 0 ? 'QUEUED' : 'MATCHED' });
 
     res.status(200).json({
       success: true,
-      message: 'Mission Accepted',
-      data: { status: 'MATCHED' }
+      message: activeCheck.rows.length > 0 ? 'Added to Queue' : 'Mission Accepted',
+      data: { status: activeCheck.rows.length > 0 ? 'QUEUED' : 'MATCHED' }
     });
 
   } catch (error) {
@@ -179,9 +194,57 @@ const updateStatus = async (req, res) => {
   }
 };
 
+/**
+ * Initiates a return mission at 50% of the original fare.
+ */
+const initiateReturn = async (req, res) => {
+    const { orderId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query("SELECT * FROM orders WHERE id = $1 AND user_id = $2", [orderId, userId]);
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Original order not found' });
+
+        const orig = rows[0];
+        if (orig.status !== 'RECIPIENT_ABSENT') {
+            return res.status(400).json({ success: false, message: 'Return can only be initiated if recipient was absent' });
+        }
+
+        const returnFare = parseFloat(orig.total_fare) * 0.5;
+
+        // Create new mission with reversed addresses
+        const returnRes = await db.query(
+            `INSERT INTO orders (
+                order_type, user_id, parent_order_id, status,
+                pickup_address, delivery_address,
+                pickup_location, delivery_location,
+                total_fare, item_description, payment_status
+            ) VALUES (
+                $1, $2, $3, 'SEARCHING',
+                $4, $5, $6, $7, $8, $9, 'pending'
+            ) RETURNING id`,
+            [
+                orig.order_type, userId, orig.id,
+                orig.delivery_address, orig.pickup_address, // Reversed
+                orig.delivery_location, orig.pickup_location, // Reversed
+                returnFare, `RETURN: ${orig.item_description}`
+            ]
+        );
+
+        res.status(201).json({
+            success: true,
+            message: 'Return mission created. Please complete payment.',
+            data: { return_order_id: returnRes.rows[0].id, amount: returnFare }
+        });
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
   getQuote,
   acceptOrder,
   getOrderDetails,
-  updateStatus
+  updateStatus,
+  initiateReturn
 };

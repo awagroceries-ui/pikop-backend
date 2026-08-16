@@ -25,6 +25,7 @@ node scratch/v3_seed_admin.js
 node scratch/v3_seed_kb.js
 node scratch/v3_seed_kitchens.js
 node scratch/v3_seed_merchants.js
+node scratch/v3_seed_zones.js
 
 echo "🚀 Restarting PIKOP-V3..."
 pm2 start src/app.js --name "pikop-v3" --update-env || pm2 restart pikop-v3 --update-env

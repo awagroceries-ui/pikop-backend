@@ -53,6 +53,24 @@ class AccountScreen extends StatelessWidget {
                   ),
                   _buildOption(
                     context,
+                    'Terms & Conditions',
+                    Icons.gavel_outlined,
+                    () => Navigator.pushNamed(context, '/policy', arguments: {
+                      'title': 'Terms & Conditions',
+                      'url': 'https://api.awa.name.ng/legal/terms'
+                    }),
+                  ),
+                  _buildOption(
+                    context,
+                    'Privacy Policy',
+                    Icons.security_outlined,
+                    () => Navigator.pushNamed(context, '/policy', arguments: {
+                      'title': 'Privacy Policy',
+                      'url': 'https://api.awa.name.ng/legal/privacy'
+                    }),
+                  ),
+                  _buildOption(
+                    context,
                     'Merchant Portal',
                     Icons.business_center_outlined,
                     () => Navigator.pushNamed(context, '/merchant_dashboard'),

@@ -1,0 +1,24 @@
+<div class="mb-5">
+    <h3 class="fw-black mb-1 ls-1 text-white"><%= title.toUpperCase() %></h3>
+    <p class="text-white opacity-75 small fw-bold">Platform Compliance & Protocol Documentation.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-9">
+        <div class="card border-white border-opacity-25 p-5" style="background: #0A0A0A; line-height: 1.8;">
+            <div class="legal-content text-white">
+                <%- content %>
+            </div>
+
+            <div class="mt-5 pt-5 border-top border-white border-opacity-10 text-center">
+                <p class="small text-white opacity-50 fw-bold">LAST UPDATED: AUGUST 16, 2026</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .legal-content h4 { margin-top: 2rem; letter-spacing: 1px; }
+    .legal-content p { font-size: 1.05rem; margin-bottom: 1.5rem; }
+    .legal-content strong { color: var(--brand-gold); }
+</style>
