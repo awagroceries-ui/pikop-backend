@@ -1,0 +1,32 @@
+<div class="mb-5">
+    <h3 class="fw-black mb-1 ls-1 text-white">MY OPERATIONAL PROFILE</h3>
+    <p class="text-white opacity-75 small fw-bold">Manage your security credentials and administrative identity.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card border-white border-opacity-25 p-5" style="background: #0A0A0A;">
+            <div class="d-flex align-items-center gap-4 mb-5">
+                <div class="rounded-circle bg-primary text-black fw-black d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; font-size: 2rem;">OP</div>
+                <div>
+                    <h2 class="fw-black text-white mb-1"><%= user.username %></h2>
+                    <span class="badge bg-gold text-black fw-black px-3"><%= user.role.toUpperCase() %></span>
+                </div>
+            </div>
+
+            <hr class="border-white opacity-10 mb-5">
+
+            <form>
+                <div class="mb-4">
+                    <label class="form-label text-white fw-black smaller ls-1">CURRENT USERNAME</label>
+                    <input type="text" class="form-control bg-black border-white border-opacity-25 text-white fw-bold" value="<%= user.username %>" readonly>
+                </div>
+                <div class="mb-5">
+                    <label class="form-label text-white fw-black smaller ls-1">RESET PASSWORD</label>
+                    <input type="password" class="form-control bg-black border-white border-opacity-25 text-white" placeholder="Enter new secure password">
+                </div>
+                <button type="button" class="btn btn-primary w-100 fw-black ls-1 py-3">UPDATE SECURITY CREDENTIALS</button>
+            </form>
+        </div>
+    </div>
+</div>

@@ -197,6 +197,30 @@ const getKitchens = async (req, res) => {
     }
 };
 
+/**
+ * Lists all admin users.
+ */
+const getAdminUsers = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT id, username, role, created_at FROM admin_users ORDER BY role ASC");
+        res.render('admin_users', { users: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Returns currently logged in admin profile.
+ */
+const getProfile = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM admin_users WHERE id = $1", [req.session.adminId]);
+        res.render('admin_profile', { user: rows[0] });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
 module.exports = {
   login,
   getDashboard,
@@ -207,5 +231,7 @@ module.exports = {
   getConversationDetails,
   getKYCQueue,
   getVendors,
-  getKitchens
+  getKitchens,
+  getAdminUsers,
+  getProfile
 };

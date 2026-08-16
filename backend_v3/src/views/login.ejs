@@ -28,67 +28,78 @@
             width: 100%;
             max-width: 400px;
             border: 2px solid var(--brand-gold);
-            box-shadow: 0 0 20px rgba(255, 159, 10, 0.1);
+            box-shadow: 0 0 20px rgba(255, 159, 10, 0.2);
         }
         .form-control {
-            background: var(--brand-black);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: var(--brand-white);
+            background: var(--brand-black) !important;
+            border: 1px solid rgba(255,255,255,0.4) !important;
+            color: var(--brand-white) !important;
             padding: 0.8rem;
-            font-weight: bold;
+            font-weight: 800;
         }
         .form-control:focus {
-            background: var(--brand-black);
-            border-color: var(--brand-gold);
-            color: var(--brand-white);
+            border-color: var(--brand-gold) !important;
             box-shadow: none;
         }
         .form-label {
             color: var(--brand-white) !important;
-            font-weight: 800;
+            font-weight: 900;
             text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 1px;
+            font-size: 0.8rem;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
         }
         .btn-primary {
             background: var(--brand-gold);
             border: none;
             color: var(--brand-black);
             font-weight: 900;
-            padding: 0.8rem;
-            letter-spacing: 1.5px;
+            padding: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-top: 10px;
         }
         .btn-primary:hover {
-            background: #e68a00;
+            background: #FFFFFF;
             color: var(--brand-black);
         }
         .alert-danger {
-            background: #ff0000;
-            color: white;
+            background: #FF0000;
+            color: #FFFFFF;
             border: none;
-            font-weight: bold;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+        }
+        .meta-text {
+            color: var(--brand-white);
+            font-weight: 700;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            opacity: 0.9;
         }
     </style>
 </head>
 <body>
     <div class="login-card text-center">
-        <h3 class="fw-bold mb-4" style="color: var(--brand-white);">PIKOP <span style="color: var(--brand-gold);">COMMAND</span></h3>
+        <h3 class="fw-bold mb-4" style="color: var(--brand-white); letter-spacing: 2px;">PIKOP <span style="color: var(--brand-gold);">COMMAND</span></h3>
 
         <% if (locals.error) { %>
-            <div class="alert alert-danger py-2 mb-4 small"><%= error %></div>
+            <div class="alert alert-danger py-2 mb-4"><%= error %></div>
         <% } %>
 
         <form action="/admin/login" method="POST">
             <div class="mb-3 text-start">
-                <label class="form-label">Admin Username</label>
+                <label class="form-label">ADMIN USERNAME</label>
                 <input type="text" name="username" class="form-control" required>
             </div>
             <div class="mb-4 text-start">
-                <label class="form-label">Secure Password</label>
+                <label class="form-label">SECURE PASSWORD</label>
                 <input type="password" name="password" class="form-control" required>
             </div>
-            <button type="submit" class="btn btn-primary w-100 mb-3">AUTHORIZE ACCESS</button>
-            <p class="small mb-0" style="color: var(--brand-white); opacity: 0.8; font-weight: bold;">Platform v3.5.3 Stable Baseline</p>
+            <button type="submit" class="btn btn-primary w-100 mb-4">AUTHORIZE ACCESS</button>
+            <p class="meta-text mb-0">V3.5.4 STABLE BASELINE</p>
         </form>
     </div>
 </body>

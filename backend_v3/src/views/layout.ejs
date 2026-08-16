@@ -108,6 +108,33 @@
             border-bottom: 2px solid var(--border);
         }
 
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+            color: var(--brand-white);
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 8px;
+            transition: 0.2s all;
+        }
+
+        .notification-bell:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .bell-dot {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            background: var(--brand-orange);
+            border-radius: 50%;
+            border: 2px solid var(--brand-black);
+            display: none;
+        }
+
         .content-body { padding: 2.5rem; }
 
         .kpi-card {
@@ -212,18 +239,28 @@
 
     <div class="main-container">
         <header class="top-bar">
-            <div class="d-flex align-items-center gap-3">
-                <span class="text-white smaller ls-1 fw-black uppercase">Platform Status:</span>
-                <span class="badge bg-success text-black fw-black mono" style="font-size: 0.7rem;">OPERATIONAL</span>
+            <div class="d-flex align-items-center gap-4">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-white smaller ls-1 fw-black uppercase">STATUS:</span>
+                    <span class="badge bg-success text-black fw-black mono" style="font-size: 0.7rem;">OPERATIONAL</span>
+                </div>
             </div>
 
             <div class="d-flex align-items-center gap-4">
-                <div class="admin-profile d-flex align-items-center gap-3">
+                <!-- Notifications Icon -->
+                <div class="notification-bell" onclick="window.location.href='/admin/support'">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                    <div class="bell-dot" id="bell-dot"></div>
+                </div>
+
+                <div class="admin-profile d-flex align-items-center gap-3 border-start border-white border-opacity-10 ps-4">
                     <div class="text-end">
                         <div class="small fw-black text-white"><%= adminUsername %></div>
                         <div class="text-primary fw-black ls-1" style="font-size: 0.65rem;"><%= role ? role.toUpperCase() : 'STAFF' %></div>
                     </div>
-                    <div class="rounded-circle bg-primary text-black fw-black d-flex align-items-center justify-content-center" style="width: 36px; height: 32px; border: 2px solid white;">OP</div>
+                    <div class="rounded-circle bg-primary text-black fw-black d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; border: 2px solid white;">OP</div>
                 </div>
             </div>
         </header>
@@ -237,11 +274,13 @@
         socket.on('new_support_alert', (data) => {
             showToast('New Message', data.body);
             updateBadge('support-badge');
+            document.getElementById('bell-dot').style.display = 'block';
         });
 
         socket.on('new_kyc_alert', (data) => {
             showToast('KYC Upload', `New ${data.type} document submitted.`);
             updateBadge('kyc-badge');
+            document.getElementById('bell-dot').style.display = 'block';
         });
 
         function updateBadge(id) {

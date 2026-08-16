@@ -1,0 +1,38 @@
+<div class="d-flex justify-content-between align-items-center mb-5">
+    <div>
+        <h3 class="fw-black mb-1 ls-1 text-white">ADMIN USER MANAGEMENT</h3>
+        <p class="text-white opacity-75 small fw-bold">Manage system administrators and their operational roles.</p>
+    </div>
+    <button class="btn btn-primary fw-black px-4 ls-1">ADD NEW ADMIN</button>
+</div>
+
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card border-white border-opacity-25 p-0 overflow-hidden" style="background: #0A0A0A;">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0">
+                    <thead class="bg-black">
+                        <tr>
+                            <th class="p-4 text-primary fw-black smaller ls-1">USERNAME</th>
+                            <th class="p-4 text-primary fw-black smaller ls-1">ROLE</th>
+                            <th class="p-4 text-primary fw-black smaller ls-1">JOINED</th>
+                            <th class="p-4 text-primary fw-black smaller ls-1 text-end">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% users.forEach(user => { %>
+                            <tr class="border-white border-opacity-10">
+                                <td class="p-4 fw-bold text-white"><%= user.username %></td>
+                                <td class="p-4"><span class="badge bg-primary text-black fw-black"><%= user.role.toUpperCase() %></span></td>
+                                <td class="p-4 text-white opacity-75 small"><%= new Date(user.created_at).toLocaleDateString() %></td>
+                                <td class="p-4 text-end">
+                                    <button class="btn btn-sm btn-outline-light fw-bold px-3">EDIT</button>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

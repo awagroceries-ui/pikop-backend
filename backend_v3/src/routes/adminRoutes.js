@@ -37,7 +37,11 @@ router.get('/kyc', adminController.getKYCQueue);
 // Partners
 router.get('/vendors', adminController.getVendors);
 router.get('/kitchens', adminController.getKitchens);
-router.get('/merchants', (req, res) => res.render('merchants', { merchants: [] })); // Placeholder for now
+router.get('/merchants', (req, res) => res.render('merchants', { merchants: [] }));
+
+// System Management
+router.get('/users', hasRole(['super_admin']), adminController.getAdminUsers);
+router.get('/profile', adminController.getProfile);
 
 // Support
 router.get('/support', adminController.getSupportInbox);
