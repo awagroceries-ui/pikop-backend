@@ -7,6 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const session = require('express-session');
 const expressLayouts = require('express-ejs-layouts');
+const compression = require('compression');
+const { rateLimit } = require('express-rate-limit');
 require('express-async-errors');
 require('dotenv').config();
 
@@ -28,11 +30,24 @@ const socketService = require('./services/socketService');
 socketService.init(server);
 
 // 1. Basic Middleware
+app.use(compression()); // Optimize payload size
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 1.1 Rate Limiting (Brute Force Protection)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 100, // Limit each IP to 100 requests per `window`
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later.' }
+});
+
+app.use('/api/v1/auth', authLimiter);
+app.use('/admin/login', authLimiter);
 
 // 2. Session Middleware (For Admin)
 app.use(session({
