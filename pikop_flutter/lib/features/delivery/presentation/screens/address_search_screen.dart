@@ -81,21 +81,32 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
           ),
         ),
       ),
-      body: ListView.separated(
-        itemCount: _suggestions.length,
-        separatorBuilder: (context, index) => Divider(color: Colors.white.withOpacity(0.1)),
-        itemBuilder: (context, index) {
-          final suggestion = _suggestions[index];
-          return ListTile(
-            leading: const Icon(Icons.location_on_outlined, color: PikopTheme.grey),
-            title: Text(suggestion['structured_formatting']['main_text'] ?? ''),
-            subtitle: Text(
-              suggestion['structured_formatting']['secondary_text'] ?? '',
-              style: const TextStyle(fontSize: 12, color: PikopTheme.grey),
+      body: Column(
+        children: [
+          if (_suggestions.isEmpty && !_isLoading && _searchController.text.length > 2)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Text('No results found. Try a different search.', style: TextStyle(color: PikopTheme.grey)),
             ),
-            onTap: () => _onSuggestionSelected(suggestion),
-          );
-        },
+          Expanded(
+            child: ListView.separated(
+              itemCount: _suggestions.length,
+              separatorBuilder: (context, index) => Divider(color: Colors.white.withOpacity(0.1)),
+              itemBuilder: (context, index) {
+                final suggestion = _suggestions[index];
+                return ListTile(
+                  leading: const Icon(Icons.location_on_outlined, color: PikopTheme.grey),
+                  title: Text(suggestion['structured_formatting']['main_text'] ?? ''),
+                  subtitle: Text(
+                    suggestion['structured_formatting']['secondary_text'] ?? '',
+                    style: const TextStyle(fontSize: 12, color: PikopTheme.grey),
+                  ),
+                  onTap: () => _onSuggestionSelected(suggestion),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

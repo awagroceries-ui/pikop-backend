@@ -81,6 +81,12 @@ const uploadDocument = async (req, res) => {
       [fulfiller[0].id, doc_type, fileUrl, expiry_date]
     );
 
+    // Emit real-time alert for admin (v3.5.1)
+    try {
+        const socketService = require('../services/socketService');
+        socketService.getIO().emit("new_kyc_alert", { fulfillerId: fulfiller[0].id, type: doc_type });
+    } catch (e) {}
+
     res.status(201).json({ success: true, message: 'Document uploaded' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
 const session = require('express-session');
 const expressLayouts = require('express-ejs-layouts');
 require('express-async-errors');
@@ -11,6 +12,13 @@ require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
+
+// 0. Ensure Directories Exist
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  console.log(`✅ Created missing uploads directory at: ${UPLOADS_DIR}`);
+}
 
 // 0. Trust Proxy (Crucial for secure cookies behind Nginx)
 app.set('trust proxy', 1);

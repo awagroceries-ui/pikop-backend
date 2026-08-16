@@ -24,11 +24,23 @@ const getQuote = async (req, res) => {
   // 2. Classify Size via Gemini v3
   const aiResult = await geminiService.classifyItemSize(item_description);
 
-  // 3. Apply Pricing Formula (Master Brief v3)
-  const baseFees = { 'SMALL': 500, 'MEDIUM': 1000, 'LARGE': 1500 };
-  const perKmRate = 150;
+  // 3. Apply Dynamic Pricing Dynamics (v3.5.1 Settings-Linked)
+  let baseFees = { 'SMALL': 500, 'MEDIUM': 1000, 'LARGE': 1500 };
+  let perKmRate = 150;
 
-  const base_fare = baseFees[aiResult.size_tier] || 1000;
+  try {
+    const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate')");
+    settingsRes.rows.forEach(r => {
+        if (r.key === 'base_fare_small') baseFees['SMALL'] = parseFloat(r.value);
+        if (r.key === 'base_fare_medium') baseFees['MEDIUM'] = parseFloat(r.value);
+        if (r.key === 'base_fare_large') baseFees['LARGE'] = parseFloat(r.value);
+        if (r.key === 'per_km_rate') perKmRate = parseFloat(r.value);
+    });
+  } catch (e) {
+    console.warn('[Quote] Settings fetch failed, using fallback pricing.');
+  }
+
+  const base_fare = baseFees[aiResult.size_tier] || baseFees['MEDIUM'];
   const distance_fare = Math.ceil(distanceKm * perKmRate);
   const total_fare = base_fare + distance_fare;
 

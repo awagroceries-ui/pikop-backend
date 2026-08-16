@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const socketService = require('./socketService');
+const fcmService = require('./fcmService');
 
 /**
  * Shared Dispatch Engine - v3 (Milestone 6)
@@ -45,6 +46,9 @@ const broadcastOffer = async (order, fulfillers) => {
         item_description: order.item_description,
         distance_km: (f.dist / 1000).toFixed(1)
     });
+
+    // PUSH Notification (v3.5.1)
+    fcmService.sendNotification(f.user_id, "New Mission Offer", `Earn ₦${Math.ceil(order.total_fare * 0.75)} with a new delivery nearby.`);
   });
 };
 

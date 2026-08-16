@@ -1,5 +1,6 @@
 const { Server } = require("socket.io");
 const db = require("../config/db");
+const fcmService = require("./fcmService");
 
 let io;
 
@@ -87,6 +88,14 @@ const init = (server) => {
               orderId: order_id,
               body: content.substring(0, 50)
           });
+      }
+
+      // PUSH Notification for Support (v3.5.1)
+      if (conversation_id && sender_type === 'ADMIN') {
+          const convRes = await db.query("SELECT participant_id FROM conversations WHERE id = $1", [conversation_id]);
+          if (convRes.rows.length > 0) {
+              await fcmService.sendNotification(convRes.rows[0].participant_id, "Support Message", content);
+          }
       }
     });
 

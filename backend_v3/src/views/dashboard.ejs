@@ -39,34 +39,36 @@
 
 <div class="row g-4">
     <div class="col-md-8">
-        <div class="card bg-card border-0 p-4" style="min-height: 400px;">
-            <h6 class="text-muted small fw-bold uppercase ls-1 mb-4">Module Performance Breakdown</h6>
-            <canvas id="performanceChart"></canvas>
+        <div class="card bg-card border-0 p-4" style="height: 450px;">
+            <h6 class="text-white small fw-bold uppercase ls-1 mb-4">Module Performance Breakdown</h6>
+            <div style="position: relative; height: 350px; width: 100%;">
+                <canvas id="performanceChart"></canvas>
+            </div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card bg-card border-0 p-4 h-100">
-            <h6 class="text-muted small fw-bold uppercase ls-1 mb-4">Alert Priority Queue</h6>
+            <h6 class="text-white small fw-bold uppercase ls-1 mb-4">Alert Priority Queue</h6>
 
             <div class="d-flex flex-column gap-3">
-                <div class="p-3 rounded-3 border border-white border-opacity-5 d-flex justify-content-between align-items-center">
+                <div class="p-3 rounded-3 border border-white border-opacity-10 d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="d-block small fw-bold">Pending KYC</span>
-                        <span class="smaller text-muted">Fleet Auth Queue</span>
+                        <span class="d-block small fw-bold text-white">Pending KYC</span>
+                        <span class="smaller text-white opacity-75">Fleet Auth Queue</span>
                     </div>
                     <span class="badge bg-danger"><%= stats.notifications.kyc %></span>
                 </div>
-                <div class="p-3 rounded-3 border border-white border-opacity-5 d-flex justify-content-between align-items-center">
+                <div class="p-3 rounded-3 border border-white border-opacity-10 d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="d-block small fw-bold">Open Support</span>
-                        <span class="smaller text-muted">Customer/Fleet Help Desk</span>
+                        <span class="d-block small fw-bold text-white">Open Support</span>
+                        <span class="smaller text-white opacity-75">Help Desk</span>
                     </div>
                     <span class="badge bg-warning text-dark"><%= stats.notifications.support %></span>
                 </div>
             </div>
 
             <div class="mt-auto pt-4 text-center">
-                <button class="btn btn-outline-secondary btn-sm w-100 fw-bold">View Full Activity Log</button>
+                <button class="btn btn-outline-light btn-sm w-100 fw-bold">View Full Activity Log</button>
             </div>
         </div>
     </div>
@@ -74,37 +76,72 @@
 
 <script>
     const ctx = document.getElementById('performanceChart').getContext('2d');
-    new Chart(ctx, {
+    const chart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
             datasets: [{
                 label: 'Logistics',
-                data: [12, 19, 3, 5, 2, 3, 10],
+                data: [0, 0, 0, 0, 0, 0, 0],
                 borderColor: '#FF5722',
-                tension: 0.4
+                backgroundColor: 'rgba(255, 87, 34, 0.1)',
+                tension: 0.4,
+                fill: true
             }, {
                 label: 'Marketplace',
-                data: [5, 12, 8, 12, 10, 15, 12],
+                data: [0, 0, 0, 0, 0, 0, 0],
                 borderColor: '#8BC34A',
-                tension: 0.4
+                backgroundColor: 'rgba(139, 195, 74, 0.1)',
+                tension: 0.4,
+                fill: true
             }, {
                 label: 'Foods',
-                data: [2, 5, 1, 8, 14, 18, 20],
+                data: [0, 0, 0, 0, 0, 0, 0],
                 borderColor: '#00BCD4',
-                tension: 0.4
+                backgroundColor: 'rgba(0, 188, 212, 0.1)',
+                tension: 0.4,
+                fill: true
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false, // Performance and stability
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                x: { grid: { display: false } }
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: { color: '#FFFFFF', font: { weight: 'bold' } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#FFFFFF', font: { weight: 'bold' } }
+                }
             },
             plugins: {
-                legend: { position: 'bottom', labels: { color: '#94A3B8' } }
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#FFFFFF', font: { weight: 'bold', size: 12 } }
+                }
             }
         }
     });
+
+    async function refreshChart() {
+        try {
+            const res = await fetch('/admin/reports/api/performance?days=7');
+            const json = await res.json();
+            if (json.success) {
+                const data = json.data;
+                chart.data.datasets[0].data[6] = data.pickup_delivery.volume;
+                chart.data.datasets[1].data[6] = data.marketplace.volume;
+                chart.data.datasets[2].data[6] = data.food.volume;
+                chart.update();
+            }
+        } catch (e) {
+            console.error('[Dashboard] Chart Refresh Failed:', e);
+        }
+    }
+
+    window.onload = refreshChart;
 </script>

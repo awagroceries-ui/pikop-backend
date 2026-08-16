@@ -1,20 +1,33 @@
 const admin = require('firebase-admin');
 const db = require('../config/db');
 
-// Safe Initialization (Milestone 9)
 try {
-    const rawConfig = process.env.FIREBASE_SERVICE_ACCOUNT;
+    let rawConfig = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (rawConfig) {
-        const serviceAccount = JSON.parse(rawConfig);
+        // Handle potential wrapping quotes if added by shell
+        if (rawConfig.startsWith("'") && rawConfig.endsWith("'")) {
+            rawConfig = rawConfig.slice(1, -1);
+        }
+
+        let serviceAccount;
+        try {
+            serviceAccount = JSON.parse(rawConfig);
+        } catch (e) {
+            console.error('❌ FCM: FIREBASE_SERVICE_ACCOUNT is not valid JSON. Check for newlines.');
+            throw e;
+        }
+
         if (!admin.apps.length) {
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount)
             });
             console.log('✅ FCM Service: Firebase Admin v1 initialized.');
         }
+    } else {
+        console.warn('⚠️ FCM: FIREBASE_SERVICE_ACCOUNT missing in .env.');
     }
 } catch (error) {
-    console.error('❌ FCM Init Error:', error.message);
+    console.error('❌ FCM Init Failed:', error.message);
 }
 
 /**
