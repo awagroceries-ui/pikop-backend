@@ -84,7 +84,10 @@
 </head>
 <body>
     <div class="login-card text-center">
-        <h2 class="fw-black mb-5" style="color: #FFFFFF; letter-spacing: 4px;">PIKOP <span style="color: #FF9F0A;">COMMAND</span></h2>
+        <div class="mb-4">
+            <img src="/public/assets/logo.png" alt="Pikop Logo" style="height: 80px; width: auto;">
+        </div>
+        <h4 class="fw-black mb-4" style="color: var(--brand-white); letter-spacing: 2px;">COMMAND CENTER</h4>
 
         <% if (locals.error) { %>
             <div class="alert alert-danger"><%= error %></div>
