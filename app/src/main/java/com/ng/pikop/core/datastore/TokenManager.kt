@@ -14,6 +14,7 @@ class TokenManager(private val context: Context) {
     companion object {
         private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
         private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
+        private val USER_ID_KEY = stringPreferencesKey("user_id")
         private val USER_EMAIL_KEY = stringPreferencesKey("user_email")
         private val USER_NAME_KEY = stringPreferencesKey("user_name")
         private val USER_PHONE_KEY = stringPreferencesKey("user_phone")
@@ -30,6 +31,11 @@ class TokenManager(private val context: Context) {
     val refreshToken: Flow<String?> = context.dataStore.data
         .map { preferences ->
             preferences[REFRESH_TOKEN_KEY]
+        }
+
+    val userId: Flow<String?> = context.dataStore.data
+        .map { preferences ->
+            preferences[USER_ID_KEY]
         }
 
     val userEmail: Flow<String?> = context.dataStore.data
@@ -65,6 +71,7 @@ class TokenManager(private val context: Context) {
     suspend fun saveTokens(
         accessToken: String, 
         refreshToken: String, 
+        userId: String? = null,
         email: String, 
         role: String, 
         name: String? = null,
@@ -75,6 +82,7 @@ class TokenManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[ACCESS_TOKEN_KEY] = accessToken
             preferences[REFRESH_TOKEN_KEY] = refreshToken
+            if (userId != null) preferences[USER_ID_KEY] = userId
             preferences[USER_EMAIL_KEY] = email
             preferences[USER_ROLE_KEY] = role
             preferences[IS_VERIFIED_KEY] = isVerified

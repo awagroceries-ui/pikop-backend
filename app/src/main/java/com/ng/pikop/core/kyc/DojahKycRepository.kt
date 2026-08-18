@@ -44,9 +44,11 @@ class DojahKycRepository @Inject constructor(
         email: String,
         referenceId: String
     ) {
-        android.util.Log.d("DojahRepo", "Initiating verification for $email with ref $referenceId")
-        // Ensure SDK is initialized with credentials
-        setupSdk(context)
+        val activity = context.findActivity()
+        android.util.Log.d("DojahRepo", "Initiating verification for $email with ref $referenceId (Activity: ${activity != null})")
+        
+        // Ensure SDK is initialized with credentials using the most specific context available
+        setupSdk(activity ?: context)
 
         try {
             DojahSdk.launch(
@@ -55,9 +57,9 @@ class DojahKycRepository @Inject constructor(
                 referenceId = referenceId,
                 email = email
             )
-            android.util.Log.d("DojahRepo", "DojahSdk.launch() executed")
+            android.util.Log.d("DojahRepo", "DojahSdk.launch() command issued to system")
         } catch (e: Exception) {
-            android.util.Log.e("DojahRepo", "Launch failed: ${e.message}")
+            android.util.Log.e("DojahRepo", "Launch critical failure: ${e.message}")
         }
     }
 

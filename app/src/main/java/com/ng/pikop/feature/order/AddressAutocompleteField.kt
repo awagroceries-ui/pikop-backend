@@ -115,7 +115,13 @@ fun AddressAutocompleteField(
                     items(suggestions) { prediction ->
                         ListItem(
                             headlineContent = { Text(prediction.getPrimaryText(null).toString(), color = MaterialTheme.colorScheme.onSurface) },
-                            supportingContent = { Text(prediction.getSecondaryText(null).toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) },
+                            supportingContent = { 
+                                Text(
+                                    prediction.getSecondaryText(null).toString(), 
+                                    style = MaterialTheme.typography.bodySmall, 
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                ) 
+                            },
                             leadingContent = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
                             modifier = Modifier.clickable {

@@ -71,6 +71,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
     val apiService = remember { ApiService.create(tokenManager) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     
+    val userId by tokenManager.userId.collectAsState(initial = null)
     val cameraPositionState = rememberCameraPositionState()
 
     // Secure Photo Storage for POD
@@ -107,10 +108,8 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
     }
 
     // Socket Connection & Location Tracking
-    DisposableEffect(Unit) {
-        // We might not have the userId here, but it's okay for general missions
-        // If we want targeted dispatch, we'd need to fetch it from tokenManager
-        SocketManager.connect()
+    DisposableEffect(userId) {
+        SocketManager.connect(userId)
         onDispose {
             SocketManager.disconnect()
         }

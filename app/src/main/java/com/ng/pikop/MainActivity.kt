@@ -67,6 +67,7 @@ fun PikopAppNavigation() {
     val scope = rememberCoroutineScope()
     
     val userEmail by tokenManager.userEmail.collectAsState(initial = null)
+    val userId by tokenManager.userId.collectAsState(initial = null)
     val userName by tokenManager.userName.collectAsState(initial = null)
     val userPhone by tokenManager.userPhone.collectAsState(initial = null)
     val userRole by tokenManager.userRole.collectAsState(initial = null)
@@ -149,17 +150,23 @@ fun PikopAppNavigation() {
             try {
                 val apps = FirebaseApp.getApps(context)
                 if (apps.isNotEmpty()) {
-                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            val token = task.result
-                            scope.launch {
-                                try {
-                                    val api = ApiService.create(tokenManager)
-                                    api.updateFCMToken(mapOf("token" to token))
-                                } catch (e: Exception) {}
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val token = task.result
+                        android.util.Log.d("PikopFCM", "FCM Token retrieved: ${token.take(10)}...")
+                        scope.launch {
+                            try {
+                                val api = ApiService.create(tokenManager)
+                                val response = api.updateFCMToken(mapOf("token" to token))
+                                android.util.Log.d("PikopFCM", "FCM Token registered: ${response.message}")
+                            } catch (e: Exception) {
+                                android.util.Log.e("PikopFCM", "FCM Token registration failed: ${e.message}")
                             }
                         }
+                    } else {
+                        android.util.Log.w("PikopFCM", "Fetching FCM registration token failed", task.exception)
                     }
+                }
                 } else {
                     // Fallback: Try to initialize if somehow missed
                     try {
@@ -282,11 +289,21 @@ fun PikopAppNavigation() {
         }
         composable("chat/{conversationId}") { backStackEntry ->
             val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
-            ChatScreen(conversationId = conversationId, userId = 1, userRole = userRole ?: "CUSTOMER", onBack = { navController.popBackStack() })
+            ChatScreen(
+                conversationId = conversationId, 
+                userId = userId?.toIntOrNull() ?: 0, 
+                userRole = userRole ?: "CUSTOMER", 
+                onBack = { navController.popBackStack() }
+            )
         }
         composable("order_chat/{orderId}") { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
-            ChatScreen(orderId = orderId, userId = 1, userRole = userRole ?: "CUSTOMER", onBack = { navController.popBackStack() })
+            ChatScreen(
+                orderId = orderId, 
+                userId = userId?.toIntOrNull() ?: 0, 
+                userRole = userRole ?: "CUSTOMER", 
+                onBack = { navController.popBackStack() }
+            )
         }
         composable("privacy_policy") { PrivacyPolicyScreen(onBack = { navController.popBackStack() }) }
         composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->

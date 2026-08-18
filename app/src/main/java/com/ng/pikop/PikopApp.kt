@@ -1,3 +1,5 @@
+package com.ng.pikop
+
 import android.app.Application
 import com.google.android.libraries.places.api.Places
 import co.paystack.android.PaystackSdk

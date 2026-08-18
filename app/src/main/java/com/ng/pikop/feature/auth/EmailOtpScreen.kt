@@ -104,6 +104,7 @@ fun EmailOtpScreen(
                                 tokenManager.saveTokens(
                                     accessToken = response.accessToken,
                                     refreshToken = response.refreshToken ?: "",
+                                    userId = response.userId,
                                     email = email,
                                     role = response.role ?: "CUSTOMER",
                                     name = response.full_name,

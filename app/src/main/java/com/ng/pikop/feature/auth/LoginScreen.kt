@@ -113,6 +113,7 @@ fun LoginScreen(
                                 tokenManager.saveTokens(
                                     accessToken = response.accessToken,
                                     refreshToken = response.refreshToken,
+                                    userId = response.userId,
                                     email = email,
                                     role = userRole,
                                     name = response.full_name,
