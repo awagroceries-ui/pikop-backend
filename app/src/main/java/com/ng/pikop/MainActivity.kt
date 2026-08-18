@@ -79,7 +79,7 @@ fun PikopAppNavigation() {
         if (accessToken != null && !isVerified) {
             // Check current destination to avoid infinite loop
             val current = navController.currentDestination?.route
-            if (current != null && !current.startsWith("email_otp") && current != "splash" && current != "terms") {
+            if (current != null && !current.startsWith("email_otp") && current != "splash" && !current.startsWith("terms")) {
                 navController.navigate("email_otp/$userEmail/$userRole") {
                     popUpTo(0) { inclusive = true }
                 }
