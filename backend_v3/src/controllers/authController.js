@@ -200,9 +200,30 @@ const resendOtp = async (req, res) => {
   }
 };
 
+/**
+ * Updates the user's FCM push token.
+ */
+const updateFCMToken = async (req, res) => {
+    const { token } = req.body;
+    const userId = req.user.id;
+
+    try {
+        await db.query(
+            `INSERT INTO user_fcm_tokens (user_id, token, updated_at)
+             VALUES ($1, $2, CURRENT_TIMESTAMP)
+             ON CONFLICT (user_id) DO UPDATE SET token = $2, updated_at = CURRENT_TIMESTAMP`,
+            [userId, token]
+        );
+        res.status(200).json({ success: true, message: 'FCM token updated' });
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
   signup,
   verifyEmail,
   login,
-  resendOtp
+  resendOtp,
+  updateFCMToken
 };

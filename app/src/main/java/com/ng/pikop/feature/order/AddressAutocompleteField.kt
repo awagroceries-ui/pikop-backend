@@ -82,11 +82,17 @@ fun AddressAutocompleteField(
             },
             label = { Text(label) },
             modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
             leadingIcon = { 
                 if (isSearching) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 } else {
-                    Icon(Icons.Default.Search, contentDescription = null)
+                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 }
             },
             trailingIcon = {
@@ -101,14 +107,17 @@ fun AddressAutocompleteField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             ) {
                 LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
                     items(suggestions) { prediction ->
                         ListItem(
-                            headlineContent = { Text(prediction.getPrimaryText(null).toString()) },
-                            supportingContent = { Text(prediction.getSecondaryText(null).toString(), style = MaterialTheme.typography.bodySmall) },
-                            leadingContent = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray) },
+                            headlineContent = { Text(prediction.getPrimaryText(null).toString(), color = MaterialTheme.colorScheme.onSurface) },
+                            supportingContent = { Text(prediction.getSecondaryText(null).toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) },
+                            leadingContent = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
                             modifier = Modifier.clickable {
                                 val address = prediction.getFullText(null).toString()
                                 query = address

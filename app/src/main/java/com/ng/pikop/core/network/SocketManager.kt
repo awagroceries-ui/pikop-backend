@@ -6,17 +6,30 @@ import org.json.JSONObject
 
 object SocketManager {
     private var socket: Socket? = null
+    private var currentUserId: String? = null
     private const val SOCKET_URL = "https://api.awa.name.ng/"
 
-    fun connect() {
+    fun connect(userId: String? = null) {
+        if (socket != null && currentUserId != userId) {
+            socket?.disconnect()
+            socket = null
+        }
+
         if (socket == null) {
+            currentUserId = userId
             val options = IO.Options().apply {
                 forceNew = true
                 reconnection = true
+                if (userId != null) {
+                    query = "userId=$userId"
+                }
             }
             socket = IO.socket(SOCKET_URL, options)
         }
-        socket?.connect()
+        
+        if (socket?.connected() == false) {
+            socket?.connect()
+        }
     }
 
     fun disconnect() {

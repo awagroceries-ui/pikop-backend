@@ -193,6 +193,9 @@ fun StatusBadge(status: String) {
         else -> Color.Gray
     }
     
+    // Accessibility: Use NearBlack for text on light backgrounds if color is too light (like Gold)
+    val textColor = if (status == "SEARCHING") MaterialTheme.colorScheme.onBackground else color
+
     Surface(
         color = color.copy(alpha = 0.1f),
         shape = MaterialTheme.shapes.small,
@@ -202,7 +205,7 @@ fun StatusBadge(status: String) {
             text = status,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
             style = MaterialTheme.typography.labelSmall,
-            color = color,
+            color = textColor,
             fontWeight = FontWeight.Bold
         )
     }

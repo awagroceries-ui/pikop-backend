@@ -1,15 +1,21 @@
-package com.ng.pikop
-
 import android.app.Application
 import com.google.android.libraries.places.api.Places
 import co.paystack.android.PaystackSdk
 import com.google.firebase.FirebaseApp
+import com.dojah.kyc_sdk_kotlin.DojahSdk
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
 class PikopApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        
+        // Initialize Dojah SDK Container
+        try {
+            DojahSdk.with(this)
+        } catch (e: Exception) {
+            android.util.Log.e("PikopApp", "Dojah init failed: ${e.message}")
+        }
         
         // Initialize Paystack
         try {

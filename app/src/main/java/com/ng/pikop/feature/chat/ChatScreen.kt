@@ -57,7 +57,7 @@ fun ChatScreen(
 
     // Real-time Socket Setup
     DisposableEffect(conversationId, orderId) {
-        SocketManager.connect()
+        SocketManager.connect(userId.toString())
         if (isSupport) {
             SocketManager.emit("join_support", conversationId!!)
         } else {
@@ -67,8 +67,8 @@ fun ChatScreen(
         SocketManager.on("receive_message") { data ->
             val newMsg = ChatMessage(
                 id = data.optString("id", "temp"),
-                sender_id = data.optInt("senderId", 0),
-                sender_type = data.optString("senderType", "USER"),
+                sender_id = data.optInt("sender_id", 0),
+                sender_type = data.optString("sender_type", "USER"),
                 body = data.optString("body", data.optString("content", "")),
                 created_at = data.optString("created_at", "")
             )
@@ -176,11 +176,11 @@ fun ChatScreen(
                             inputText = ""
                             
                             val data = JSONObject().apply {
-                                if (isSupport) put("conversationId", conversationId)
-                                else put("orderId", orderId)
+                                if (isSupport) put("conversation_id", conversationId)
+                                else put("order_id", orderId)
                                 
-                                put("senderId", userId)
-                                put("senderType", if (userRole == "CUSTOMER") "USER" else userRole)
+                                put("sender_id", userId)
+                                put("sender_type", if (userRole == "CUSTOMER") "USER" else userRole)
                                 put("content", content)
                             }
                             SocketManager.emit("send_message", data)

@@ -108,6 +108,8 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
 
     // Socket Connection & Location Tracking
     DisposableEffect(Unit) {
+        // We might not have the userId here, but it's okay for general missions
+        // If we want targeted dispatch, we'd need to fetch it from tokenManager
         SocketManager.connect()
         onDispose {
             SocketManager.disconnect()
@@ -129,7 +131,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                     put("lat", location.latitude)
                                     put("lng", location.longitude)
                                 }
-                                SocketManager.emit("update_location", data)
+                                SocketManager.emit("update_mission_location", data)
                             }
                         }
                 } catch (e: SecurityException) {}
@@ -486,21 +488,49 @@ fun PhaseCard(
     buttonText: String,
     onNavigate: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = title, 
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = address, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = address, 
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             
             if (recipientPhone != null) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "Recipient: $recipientPhone", color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = "Recipient: $recipientPhone", 
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
             
-            Button(onClick = onNavigate, modifier = Modifier.fillMaxWidth()) {
-                Text(buttonText)
+            Button(
+                onClick = onNavigate, 
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(buttonText, fontWeight = FontWeight.Bold)
             }
         }
     }

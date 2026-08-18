@@ -106,8 +106,8 @@ fun OrderQuoteScreen(
                 label = { Text("Item Description", color = MaterialTheme.colorScheme.primary) }, 
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                     focusedLabelColor = MaterialTheme.colorScheme.primary
@@ -137,8 +137,8 @@ fun OrderQuoteScreen(
                     modifier = Modifier.weight(1f),
                     enabled = activePromo == null,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                     )
@@ -157,7 +157,7 @@ fun OrderQuoteScreen(
                     },
                     enabled = promoCode.isNotBlank() && activePromo == null
                 ) {
-                    Text("Apply", color = Color.Black)
+                    Text("Apply", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
             activePromo?.let { 
@@ -187,8 +187,8 @@ fun OrderQuoteScreen(
                 label = { Text("Recipient Name", color = MaterialTheme.colorScheme.primary) }, 
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                 )
@@ -200,8 +200,8 @@ fun OrderQuoteScreen(
                 label = { Text("Recipient Phone", color = MaterialTheme.colorScheme.primary) }, 
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                 )
@@ -241,9 +241,19 @@ fun OrderQuoteScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     enabled = !isLoading && pickupAddress.isNotBlank() && deliveryAddress.isNotBlank() && itemPhotoUri != null,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary, 
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black) else Text("Get Fare Quote", fontWeight = FontWeight.Bold)
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp), 
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Get Fare Quote", fontWeight = FontWeight.Bold)
+                    }
                 }
             } else {
                 Button(
@@ -293,9 +303,19 @@ fun OrderQuoteScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     enabled = !isLoading && recipientName.isNotBlank() && recipientPhone.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary, 
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black) else Text("Pay & Deploy Mission", fontWeight = FontWeight.Bold)
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp), 
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Pay & Deploy Mission", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
             

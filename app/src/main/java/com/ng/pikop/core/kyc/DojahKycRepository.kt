@@ -26,10 +26,8 @@ class DojahKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
 
-        // Set credentials in the SDK container
-        DojahSdk.with(context)
-        DojahSdk.dojahContainer.sharedPreferenceManager.setAppId(appId)
-        DojahSdk.dojahContainer.sharedPreferenceManager.setPKey(publicKey)
+        // Ensure SDK is initialized with credentials
+        setupSdk(context)
 
         DojahSdk.launchWithBackwardCompatibility(
             activity = activity,
@@ -46,17 +44,31 @@ class DojahKycRepository @Inject constructor(
         email: String,
         referenceId: String
     ) {
-        // Initialize SDK and set credentials
-        DojahSdk.with(context)
-        DojahSdk.dojahContainer.sharedPreferenceManager.setAppId(appId)
-        DojahSdk.dojahContainer.sharedPreferenceManager.setPKey(publicKey)
+        android.util.Log.d("DojahRepo", "Initiating verification for $email with ref $referenceId")
+        // Ensure SDK is initialized with credentials
+        setupSdk(context)
 
-        DojahSdk.launch(
-            dojahLauncher = launcher,
-            widgetId = widgetId,
-            referenceId = referenceId,
-            email = email
-        )
+        try {
+            DojahSdk.launch(
+                dojahLauncher = launcher,
+                widgetId = widgetId,
+                referenceId = referenceId,
+                email = email
+            )
+            android.util.Log.d("DojahRepo", "DojahSdk.launch() executed")
+        } catch (e: Exception) {
+            android.util.Log.e("DojahRepo", "Launch failed: ${e.message}")
+        }
+    }
+
+    private fun setupSdk(context: Context) {
+        try {
+            DojahSdk.with(context)
+            DojahSdk.dojahContainer.sharedPreferenceManager.setAppId(appId)
+            DojahSdk.dojahContainer.sharedPreferenceManager.setPKey(publicKey)
+        } catch (e: Exception) {
+            android.util.Log.e("DojahRepo", "SDK setup failed: ${e.message}")
+        }
     }
 
     private fun Context.findActivity(): Activity? {
