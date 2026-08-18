@@ -1,12 +1,12 @@
 <div class="mb-5">
-    <h4 class="fw-bold mb-1 text-white">Fleet Authentication</h4>
-    <p class="text-white opacity-50 small mb-0">Management of fulfiller identity and operational credentials.</p>
+    <h4 class="fw-bold mb-1 text-black">Fleet Authentication</h4>
+    <p class="text-muted small mb-0">Management of fulfiller identity and operational credentials.</p>
 </div>
 
 <div class="card-pikop">
     <% if (fulfillers.length === 0) { %>
         <div class="p-5 text-center">
-            <p class="text-white opacity-50 mb-0">No pending fleet authentications.</p>
+            <p class="text-muted mb-0">No pending fleet authentications.</p>
         </div>
     <% } else { %>
         <div class="table-responsive">
@@ -15,7 +15,7 @@
                     <tr>
                         <th>Fulfiller</th>
                         <th>Class</th>
-                        <th class="text-center">Identity (Didit)</th>
+                        <th class="text-center">Identity (Verification)</th>
                         <th class="text-center">KYC Progress</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -23,14 +23,34 @@
                 <tbody>
                     <% fulfillers.forEach(f => { %>
                         <tr class="align-middle">
-                            <td><span class="fw-bold text-white"><%= f.full_name %></span></td>
-                            <td><span class="badge bg-white text-black fw-bold uppercase" style="font-size: 10px;"><%= f.primary_class %></span></td>
-                            <td class="text-center">
-                                <span class="badge <%= f.didit_verification_status === 'approved' ? 'bg-green' : 'bg-gold' %> text-black fw-bold" style="font-size: 10px;">
-                                    <%= f.didit_verification_status.toUpperCase() %>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 35px; height: 35px; border: 1px solid var(--border);">
+                                        <span class="fw-bold text-green small"><%= f.full_name.charAt(0) %></span>
+                                    </div>
+                                    <span class="fw-bold text-black"><%= f.full_name %></span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-black border fw-bold uppercase" style="font-size: 10px; padding: 5px 10px;">
+                                    <%= f.primary_class %>
                                 </span>
                             </td>
-                            <td class="text-center text-white opacity-75 small fw-bold"><%= f.kyc_status %></td>
+                            <td class="text-center">
+                                <% if (f.didit_verification_status === 'approved') { %>
+                                    <div class="d-flex align-items-center justify-content-center gap-2">
+                                        <img src="/public/assets/badge_verified.png" alt="Verified" style="height: 18px; width: auto;">
+                                        <span class="badge bg-green text-white fw-bold" style="font-size: 10px;">APPROVED</span>
+                                    </div>
+                                <% } else { %>
+                                    <span class="badge bg-gold text-black fw-bold" style="font-size: 10px;">
+                                        <%= f.didit_verification_status.toUpperCase() %>
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td class="text-center">
+                                <span class="text-black fw-bold small"><%= f.kyc_status %></span>
+                            </td>
                             <td class="text-end">
                                 <button class="btn-pikop-primary py-1 px-3" style="font-size: 11px;">REVIEW</button>
                             </td>

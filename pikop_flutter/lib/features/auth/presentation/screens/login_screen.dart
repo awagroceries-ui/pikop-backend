@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../bloc/auth_bloc.dart';
-import '../../../../core/theme/pikop_theme.dart';
+import 'package:pikop_flutter/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:pikop_flutter/core/theme/pikop_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: MainAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Icon(Icons.rocket_launch, size: 80, color: PikopTheme.gold),
                 const SizedBox(height: 32),

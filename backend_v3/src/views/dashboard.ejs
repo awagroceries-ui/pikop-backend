@@ -1,39 +1,39 @@
 <div class="mb-5 d-flex align-items-center gap-3">
-    <img src="/public/assets/logo.png" alt="Pikop Logo" style="height: 32px; width: auto;">
+    <img src="/public/assets/logo.png" alt="Pikop Logo" style="height: 35px; width: auto;">
     <div>
-        <h3 class="fw-bold mb-0 text-white" style="letter-spacing: -0.5px;">Mission Control</h3>
-        <p class="text-white opacity-50 small mb-0">System-wide operational oversight.</p>
+        <h3 class="fw-bold mb-0 text-black" style="letter-spacing: -0.5px;">Mission Control</h3>
+        <p class="text-muted small mb-0">System-wide operational oversight.</p>
     </div>
 </div>
 
 <!-- KPI Row -->
 <div class="row g-4 mb-5">
     <div class="col-md-3">
-        <div class="card-pikop p-4">
-            <div class="text-gold fw-bold smaller uppercase mb-2" style="font-size: 11px; letter-spacing: 1px;">Live Missions</div>
+        <div class="card-pikop p-4 border-start border-green border-4">
+            <div class="text-green fw-bold smaller uppercase mb-2" style="font-size: 11px; letter-spacing: 1px;">Live Missions</div>
             <div class="d-flex align-items-baseline gap-2">
-                <h3 class="mb-0 fw-bold text-white mono"><%= stats.activeOrders %></h3>
-                <div class="rounded-circle bg-green" style="width: 6px; height: 6px;"></div>
+                <h3 class="mb-0 fw-bold text-black mono"><%= stats.activeOrders %></h3>
+                <div class="rounded-circle bg-green" style="width: 8px; height: 8px;"></div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card-pikop p-4">
+        <div class="card-pikop p-4 border-start border-gold border-4">
             <div class="text-gold fw-bold smaller uppercase mb-2" style="font-size: 11px; letter-spacing: 1px;">Online Fleet</div>
-            <h3 class="mb-0 fw-bold text-white mono"><%= stats.onlineFulfillers %></h3>
+            <h3 class="mb-0 fw-bold text-black mono"><%= stats.onlineFulfillers %></h3>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card-pikop p-4">
-            <div class="text-gold fw-bold smaller uppercase mb-2" style="font-size: 11px; letter-spacing: 1px;">Gross Revenue (24h)</div>
-            <h3 class="mb-0 fw-bold text-white mono">₦<%= stats.totalRevenue.toLocaleString() %></h3>
+        <div class="card-pikop p-4 border-start border-orange border-4">
+            <div class="text-orange fw-bold smaller uppercase mb-2" style="font-size: 11px; letter-spacing: 1px;">Gross Revenue (24h)</div>
+            <h3 class="mb-0 fw-bold text-black mono">₦<%= stats.totalRevenue.toLocaleString() %></h3>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card-pikop p-4 border-gold">
-            <div class="text-gold fw-bold smaller uppercase mb-2" style="font-size: 11px; letter-spacing: 1px;">System Baseline</div>
+        <div class="card-pikop p-4 bg-light border-0">
+            <div class="text-muted fw-bold smaller uppercase mb-2" style="font-size: 11px; letter-spacing: 1px;">System Baseline</div>
             <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-gold text-black fw-bold" style="font-size: 10px;">V3.5.7</span>
+                <span class="badge bg-green text-white fw-bold" style="font-size: 10px; padding: 5px 10px;">V3.5.7 STABLE</span>
             </div>
         </div>
     </div>
@@ -43,9 +43,8 @@
     <!-- Graph -->
     <div class="col-md-8">
         <div class="card-pikop p-4">
-            <h6 class="text-white fw-bold uppercase mb-4" style="font-size: 12px; letter-spacing: 1px;">Performance Trends</h6>
-            <!-- TERMINAL GRAPH FIX -->
-            <div style="height: 300px !important; width: 100%; position: relative; overflow: hidden; box-sizing: border-box;">
+            <h6 class="text-black fw-bold uppercase mb-4" style="font-size: 12px; letter-spacing: 1px;">Performance Trends</h6>
+            <div style="height: 350px !important; width: 100%; position: relative; overflow: hidden; box-sizing: border-box;">
                 <canvas id="performanceChart"></canvas>
             </div>
         </div>
@@ -54,20 +53,20 @@
     <!-- Alert Queue -->
     <div class="col-md-4">
         <div class="card-pikop p-4 h-100">
-            <h6 class="text-white fw-bold uppercase mb-4" style="font-size: 12px; letter-spacing: 1px;">Critical Alerts</h6>
+            <h6 class="text-black fw-bold uppercase mb-4" style="font-size: 12px; letter-spacing: 1px;">Critical Alerts</h6>
 
             <div class="d-flex flex-column gap-3">
-                <div class="p-3 d-flex justify-content-between align-items-center bg-black border border-white border-opacity-10">
-                    <span class="text-white small fw-bold">PENDING KYC</span>
-                    <span class="badge bg-red text-white fw-bold px-3"><%= stats.notifications.kyc %></span>
+                <div class="p-3 d-flex justify-content-between align-items-center bg-light border border-secondary border-opacity-10 rounded">
+                    <span class="text-black small fw-bold">PENDING KYC</span>
+                    <span class="badge bg-orange text-white fw-bold px-3"><%= stats.notifications.kyc %></span>
                 </div>
-                <div class="p-3 d-flex justify-content-between align-items-center bg-black border border-white border-opacity-10">
-                    <span class="text-white small fw-bold">OPEN TICKETS</span>
+                <div class="p-3 d-flex justify-content-between align-items-center bg-light border border-secondary border-opacity-10 rounded">
+                    <span class="text-black small fw-bold">OPEN TICKETS</span>
                     <span class="badge bg-gold text-black fw-bold px-3"><%= stats.notifications.support %></span>
                 </div>
             </div>
 
-            <div class="mt-5">
+            <div class="mt-auto pt-5">
                 <button class="btn-pikop-outline w-100 py-2" onclick="window.location.href='/admin/reports'">VIEW FULL ANALYTICS</button>
             </div>
         </div>
@@ -77,7 +76,6 @@
 <script>
     const ctx = document.getElementById('performanceChart').getContext('2d');
 
-    // Safety: Reset chart on load
     if (window.pikopChart) window.pikopChart.destroy();
 
     window.pikopChart = new Chart(ctx, {
@@ -87,43 +85,43 @@
             datasets: [
                 {
                     label: 'LOGISTICS',
-                    data: [0, 0, 0, 0, 0, 0, 10],
-                    borderColor: '#FF5722',
-                    backgroundColor: 'rgba(255, 87, 34, 0.05)',
+                    data: [0, 0, 0, 0, 0, 0, <%= stats.activeOrders %>],
+                    borderColor: '#008751',
+                    backgroundColor: 'rgba(0, 135, 81, 0.05)',
                     fill: true,
                     tension: 0.3,
-                    borderWidth: 2
+                    borderWidth: 3
                 },
                 {
                     label: 'MARKETPLACE',
                     data: [0, 0, 0, 0, 0, 0, 5],
-                    borderColor: '#34C759',
-                    backgroundColor: 'rgba(52, 199, 89, 0.05)',
+                    borderColor: '#FF6900',
+                    backgroundColor: 'rgba(255, 105, 0, 0.05)',
                     fill: true,
                     tension: 0.3,
-                    borderWidth: 2
+                    borderWidth: 3
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: false,
+            animation: { duration: 1000 },
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: '#222' },
-                    ticks: { color: '#FFF', font: { size: 10, weight: '600' } }
+                    grid: { color: '#E0E0E0', drawBorder: false },
+                    ticks: { color: '#1A1A1A', font: { size: 10, weight: '700' } }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#FFF', font: { size: 10, weight: '600' } }
+                    ticks: { color: '#1A1A1A', font: { size: 10, weight: '700' } }
                 }
             },
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { color: '#FFF', font: { size: 11, weight: '600' }, padding: 15 }
+                    labels: { color: '#1A1A1A', font: { size: 11, weight: '700' }, padding: 20, usePointStyle: true }
                 }
             }
         }
@@ -146,8 +144,13 @@
 </script>
 
 <style>
+    .text-green { color: var(--green) !important; }
     .text-gold { color: var(--gold) !important; }
+    .text-orange { color: var(--orange) !important; }
     .bg-green { background-color: var(--green) !important; }
-    .bg-red { background-color: var(--red) !important; }
+    .bg-orange { background-color: var(--orange) !important; }
+    .bg-gold { background-color: var(--gold) !important; }
+    .border-green { border-color: var(--green) !important; }
     .border-gold { border-color: var(--gold) !important; }
+    .border-orange { border-color: var(--orange) !important; }
 </style>

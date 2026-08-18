@@ -1,44 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'core/theme/pikop_theme.dart';
-import 'core/widgets/error_boundary.dart';
-import 'features/auth/data/auth_repository.dart';
-import 'features/auth/presentation/bloc/auth_bloc.dart';
-import 'features/auth/presentation/screens/account_screen.dart';
-import 'features/auth/presentation/screens/login_screen.dart';
-import 'features/auth/presentation/screens/policy_screen.dart';
-import 'features/auth/presentation/screens/otp_screen.dart';
-import 'features/auth/presentation/screens/signup_screen.dart';
-import 'core/services/socket_service.dart';
-import 'features/dashboard/presentation/screens/home_screen.dart';
-import 'features/delivery/data/delivery_repository.dart';
+import 'package:pikop_flutter/core/theme/pikop_theme.dart';
+import 'package:pikop_flutter/core/widgets/error_boundary.dart';
+import 'package:pikop_flutter/features/auth/data/auth_repository.dart';
+import 'package:pikop_flutter/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:pikop_flutter/features/auth/presentation/screens/account_screen.dart';
+import 'package:pikop_flutter/features/auth/presentation/screens/login_screen.dart';
+import 'package:pikop_flutter/features/auth/presentation/screens/policy_screen.dart';
+import 'package:pikop_flutter/features/auth/presentation/screens/otp_screen.dart';
+import 'package:pikop_flutter/features/auth/presentation/screens/signup_screen.dart';
+import 'package:pikop_flutter/core/services/socket_service.dart';
+import 'package:pikop_flutter/features/dashboard/presentation/screens/home_screen.dart';
+import 'package:pikop_flutter/features/delivery/data/delivery_repository.dart';
+import 'package:pikop_flutter/features/delivery/presentation/bloc/delivery_bloc.dart';
+import 'package:pikop_flutter/features/delivery/presentation/screens/active_mission_screen.dart';
+import 'package:pikop_flutter/features/delivery/presentation/screens/cod_payment_screen.dart';
+import 'package:pikop_flutter/features/delivery/presentation/screens/request_delivery_screen.dart';
 
-import 'features/fulfiller/data/fulfiller_repository.dart';
-import 'features/fulfiller/presentation/bloc/fulfiller_bloc.dart';
-import 'features/fulfiller/presentation/screens/fulfiller_onboarding_screen.dart';
+import 'package:pikop_flutter/features/fulfiller/data/fulfiller_repository.dart';
+import 'package:pikop_flutter/features/fulfiller/presentation/bloc/fulfiller_bloc.dart';
+import 'package:pikop_flutter/features/fulfiller/presentation/screens/fulfiller_onboarding_screen.dart';
 
-import 'features/foods/data/kitchen_repository.dart';
-import 'features/foods/presentation/bloc/foods_bloc.dart';
-import 'features/foods/presentation/screens/food_browser_screen.dart';
-import 'features/growth/data/growth_repository.dart';
-import 'features/growth/presentation/bloc/growth_bloc.dart';
-import 'features/growth/presentation/screens/loyalty_hub_screen.dart';
-import 'features/marketplace/data/marketplace_repository.dart';
-import 'features/marketplace/presentation/bloc/marketplace_bloc.dart';
-import 'features/marketplace/presentation/screens/manage_catalog_screen.dart';
-import 'features/marketplace/presentation/screens/product_detail_screen.dart';
-import 'features/marketplace/presentation/screens/shop_browser_screen.dart';
-import 'features/marketplace/presentation/screens/vendor_onboarding_screen.dart';
-import 'features/merchant/data/merchant_repository.dart';
-import 'features/merchant/presentation/bloc/merchant_bloc.dart';
-import 'features/merchant/presentation/screens/merchant_dashboard_screen.dart';
-import 'features/support/data/support_repository.dart';
-import 'features/support/presentation/bloc/support_bloc.dart';
-import 'features/support/presentation/screens/support_hub_screen.dart';
+import 'package:pikop_flutter/features/foods/data/kitchen_repository.dart';
+import 'package:pikop_flutter/features/foods/presentation/bloc/foods_bloc.dart';
+import 'package:pikop_flutter/features/foods/presentation/screens/food_browser_screen.dart';
+import 'package:pikop_flutter/features/growth/data/growth_repository.dart';
+import 'package:pikop_flutter/features/growth/presentation/bloc/growth_bloc.dart';
+import 'package:pikop_flutter/features/growth/presentation/screens/loyalty_hub_screen.dart';
+import 'package:pikop_flutter/features/marketplace/data/marketplace_repository.dart';
+import 'package:pikop_flutter/features/marketplace/presentation/bloc/marketplace_bloc.dart';
+import 'package:pikop_flutter/features/marketplace/presentation/screens/manage_catalog_screen.dart';
+import 'package:pikop_flutter/features/marketplace/presentation/screens/product_detail_screen.dart';
+import 'package:pikop_flutter/features/marketplace/presentation/screens/shop_browser_screen.dart';
+import 'package:pikop_flutter/features/marketplace/presentation/screens/vendor_onboarding_screen.dart';
+import 'package:pikop_flutter/features/merchant/data/merchant_repository.dart';
+import 'package:pikop_flutter/features/merchant/presentation/bloc/merchant_bloc.dart';
+import 'package:pikop_flutter/features/merchant/presentation/screens/merchant_dashboard_screen.dart';
+import 'package:pikop_flutter/features/support/data/support_repository.dart';
+import 'package:pikop_flutter/features/support/presentation/bloc/support_bloc.dart';
+import 'package:pikop_flutter/features/support/presentation/screens/support_hub_screen.dart';
 
-import 'features/wallet/data/wallet_repository.dart';
-import 'features/wallet/presentation/bloc/wallet_bloc.dart';
-import 'features/wallet/presentation/screens/wallet_screen.dart';
+import 'package:pikop_flutter/features/wallet/data/wallet_repository.dart';
+import 'package:pikop_flutter/features/wallet/presentation/bloc/wallet_bloc.dart';
+import 'package:pikop_flutter/features/wallet/presentation/screens/wallet_screen.dart';
 
 void main() {
   runApp(const PikopApp());
@@ -51,44 +55,44 @@ class PikopApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
       providers: [
-        RepositoryProvider(create: (context) => AuthRepository()),
-        RepositoryProvider(create: (context) => DeliveryRepository()),
-        RepositoryProvider(create: (context) => FulfillerRepository()),
-        RepositoryProvider(create: (context) => SocketService()),
-        RepositoryProvider(create: (context) => SupportRepository()),
-        RepositoryProvider(create: (context) => MarketplaceRepository()),
-        RepositoryProvider(create: (context) => KitchenRepository()),
-        RepositoryProvider(create: (context) => WalletRepository()),
-        RepositoryProvider(create: (context) => MerchantRepository()),
-        RepositoryProvider(create: (context) => GrowthRepository()),
+        RepositoryProvider<AuthRepository>(create: (context) => AuthRepository()),
+        RepositoryProvider<DeliveryRepository>(create: (context) => DeliveryRepository()),
+        RepositoryProvider<FulfillerRepository>(create: (context) => FulfillerRepository()),
+        RepositoryProvider<SocketService>(create: (context) => SocketService()),
+        RepositoryProvider<SupportRepository>(create: (context) => SupportRepository()),
+        RepositoryProvider<MarketplaceRepository>(create: (context) => MarketplaceRepository()),
+        RepositoryProvider<KitchenRepository>(create: (context) => KitchenRepository()),
+        RepositoryProvider<WalletRepository>(create: (context) => WalletRepository()),
+        RepositoryProvider<MerchantRepository>(create: (context) => MerchantRepository()),
+        RepositoryProvider<GrowthRepository>(create: (context) => GrowthRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
-          BlocProvider(
+          BlocProvider<AuthBloc>(
             create: (context) => AuthBloc(authRepository: context.read<AuthRepository>()),
           ),
-          BlocProvider(
+          BlocProvider<DeliveryBloc>(
             create: (context) => DeliveryBloc(deliveryRepository: context.read<DeliveryRepository>()),
           ),
-          BlocProvider(
+          BlocProvider<FulfillerBloc>(
             create: (context) => FulfillerBloc(fulfillerRepository: context.read<FulfillerRepository>()),
           ),
-          BlocProvider(
+          BlocProvider<SupportBloc>(
             create: (context) => SupportBloc(supportRepository: context.read<SupportRepository>()),
           ),
-          BlocProvider(
+          BlocProvider<MarketplaceBloc>(
             create: (context) => MarketplaceBloc(marketplaceRepository: context.read<MarketplaceRepository>()),
           ),
-          BlocProvider(
+          BlocProvider<FoodsBloc>(
             create: (context) => FoodsBloc(kitchenRepository: context.read<KitchenRepository>()),
           ),
-          BlocProvider(
+          BlocProvider<WalletBloc>(
             create: (context) => WalletBloc(walletRepository: context.read<WalletRepository>()),
           ),
-          BlocProvider(
+          BlocProvider<MerchantBloc>(
             create: (context) => MerchantBloc(merchantRepository: context.read<MerchantRepository>()),
           ),
-          BlocProvider(
+          BlocProvider<GrowthBloc>(
             create: (context) => GrowthBloc(growthRepository: context.read<GrowthRepository>()),
           ),
         ],
@@ -192,6 +196,11 @@ class _SplashScreenState extends State<SplashScreen> {
             const Text(
               'Multi-Platform Rebuild',
               style: TextStyle(color: PikopTheme.grey, letterSpacing: 1.5),
+            ),
+            const SizedBox(height: 40),
+            const Text(
+              'VERSION 3.0.0-BETA',
+              style: TextStyle(color: PikopTheme.gold, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2),
             ),
           ],
         ),

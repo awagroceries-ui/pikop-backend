@@ -231,7 +231,14 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                         title = "Phase 1: Pickup",
                         address = orderDetails?.pickup_address ?: "Loading...",
                         buttonText = "Navigate to Pickup",
-                        onNavigate = { navigateToAddress(context, orderDetails?.pickup_address ?: "") }
+                        onNavigate = { 
+                            navigateToLocation(
+                                context, 
+                                orderDetails?.pickup_address ?: "",
+                                orderDetails?.pickup_lat,
+                                orderDetails?.pickup_lng
+                            ) 
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -272,9 +279,16 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                     PhaseCard(
                         title = "Phase 2: Delivery",
                         address = orderDetails?.delivery_address ?: "Loading...",
-                        recipientPhone = "+234 812 345 6789",
+                        recipientPhone = orderDetails?.recipient_phone,
                         buttonText = "Navigate to Delivery",
-                        onNavigate = { navigateToAddress(context, orderDetails?.delivery_address ?: "") }
+                        onNavigate = { 
+                            navigateToLocation(
+                                context, 
+                                orderDetails?.delivery_address ?: "",
+                                orderDetails?.delivery_lat,
+                                orderDetails?.delivery_lng
+                            ) 
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -492,13 +506,18 @@ fun PhaseCard(
     }
 }
 
-fun navigateToAddress(context: Context, address: String) {
-    val gmmIntentUri = Uri.parse("geo:0,0?q=${Uri.encode(address)}")
-    val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+fun navigateToLocation(context: Context, address: String, lat: Double? = null, lng: Double? = null) {
+    val uri = if (lat != null && lng != null && lat != 0.0) {
+        Uri.parse("google.navigation:q=$lat,$lng")
+    } else {
+        Uri.parse("geo:0,0?q=${Uri.encode(address)}")
+    }
+    val mapIntent = Intent(Intent.ACTION_VIEW, uri)
     mapIntent.setPackage("com.google.android.apps.maps")
     if (mapIntent.resolveActivity(context.packageManager) != null) {
         context.startActivity(mapIntent)
     } else {
-        context.startActivity(Intent(Intent.ACTION_VIEW, gmmIntentUri))
+        val fallbackUri = Uri.parse("geo:0,0?q=${Uri.encode(address)}")
+        context.startActivity(Intent(Intent.ACTION_VIEW, fallbackUri))
     }
 }

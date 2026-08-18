@@ -38,7 +38,7 @@ dependencies:
   firebase_messaging: ^15.1.0
   socket_io_client: ^3.1.2
   webview_flutter: ^4.8.0
-  paystack_manager: ^1.0.7
+  # paystack_manager: ^1.0.7
   url_launcher: ^6.3.0
   intl: ^0.19.0
 

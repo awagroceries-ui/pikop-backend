@@ -1,7 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-5">
     <div>
-        <h4 class="fw-bold mb-1 text-white">Management Reports</h4>
-        <p class="text-white opacity-50 small mb-0">Aggregate performance across all business units.</p>
+        <h4 class="fw-bold mb-1 text-black">Management Reports</h4>
+        <p class="text-muted small mb-0">Aggregate performance across all business units.</p>
     </div>
     <a href="/admin/reports/export/missions" class="btn-pikop-outline py-2 px-3 ls-1">
         EXPORT MISSIONS (CSV)
@@ -11,7 +11,7 @@
 <div class="row g-4">
     <div class="col-md-6">
         <div class="card-pikop p-4 h-100">
-            <h6 class="text-white small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Revenue Share (GMV)</h6>
+            <h6 class="text-black small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Revenue Share (GMV)</h6>
             <div style="position: relative; height: 250px; width: 100%;">
                 <canvas id="gmvPieChart"></canvas>
             </div>
@@ -20,8 +20,8 @@
                     <tbody>
                         <% moduleStats.forEach(stat => { %>
                             <tr>
-                                <td class="text-white opacity-75 small uppercase fw-bold"><%= stat.order_type.replace('_', ' ') %></td>
-                                <td class="text-end fw-bold text-white">₦<%= parseFloat(stat.gmv || 0).toLocaleString() %></td>
+                                <td class="text-muted small uppercase fw-bold"><%= stat.order_type.replace('_', ' ') %></td>
+                                <td class="text-end fw-bold text-black">₦<%= parseFloat(stat.gmv || 0).toLocaleString() %></td>
                             </tr>
                         <% }) %>
                     </tbody>
@@ -32,18 +32,18 @@
 
     <div class="col-md-6">
         <div class="card-pikop p-4 h-100">
-            <h6 class="text-white small fw-bold uppercase mb-4" style="letter-spacing: 1px;">User Engagement</h6>
+            <h6 class="text-black small fw-bold uppercase mb-4" style="letter-spacing: 1px;">User Engagement</h6>
             <div class="row g-3 mb-4">
                 <div class="col-6">
-                    <div class="p-3 bg-black border border-white border-opacity-10">
-                        <span class="text-white opacity-50 smaller fw-bold d-block mb-1">DAU (24H)</span>
-                        <h4 class="mb-0 fw-bold text-white" id="val-dau">...</h4>
+                    <div class="p-3 bg-light border rounded">
+                        <span class="text-muted smaller fw-bold d-block mb-1">DAU (24H)</span>
+                        <h4 class="mb-0 fw-bold text-black" id="val-dau">...</h4>
                     </div>
                 </div>
                 <div class="col-6">
-                    <div class="p-3 bg-black border border-white border-opacity-10">
-                        <span class="text-white opacity-50 smaller fw-bold d-block mb-1">FLEET (24H)</span>
-                        <h4 class="mb-0 fw-bold text-white" id="val-fleet">...</h4>
+                    <div class="p-3 bg-light border rounded">
+                        <span class="text-muted smaller fw-bold d-block mb-1">FLEET (24H)</span>
+                        <h4 class="mb-0 fw-bold text-black" id="val-fleet">...</h4>
                     </div>
                 </div>
             </div>
@@ -55,7 +55,7 @@
 
     <div class="col-md-12">
         <div class="card-pikop p-4">
-            <h6 class="text-white small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Market Density by Region</h6>
+            <h6 class="text-black small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Market Density by Region</h6>
             <div class="row g-4 align-items-center">
                 <div class="col-md-8">
                     <div style="position: relative; height: 300px; width: 100%;">
@@ -65,8 +65,8 @@
                 <div class="col-md-4">
                     <div class="d-flex flex-column gap-2">
                         <% cityStats.forEach(city => { %>
-                            <div class="p-3 border border-white border-opacity-10 d-flex justify-content-between bg-black">
-                                <span class="fw-bold text-white uppercase" style="font-size: 12px;"><%= city.city %></span>
+                            <div class="p-3 border rounded d-flex justify-content-between bg-light">
+                                <span class="fw-bold text-black uppercase" style="font-size: 12px;"><%= city.city %></span>
                                 <span class="badge bg-gold text-black fw-bold"><%= city.count %> Partners</span>
                             </div>
                         <% }) %>
@@ -89,14 +89,20 @@
                     <%= moduleStats.find(s => s.order_type === 'marketplace')?.gmv || 0 %>,
                     <%= moduleStats.find(s => s.order_type === 'food')?.gmv || 0 %>
                 ],
-                backgroundColor: ['#FF5722', '#34C759', '#00BCD4'],
+                backgroundColor: ['#008751', '#FFC618', '#FF6900'],
                 borderWidth: 0,
                 cutout: '80%'
             }]
         },
         options: {
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } }
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'right',
+                    labels: { color: '#1A1A1A', font: { weight: '700', size: 11 } }
+                }
+            }
         }
     });
 
@@ -108,16 +114,16 @@
             datasets: [{
                 label: 'Density',
                 data: <%- JSON.stringify(cityStats.map(s => s.count)) %>,
-                backgroundColor: '#FF9F0A',
-                borderRadius: 2
+                backgroundColor: '#008751',
+                borderRadius: 4
             }]
         },
         options: {
             indexAxis: 'y',
             maintainAspectRatio: false,
             scales: {
-                x: { grid: { color: '#222' }, ticks: { color: '#FFF', font: { size: 10 } } },
-                y: { grid: { display: false }, ticks: { color: '#FFF', font: { size: 10 } } }
+                x: { grid: { color: '#E0E0E0' }, ticks: { color: '#1A1A1A', font: { weight: '600' } } },
+                y: { grid: { display: false }, ticks: { color: '#1A1A1A', font: { weight: '600' } } }
             },
             plugins: { legend: { display: false } }
         }
@@ -132,3 +138,7 @@
             }
         });
 </script>
+
+<style>
+    .bg-gold { background-color: var(--gold) !important; }
+</style>

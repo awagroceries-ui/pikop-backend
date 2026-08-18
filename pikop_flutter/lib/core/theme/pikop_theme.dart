@@ -6,6 +6,7 @@ class PikopTheme {
   static const Color gold = Color(0xFFFF9F0A);
   static const Color orange = Color(0xFFFF5722);
   static const Color green = Color(0xFF8BC34A);
+  static const Color teal = Color(0xFF00BCD4);
   static const Color white = Color(0xFFFFFFFF);
   static const Color grey = Color(0xFF64748B);
 

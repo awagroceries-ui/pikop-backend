@@ -16,8 +16,6 @@ import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ProfileUpdateRequest
-import com.ng.pikop.ui.theme.PikopBlack
-import com.ng.pikop.ui.theme.PikopOrange
 import kotlinx.coroutines.launch
 
 @Composable
@@ -37,13 +35,13 @@ fun FulfillerTypeSelectionScreen(onClassSelected: () -> Unit) {
         Text(
             "How will you deliver?",
             style = MaterialTheme.typography.headlineMedium,
-            color = PikopOrange,
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
         )
         Text(
             "Select the category that matches your transportation mode.",
             style = MaterialTheme.typography.bodySmall,
-            color = androidx.compose.ui.graphics.Color.Gray,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             textAlign = TextAlign.Center
         )
 
@@ -82,7 +80,7 @@ fun FulfillerTypeSelectionScreen(onClassSelected: () -> Unit) {
         
         if (isLoading) {
             Spacer(modifier = Modifier.height(24.dp))
-            CircularProgressIndicator(color = PikopOrange)
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -109,14 +107,16 @@ fun FulfillerClassCard(title: String, description: String, icon: androidx.compos
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF1C1C1E))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
     ) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = PikopOrange, modifier = Modifier.size(32.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = PikopOrange)
-                Text(description, style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color.Gray)
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
         }
     }

@@ -1,12 +1,12 @@
 <div class="mb-5">
-    <h4 class="fw-bold mb-1 text-white">Kitchen Partners</h4>
-    <p class="text-white opacity-50 small mb-0">Management of Foods & Meals kitchen operations.</p>
+    <h4 class="fw-bold mb-1 text-black">Kitchen Partners</h4>
+    <p class="text-muted small mb-0">Management of Foods & Meals kitchen operations.</p>
 </div>
 
 <div class="card-pikop">
     <% if (kitchens.length === 0) { %>
         <div class="p-5 text-center">
-            <p class="text-white opacity-50 mb-0">No active kitchens found. Ready for Food module rollout.</p>
+            <p class="text-muted mb-0">No active kitchens found. Ready for Food module rollout.</p>
         </div>
     <% } else { %>
         <div class="table-responsive">
@@ -23,14 +23,14 @@
                     <% kitchens.forEach(k => { %>
                         <tr class="align-middle">
                             <td>
-                                <div class="fw-bold text-white"><%= k.business_name %></div>
-                                <div class="smaller text-white opacity-50"><%= k.contact_email %></div>
+                                <div class="fw-bold text-black"><%= k.business_name %></div>
+                                <div class="smaller text-muted"><%= k.contact_email %></div>
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-white text-black fw-bold small uppercase"><%= k.cuisine_type || 'GENERAL' %></span>
+                                <span class="badge bg-light text-black border fw-bold small uppercase"><%= k.cuisine_type || 'GENERAL' %></span>
                             </td>
                             <td class="text-center">
-                                <span class="badge <%= k.status === 'active' ? 'bg-green' : 'bg-gold' %> text-black fw-bold px-3">
+                                <span class="badge <%= k.status === 'active' ? 'bg-green' : 'bg-gold' %> text-white fw-bold px-3">
                                     <%= k.status.toUpperCase() %>
                                 </span>
                             </td>
@@ -50,5 +50,5 @@
 
 <style>
     .bg-green { background-color: var(--green) !important; }
-    .bg-gold { background-color: var(--gold) !important; }
+    .bg-gold { background-color: var(--gold) !important; color: var(--black) !important; }
 </style>

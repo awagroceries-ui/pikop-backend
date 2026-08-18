@@ -94,7 +94,7 @@ class _WalletScreenState extends State<WalletScreen> {
           const SizedBox(height: 8),
           Text(
             '₦${balance.toLocaleString()}',
-            style: const TextStyle(color: Colors.black, fontSize: 42, fontWeight: FontWeight.black),
+            style: const TextStyle(color: Colors.black, fontSize: 42, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 32),
           Row(

@@ -37,8 +37,10 @@ import com.ng.pikop.feature.order.*
 import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.ui.theme.PikopTheme
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,8 +108,38 @@ fun PikopAppNavigation() {
     val activity = context as? ComponentActivity
     LaunchedEffect(activity?.intent) {
         val navigateTo = activity?.intent?.getStringExtra("navigate_to")
-        if (navigateTo == "chat" && accessToken != null) {
-            navController.navigate("main") 
+        val orderId = activity?.intent?.getStringExtra("order_id")
+        
+        if (accessToken != null && navigateTo != null) {
+            when (navigateTo) {
+                "SUPPORT_CHAT", "chat" -> {
+                    scope.launch {
+                        try {
+                            val api = ApiService.create(tokenManager)
+                            val conv = api.getOrCreateSupportConversation()
+                            navController.navigate("chat/${conv.id}")
+                        } catch (_: Exception) {
+                            navController.navigate("main")
+                        }
+                    }
+                }
+                "ORDER_CHAT" -> {
+                    if (orderId != null) navController.navigate("order_chat/$orderId")
+                    else navController.navigate("main")
+                }
+                "MISSION_OFFER" -> {
+                    navController.navigate("main")
+                }
+                "ORDER_UPDATE" -> {
+                    if (orderId != null) {
+                        if (userRole == "FULFILLER") navController.navigate("active_order/$orderId")
+                        else navController.navigate("track_order/$orderId")
+                    } else {
+                        navController.navigate("main")
+                    }
+                }
+                else -> navController.navigate("main")
+            }
         }
     }
 
@@ -349,7 +381,10 @@ fun MainAppScaffold(
     
     Scaffold(
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
                 val navBackStackEntry by nestedNavController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination?.route
 
@@ -357,25 +392,53 @@ fun MainAppScaffold(
                     icon = { Icon(Icons.Default.Home, contentDescription = null) },
                     label = { Text("Home") },
                     selected = currentDestination == "home",
-                    onClick = { nestedNavController.navigate("home") { launchSingleTop = true } }
+                    onClick = { nestedNavController.navigate("home") { launchSingleTop = true } },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                    )
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.History, contentDescription = null) },
                     label = { Text("Missions") },
                     selected = currentDestination == "history",
-                    onClick = { nestedNavController.navigate("history") { launchSingleTop = true } }
+                    onClick = { nestedNavController.navigate("history") { launchSingleTop = true } },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                    )
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Wallet, contentDescription = null) },
                     label = { Text("Wallet") },
                     selected = currentDestination == "wallet",
-                    onClick = { nestedNavController.navigate("wallet") { launchSingleTop = true } }
+                    onClick = { nestedNavController.navigate("wallet") { launchSingleTop = true } },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                    )
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = null) },
                     label = { Text("Menu") },
                     selected = currentDestination == "account",
-                    onClick = { nestedNavController.navigate("account") { launchSingleTop = true } }
+                    onClick = { nestedNavController.navigate("account") { launchSingleTop = true } },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                    )
                 )
             }
         }

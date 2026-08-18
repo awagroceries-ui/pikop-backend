@@ -4,7 +4,9 @@ import android.app.Application
 import com.google.android.libraries.places.api.Places
 import co.paystack.android.PaystackSdk
 import com.google.firebase.FirebaseApp
+import dagger.hilt.android.HiltAndroidApp
 
+@HiltAndroidApp
 class PikopApp : Application() {
     override fun onCreate() {
         super.onCreate()
@@ -29,13 +31,6 @@ class PikopApp : Application() {
             }
         } catch (e: Throwable) {
             android.util.Log.e("PikopApp", "Firebase init failed: ${e.message}")
-        }
-
-        // Initialize Didit SDK
-        try {
-            me.didit.sdk.DiditSdk.initialize(this)
-        } catch (e: Throwable) {
-            android.util.Log.e("PikopApp", "Didit init failed: ${e.message}")
         }
     }
 }

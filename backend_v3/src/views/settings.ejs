@@ -1,43 +1,43 @@
 <div class="mb-5">
-    <h4 class="fw-bold mb-1 text-white">System Configuration</h4>
-    <p class="text-white opacity-50 small mb-0">Global market variables and operational constraints.</p>
+    <h4 class="fw-bold mb-1 text-black">System Configuration</h4>
+    <p class="text-muted small mb-0">Global market variables and operational constraints.</p>
 </div>
 
 <div class="row g-4">
     <div class="col-md-7">
         <div class="card-pikop p-5">
-            <h6 class="text-white small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Pricing Dynamics (NGN)</h6>
-            <hr class="border-white opacity-10 mb-5">
+            <h6 class="text-black small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Pricing Dynamics (NGN)</h6>
+            <hr class="mb-5">
 
             <form action="/admin/settings" method="POST">
                 <div class="row g-4 mb-5">
                     <div class="col-md-4">
-                        <label class="text-white small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">BASE (SMALL)</label>
-                        <input type="number" name="base_fare_small" class="form-control bg-black border-white border-opacity-25 text-white fw-bold py-2" value="<%= settings.base_fare_small %>" required style="border-radius: 4px;">
+                        <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">BASE (SMALL)</label>
+                        <input type="number" name="base_fare_small" class="form-control py-2" value="<%= settings.base_fare_small %>" required style="border-radius: 6px;">
                     </div>
                     <div class="col-md-4">
-                        <label class="text-white small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">BASE (MEDIUM)</label>
-                        <input type="number" name="base_fare_medium" class="form-control bg-black border-white border-opacity-25 text-white fw-bold py-2" value="<%= settings.base_fare_medium %>" required style="border-radius: 4px;">
+                        <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">BASE (MEDIUM)</label>
+                        <input type="number" name="base_fare_medium" class="form-control py-2" value="<%= settings.base_fare_medium %>" required style="border-radius: 6px;">
                     </div>
                     <div class="col-md-4">
-                        <label class="text-white small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">BASE (LARGE)</label>
-                        <input type="number" name="base_fare_large" class="form-control bg-black border-white border-opacity-25 text-white fw-bold py-2" value="<%= settings.base_fare_large %>" required style="border-radius: 4px;">
+                        <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">BASE (LARGE)</label>
+                        <input type="number" name="base_fare_large" class="form-control py-2" value="<%= settings.base_fare_large %>" required style="border-radius: 6px;">
                     </div>
                 </div>
 
                 <div class="mb-5">
-                    <label class="text-white small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">DISTANCE RATE (PER KM)</label>
+                    <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">DISTANCE RATE (PER KM)</label>
                     <div class="input-group">
-                        <span class="input-group-text bg-black border-white border-opacity-25 text-white fw-bold">₦</span>
-                        <input type="number" name="per_km_rate" class="form-control bg-black border-white border-opacity-25 text-white fw-bold py-2" value="<%= settings.per_km_rate %>" required style="border-radius: 0 4px 4px 0;">
+                        <span class="input-group-text bg-light fw-bold">₦</span>
+                        <input type="number" name="per_km_rate" class="form-control py-2" value="<%= settings.per_km_rate %>" required style="border-radius: 0 6px 6px 0;">
                     </div>
                 </div>
 
                 <div class="mb-5">
-                    <label class="text-white small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">PLATFORM COMMISSION</label>
+                    <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">PLATFORM COMMISSION</label>
                     <div class="input-group">
-                        <input type="number" step="0.01" name="platform_commission" class="form-control bg-black border-white border-opacity-25 text-white fw-bold py-2" value="<%= settings.platform_commission %>" required style="border-radius: 4px 0 0 4px;">
-                        <span class="input-group-text bg-black border-white border-opacity-25 text-white fw-bold">% DEC</span>
+                        <input type="number" step="0.01" name="platform_commission" class="form-control py-2" value="<%= settings.platform_commission %>" required style="border-radius: 6px 0 0 6px;">
+                        <span class="input-group-text bg-light fw-bold">% DEC</span>
                     </div>
                 </div>
 
@@ -48,21 +48,21 @@
 
     <div class="col-md-5">
         <div class="card-pikop p-5 h-100">
-            <h6 class="text-white small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Core Environment</h6>
-            <hr class="border-white opacity-10 mb-5">
+            <h6 class="text-black small fw-bold uppercase mb-4" style="letter-spacing: 1px;">Core Environment</h6>
+            <hr class="mb-5">
 
             <div class="d-flex flex-column gap-4">
-                <div class="d-flex justify-content-between">
-                    <span class="text-white opacity-50 small fw-bold">API VERSION</span>
-                    <span class="text-white fw-bold">3.5.7-STABLE</span>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small fw-bold">API VERSION</span>
+                    <span class="badge bg-light text-black border fw-bold">3.5.7-STABLE</span>
                 </div>
-                <div class="d-flex justify-content-between">
-                    <span class="text-white opacity-50 small fw-bold">SERVER TIER</span>
-                    <span class="text-white fw-bold">4GB VPS (OPTIMIZED)</span>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small fw-bold">SERVER TIER</span>
+                    <span class="text-black fw-bold">4GB VPS (OPTIMIZED)</span>
                 </div>
-                <div class="d-flex justify-content-between">
-                    <span class="text-white opacity-50 small fw-bold">STORAGE LAYER</span>
-                    <span class="text-white fw-bold">PG-16.2</span>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small fw-bold">STORAGE LAYER</span>
+                    <span class="text-black fw-bold">PG-16.2</span>
                 </div>
             </div>
         </div>
@@ -70,6 +70,5 @@
 </div>
 
 <style>
-    .form-control:focus { background-color: #000; color: #fff; border-color: var(--gold); box-shadow: 0 0 5px var(--gold); }
-    .input-group-text { border-radius: 4px 0 0 4px; border-right: none; }
+    .input-group-text { border: 1px solid var(--border); border-right: none; }
 </style>

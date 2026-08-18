@@ -1,40 +1,40 @@
 <div class="mb-5">
-    <h3 class="fw-extrabold mb-1 ls-1">Mission Board</h3>
+    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Mission Board</h3>
     <p class="text-muted small">Real-time status of all pickup and delivery operations.</p>
 </div>
 
 <div class="row g-4">
     <% if (orders.length === 0) { %>
         <div class="col-12">
-            <div class="card bg-card border-0 p-5 text-center">
+            <div class="card-pikop p-5 text-center">
                 <p class="text-muted mb-0">No missions found in the current cycle.</p>
             </div>
         </div>
     <% } else { %>
         <% orders.forEach(order => { %>
             <div class="col-md-12">
-                <div class="card bg-card border-0 p-4">
+                <div class="card-pikop p-4 mb-3">
                     <div class="row align-items-center">
                         <div class="col-md-2">
-                            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-1">Mission ID</span>
-                            <div class="text-white small mono"><%= order.id %></div>
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Mission ID</span>
+                            <div class="text-black small mono fw-bold">#<%= order.id.toString().slice(-8).toUpperCase() %></div>
                         </div>
                         <div class="col-md-3">
-                            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-1">Customer</span>
-                            <div class="text-white small fw-bold"><%= order.user_name %></div>
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Customer</span>
+                            <div class="text-black small fw-bold"><%= order.user_name %></div>
                         </div>
                         <div class="col-md-2 text-center">
-                            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-1">Status</span>
-                            <span class="badge <%= order.status === 'DELIVERED' ? 'bg-success' : 'bg-primary' %> text-black fw-bold smaller">
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Status</span>
+                            <span class="badge <%= order.status === 'DELIVERED' ? 'bg-green' : 'bg-gold' %> text-white fw-bold smaller" style="padding: 5px 10px;">
                                 <%= order.status %>
                             </span>
                         </div>
                         <div class="col-md-2 text-center">
-                            <span class="text-muted smaller fw-bold uppercase ls-1 d-block mb-1">Fare</span>
-                            <div class="text-primary fw-black mono">₦<%= parseFloat(order.total_fare).toLocaleString() %></div>
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Fare</span>
+                            <div class="text-green fw-bold mono">₦<%= parseFloat(order.total_fare).toLocaleString() %></div>
                         </div>
                         <div class="col-md-3 text-end">
-                            <button class="btn btn-sm btn-outline-secondary px-3 fw-bold">View Track</button>
+                            <button class="btn-pikop-outline py-1 px-3" style="font-size: 11px;">TRACK MISSION</button>
                         </div>
                     </div>
                 </div>
@@ -42,3 +42,9 @@
         <% }) %>
     <% } %>
 </div>
+
+<style>
+    .bg-green { background-color: var(--green) !important; }
+    .bg-gold { background-color: var(--gold) !important; color: var(--black) !important; }
+    .text-green { color: var(--green) !important; }
+</style>

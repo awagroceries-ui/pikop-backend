@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.KnowledgeBaseArticle
-import com.ng.pikop.ui.theme.PikopBlack
 import com.ng.pikop.ui.theme.PikopOrange
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,32 +56,50 @@ fun SupportHubScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PikopBlack,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
-        containerColor = PikopBlack
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             // Live Chat Card
-            Card(
+                Card(
                 onClick = onNavigateToChat,
                 modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = PikopOrange)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary)
             ) {
                 Row(
                     modifier = Modifier.padding(20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = PikopBlack, modifier = Modifier.size(32.dp))
+                    Icon(
+                        Icons.AutoMirrored.Filled.Chat, 
+                        contentDescription = null, 
+                        tint = MaterialTheme.colorScheme.onSecondary, 
+                        modifier = Modifier.size(32.dp)
+                    )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Live Support Chat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = PikopBlack)
-                        Text("Chat with a real agent now.", style = MaterialTheme.typography.bodySmall, color = PikopBlack.copy(alpha = 0.7f))
+                        Text(
+                            "Live Support Chat", 
+                            style = MaterialTheme.typography.titleMedium, 
+                            fontWeight = FontWeight.Bold, 
+                            color = MaterialTheme.colorScheme.onSecondary
+                        )
+                        Text(
+                            "Chat with a real agent now.", 
+                            style = MaterialTheme.typography.bodySmall, 
+                            color = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.8f)
+                        )
                     }
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = PikopBlack)
+                    Icon(
+                        Icons.Default.ChevronRight, 
+                        contentDescription = null, 
+                        tint = MaterialTheme.colorScheme.onSecondary
+                    )
                 }
             }
 

@@ -34,15 +34,16 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
-import me.didit.sdk.DiditSdk
 import android.content.Intent
 import android.provider.MediaStore
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 class TakeSelfieContract : ActivityResultContracts.TakePicture() {
     override fun createIntent(context: Context, input: Uri): Intent {
@@ -58,20 +59,19 @@ class TakeSelfieContract : ActivityResultContracts.TakePicture() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KycUploadScreen(onBack: () -> Unit) {
+fun KycUploadScreen(
+    onBack: () -> Unit,
+    viewModel: KycViewModel = hiltViewModel()
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val tokenManager = remember { TokenManager(context) }
-    val apiService = remember { ApiService.create(tokenManager) }
     
-    var profile by remember { mutableStateOf<FulfillerProfileResponse?>(null) }
+    val profile by viewModel.profile.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isLaunching by viewModel.isLaunching.collectAsStateWithLifecycle()
+
     var currentStep by rememberSaveable { mutableIntStateOf(0) } // Start at 0 for Class Selection
     var refreshKey by rememberSaveable { mutableIntStateOf(0) }
-    var isLoading by remember { mutableStateOf(false) }
-
-    // Persist verification session across process death
-    var activeSessionToken by rememberSaveable { mutableStateOf<String?>(null) }
-    var activeSessionId by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Photo State - Survives recreation
     var profilePhotoUriString by rememberSaveable { mutableStateOf<String?>(null) }
@@ -126,35 +126,31 @@ fun KycUploadScreen(onBack: () -> Unit) {
     }
 
     LaunchedEffect(refreshKey) {
-        try {
-            val res = apiService.getFulfillerProfile()
-            profile = res
-            
-            // Auto-advance logic: Sync step with backend state
-            if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
-                currentStep = 5
-            } else if (res.profile_photo_url == null) {
-                currentStep = if (res.primary_class == null) 0 else 1
-            } else if (res.didit_verification_status != "approved") {
-                currentStep = 2
-            } else if (res.primary_class != "agent" && (res.registration_number == null)) {
-                // If not an agent and no vehicle info, go to License/Vehicle steps
-                // We'll start at Step 3 (License)
-                currentStep = 3
-            } else {
-                currentStep = 5
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("PikopKyc", "Profile refresh failed", e)
+        viewModel.refreshProfile()
+    }
+
+    LaunchedEffect(profile) {
+        val res = profile ?: return@LaunchedEffect
+        // Auto-advance logic: Sync step with backend state
+        if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
+            currentStep = 5
+        } else if (res.profile_photo_url == null) {
+            currentStep = if (res.primary_class == null) 0 else 1
+        } else if (res.kyc_verification_status != "approved") {
+            currentStep = 2
+        } else if (res.primary_class != "agent" && (res.registration_number == null)) {
+            currentStep = 3
+        } else {
+            currentStep = 5
         }
     }
 
     // Auto-poll status when in identity step and pending
-    LaunchedEffect(currentStep, profile?.didit_verification_status) {
-        if (currentStep == 2 && profile?.didit_verification_status != "approved") {
+    LaunchedEffect(currentStep, profile?.kyc_verification_status) {
+        if (currentStep == 2 && profile?.kyc_verification_status != "approved") {
             while(true) {
                 kotlinx.coroutines.delay(10000)
-                refreshKey++
+                viewModel.refreshProfile()
             }
         }
     }
@@ -189,13 +185,13 @@ fun KycUploadScreen(onBack: () -> Unit) {
                     }
                 }
                 2 -> IdentityStep(
-                    status = profile?.didit_verification_status ?: "not_started", 
+                    status = profile?.kyc_verification_status ?: "not_started", 
                     role = profile?.primary_class ?: "agent",
-                    api = apiService,
-                    sessionToken = activeSessionToken,
-                    onSessionCreated = { token, id -> 
-                        activeSessionToken = token
-                        activeSessionId = id
+                    isLaunching = isLaunching,
+                    onVerifyClick = {
+                        viewModel.startVerification(context, profile?.id.toString()) {
+                            viewModel.refreshProfile()
+                        }
                     },
                     onPermissionRequest = { 
                         permissionLauncher.launch(arrayOf(
@@ -203,28 +199,22 @@ fun KycUploadScreen(onBack: () -> Unit) {
                             Manifest.permission.RECORD_AUDIO
                         )) 
                     },
-                    onRefresh = { refreshKey++ }
+                    onRefresh = { viewModel.refreshProfile() }
                 )
                 3 -> LicenseStep(
                     role = profile?.primary_class ?: "rider",
-                    api = apiService,
+                    tokenManager = remember { TokenManager(context) },
                     onComplete = { currentStep = 4 }
                 )
-                4 -> VehicleStep(api = apiService, onComplete = { currentStep = 5 })
+                4 -> VehicleStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 5 })
                 5 -> SubmissionStep(
                     isLoading = isLoading,
                     status = profile?.kyc_status ?: "NOT_SUBMITTED",
                     onComplete = {
-                        scope.launch {
-                            isLoading = true
-                            try {
-                                apiService.submitApplication()
-                                refreshKey++ 
-                                Toast.makeText(context, "Application submitted!", Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
-                            } finally { isLoading = false }
-                        }
+                        viewModel.submitApplication(
+                            onSuccess = { Toast.makeText(context, "Application submitted!", Toast.LENGTH_SHORT).show() },
+                            onError = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+                        )
                     }
                 )
             }
@@ -234,7 +224,9 @@ fun KycUploadScreen(onBack: () -> Unit) {
                 Button(
                     onClick = {
                         scope.launch {
-                            isLoading = true
+                            val tokenManager = TokenManager(context)
+                            val apiService = ApiService.create(tokenManager)
+                            // ... rest of the logic
                             try {
                                 when (currentStep) {
                                     1 -> {
@@ -242,20 +234,19 @@ fun KycUploadScreen(onBack: () -> Unit) {
                                             val compressed = ImageUtils.compressFile(context, internalPhotoFile)
                                             val body = MultipartBody.Part.createFormData("photo", "profile.jpg", compressed.asRequestBody("image/*".toMediaTypeOrNull()))
                                             apiService.uploadProfilePhoto(body)
-                                            currentStep = 2
+                                            viewModel.refreshProfile()
                                         }
                                     }
                                     2 -> {
-                                        if (profile?.didit_verification_status == "approved") {
+                                        if (profile?.kyc_verification_status == "approved") {
                                             if (profile?.primary_class == "agent") currentStep = 5
                                             else currentStep = 3
                                         }
                                     }
-                                    // 3 (License) and 4 (Vehicle) have internal buttons
                                 }
                             } catch (e: Exception) {
                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
-                            } finally { isLoading = false }
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -271,8 +262,9 @@ fun KycUploadScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun VehicleStep(api: ApiService, onComplete: () -> Unit) {
+fun VehicleStep(tokenManager: TokenManager, onComplete: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val api = remember { ApiService.create(tokenManager) }
     var regNum by remember { mutableStateOf("") }
     var make by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }
@@ -309,9 +301,10 @@ fun VehicleStep(api: ApiService, onComplete: () -> Unit) {
 }
 
 @Composable
-fun LicenseStep(role: String, api: ApiService, onComplete: () -> Unit) {
+fun LicenseStep(role: String, tokenManager: TokenManager, onComplete: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val api = remember { ApiService.create(tokenManager) }
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     
@@ -399,15 +392,13 @@ fun ProfilePhotoStep(uri: Uri?, onCapture: () -> Unit) {
 fun IdentityStep(
     status: String, 
     role: String,
-    api: ApiService, 
-    sessionToken: String?,
-    onSessionCreated: (String, String) -> Unit,
+    isLaunching: Boolean,
+    onVerifyClick: () -> Unit,
     onPermissionRequest: () -> Unit, 
     onRefresh: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var isLaunching by remember { mutableStateOf(false) }
     
     var mobilityType by rememberSaveable { mutableStateOf("on_foot") }
 
@@ -437,43 +428,7 @@ fun IdentityStep(
                 return@Card
             }
             
-            val activity = context.findActivity() 
-            if (activity == null) {
-                Toast.makeText(context, "Error: App environment not ready.", Toast.LENGTH_SHORT).show()
-                return@Card
-            }
-
-            scope.launch {
-                isLaunching = true
-                try {
-                    val tokenToUse = if (!sessionToken.isNullOrBlank()) {
-                        android.util.Log.d("PikopKyc", "Resuming existing session: $sessionToken")
-                        sessionToken
-                    } else {
-                        android.util.Log.d("PikopKyc", "Requesting new verification session...")
-                        val session = api.startDiditVerification()
-                        if (!session.session_token.isNullOrBlank()) {
-                            onSessionCreated(session.session_token, session.session_id ?: "")
-                            session.session_token
-                        } else {
-                            throw Exception("Server returned empty session token.")
-                        }
-                    }
-
-                    if (!tokenToUse.isNullOrBlank()) {
-                        DiditSdk.startVerification(token = tokenToUse) { 
-                            onRefresh() 
-                        }
-                        DiditSdk.launchVerificationUI(activity)
-                    } else {
-                        Toast.makeText(context, "Verification token missing.", Toast.LENGTH_LONG).show()
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("PikopKyc", "Launch failed", e)
-                    val errorMsg = ErrorUtils.parseError(e)
-                    Toast.makeText(context, "Identity Launch Failed: $errorMsg", Toast.LENGTH_LONG).show()
-                } finally { isLaunching = false }
-            }
+            onVerifyClick()
         }) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (isLaunching) CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -504,6 +459,8 @@ fun IdentityStep(
                                 mobilityType = key
                                 scope.launch {
                                     try {
+                                        val tokenManager = TokenManager(context)
+                                        val api = ApiService.create(tokenManager)
                                         api.updateFulfillerProfile(ProfileUpdateRequest(mobility_type = key))
                                     } catch (e: Exception) {}
                                 }

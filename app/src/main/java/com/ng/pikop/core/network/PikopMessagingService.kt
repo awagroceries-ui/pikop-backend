@@ -17,25 +17,25 @@ class PikopMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: "Pikop Update"
         val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: ""
-        val type = remoteMessage.data["type"] // e.g. "SUPPORT_CHAT"
+        val type = remoteMessage.data["type"]
+        val orderId = remoteMessage.data["orderId"]
 
-        sendNotification(title, body, type)
+        sendNotification(title, body, type, orderId)
     }
 
     override fun onNewToken(token: String) {
         // Token is registered in MainActivity on startup/login
     }
 
-    private fun sendNotification(title: String, messageBody: String, type: String?) {
+    private fun sendNotification(title: String, messageBody: String, type: String?, orderId: String?) {
         val intent = Intent(this, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            if (type == "SUPPORT_CHAT") {
-                putExtra("navigate_to", "chat")
-            }
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra("navigate_to", type)
+            putExtra("order_id", orderId)
         }
         
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent,
-            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE)
+        val pendingIntent = PendingIntent.getActivity(this, System.currentTimeMillis().toInt(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         val channelId = "pikop_notifications"
         val notificationBuilder = NotificationCompat.Builder(this, channelId)

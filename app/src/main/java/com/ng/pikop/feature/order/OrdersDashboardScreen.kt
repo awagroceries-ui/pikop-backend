@@ -62,7 +62,7 @@ fun OrdersDashboardScreen(
                             modifier = Modifier.size(40.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Pikop", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text("Pikop", fontWeight = FontWeight.Bold)
                     }
                 },
                 actions = {
@@ -75,13 +75,19 @@ fun OrdersDashboardScreen(
                     }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNewDelivery,
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "New Delivery")
             }
@@ -179,11 +185,11 @@ fun OrderCard(order: OrderDetailsResponse, onTrack: (String) -> Unit) {
 @Composable
 fun StatusBadge(status: String) {
     val color = when (status) {
-        "SEARCHING" -> Color(0xFFFFA000)
-        "MATCHED" -> Color(0xFF1976D2)
-        "PICKED_UP" -> Color(0xFF388E3C)
+        "SEARCHING" -> MaterialTheme.colorScheme.secondary
+        "MATCHED" -> MaterialTheme.colorScheme.primary
+        "PICKED_UP" -> MaterialTheme.colorScheme.primary
         "DELIVERED" -> Color.Gray
-        "CANCELLED" -> Color.Red
+        "CANCELLED" -> MaterialTheme.colorScheme.error
         else -> Color.Gray
     }
     

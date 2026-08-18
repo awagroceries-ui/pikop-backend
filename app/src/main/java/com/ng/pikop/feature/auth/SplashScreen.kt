@@ -36,7 +36,7 @@ fun SplashScreen(onAnimationFinished: () -> Unit) {
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(androidx.compose.ui.graphics.Color.White)
     ) {
         Image(
             painter = painterResource(id = R.drawable.pikop_logo),

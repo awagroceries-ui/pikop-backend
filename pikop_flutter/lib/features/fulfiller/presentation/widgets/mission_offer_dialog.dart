@@ -42,7 +42,7 @@ class MissionOfferDialog extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               '₦${offer['total_fare']}',
-              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.black, color: Colors.white),
+              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white),
             ),
             const SizedBox(height: 8),
             const Text(

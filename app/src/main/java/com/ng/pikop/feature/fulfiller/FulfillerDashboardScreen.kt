@@ -135,10 +135,23 @@ fun FulfillerDashboardScreen(
                 // Online/Offline Toggle
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = if (isOnline) Color(0xFFE8F5E9) else Color(0xFFFBE9E7))
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isOnline) 
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) 
+                        else 
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                    )
                 ) {
-                    Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = if (isOnline) "You are Online" else "You are Offline", style = MaterialTheme.typography.titleMedium, color = if (isOnline) Color(0xFF2E7D32) else Color(0xFFC62828))
+                    Row(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(), 
+                        horizontalArrangement = Arrangement.SpaceBetween, 
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isOnline) "You are Online" else "You are Offline", 
+                            style = MaterialTheme.typography.titleMedium, 
+                            color = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
                         Switch(
                             checked = isOnline,
                             onCheckedChange = { checked ->
@@ -153,7 +166,11 @@ fun FulfillerDashboardScreen(
                                     }
                                 }
                             },
-                            enabled = !isLoading && kycStatus == "VERIFIED"
+                            enabled = !isLoading && kycStatus == "VERIFIED",
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            )
                         )
                     }
                 }

@@ -23,8 +23,6 @@ import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.CorporateAccount
 import com.ng.pikop.core.network.CorporateStaff
 import com.ng.pikop.core.network.CreateCorporateRequest
-import com.ng.pikop.ui.theme.PikopBlack
-import com.ng.pikop.ui.theme.PikopOrange
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,7 +62,7 @@ fun CorporateDashboardScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Corporate Accounts") },
+                title = { Text("Corporate Accounts", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -74,14 +72,20 @@ fun CorporateDashboardScreen(onBack: () -> Unit) {
                     IconButton(onClick = { showCreateDialog = true }) {
                         Icon(Icons.Default.Add, contentDescription = "Create Account")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         },
-        containerColor = PikopBlack
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
             if (isLoading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = PikopOrange)
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
             }
 
             if (accounts.isEmpty() && !isLoading) {
@@ -90,8 +94,11 @@ fun CorporateDashboardScreen(onBack: () -> Unit) {
                         Icon(Icons.Default.Business, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.Gray)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("No corporate accounts found", color = Color.Gray)
-                        Button(onClick = { showCreateDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = PikopOrange)) {
-                            Text("Setup Business Account", color = PikopBlack)
+                        Button(
+                            onClick = { showCreateDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text("Setup Business Account", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -107,9 +114,18 @@ fun CorporateDashboardScreen(onBack: () -> Unit) {
                         
                         if (selectedAccount?.id == acc.id) {
                             Column(modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp)) {
-                                Text("Staff Members", style = MaterialTheme.typography.labelSmall, color = PikopOrange)
+                                Text(
+                                    "Staff Members", 
+                                    style = MaterialTheme.typography.labelSmall, 
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
                                 staffList.forEach { staff ->
-                                    Text("${staff.full_name} (${staff.role})", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                                    Text(
+                                        "${staff.full_name} (${staff.role})", 
+                                        style = MaterialTheme.typography.bodySmall, 
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
                                 }
                                 if (staffList.isEmpty()) {
                                     Text("No other staff added", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
@@ -164,24 +180,26 @@ fun CorporateAccountItem(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) PikopOrange.copy(alpha = 0.1f) else Color(0xFF1C1C1E)
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
         ),
-        border = if (isSelected) BorderStroke(1.dp, PikopOrange) else null
+        border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 2.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(account.company_name ?: "Unknown", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                Text("Billing: ${account.billing_type}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text(account.company_name ?: "Unknown", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                Text("Billing: ${account.billing_type}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
             if (isSelected) {
                 IconButton(onClick = onAddStaff) {
-                    Icon(Icons.Default.PersonAdd, contentDescription = "Add Staff", tint = PikopOrange)
+                    Icon(Icons.Default.PersonAdd, contentDescription = "Add Staff", tint = MaterialTheme.colorScheme.primary)
                 }
             }
             Text(
                 account.status ?: "PENDING",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (account.status == "active") Color.Green else PikopOrange
+                color = if (account.status == "active") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                fontWeight = FontWeight.Bold
             )
         }
     }
@@ -195,12 +213,12 @@ fun CreateCorporateDialog(onDismiss: () -> Unit, onConfirm: (String, String, Str
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Setup Business Account") },
+        title = { Text("Setup Business Account", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Company Name") })
                 OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Billing Email") })
-                Text("Billing Type", style = MaterialTheme.typography.labelSmall)
+                Text("Billing Type", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = type == "prepaid_wallet", onClick = { type = "prepaid_wallet" }, label = { Text("Prepaid") })
                     FilterChip(selected = type == "direct_debit", onClick = { type = "direct_debit" }, label = { Text("Direct Debit") })
@@ -208,8 +226,11 @@ fun CreateCorporateDialog(onDismiss: () -> Unit, onConfirm: (String, String, Str
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(name, email, type) }, colors = ButtonDefaults.buttonColors(containerColor = PikopOrange)) {
-                Text("Create", color = PikopBlack)
+            Button(
+                onClick = { onConfirm(name, email, type) },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Create", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -225,11 +246,11 @@ fun AddStaffDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Staff Member") },
+        title = { Text("Add Staff Member", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Staff Email") })
-                Text("Role", style = MaterialTheme.typography.labelSmall)
+                Text("Role", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = role == "STAFF", onClick = { role = "STAFF" }, label = { Text("Staff") })
                     FilterChip(selected = role == "ADMIN", onClick = { role = "ADMIN" }, label = { Text("Admin") })
@@ -237,8 +258,11 @@ fun AddStaffDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(email, role) }, colors = ButtonDefaults.buttonColors(containerColor = PikopOrange)) {
-                Text("Invite", color = PikopBlack)
+            Button(
+                onClick = { onConfirm(email, role) },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Invite", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

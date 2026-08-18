@@ -19,8 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.FulfillerOrderResponse
-import com.ng.pikop.ui.theme.PikopBlack
-import com.ng.pikop.ui.theme.PikopOrange
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,15 +45,20 @@ fun InsightsScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Performance Insights") },
+                title = { Text("Performance Insights", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         },
-        containerColor = PikopBlack
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
             // Stats Row
@@ -75,11 +79,16 @@ fun InsightsScreen(onBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Mission History", style = MaterialTheme.typography.titleMedium, color = PikopOrange)
+            Text(
+                "Mission History", 
+                style = MaterialTheme.typography.titleMedium, 
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(modifier = Modifier.height(12.dp))
 
             if (isLoading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = PikopOrange)
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
             }
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -95,13 +104,15 @@ fun InsightsScreen(onBack: () -> Unit) {
 fun InsightCard(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Icon(icon, contentDescription = null, tint = PikopOrange, modifier = Modifier.size(24.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.height(8.dp))
-            Text(title, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -110,16 +121,26 @@ fun InsightCard(title: String, value: String, icon: androidx.compose.ui.graphics
 fun MissionInsightItem(order: FulfillerOrderResponse) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2C2E))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Order #${order.id}", style = MaterialTheme.typography.bodyMedium, color = Color.White)
-                Text(order.created_at?.take(10) ?: "", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text("Order #${order.id}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(order.created_at?.take(10) ?: "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("₦${"%,.2f".format(order.earnings ?: 0.0)}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = PikopOrange)
-                Text(order.status ?: "COMPLETED", style = MaterialTheme.typography.labelSmall, color = if (order.status == "DELIVERED") Color.Green else Color.LightGray)
+                Text(
+                    "₦${"%,.2f".format(order.earnings ?: 0.0)}", 
+                    style = MaterialTheme.typography.bodyLarge, 
+                    fontWeight = FontWeight.Bold, 
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    order.status ?: "COMPLETED", 
+                    style = MaterialTheme.typography.labelSmall, 
+                    color = if (order.status == "DELIVERED") MaterialTheme.colorScheme.primary else Color.Gray
+                )
             }
         }
     }

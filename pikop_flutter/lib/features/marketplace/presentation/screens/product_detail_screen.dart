@@ -39,7 +39,7 @@ class ProductDetailScreen extends StatelessWidget {
                           children: [
                             Text(
                               '₦${product['price']}',
-                              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.black, color: PikopTheme.gold),
+                              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: PikopTheme.gold),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

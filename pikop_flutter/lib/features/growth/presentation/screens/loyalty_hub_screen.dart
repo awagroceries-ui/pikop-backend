@@ -61,7 +61,7 @@ class _LoyaltyHubScreenState extends State<LoyaltyHubScreen> {
         children: [
           const Text('LOYALTY POINTS', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 1.5)),
           const SizedBox(height: 12),
-          Text('$points', style: const TextStyle(color: Colors.black, fontSize: 48, fontWeight: FontWeight.black)),
+          Text('$points', style: const TextStyle(color: Colors.black, fontSize: 48, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
           const Text('Earn more by completing missions.', style: TextStyle(color: Colors.black45, fontSize: 12)),
         ],
@@ -89,7 +89,7 @@ class _LoyaltyHubScreenState extends State<LoyaltyHubScreen> {
                   Clipboard.setData(ClipboardData(text: code));
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code Copied!')));
                 },
-                child: Text(code, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.black, color: PikopTheme.gold, letterSpacing: 5)),
+                child: Text(code, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: PikopTheme.gold, letterSpacing: 5)),
               ),
               const SizedBox(height: 24),
               const Divider(color: Colors.white10),

@@ -17,7 +17,7 @@ class _CheckoutWebViewState extends State<CheckoutWebView> {
   void initState() {
     super.initState();
     _controller = WebViewController()
-      ..setJavaScriptMode(UniversalJavaScriptMode.unrestricted)
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (request) {

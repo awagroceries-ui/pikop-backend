@@ -11,24 +11,19 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
+// Forced brand identity: Light background even in dark mode for brand consistency
+private val BrandColorScheme = lightColorScheme(
     primary = Primary,
     onPrimary = OnPrimary,
+    secondary = Secondary,
+    onSecondary = PikopNearBlack,
     background = Background,
-    onBackground = OnPrimary,
+    onBackground = OnSurface,
     surface = Surface,
     onSurface = OnSurface,
-    error = Error
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Primary,
-    onPrimary = OnPrimary,
-    background = Background,
-    onBackground = OnPrimary,
-    surface = Surface,
-    onSurface = OnSurface,
-    error = Error
+    error = Error,
+    onError = OnPrimary,
+    outline = PikopGrey
 )
 
 @Composable
@@ -38,13 +33,17 @@ fun PikopTheme(
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    // Rebranding requirement: Strict adherence to white background
+    val colorScheme = BrandColorScheme
+    
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
+            // Use white status bar for the new white background brand
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            // Ensure icons are dark on white background
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
 

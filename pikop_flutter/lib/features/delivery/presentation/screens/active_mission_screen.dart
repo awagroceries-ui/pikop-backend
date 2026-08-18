@@ -4,12 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../../../core/theme/pikop_theme.dart';
-import '../../../../core/services/socket_service.dart';
-import '../../../../core/services/location_service.dart';
-import '../../data/delivery_repository.dart';
-import '../../data/directions_repository.dart';
-import '../bloc/delivery_bloc.dart';
+import 'package:pikop_flutter/core/theme/pikop_theme.dart';
+import 'package:pikop_flutter/core/services/socket_service.dart';
+import 'package:pikop_flutter/core/services/location_service.dart';
+import 'package:pikop_flutter/features/delivery/data/delivery_repository.dart';
+import 'package:pikop_flutter/features/delivery/data/directions_repository.dart';
+import 'package:pikop_flutter/features/delivery/presentation/bloc/delivery_bloc.dart';
 
 class ActiveMissionScreen extends StatefulWidget {
   final int missionId;
@@ -119,7 +119,7 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen> {
       else if (mobility == 'bicycle') asset = 'assets/icons/marker_bicycle.png';
     }
 
-    final icon = await BitmapDescriptor.fromAssetImage(
+    final icon = await BitmapDescriptor.asset(
       const ImageConfiguration(size: Size(48, 48)),
       asset,
     );
@@ -225,12 +225,14 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen> {
         children: [
           GoogleMap(
             initialCameraPosition: const CameraPosition(target: LatLng(6.5244, 3.3792), zoom: 14),
-            onMapCreated: (controller) => _mapController = controller,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              // controller.setMapStyle(_darkMapStyle);
+            },
             markers: _markers.values.toSet(),
             polylines: _polylines,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
-            mapStyle: _darkMapStyle,
           ),
           _buildStatusOverlay(),
         ],

@@ -39,7 +39,13 @@ fun AccountScreen(
     val context = LocalContext.current
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("My Account") })
+            TopAppBar(
+                title = { Text("My Account", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
         }
     ) { padding ->
         Column(
@@ -50,31 +56,44 @@ fun AccountScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             Image(
                 painter = painterResource(id = R.drawable.pikop_logo),
                 contentDescription = null,
-                modifier = Modifier.size(80.dp)
+                modifier = Modifier.size(100.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Text(text = userName.ifBlank { "User" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(text = userEmail, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-            Text(text = userRole, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Text(
+                text = userName.ifBlank { "User" }, 
+                style = MaterialTheme.typography.headlineSmall, 
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = userEmail, 
+                style = MaterialTheme.typography.bodyMedium, 
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+            )
+            Text(
+                text = userRole, 
+                style = MaterialTheme.typography.labelLarge, 
+                color = MaterialTheme.colorScheme.primary
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Referral Card
+            // Referral Card (Gold)
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("My Referral Code", style = MaterialTheme.typography.labelSmall)
-                        Text(referralCode.ifBlank { "GEN-CODE" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                        Text("My Referral Code", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondary)
+                        Text(referralCode.ifBlank { "GEN-CODE" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSecondary)
                     }
                     IconButton(onClick = {
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -83,7 +102,7 @@ fun AccountScreen(
                         }
                         context.startActivity(Intent.createChooser(shareIntent, "Share Referral Code"))
                     }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
+                        Icon(Icons.Default.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.onSecondary)
                     }
                 }
             }

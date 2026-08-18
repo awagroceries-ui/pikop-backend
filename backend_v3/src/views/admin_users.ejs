@@ -1,7 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-5">
     <div>
-        <h4 class="fw-bold mb-1 text-white">Administrative Access</h4>
-        <p class="text-white opacity-50 small mb-0">System administrators and operational roles.</p>
+        <h4 class="fw-bold mb-1 text-black">Administrative Access</h4>
+        <p class="text-muted small mb-0">System administrators and operational roles.</p>
     </div>
     <button class="btn-pikop-primary px-4">NEW ADMINISTRATOR</button>
 </div>
@@ -20,9 +20,16 @@
             <tbody>
                 <% users.forEach(user => { %>
                     <tr class="align-middle">
-                        <td><span class="fw-bold text-white"><%= user.username %></span></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 35px; height: 35px; border: 1px solid var(--border);">
+                                    <span class="fw-bold text-green small"><%= user.username.charAt(0).toUpperCase() %></span>
+                                </div>
+                                <span class="fw-bold text-black"><%= user.username %></span>
+                            </div>
+                        </td>
                         <td><span class="badge bg-gold text-black fw-bold px-3" style="font-size: 10px;"><%= user.role.toUpperCase() %></span></td>
-                        <td class="text-center text-white opacity-50 small"><%= new Date(user.created_at).toLocaleDateString() %></td>
+                        <td class="text-center text-muted small"><%= new Date(user.created_at).toLocaleDateString() %></td>
                         <td class="text-end">
                             <button class="btn-pikop-outline py-1 px-3" style="font-size: 11px;">SETTINGS</button>
                         </td>
@@ -35,4 +42,5 @@
 
 <style>
     .bg-gold { background-color: var(--gold) !important; }
+    .text-green { color: var(--green) !important; }
 </style>

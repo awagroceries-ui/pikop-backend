@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/pikop_theme.dart';
-import '../../../../core/services/socket_service.dart';
-import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../fulfiller/presentation/bloc/fulfiller_bloc.dart';
-import '../../../fulfiller/presentation/widgets/mission_offer_dialog.dart';
+import 'package:pikop_flutter/core/theme/pikop_theme.dart';
+import 'package:pikop_flutter/core/services/socket_service.dart';
+import 'package:pikop_flutter/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:pikop_flutter/features/fulfiller/presentation/bloc/fulfiller_bloc.dart';
+import 'package:pikop_flutter/features/fulfiller/presentation/widgets/mission_offer_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -87,7 +87,7 @@ class CustomerDashboard extends StatelessWidget {
               'Foods & Meals',
               'Order fresh meals from kitchens.',
               Icons.restaurant,
-              PikopTheme.teal ?? Colors.teal,
+              PikopTheme.teal,
               () => Navigator.pushNamed(context, '/foods'),
             ),
             const SizedBox(height: 32),
@@ -263,8 +263,4 @@ class _FulfillerDashboardState extends State<FulfillerDashboard> {
       ),
     );
   }
-}
-
-extension on PikopTheme {
-  static const Color teal = Color(0xFF00BCD4);
 }

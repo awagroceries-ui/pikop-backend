@@ -117,6 +117,8 @@ data class OrderDetailsResponse(
     val delivery_lng: Double? = null,
     val item_photo_url: String? = null,
     val tracking_url: String? = null,
+    val recipient_name: String? = null,
+    val recipient_phone: String? = null,
     val fulfiller_profile: FulfillerPublicProfile? = null,
     val history: List<StatusHistoryItem>? = null
 )
@@ -125,7 +127,7 @@ data class FulfillerProfileResponse(
     val id: Int? = null,
     val online_status: String? = null,
     val kyc_status: String? = null,
-    val didit_verification_status: String? = null,
+    @SerializedName("didit_verification_status") val kyc_verification_status: String? = null,
     val mobility_type: String? = null,
     val profile_photo_url: String? = null,
     val tier: String? = null,
@@ -137,7 +139,7 @@ data class FulfillerProfileResponse(
     val rating_avg: Double? = null
 )
 
-data class DiditSessionResponse(
+data class KycSessionResponse(
     @SerializedName("url") val url: String? = null,
     @SerializedName("session_token", alternate = ["token"]) val session_token: String? = null,
     @SerializedName("session_id") val session_id: String? = null
@@ -473,7 +475,7 @@ interface ApiService {
     suspend fun requestWithdrawal(@Body request: WithdrawalRequest): AuthResponse
 
     @POST("api/v1/fulfillers/kyc/start-verification")
-    suspend fun startDiditVerification(): DiditSessionResponse
+    suspend fun startKycVerification(): KycSessionResponse
 
     @POST("api/v1/corporate/accounts")
     suspend fun createCorporateAccount(@Body request: CreateCorporateRequest): CorporateAccount

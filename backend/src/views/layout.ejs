@@ -13,26 +13,19 @@
 
     <style>
         :root {
-            /* Deliberate Brand Color Palette sampled from Pikop Logo */
-            --brand-black: #0B0B0B;  /* Chrome Chrome Background */
-            --brand-gold: #FF9F0A;   /* Accent & Active Nav */
-            --brand-orange: #FF5722; /* Active/In-motion Status */
-            --brand-green: #8BC34A;  /* Success/Delivered Status */
-            --brand-white: #FFFFFF;
-
-            --bg-chrome: var(--brand-black);
-            --bg-main: #F8FAFC;      /* Content Area Background - High Legibility */
-            --bg-card: #FFFFFF;
-
-            --text-on-chrome: var(--brand-white);
-            --text-main: #1E293B;
-            --text-muted: #64748B;
-            --border: #E2E8F0;
+            --gold: #FFC618;
+            --white: #FFFFFF;
+            --black: #1A1A1A;
+            --slate: #F8F9FA;
+            --red: #D32F2F;
+            --green: #008751;
+            --orange: #FF6900;
+            --border: #E0E0E0;
         }
 
         body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
+            background-color: var(--white);
+            color: var(--black);
             font-family: 'Inter', sans-serif;
             margin: 0;
             overflow-x: hidden;
@@ -42,16 +35,16 @@
         .ls-1 { letter-spacing: 0.05em; }
         .uppercase { text-transform: uppercase; }
 
-        /* Sidebar - Boltz Pattern Adaptation */
+        /* Sidebar - Brand Green */
         .sidebar {
             min-height: 100vh;
-            background: var(--bg-chrome);
+            background: var(--green);
             width: 260px;
             position: fixed;
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(255,255,255,0.1);
         }
 
         .sidebar-header {
@@ -59,46 +52,47 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            background: rgba(0,0,0,0.05);
         }
 
         .sidebar-group-label {
             padding: 1.5rem 1.5rem 0.5rem;
             font-size: 0.65rem;
             font-weight: 800;
-            color: rgba(255,255,255,0.3);
+            color: var(--gold);
             text-transform: uppercase;
             letter-spacing: 0.15em;
         }
 
         .sidebar a {
-            color: rgba(255,255,255,0.6);
+            color: rgba(255,255,255,0.8);
             text-decoration: none;
             display: flex;
             align-items: center;
             padding: 0.75rem 1.5rem;
             font-size: 0.9rem;
-            font-weight: 500;
+            font-weight: 600;
             transition: 0.2s all ease;
             gap: 14px;
         }
 
         .sidebar a:hover {
-            color: var(--brand-white);
-            background: rgba(255,255,255,0.03);
+            color: var(--gold);
+            background: rgba(255,255,255,0.1);
         }
 
         .active-link {
-            color: var(--brand-gold) !important;
-            background: rgba(255, 159, 10, 0.08);
+            color: var(--gold) !important;
+            background: rgba(255, 255, 255, 0.15);
             font-weight: 700 !important;
-            border-right: 3px solid var(--brand-gold);
+            border-right: 4px solid var(--gold);
         }
-        .active-link svg { color: var(--brand-gold); opacity: 1; }
+        .active-link svg { color: var(--gold) !important; opacity: 1; }
 
-        /* Header - Multi-metric Boltz Influence */
+        /* Header - Brand Green */
         header.top-bar {
-            background: var(--bg-chrome);
-            color: var(--brand-white);
+            background: var(--green);
+            color: var(--white);
             padding: 0.75rem 2.5rem;
             display: flex;
             justify-content: space-between;
@@ -106,17 +100,17 @@
             position: sticky;
             top: 0;
             z-index: 999;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
         .live-headline {
             display: flex;
             align-items: center;
             gap: 12px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.1);
             padding: 0.5rem 1.25rem;
             border-radius: 100px;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
         .header-actions {
@@ -127,22 +121,22 @@
 
         .notification-icon {
             position: relative;
-            color: rgba(255,255,255,0.5);
+            color: rgba(255,255,255,0.8);
             transition: 0.2s color;
             cursor: pointer;
         }
-        .notification-icon:hover { color: var(--brand-gold); }
+        .notification-icon:hover { color: var(--gold); }
         .badge-count {
             position: absolute;
             top: -4px;
             right: -6px;
-            background: var(--brand-orange);
+            background: var(--orange);
             color: white;
             font-size: 0.6rem;
             padding: 1px 4px;
             border-radius: 10px;
             font-weight: 800;
-            border: 2px solid var(--brand-black);
+            border: 2px solid var(--green);
         }
 
         .admin-profile {
@@ -150,14 +144,14 @@
             align-items: center;
             gap: 12px;
             padding-left: 24px;
-            border-left: 1px solid rgba(255,255,255,0.1);
+            border-left: 1px solid rgba(255,255,255,0.2);
         }
 
         .avatar-circle {
             width: 36px;
             height: 36px;
-            background: var(--brand-gold);
-            color: var(--brand-black);
+            background: var(--gold);
+            color: var(--black);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -172,6 +166,7 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            background-color: var(--white);
         }
 
         .content-body {
@@ -191,8 +186,8 @@
 <body>
     <aside class="sidebar">
         <div class="sidebar-header">
-            <img src="/public/assets/logo.png" alt="Pikop" style="height: 36px;">
-            <span class="fw-extrabold text-white ls-1" style="font-size: 1.2rem;">PIKOP</span>
+            <img src="/public/assets/logo.png" alt="Pikop" style="height: 40px; filter: brightness(0) invert(1);">
+            <span class="fw-bold text-white ls-1" style="font-size: 1.2rem;">PIKOP</span>
         </div>
 
         <nav class="flex-grow-1">
@@ -247,13 +242,13 @@
             </a>
 
             <div class="sidebar-group-label">Exit</div>
-            <a href="/admin/logout" style="color: #FF5722 !important;">
+            <a href="/admin/logout" style="color: var(--gold) !important; font-weight: 800;">
                 <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 <span>End Session</span>
             </a>
 
             <div class="mt-auto px-4 py-4 text-center">
-                <span class="text-muted ls-1" style="font-size: 0.55rem; opacity: 0.3;">SYSTEM v2.2.3-STABLE</span>
+                <span class="text-white ls-1" style="font-size: 0.55rem; opacity: 0.4;">SYSTEM v2.2.3-STABLE</span>
             </div>
         </nav>
     </aside>
@@ -261,11 +256,11 @@
     <div class="main-container">
         <header class="top-bar">
             <div class="live-headline">
-                <span class="text-muted smaller ls-1 fw-bold uppercase">Missions Active</span>
+                <span class="text-white smaller ls-1 fw-bold uppercase" style="opacity: 0.8;">Missions Active</span>
                 <span class="mono fs-5 fw-bold text-white" id="header-active-missions">
                     <%= (locals.stats && locals.stats.activeOrders) ? stats.activeOrders : 0 %>
                 </span>
-                <div class="rounded-circle" style="width: 8px; height: 8px; background: var(--brand-green); box-shadow: 0 0 8px var(--brand-green);"></div>
+                <div class="rounded-circle" style="width: 8px; height: 8px; background: var(--white); box-shadow: 0 0 8px var(--white);"></div>
             </div>
 
             <div class="header-actions">
@@ -294,7 +289,7 @@
                 <div class="admin-profile">
                     <div class="text-end me-2">
                         <div class="small fw-bold"><%= locals.adminUsername || 'Pikop Admin' %></div>
-                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase;"><%= locals.role || 'Restricted' %></div>
+                        <div class="text-white" style="font-size: 0.65rem; text-transform: uppercase; opacity: 0.8;"><%= locals.role || 'Restricted' %></div>
                     </div>
                     <div class="avatar-circle">
                         <%= (locals.adminUsername || 'P').charAt(0).toUpperCase() %>
@@ -318,7 +313,7 @@
                 });
         });
 
-        // Real-time Admin Alerts (v2.2.1)
+        // Real-time Admin Alerts
         socket.on('new_support_alert', (data) => {
             showToast('New Message', data.body);
             updateBadge('support-badge', 1);
@@ -330,15 +325,14 @@
         });
 
         function showToast(title, body) {
-            // Simple visual cue - can be enhanced with a real toast library
             const notification = document.createElement('div');
             notification.className = 'position-fixed bottom-0 end-0 p-3';
             notification.style.zIndex = '9999';
             notification.innerHTML = `
-                <div class="card bg-dark text-white border-primary shadow" style="min-width: 250px;">
+                <div class="card border-green shadow" style="min-width: 250px; background: white;">
                     <div class="card-body">
-                        <h6 class="fw-bold text-primary mb-1">${title}</h6>
-                        <p class="small mb-0">${body}</p>
+                        <h6 class="fw-bold text-green mb-1">${title}</h6>
+                        <p class="small mb-0 text-black">${body}</p>
                     </div>
                 </div>
             `;

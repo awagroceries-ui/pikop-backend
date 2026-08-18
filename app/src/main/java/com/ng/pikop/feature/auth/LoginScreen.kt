@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -53,11 +54,12 @@ fun LoginScreen(
                 modifier = Modifier.size(240.dp)
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Text(
                 text = "Welcome Back",
-                style = MaterialTheme.typography.headlineMedium
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
             )
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -67,7 +69,11 @@ fun LoginScreen(
                 onValueChange = { email = it },
                 label = { Text("Email Address") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                )
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -78,7 +84,11 @@ fun LoginScreen(
                 label = { Text("Password") },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                )
             )
 
             if (errorMessage != null) {
@@ -143,8 +153,13 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            TextButton(onClick = onGoToSignup) {
-                Text("Don't have an account? Sign Up", color = MaterialTheme.colorScheme.primary)
+            OutlinedButton(
+                onClick = onGoToSignup,
+                modifier = Modifier.fillMaxWidth(),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Create New Account", fontWeight = FontWeight.Bold)
             }
         }
     }

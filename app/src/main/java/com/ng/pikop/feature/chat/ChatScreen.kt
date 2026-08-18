@@ -21,8 +21,6 @@ import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ChatMessage
 import com.ng.pikop.core.network.SocketManager
-import com.ng.pikop.ui.theme.PikopBlack
-import com.ng.pikop.ui.theme.PikopOrange
 import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,7 +90,7 @@ fun ChatScreen(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         if (!isSupport) {
-                            Text("ID: #${orderId?.takeLast(8)}", style = MaterialTheme.typography.labelSmall, color = PikopOrange)
+                            Text("ID: #${orderId?.takeLast(8)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
                         }
                     }
                 },
@@ -102,13 +100,13 @@ fun ChatScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PikopBlack,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
-        containerColor = PikopBlack
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -116,11 +114,11 @@ fun ChatScreen(
                 .padding(padding)
         ) {
             if (!isSupport) {
-                Surface(color = PikopOrange.copy(alpha = 0.1f)) {
+                Surface(color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)) {
                     Text(
                         "Chat closes when the order is delivered",
                         style = MaterialTheme.typography.labelSmall,
-                        color = PikopOrange,
+                        color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
@@ -142,9 +140,10 @@ fun ChatScreen(
 
             // Input Bar
             Surface(
-                color = Color(0xFF1C1C1E),
+                color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             ) {
                 Row(
                     modifier = Modifier
@@ -161,9 +160,9 @@ fun ChatScreen(
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = PikopOrange,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            cursorColor = MaterialTheme.colorScheme.primary,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         ),
@@ -186,9 +185,9 @@ fun ChatScreen(
                             }
                             SocketManager.emit("send_message", data)
                         },
-                        colors = IconButtonDefaults.iconButtonColors(containerColor = PikopOrange)
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = PikopBlack)
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -208,7 +207,7 @@ fun ChatBubble(msg: ChatMessage, isMe: Boolean) {
             Text(
                 "Pikop Official", 
                 style = MaterialTheme.typography.labelSmall, 
-                color = PikopOrange, 
+                color = MaterialTheme.colorScheme.secondary, 
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
             )
         }
@@ -220,20 +219,20 @@ fun ChatBubble(msg: ChatMessage, isMe: Boolean) {
                 bottomStart = if (isMe) 16.dp else 0.dp,
                 bottomEnd = if (isMe) 0.dp else 16.dp
             ),
-            color = if (isMe) PikopOrange else if (isAdmin) Color(0xFF2C2C2E) else Color(0xFF3A3A3C),
+            color = if (isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
             tonalElevation = 2.dp
         ) {
             Text(
                 text = msg.body ?: msg.content ?: "",
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
-                color = if (isMe) PikopBlack else Color.White
+                color = if (isMe) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
             )
         }
         
         msg.created_at?.let {
             Text(
-                text = it.takeLast(5), // Assume "HH:mm" suffix or similar
+                text = it.takeLast(5),
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Gray,
                 modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)

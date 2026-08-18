@@ -41,4 +41,16 @@ class DeliveryRepository {
   Future<Response> initializeCoD(int missionId) async {
     return await _apiClient.instance.post('/payments/initialize/cod/$missionId');
   }
+
+  Future<Response> initializePayment({
+    required String quoteId,
+    required double amount,
+    required String email,
+  }) async {
+    return await _apiClient.instance.post('/payments/initialize', data: {
+      'quote_id': quoteId,
+      'amount': amount,
+      'email': email,
+    });
+  }
 }

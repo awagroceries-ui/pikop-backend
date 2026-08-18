@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.sp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.KnowledgeBaseArticle
-import com.ng.pikop.ui.theme.PikopBlack
 import com.ng.pikop.ui.theme.PikopOrange
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,13 +49,13 @@ fun FaqDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PikopBlack,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
-        containerColor = PikopBlack
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {

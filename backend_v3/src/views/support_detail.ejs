@@ -1,33 +1,33 @@
 <div class="d-flex justify-content-between align-items-center mb-5">
     <div class="d-flex align-items-center gap-4">
-        <a href="/admin/support" class="btn btn-outline-light px-3 py-2">
+        <a href="/admin/support" class="btn btn-outline-secondary px-3 py-2">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
         </a>
         <div>
-            <h4 class="mb-0 fw-black text-white ls-1">SESSION: <%= conversation.participant_name.toUpperCase() %></h4>
-            <span class="text-primary small fw-black ls-1">SECURE TERMINAL ACTIVE</span>
+            <h4 class="mb-0 fw-bold text-black ls-1">SESSION: <%= conversation.participant_name.toUpperCase() %></h4>
+            <span class="text-green small fw-bold ls-1">ACTIVE SUPPORT CHANNEL</span>
         </div>
     </div>
 </div>
 
-<div class="card d-flex flex-column shadow-lg" style="height: 70vh; background: #000; border: 3px solid #FFF;">
-    <div id="chat-window" class="card-body overflow-auto p-4 d-flex flex-column gap-4">
+<div class="card card-pikop d-flex flex-column" style="height: 70vh;">
+    <div id="chat-window" class="card-body overflow-auto p-4 d-flex flex-column gap-3 bg-light bg-opacity-50">
         <% messages.forEach(msg => { %>
             <div class="d-flex <%= msg.sender_type === 'ADMIN' ? 'justify-content-end' : 'justify-content-start' %>">
-                <div class="p-3" style="max-width: 70%; background: <%= msg.sender_type === 'ADMIN' ? '#FF9F0A' : '#FFFFFF' %>; color: #000; border: 2px solid #000;">
-                    <p class="mb-1 fw-bold" style="font-size: 1.1rem; line-height: 1.4;"><%= msg.content %></p>
-                    <div class="text-end fw-black" style="font-size: 0.7rem; opacity: 0.6;">
-                        <%= new Date(msg.created_at).toLocaleTimeString() %>
+                <div class="p-3 shadow-sm" style="max-width: 70%; border-radius: 12px; background: <%= msg.sender_type === 'ADMIN' ? 'var(--green)' : 'var(--white)' %>; color: <%= msg.sender_type === 'ADMIN' ? 'var(--white)' : 'var(--black)' %>; border: 1px solid var(--border);">
+                    <p class="mb-1 fw-medium"><%= msg.content %></p>
+                    <div class="text-end" style="font-size: 0.7rem; opacity: 0.7;">
+                        <%= new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %>
                     </div>
                 </div>
             </div>
         <% }) %>
     </div>
 
-    <div class="card-footer p-4 border-top border-white">
+    <div class="card-footer p-4 border-top">
         <div class="input-group">
-            <input type="text" id="msg-input" class="form-control bg-black border-white text-white p-3 fw-bold" placeholder="TYPE SECURE RESPONSE..." style="border-radius: 0;">
-            <button class="btn btn-primary px-5 fw-black" id="send-btn" style="border-radius: 0;">TRANSMIT</button>
+            <input type="text" id="msg-input" class="form-control p-3 border-green" placeholder="Type a response..." style="border-radius: 6px 0 0 6px;">
+            <button class="btn btn-pikop-primary px-5" id="send-btn" style="border-radius: 0 6px 6px 0;">SEND</button>
         </div>
     </div>
 </div>
@@ -53,9 +53,9 @@
         const div = document.createElement('div');
         div.className = `d-flex ${isMe ? 'justify-content-end' : 'justify-content-start'}`;
         div.innerHTML = `
-            <div class="p-3" style="max-width: 70%; background: ${isMe ? '#FF9F0A' : '#FFFFFF'}; color: #000; border: 2px solid #000;">
-                <p class="mb-1 fw-bold" style="font-size: 1.1rem; line-height: 1.4;">${msg.content}</p>
-                <div class="text-end fw-black" style="font-size: 0.7rem; opacity: 0.6;">JUST NOW</div>
+            <div class="p-3 shadow-sm" style="max-width: 70%; border-radius: 12px; background: ${isMe ? 'var(--green)' : 'var(--white)'}; color: ${isMe ? 'var(--white)' : 'var(--black)'}; border: 1px solid var(--border);">
+                <p class="mb-1 fw-medium">${msg.content}</p>
+                <div class="text-end" style="font-size: 0.7rem; opacity: 0.7;">JUST NOW</div>
             </div>
         `;
         chatWindow.appendChild(div);
@@ -76,3 +76,8 @@
     msgInput.onkeypress = (e) => { if (e.key === 'Enter') sendBtn.click(); };
     chatWindow.scrollTop = chatWindow.scrollHeight;
 </script>
+
+<style>
+    .border-green { border: 2px solid var(--green) !important; }
+    .text-green { color: var(--green) !important; }
+</style>
