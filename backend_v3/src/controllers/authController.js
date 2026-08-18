@@ -47,7 +47,9 @@ const signup = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'User registered. Please verify your email.',
-      data: { userId: user.id, email: user.email, role: user.role }
+      userId: user.id,
+      email: user.email,
+      role: user.role
     });
 
   } catch (error) {
@@ -106,10 +108,13 @@ const verifyEmail = async (req, res) => {
     res.status(200).json({
         success: true,
         message: 'Email verified successfully',
-        data: {
-            user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
-            ...tokens
-        }
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        userId: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role,
+        referral_code: user.referral_code
     });
 
   } catch (error) {
@@ -132,7 +137,7 @@ const login = async (req, res) => {
     if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
     if (!user.email_verified_at) {
-        return res.status(403).json({ success: false, message: 'ACCOUNT_UNVERIFIED', data: { email: user.email } });
+        return res.status(403).json({ success: false, message: 'ACCOUNT_UNVERIFIED', email: user.email, role: user.role });
     }
 
     const tokens = authService.generateTokens(user);
@@ -145,11 +150,51 @@ const login = async (req, res) => {
     res.status(200).json({
         success: true,
         message: 'Login successful',
-        data: {
-            user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
-            ...tokens
-        }
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        userId: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        phone: user.phone,
+        role: user.role,
+        referral_code: user.referral_code
     });
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Resends OTP to user.
+ */
+const resendOtp = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const userRes = await db.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+    const user = userRes.rows[0];
+
+    // Clear old OTPs
+    await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [user.id]);
+
+    // Generate new OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60000);
+
+    await db.query(
+      "INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)",
+      [user.id, otp, expiresAt]
+    );
+
+    // Send Email
+    const subject = `Your New Pikop Verification Code: ${otp}`;
+    const html = `<h2>Verify Your Account</h2><p>Your new code is: <b>${otp}</b></p>`;
+    emailService.sendMail(email, subject, html).catch(err => console.error('[Auth] Resend fail:', err.message));
+
+    res.status(200).json({ success: true, message: 'Verification code resent successfully' });
   } catch (error) {
     throw error;
   }
@@ -158,5 +203,6 @@ const login = async (req, res) => {
 module.exports = {
   signup,
   verifyEmail,
-  login
+  login,
+  resendOtp
 };
