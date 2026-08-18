@@ -1,6 +1,8 @@
 package com.ng.pikop.feature.fulfiller
 
 import android.content.Context
+import android.content.Intent
+import androidx.activity.result.ActivityResultLauncher
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ng.pikop.core.kyc.KycManager
@@ -37,6 +39,11 @@ class KycViewModel @Inject constructor(
                 android.util.Log.e("KycViewModel", "Profile refresh failed", e)
             }
         }
+    }
+
+    fun initiateVerification(context: Context, launcher: ActivityResultLauncher<Intent>, email: String) {
+        val referenceId = "pikop_verify_${System.currentTimeMillis()}"
+        kycManager.launchVerification(context, launcher, email, referenceId)
     }
 
     fun startVerification(context: Context, email: String, onComplete: () -> Unit) {

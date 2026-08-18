@@ -60,6 +60,7 @@ class TakeSelfieContract : ActivityResultContracts.TakePicture() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KycUploadScreen(
+    userEmail: String,
     onBack: () -> Unit,
     viewModel: KycViewModel = hiltViewModel()
 ) {
@@ -92,6 +93,14 @@ fun KycUploadScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Dojah Result Launcher
+    val dojahLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        // After Dojah finishes, refresh the profile to get updated status
+        viewModel.refreshProfile()
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(TakeSelfieContract()) { success ->
@@ -189,9 +198,8 @@ fun KycUploadScreen(
                     role = profile?.primary_class ?: "agent",
                     isLaunching = isLaunching,
                     onVerifyClick = {
-                        viewModel.startVerification(context, profile?.id.toString()) {
-                            viewModel.refreshProfile()
-                        }
+                        val email = if (userEmail.isNotBlank()) userEmail else "verify@pikop.ng"
+                        viewModel.initiateVerification(context, dojahLauncher, email)
                     },
                     onPermissionRequest = { 
                         permissionLauncher.launch(arrayOf(

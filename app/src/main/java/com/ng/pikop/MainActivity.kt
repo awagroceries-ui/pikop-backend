@@ -278,7 +278,7 @@ fun PikopAppNavigation() {
             )
         }
         composable("kyc_upload") {
-            KycUploadScreen(onBack = { navController.popBackStack() })
+            KycUploadScreen(userEmail = userEmail ?: "", onBack = { navController.popBackStack() })
         }
         composable("chat/{conversationId}") { backStackEntry ->
             val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
