@@ -33,7 +33,11 @@ socketService.init(server);
 try {
   const firebaseAdmin = require('firebase-admin');
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-  if (serviceAccount.project_id) {
+
+  if (serviceAccount.project_id && serviceAccount.private_key) {
+    // FIX: PEM formatting often gets mangled in .env files (\\n vs \n)
+    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+
     firebaseAdmin.initializeApp({
       credential: firebaseAdmin.credential.cert(serviceAccount)
     });

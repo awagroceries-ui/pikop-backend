@@ -13,9 +13,9 @@ const login = async (req, res) => {
     const admin = rows[0];
     const match = await bcrypt.compare(password, admin.password_hash);
 
-    console.log(`[Admin] Login attempt for: ${username} | User Found: true | Pass Match: ${match}`);
+    console.log(`[Admin] Login attempt for: ${username} | Pass Match: ${match}`);
 
-    if (!match) return res.render('login', { error: 'Access Denied: Invalid credentials', layout: false });
+    if (!match) return res.render('login', { error: 'Invalid credentials', layout: false });
 
     req.session.adminId = admin.id;
     req.session.adminRole = admin.role;
