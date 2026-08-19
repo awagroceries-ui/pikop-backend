@@ -7,7 +7,7 @@ import org.json.JSONObject
 object SocketManager {
     private var socket: Socket? = null
     private var currentUserId: String? = null
-    private const val SOCKET_URL = "https://api.awa.name.ng/"
+    private const val SOCKET_URL = "https://api.awa.name.ng"
 
     fun connect(userId: String? = null) {
         if (socket != null && currentUserId != userId) {

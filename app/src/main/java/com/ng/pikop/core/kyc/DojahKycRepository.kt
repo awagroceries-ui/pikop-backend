@@ -52,18 +52,29 @@ class DojahKycRepository @Inject constructor(
         setupSdk(activity)
 
         try {
-            // Note: If the provided widgetId "66bc92043621434c4f369d1b" is invalid or expired,
-            // we use the appId as a fallback widgetId which is common for initial setups.
+            // Attempt 1: Custom Widget ID
             DojahSdk.launch(
                 dojahLauncher = launcher,
                 widgetId = widgetId,
                 referenceId = referenceId,
                 email = email
             )
-            android.util.Log.d("DojahRepo", "DojahSdk.launch() successful")
+            android.util.Log.d("DojahRepo", "DojahSdk.launch() successful with custom widgetId")
         } catch (e: Exception) {
-            android.util.Log.e("DojahRepo", "Launch failure: ${e.message}")
-            Toast.makeText(activity, "KYC System Error: ${e.message}", Toast.LENGTH_LONG).show()
+            android.util.Log.e("DojahRepo", "Primary launch failure, attempting fallback: ${e.message}")
+            try {
+                // Fallback: Use appId as widgetId (common in Dojah environments)
+                DojahSdk.launch(
+                    dojahLauncher = launcher,
+                    widgetId = appId,
+                    referenceId = referenceId,
+                    email = email
+                )
+                android.util.Log.d("DojahRepo", "DojahSdk.launch() successful with fallback appId")
+            } catch (e2: Exception) {
+                android.util.Log.e("DojahRepo", "Fallback launch failure: ${e2.message}")
+                Toast.makeText(activity, "KYC System Error: ${e2.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 

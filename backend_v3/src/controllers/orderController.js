@@ -54,15 +54,13 @@ const getQuote = async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: {
-      quote_id: quoteRes.rows[0].id,
-      size_tier: aiResult.size_tier,
-      distance_km: distanceKm.toFixed(2),
-      base_fare,
-      distance_fare,
-      total_fare,
-      expires_at: quoteRes.rows[0].expires_at
-    }
+    quote_id: quoteRes.rows[0].id,
+    size_tier: aiResult.size_tier,
+    distance_km: distanceKm.toFixed(2),
+    base_fare,
+    distance_fare,
+    total_fare,
+    expires_at: quoteRes.rows[0].expires_at
   });
 };
 

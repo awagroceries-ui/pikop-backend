@@ -63,8 +63,14 @@ data class FareBreakdown(
 )
 
 data class QuoteResponse(
+    val success: Boolean,
     val quote_id: String? = null,
-    val fare_breakdown: FareBreakdown? = null
+    val size_tier: String? = null,
+    val distance_km: String? = null,
+    val base_fare: Double? = null,
+    val distance_fare: Double? = null,
+    val total_fare: Double? = null,
+    val expires_at: String? = null
 )
 
 data class CreateOrderRequest(
@@ -216,7 +222,35 @@ data class SavedAddress(
     val label: String? = null,
     val address_text: String? = null,
     val lat: Double? = null,
-    val lng: Double? = null
+    val lng: Double? = null,
+    val landmark: String? = null,
+    val place_id: String? = null
+)
+
+data class SavedAddressesResponse(
+    val success: Boolean,
+    val addresses: List<SavedAddress>
+)
+
+data class AutocompletePrediction(
+    val place_id: String,
+    val description: String,
+    val main_text: String,
+    val secondary_text: String
+)
+
+data class AutocompleteResponse(
+    val success: Boolean,
+    val predictions: List<AutocompletePrediction>
+)
+
+data class PlaceDetailsResponse(
+    val success: Boolean,
+    val formatted_address: String,
+    val lat: Double,
+    val lng: Double,
+    val name: String,
+    val address_components: Map<String, String>? = null
 )
 
 data class SavedRecipient(
@@ -433,7 +467,24 @@ interface ApiService {
     suspend fun rateCustomer(@retrofit2.http.Path("id") id: String, @Body request: RatingRequest): OrderResponse
 
     @GET("api/v1/addresses")
-    suspend fun getSavedAddresses(): List<SavedAddress>
+    suspend fun getSavedAddresses(): SavedAddressesResponse
+
+    @POST("api/v1/addresses")
+    suspend fun saveAddress(@Body request: SavedAddress): Map<String, Any>
+
+    @GET("api/v1/places/autocomplete")
+    suspend fun getAutocomplete(
+        @Query("query") query: String,
+        @Query("sessionToken") token: String,
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null
+    ): AutocompleteResponse
+
+    @GET("api/v1/places/details")
+    suspend fun getPlaceDetails(
+        @Query("placeId") id: String,
+        @Query("sessionToken") token: String
+    ): PlaceDetailsResponse
 
     @GET("api/v1/settings/recipients")
     suspend fun getSavedRecipients(): List<SavedRecipient>
@@ -452,9 +503,6 @@ interface ApiService {
 
     @POST("api/v1/payments/initialize")
     suspend fun initializePayment(@retrofit2.http.Body request: PaymentInitializationRequest): PaymentInitializationResponse
-
-    @POST("api/v1/addresses")
-    suspend fun saveAddress(@Body request: AddressRequest): SavedAddress
 
     @DELETE("api/v1/addresses/{id}")
     suspend fun deleteAddress(@retrofit2.http.Path("id") id: Int): AuthResponse

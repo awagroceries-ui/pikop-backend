@@ -58,13 +58,14 @@ fun OrderQuoteScreen(
     var recipientPhone by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
-    var quoteResult by remember { mutableStateOf<FareBreakdown?>(null) }
+    var searchModeFor by remember { mutableStateOf<String?>(null) }
+
+    var quoteResult by remember { mutableStateOf<QuoteResponse?>(null) }
     var quoteId by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
-    val activity = context as? Activity
     val coroutineScope = rememberCoroutineScope()
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
@@ -73,7 +74,8 @@ fun OrderQuoteScreen(
 
     LaunchedEffect(Unit) {
         try {
-            savedAddresses = apiService.getSavedAddresses()
+            val response = apiService.getSavedAddresses()
+            savedAddresses = response.addresses
             corporateAccounts = apiService.getMyCorporateAccounts()
         } catch (e: Exception) {}
     }
@@ -101,18 +103,16 @@ fun OrderQuoteScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Locations
-            AddressAutocompleteField(
-                label = "Pickup Location", 
-                value = pickupAddress, 
-                onValueChange = { address, latLng -> pickupAddress = address; if (latLng != null) pickupLatLng = latLng }, 
-                onOpenMap = { showMapPickerFor = "pickup" }
+            LocationInput(
+                label = "Pickup Location",
+                address = pickupAddress,
+                onClick = { searchModeFor = "pickup" }
             )
             Spacer(modifier = Modifier.height(16.dp))
-            AddressAutocompleteField(
-                label = "Delivery Location", 
-                value = deliveryAddress, 
-                onValueChange = { address, latLng -> deliveryAddress = address; if (latLng != null) deliveryLatLng = latLng }, 
-                onOpenMap = { showMapPickerFor = "delivery" }
+            LocationInput(
+                label = "Delivery Location",
+                address = deliveryAddress,
+                onClick = { searchModeFor = "delivery" }
             )
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -160,7 +160,12 @@ fun OrderQuoteScreen(
                         focusedTextColor = MaterialTheme.colorScheme.onBackground,
                         unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                        focusedPlaceholderColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -175,9 +180,13 @@ fun OrderQuoteScreen(
                             }
                         }
                     },
-                    enabled = promoCode.isNotBlank() && activePromo == null
+                    enabled = promoCode.isNotBlank() && activePromo == null,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary, 
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Apply", color = MaterialTheme.colorScheme.onPrimary)
+                    Text("Apply")
                 }
             }
             activePromo?.let { 
@@ -277,8 +286,16 @@ fun OrderQuoteScreen(
                             isLoading = true; errorMessage = null
                             try {
                                 val response = apiService.getQuote(QuoteRequest(pickup_address = pickupAddress, delivery_address = deliveryAddress, item_description = description, pickup_lat = pickupLatLng?.latitude ?: 0.0, pickup_lng = pickupLatLng?.longitude ?: 0.0, delivery_lat = deliveryLatLng?.latitude ?: 0.0, delivery_lng = deliveryLatLng?.longitude ?: 0.0))
-                                quoteId = response.quote_id; quoteResult = response.fare_breakdown
-                            } catch (e: Exception) { errorMessage = ErrorUtils.parseError(e) } finally { isLoading = false }
+                                if (response.success && response.quote_id != null) {
+                                    quoteId = response.quote_id
+                                    quoteResult = response
+                                } else {
+                                    errorMessage = "Failed to get valid quote"
+                                }
+                            } catch (e: Exception) { 
+                                errorMessage = ErrorUtils.parseError(e)
+                                Toast.makeText(context, "Quote Fetch Failed: $errorMessage", Toast.LENGTH_SHORT).show()
+                            } finally { isLoading = false }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -304,7 +321,7 @@ fun OrderQuoteScreen(
                             isLoading = true
                             try {
                                 val file = getFileFromUri(context, itemPhotoUri!!)
-                                val uploadRes = apiService.uploadOrderPhoto(MultipartBody.Part.createFormData("document", file.name, file.asRequestBody("image/*".toMediaTypeOrNull())))
+                                val uploadRes = apiService.uploadOrderPhoto(MultipartBody.Part.createFormData("file", file.name, file.asRequestBody("image/*".toMediaTypeOrNull())))
                                 val pUrl = uploadRes["url"] ?: ""
                                 
                                 val qId = quoteId ?: ""
@@ -364,7 +381,56 @@ fun OrderQuoteScreen(
             Spacer(modifier = Modifier.height(40.dp))
         }
     }
+
     if (showMapPickerFor != null) MapPickerSheet(onDismiss = { showMapPickerFor = null }, onLocationSelected = { address, latLng -> if (showMapPickerFor == "pickup") { pickupAddress = address; pickupLatLng = latLng } else { deliveryAddress = address; deliveryLatLng = latLng }; showMapPickerFor = null })
+    
+    if (searchModeFor != null) {
+        AddressSearchSheet(
+            title = if (searchModeFor == "pickup") "Pickup" else "Delivery",
+            onDismiss = { searchModeFor = null },
+            onAddressSelected = { address, latLng ->
+                if (searchModeFor == "pickup") {
+                    pickupAddress = address
+                    pickupLatLng = latLng
+                } else {
+                    deliveryAddress = address
+                    deliveryLatLng = latLng
+                }
+                searchModeFor = null
+            },
+            onOpenMap = {
+                showMapPickerFor = searchModeFor
+                searchModeFor = null
+            }
+        )
+    }
+}
+
+@Composable
+fun LocationInput(label: String, address: String, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.LocationOn, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text(
+                    text = address.ifBlank { "Select address" },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (address.isBlank()) Color.LightGray else Color.Black,
+                    maxLines = 1
+                )
+            }
+        }
+    }
 }
 
 private fun getFileFromUri(context: android.content.Context, uri: Uri): File {
