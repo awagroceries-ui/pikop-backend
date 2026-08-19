@@ -11,7 +11,8 @@ echo "🛠️  Installing dependencies..."
 npm install --production
 
 echo "🏗️  Running database migrations..."
-npm run migrate:up
+# Using explicit dotenv loading for migration tool
+node -r dotenv/config ./node_modules/.bin/node-pg-migrate up
 
 echo "🚀 Restarting production process via PM2..."
 pm2 restart ecosystem.config.js --env production

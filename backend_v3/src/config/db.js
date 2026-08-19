@@ -1,30 +1,29 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+const path = require('path');
+// Explicitly load .env from project root
+require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 
 const connectionString = process.env.DATABASE_URL;
 
-// 1. Pre-validation and Debugging (Doesn't log the password)
+// 1. Pre-validation and Environmental Audit
+console.log('[Database] Initializing connection pool...');
+console.log('[Database] Environment check:', {
+    has_db_url: !!connectionString,
+    node_env: process.env.NODE_ENV,
+    cwd: process.cwd()
+});
+
 if (!connectionString) {
-  console.error('❌ CRITICAL: DATABASE_URL is not defined in environment variables.');
-} else {
-    try {
-        // Attempt to parse manually to detect issues that pg might trip over
-        const url = new URL(connectionString);
-        if (!url.password) {
-            console.error('❌ DATABASE_URL Error: No password found in connection string. If your password has special characters like @ or #, you must URL-encode them.');
-        }
-    } catch (e) {
-        console.error('❌ DATABASE_URL Error: Invalid URL format provided.');
-    }
+  console.error('❌ CRITICAL: DATABASE_URL is not defined. Check your .env file.');
 }
 
-// 2. Optimized Pool Configuration
 const pool = new Pool({
   connectionString: connectionString,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000, // Higher timeout for remote connections
-  // Automated SSL handling for common production providers (AWS, Heroku, Supabase, Neon)
+  connectionTimeoutMillis: 10000,
+  // Handle SCRAM authentication by ensuring password is a string if connectionString exists
+  password: connectionString ? (new URL(connectionString).password || '') : undefined,
   ssl: (connectionString && (
       connectionString.includes('sslmode=require') ||
       connectionString.includes('supabase') ||
@@ -32,9 +31,9 @@ const pool = new Pool({
   )) ? { rejectUnauthorized: false } : false
 });
 
-// 3. Health Check
-pool.on('connect', (client) => {
-    // Handshake successful
+// 3. Handshake logic
+pool.on('connect', () => {
+    // Client connected
 });
 
 pool.on('error', (err) => {
