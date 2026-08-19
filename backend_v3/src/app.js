@@ -29,6 +29,22 @@ app.set('trust proxy', 1);
 const socketService = require('./services/socketService');
 socketService.init(server);
 
+// Initialize Firebase safely
+try {
+  const firebaseAdmin = require('firebase-admin');
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+  if (serviceAccount.project_id) {
+    firebaseAdmin.initializeApp({
+      credential: firebaseAdmin.credential.cert(serviceAccount)
+    });
+    console.log('✅ FCM: Service initialized');
+  } else {
+    console.warn('⚠️  FCM: FIREBASE_SERVICE_ACCOUNT is incomplete. Push notifications disabled.');
+  }
+} catch (e) {
+  console.error('❌ FCM Init Failed:', e.message);
+}
+
 // 1. Basic Middleware
 app.use(compression()); // Optimize payload size
 app.use(helmet({ contentSecurityPolicy: false }));

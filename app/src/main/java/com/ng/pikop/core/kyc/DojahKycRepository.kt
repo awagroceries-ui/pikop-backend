@@ -45,35 +45,40 @@ class DojahKycRepository @Inject constructor(
         email: String,
         referenceId: String
     ) {
-        val activity = context.findActivity() ?: return
-        android.util.Log.d("DojahRepo", "Initiating verification for $email with ref $referenceId")
+        val activity = context.findActivity()
+        if (activity == null) {
+            android.util.Log.e("DojahRepo", "CRITICAL: Cannot launch KYC without an Activity context.")
+            return
+        }
+
+        android.util.Log.d("DojahRepo", "INIT: $email | ref: $referenceId")
         
-        // Finalized SDK setup using Activity context
+        // Step 1: SDK Setup
         setupSdk(activity)
 
         try {
-            // Attempt 1: Custom Widget ID
+            android.util.Log.d("DojahRepo", "STEP 2: Issuing DojahSdk.launch...")
             DojahSdk.launch(
                 dojahLauncher = launcher,
                 widgetId = widgetId,
                 referenceId = referenceId,
                 email = email
             )
-            android.util.Log.d("DojahRepo", "DojahSdk.launch() successful with custom widgetId")
+            android.util.Log.d("DojahRepo", "SUCCESS: Widget command sent to system.")
         } catch (e: Exception) {
-            android.util.Log.e("DojahRepo", "Primary launch failure, attempting fallback: ${e.message}")
+            android.util.Log.e("DojahRepo", "FAILURE: Primary launch failed: ${e.message}")
             try {
-                // Fallback: Use appId as widgetId (common in Dojah environments)
+                android.util.Log.d("DojahRepo", "RETRY: Attempting fallback with appId as widgetId...")
                 DojahSdk.launch(
                     dojahLauncher = launcher,
                     widgetId = appId,
                     referenceId = referenceId,
                     email = email
                 )
-                android.util.Log.d("DojahRepo", "DojahSdk.launch() successful with fallback appId")
+                android.util.Log.d("DojahRepo", "SUCCESS: Fallback launch issued.")
             } catch (e2: Exception) {
-                android.util.Log.e("DojahRepo", "Fallback launch failure: ${e2.message}")
-                Toast.makeText(activity, "KYC System Error: ${e2.message}", Toast.LENGTH_LONG).show()
+                android.util.Log.e("DojahRepo", "CRITICAL: Fallback failed: ${e2.message}")
+                Toast.makeText(activity, "KYC System Error. Please try again later.", Toast.LENGTH_LONG).show()
             }
         }
     }

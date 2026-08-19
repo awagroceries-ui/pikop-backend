@@ -1,34 +1,49 @@
 const { Pool } = require('pg');
+const parse = require('pg-connection-string').parse;
 require('dotenv').config();
 
-const connectionString = process.env.DATABASE_URL;
+let connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error('❌ CRITICAL: DATABASE_URL is not defined in environment variables.');
+  console.error('❌ CRITICAL: DATABASE_URL is missing.');
 }
 
 /**
- * Simplified Connection Pool
- * We let the 'pg' library parse the connectionString directly.
- * This is the most reliable way to handle passwords with special characters like $.
+ * CLEANUP & DE-MANGLING
+ * 1. Remove surrounding single/double quotes if they leaked into the variable
+ * 2. Parse the URL into components
  */
+if (connectionString) {
+    connectionString = connectionString.trim().replace(/^['"]|['"]$/g, '');
+}
+
+const config = parse(connectionString || '');
+
+// Ensure password is treated as a literal string to fix "SASL: password must be a string"
+// Decodes URL-encoded characters (like %40 to @)
+if (config.password) {
+    config.password = decodeURIComponent(config.password);
+}
+
 const pool = new Pool({
-  connectionString: connectionString,
+  host: config.host || 'localhost',
+  user: config.user || '',
+  password: config.password || '', // EXPLICIT STRING
+  database: config.database || 'pikop',
+  port: config.port || 5432,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-  // Automatically enable SSL for production environments if specified in URL or env
+  connectionTimeoutMillis: 10000,
   ssl: (connectionString && connectionString.includes('sslmode=require'))
        ? { rejectUnauthorized: false } : false
 });
 
-// Post-connection validation
 pool.on('connect', () => {
-    // Client connected successfully
+    // Authenticated successfully
 });
 
 pool.on('error', (err) => {
-    console.error('[Database] Idle client error:', err.message);
+    console.error('[Database] Unexpected error:', err.message);
 });
 
 module.exports = {
