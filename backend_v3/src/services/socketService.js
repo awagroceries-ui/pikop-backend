@@ -73,6 +73,14 @@ const init = (server) => {
            VALUES ($1, $2, $3, $4, $5)`,
           [conversation_id || null, order_id || null, sender_id, sender_type, content]
         );
+
+        // Update last_message_at for conversations to keep sorting fresh in Admin Portal
+        if (conversation_id) {
+            await db.query(
+                "UPDATE conversations SET last_message_at = CURRENT_TIMESTAMP WHERE id = $1",
+                [conversation_id]
+            );
+        }
       } catch (e) {
         console.warn(`[Socket] DB persist skip (Test/Missing Record): ${e.message}`);
       }

@@ -339,23 +339,29 @@ fun OrderQuoteScreen(
                                     try {
                                         val paymentInit = apiService.initializePayment(PaymentInitializationRequest(amount = amountToCharge, email = userEmail))
                                         
-                                        onNavigateToPayment(
-                                            paymentInit.authorization_url,
-                                            qId,
-                                            pickupLatLng?.latitude ?: 0.0,
-                                            pickupLatLng?.longitude ?: 0.0,
-                                            deliveryLatLng?.latitude ?: 0.0,
-                                            deliveryLatLng?.longitude ?: 0.0,
-                                            pUrl,
-                                            pickupAddress.take(50),
-                                            deliveryAddress.take(50),
-                                            recipientName,
-                                            recipientPhone,
-                                            notes,
-                                            activePromo?.promo_id
-                                        )
+                                        if (paymentInit.authorization_url.isNotBlank()) {
+                                            onNavigateToPayment(
+                                                paymentInit.authorization_url,
+                                                qId,
+                                                pickupLatLng?.latitude ?: 0.0,
+                                                pickupLatLng?.longitude ?: 0.0,
+                                                deliveryLatLng?.latitude ?: 0.0,
+                                                deliveryLatLng?.longitude ?: 0.0,
+                                                pUrl,
+                                                pickupAddress.take(50),
+                                                deliveryAddress.take(50),
+                                                recipientName,
+                                                recipientPhone,
+                                                notes,
+                                                activePromo?.promo_id
+                                            )
+                                        } else {
+                                            errorMessage = "Payment initialization failed: Missing gateway URL"
+                                            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                        }
                                     } catch (e: Exception) {
                                         errorMessage = ErrorUtils.parseError(e)
+                                        Toast.makeText(context, "Payment Error: $errorMessage", Toast.LENGTH_LONG).show()
                                     }
                                 }
                             } catch (e: Exception) { errorMessage = ErrorUtils.parseError(e) } finally { isLoading = false }

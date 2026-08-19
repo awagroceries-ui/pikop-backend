@@ -57,7 +57,6 @@ const getOrCreateConversation = async (req, res) => {
  */
 const getMessages = async (req, res) => {
   const { conversationId } = req.params;
-  const userId = req.user.id;
 
   try {
     const { rows } = await db.query(
@@ -65,7 +64,8 @@ const getMessages = async (req, res) => {
       [conversationId]
     );
 
-    res.status(200).json({ success: true, data: rows });
+    // FLATTEN: Return rows directly as the Android app expects a List<ChatMessage>
+    res.status(200).json(rows);
   } catch (error) {
     throw error;
   }

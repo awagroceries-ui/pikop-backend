@@ -256,10 +256,28 @@ const initiateReturn = async (req, res) => {
     }
 };
 
+/**
+ * Fetches message history for a specific order.
+ */
+const getOrderMessages = async (req, res) => {
+  const { orderId } = req.params;
+  try {
+    const { rows } = await db.query(
+      "SELECT * FROM messages WHERE order_id = $1 ORDER BY created_at ASC LIMIT 100",
+      [orderId]
+    );
+    // FLATTEN: Return rows directly
+    res.status(200).json(rows);
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   getQuote,
   acceptOrder,
   getOrderDetails,
   updateStatus,
-  initiateReturn
+  initiateReturn,
+  getOrderMessages
 };
