@@ -6,7 +6,7 @@ const { isAdminAuthenticated, hasRole } = require('../middleware/adminAuth');
 // Public
 router.get('/login', (req, res) => {
     try {
-        res.render('login', { layout: false });
+        res.render('login', { layout: false, error: req.query.error });
     } catch (e) {
         console.error('[Admin] Login Render Error:', e.message);
         res.status(500).send(`Render Error: ${e.message}`);
@@ -17,6 +17,10 @@ router.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/admin/login');
 });
+
+// Initial Setup (Only works if zero admins exist)
+router.get('/signup', adminController.getSignup);
+router.post('/signup', adminController.postSignup);
 
 // Protected
 router.use(isAdminAuthenticated);
@@ -42,6 +46,8 @@ router.get('/coupons', hasRole(['super_admin']), (req, res) => res.render('coupo
 
 // System Management
 router.get('/users', hasRole(['super_admin']), adminController.getAdminUsers);
+router.post('/users', hasRole(['super_admin']), adminController.addAdmin);
+router.post('/users/:id/delete', hasRole(['super_admin']), adminController.deleteAdmin);
 router.get('/profile', adminController.getProfile);
 
 // Support

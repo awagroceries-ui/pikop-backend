@@ -3,7 +3,45 @@
         <h4 class="fw-bold mb-1 text-black">Administrative Access</h4>
         <p class="text-muted small mb-0">System administrators and operational roles.</p>
     </div>
-    <button class="btn-pikop-primary px-4">NEW ADMINISTRATOR</button>
+    <button class="btn-pikop-primary px-4" data-bs-toggle="modal" data-bs-target="#addAdminModal">NEW ADMINISTRATOR</button>
+</div>
+
+<!-- Add Admin Modal -->
+<div class="modal fade" id="addAdminModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold text-black">Grant Access</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="/admin/users" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-black fw-bold small mb-2">OPERATOR USERNAME</label>
+                        <input type="text" name="username" class="form-control" required placeholder="e.g. john_ops">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-black fw-bold small mb-2">SECURITY PASSWORD</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label text-black fw-bold small mb-2">CLEARANCE ROLE</label>
+                        <select name="role" class="form-select">
+                            <option value="staff">Staff (Standard)</option>
+                            <option value="support">Support Hub</option>
+                            <option value="ops">Ops Manager</option>
+                            <option value="finance">Finance Analyst</option>
+                            <option value="super_admin">Super Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">CANCEL</button>
+                    <button type="submit" class="btn-pikop-primary">AUTHORIZE USER</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <div class="card-pikop">
@@ -31,7 +69,9 @@
                         <td><span class="badge bg-gold text-black fw-bold px-3" style="font-size: 10px;"><%= user.role.toUpperCase() %></span></td>
                         <td class="text-center text-muted small"><%= new Date(user.created_at).toLocaleDateString() %></td>
                         <td class="text-end">
-                            <button class="btn-pikop-outline py-1 px-3" style="font-size: 11px;">SETTINGS</button>
+                            <form action="/admin/users/<%= user.id %>/delete" method="POST" onsubmit="return confirm('Revoke all access for this operator?')">
+                                <button type="submit" class="btn btn-link text-red p-0" style="font-size: 11px; text-decoration: none; font-weight: 700;">REVOKE ACCESS</button>
+                            </form>
                         </td>
                     </tr>
                 <% }) %>
@@ -43,4 +83,5 @@
 <style>
     .bg-gold { background-color: var(--gold) !important; }
     .text-green { color: var(--green) !important; }
+    .text-red { color: var(--red) !important; }
 </style>

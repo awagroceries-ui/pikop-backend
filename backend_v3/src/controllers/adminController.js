@@ -20,8 +20,44 @@ const login = async (req, res) => {
 
     res.redirect('/admin/dashboard');
   } catch (error) {
-    res.render('login', { error: 'Server error', layout: false });
+    console.error('[Admin] Login Error:', error.message);
+    res.render('login', { error: `Server error: ${error.message}`, layout: false });
   }
+};
+
+/**
+ * Safe First Signup: Only works if no admins exist.
+ */
+const getSignup = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT COUNT(*) FROM admin_users");
+        if (parseInt(rows[0].count) > 0) {
+            return res.redirect('/admin/login');
+        }
+        res.render('signup', { layout: false });
+    } catch (error) {
+        res.status(500).send('Setup Check Failed');
+    }
+};
+
+const postSignup = async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const { rows } = await db.query("SELECT COUNT(*) FROM admin_users");
+        if (parseInt(rows[0].count) > 0) {
+            return res.status(403).send('System already initialized');
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.query(
+            "INSERT INTO admin_users (username, password_hash, role) VALUES ($1, $2, 'super_admin')",
+            [username, passwordHash]
+        );
+
+        res.redirect('/admin/login');
+    } catch (error) {
+        res.status(500).send(`Signup Failed: ${error.message}`);
+    }
 };
 
 /**
@@ -209,6 +245,33 @@ const getAdminUsers = async (req, res) => {
     }
 };
 
+const addAdmin = async (req, res) => {
+    const { username, password, role } = req.body;
+    try {
+        const passwordHash = await bcrypt.hash(password, 10);
+        await db.query(
+            "INSERT INTO admin_users (username, password_hash, role) VALUES ($1, $2, $3)",
+            [username, passwordHash, role]
+        );
+        res.redirect('/admin/users');
+    } catch (error) {
+        res.status(500).send(`Failed to add admin: ${error.message}`);
+    }
+};
+
+const deleteAdmin = async (req, res) => {
+    const { id } = req.params;
+    try {
+        if (parseInt(id) === req.session.adminId) {
+            return res.status(400).send('Self-deletion prohibited');
+        }
+        await db.query("DELETE FROM admin_users WHERE id = $1", [id]);
+        res.redirect('/admin/users');
+    } catch (error) {
+        res.status(500).send('Deletion failed');
+    }
+};
+
 /**
  * Returns currently logged in admin profile.
  */
@@ -223,6 +286,8 @@ const getProfile = async (req, res) => {
 
 module.exports = {
   login,
+  getSignup,
+  postSignup,
   getDashboard,
   getOrders,
   getSettings,
@@ -233,5 +298,7 @@ module.exports = {
   getVendors,
   getKitchens,
   getAdminUsers,
+  addAdmin,
+  deleteAdmin,
   getProfile
 };
