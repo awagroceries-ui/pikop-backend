@@ -25,6 +25,16 @@ object SocketManager {
                 }
             }
             socket = IO.socket(SOCKET_URL, options)
+
+            socket?.on(Socket.EVENT_CONNECT) {
+                android.util.Log.d("PikopSocket", "✅ Socket CONNECTED: ${socket?.id()}")
+            }
+            socket?.on(Socket.EVENT_DISCONNECT) {
+                android.util.Log.w("PikopSocket", "❌ Socket DISCONNECTED")
+            }
+            socket?.on(Socket.EVENT_CONNECT_ERROR) { args ->
+                android.util.Log.e("PikopSocket", "⛔ Connection Error: ${args.getOrNull(0)}")
+            }
         }
         
         if (socket?.connected() == false) {

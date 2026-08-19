@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
@@ -114,16 +115,16 @@ fun AddressAutocompleteField(
                 LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
                     items(suggestions) { prediction ->
                         ListItem(
-                            headlineContent = { Text(prediction.getPrimaryText(null).toString(), color = MaterialTheme.colorScheme.onSurface) },
+                            headlineContent = { Text(prediction.getPrimaryText(null).toString(), color = Color.Black, fontWeight = FontWeight.Bold) },
                             supportingContent = { 
                                 Text(
                                     prediction.getSecondaryText(null).toString(), 
                                     style = MaterialTheme.typography.bodySmall, 
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    color = Color.DarkGray
                                 ) 
                             },
                             leadingContent = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                            colors = ListItemDefaults.colors(containerColor = Color.White),
                             modifier = Modifier.clickable {
                                 val address = prediction.getFullText(null).toString()
                                 query = address

@@ -101,10 +101,20 @@ fun OrderQuoteScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Locations
-            AddressAutocompleteField(label = "Pickup Location", value = pickupAddress, onValueChange = { address, latLng -> pickupAddress = address; if (latLng != null) pickupLatLng = latLng }, onOpenMap = { showMapPickerFor = "pickup" })
-            Spacer(modifier = Modifier.height(12.dp))
-            AddressAutocompleteField(label = "Delivery Location", value = deliveryAddress, onValueChange = { address, latLng -> deliveryAddress = address; if (latLng != null) deliveryLatLng = latLng }, onOpenMap = { showMapPickerFor = "delivery" })
-            Spacer(modifier = Modifier.height(12.dp))
+            AddressAutocompleteField(
+                label = "Pickup Location", 
+                value = pickupAddress, 
+                onValueChange = { address, latLng -> pickupAddress = address; if (latLng != null) pickupLatLng = latLng }, 
+                onOpenMap = { showMapPickerFor = "pickup" }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            AddressAutocompleteField(
+                label = "Delivery Location", 
+                value = deliveryAddress, 
+                onValueChange = { address, latLng -> deliveryAddress = address; if (latLng != null) deliveryLatLng = latLng }, 
+                onOpenMap = { showMapPickerFor = "delivery" }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
                 value = description, 

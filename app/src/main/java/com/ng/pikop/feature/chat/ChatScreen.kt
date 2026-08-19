@@ -63,12 +63,15 @@ fun ChatScreen(
     DisposableEffect(conversationId, orderId) {
         SocketManager.connect(userId.toString())
         if (isSupport) {
+            android.util.Log.d("PikopChat", "Joining support room: $conversationId")
             SocketManager.emit("join_support", conversationId!!)
         } else {
+            android.util.Log.d("PikopChat", "Joining order room: $orderId")
             SocketManager.emit("join_order", orderId!!)
         }
 
         SocketManager.on("receive_message") { data ->
+            android.util.Log.d("PikopChat", "New message data: $data")
             val newMsg = ChatMessage(
                 id = data.optString("id", "temp"),
                 sender_id = data.optInt("sender_id", 0),
@@ -78,7 +81,9 @@ fun ChatScreen(
             )
             // Ensure UI update on Main Thread
             (context as? Activity)?.runOnUiThread {
-                messages.add(newMsg)
+                if (messages.none { it.id == newMsg.id && it.id != "temp" }) {
+                    messages.add(newMsg)
+                }
             }
         }
 
