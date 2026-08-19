@@ -42,8 +42,16 @@ object SocketManager {
 
     fun on(event: String, callback: (JSONObject) -> Unit) {
         socket?.on(event) { args ->
-            if (args.isNotEmpty() && args[0] is JSONObject) {
-                callback(args[0] as JSONObject)
+            android.util.Log.d("PikopSocket", "Event received: $event")
+            if (args.isNotEmpty()) {
+                val data = args[0]
+                if (data is JSONObject) {
+                    callback(data)
+                } else if (data is String) {
+                    try {
+                        callback(JSONObject(data))
+                    } catch (e: Exception) {}
+                }
             }
         }
     }

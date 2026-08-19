@@ -81,7 +81,7 @@ fun OrderQuoteScreen(
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.primary
+        contentColor = MaterialTheme.colorScheme.onBackground
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
@@ -90,7 +90,13 @@ fun OrderQuoteScreen(
         ) {
             Image(painter = painterResource(id = R.drawable.pikop_logo), contentDescription = "Pikop Logo", modifier = Modifier.size(80.dp))
             Spacer(modifier = Modifier.height(16.dp))
-            Text(text = "Request a Delivery", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.Start))
+            Text(
+                text = "Request a Delivery", 
+                style = MaterialTheme.typography.headlineMedium, 
+                color = MaterialTheme.colorScheme.onBackground, 
+                modifier = Modifier.align(Alignment.Start),
+                fontWeight = FontWeight.Bold
+            )
             
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -171,7 +177,13 @@ fun OrderQuoteScreen(
             // Billing Method
             if (corporateAccounts.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(24.dp))
-                Text("Billing Method", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.Start))
+                Text(
+                    text = "Billing Method", 
+                    style = MaterialTheme.typography.titleMedium, 
+                    color = MaterialTheme.colorScheme.onBackground, 
+                    modifier = Modifier.align(Alignment.Start),
+                    fontWeight = FontWeight.Bold
+                )
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = selectedCorporateAccount == null, onClick = { selectedCorporateAccount = null }, label = { Text("Personal") })
                     corporateAccounts.forEach { acc ->
@@ -181,7 +193,13 @@ fun OrderQuoteScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Recipient Details", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.Start))
+            Text(
+                text = "Recipient Details", 
+                style = MaterialTheme.typography.titleMedium, 
+                color = MaterialTheme.colorScheme.onBackground, 
+                modifier = Modifier.align(Alignment.Start),
+                fontWeight = FontWeight.Bold
+            )
             
             Spacer(modifier = Modifier.height(12.dp))
 

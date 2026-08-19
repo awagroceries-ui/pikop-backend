@@ -1,5 +1,6 @@
 package com.ng.pikop.feature.chat
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,13 +33,14 @@ fun ChatScreen(
     userRole: String, // "CUSTOMER" or "FULFILLER"
     onBack: () -> Unit
 ) {
-    var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
+    val messages = remember { mutableStateListOf<ChatMessage>() }
     var inputText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
+    val scope = rememberCoroutineScope()
 
     val isSupport = conversationId != null
 
@@ -46,11 +48,13 @@ fun ChatScreen(
     LaunchedEffect(conversationId, orderId) {
         isLoading = true
         try {
-            messages = if (isSupport) {
+            val history = if (isSupport) {
                 apiService.getSupportMessages(conversationId!!)
             } else {
                 apiService.getOrderMessages(orderId!!)
             }
+            messages.clear()
+            messages.addAll(history)
         } catch (_: Exception) {}
         isLoading = false
     }
@@ -72,7 +76,10 @@ fun ChatScreen(
                 body = data.optString("body", data.optString("content", "")),
                 created_at = data.optString("created_at", "")
             )
-            messages = messages + newMsg
+            // Ensure UI update on Main Thread
+            (context as? Activity)?.runOnUiThread {
+                messages.add(newMsg)
+            }
         }
 
         onDispose {
