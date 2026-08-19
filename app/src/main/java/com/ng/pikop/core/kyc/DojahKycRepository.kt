@@ -80,14 +80,14 @@ class DojahKycRepository @Inject constructor(
 
     private fun setupSdk(context: Context) {
         try {
-            android.util.Log.d("DojahRepo", "Setting up SDK with appId: $appId")
+            android.util.Log.d("DojahRepo", "Setting up SDK | appId: $appId | pKey: ${publicKey.take(8)}... | widgetId: $widgetId")
             DojahSdk.with(context)
             DojahSdk.dojahContainer.sharedPreferenceManager.setAppId(appId)
             DojahSdk.dojahContainer.sharedPreferenceManager.setPKey(publicKey)
-            // Some versions of the SDK might also need this:
             DojahSdk.dojahContainer.sharedPreferenceManager.setWidgetId(widgetId)
+            android.util.Log.d("DojahRepo", "SDK Configured Successfully")
         } catch (e: Exception) {
-            android.util.Log.e("DojahRepo", "SDK setup failed: ${e.message}")
+            android.util.Log.e("DojahRepo", "SDK setup critical failure: ${e.message}")
         }
     }
 

@@ -1,5 +1,6 @@
 package com.ng.pikop.feature.order
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,12 +11,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
@@ -24,6 +26,7 @@ import com.ng.pikop.core.network.SavedAddress
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +46,7 @@ fun AddressSearchSheet(
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val scope = rememberCoroutineScope()
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
@@ -86,7 +90,9 @@ fun AddressSearchSheet(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
                             focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black
                         ),
                         singleLine = true,
                         trailingIcon = {
@@ -100,7 +106,7 @@ fun AddressSearchSheet(
                 },
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.Black)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
@@ -115,9 +121,30 @@ fun AddressSearchSheet(
                 // 1. Current Location (Top action)
                 item {
                     ListItem(
-                        headlineContent = { Text("Use my current location", fontWeight = FontWeight.Bold) },
+                        headlineContent = { Text("Use my current location", fontWeight = FontWeight.Bold, color = Color.Black) },
                         leadingContent = { Icon(Icons.Default.MyLocation, null, tint = MaterialTheme.colorScheme.primary) },
-                        modifier = Modifier.clickable { /* Reverse geocode current loc logic */ }
+                        modifier = Modifier.clickable {
+                            scope.launch {
+                                try {
+                                    isSearching = true
+                                    val loc = try {
+                                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                                    } catch (se: SecurityException) {
+                                        null
+                                    }
+                                    if (loc != null) {
+                                        // Simple placeholder for geocoding
+                                        onAddressSelected("Current Location (${"%.4f".format(loc.latitude)}, ${"%.4f".format(loc.longitude)})", LatLng(loc.latitude, loc.longitude))
+                                    } else {
+                                        Toast.makeText(context, "Location permission or GPS required", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Location unavailable", Toast.LENGTH_SHORT).show()
+                                }
+                                isSearching = false
+                            }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.White)
                     )
                     HorizontalDivider(thickness = 0.5.dp)
                 }
@@ -125,9 +152,10 @@ fun AddressSearchSheet(
                 // 2. Map Picker (Pinned action)
                 item {
                     ListItem(
-                        headlineContent = { Text("Set location on map", fontWeight = FontWeight.Bold) },
+                        headlineContent = { Text("Set location on map", fontWeight = FontWeight.Bold, color = Color.Black) },
                         leadingContent = { Icon(Icons.Default.Map, null, tint = MaterialTheme.colorScheme.secondary) },
-                        modifier = Modifier.clickable { onOpenMap() }
+                        modifier = Modifier.clickable { onOpenMap() },
+                        colors = ListItemDefaults.colors(containerColor = Color.White)
                     )
                     HorizontalDivider(thickness = 0.5.dp)
                 }
@@ -144,8 +172,8 @@ fun AddressSearchSheet(
                     }
                     items(savedAddresses) { addr ->
                         ListItem(
-                            headlineContent = { Text(addr.label ?: "Saved Place", fontWeight = FontWeight.Bold) },
-                            supportingContent = { Text(addr.address_text ?: "", maxLines = 1) },
+                            headlineContent = { Text(addr.label ?: "Saved Place", fontWeight = FontWeight.Bold, color = Color.Black) },
+                            supportingContent = { Text(addr.address_text ?: "", maxLines = 1, color = Color.DarkGray) },
                             leadingContent = { 
                                 Icon(
                                     imageVector = if(addr.label == "Home") Icons.Default.Home else if(addr.label == "Work") Icons.Default.Work else Icons.Default.Star, 
@@ -155,7 +183,8 @@ fun AddressSearchSheet(
                             },
                             modifier = Modifier.clickable {
                                 onAddressSelected(addr.address_text ?: "", LatLng(addr.lat ?: 0.0, addr.lng ?: 0.0))
-                            }
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.White)
                         )
                         HorizontalDivider(thickness = 0.5.dp)
                     }
@@ -164,19 +193,22 @@ fun AddressSearchSheet(
                 // 4. Live Results
                 items(suggestions) { p ->
                     ListItem(
-                        headlineContent = { Text(p.main_text, fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text(p.secondary_text, maxLines = 1) },
+                        headlineContent = { Text(p.main_text, fontWeight = FontWeight.Bold, color = Color.Black) },
+                        supportingContent = { Text(p.secondary_text, maxLines = 1, color = Color.DarkGray) },
                         leadingContent = { Icon(Icons.Default.Place, null, tint = Color.Gray) },
                         modifier = Modifier.clickable {
                             scope.launch {
                                 try {
+                                    isSearching = true
                                     val details = apiService.getPlaceDetails(p.place_id, sessionToken)
                                     onAddressSelected(details.formatted_address, LatLng(details.lat, details.lng))
                                 } catch (_: Exception) {
                                     Toast.makeText(context, "Failed to resolve location", Toast.LENGTH_SHORT).show()
                                 }
+                                isSearching = false
                             }
-                        }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.White)
                     )
                     HorizontalDivider(thickness = 0.5.dp)
                 }

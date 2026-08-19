@@ -39,7 +39,8 @@ fun SavedAddressesScreen(onBack: () -> Unit) {
     val fetchAddresses: suspend () -> Unit = {
         isLoading = true
         try {
-            addresses = apiService.getSavedAddresses()
+            val response = apiService.getSavedAddresses()
+            addresses = response.addresses
         } catch (e: Exception) {}
         isLoading = false
     }
@@ -113,7 +114,12 @@ fun SavedAddressesScreen(onBack: () -> Unit) {
                 Button(onClick = {
                     scope.launch {
                         try {
-                            apiService.saveAddress(AddressRequest(label, tempAddressText, showLabelDialog!!.latitude, showLabelDialog!!.longitude))
+                            apiService.saveAddress(SavedAddress(
+                                label = label,
+                                address_text = tempAddressText,
+                                lat = showLabelDialog!!.latitude,
+                                lng = showLabelDialog!!.longitude
+                            ))
                             showLabelDialog = null
                             fetchAddresses()
                         } catch (e: Exception) {}

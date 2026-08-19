@@ -1,6 +1,7 @@
 package com.ng.pikop.feature.chat
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -83,6 +84,9 @@ fun ChatScreen(
             (context as? Activity)?.runOnUiThread {
                 if (messages.none { it.id == newMsg.id && it.id != "temp" }) {
                     messages.add(newMsg)
+                    if (newMsg.sender_type != userRole) {
+                        Toast.makeText(context, "New message received", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
