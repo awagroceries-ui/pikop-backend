@@ -74,7 +74,7 @@ const init = (server) => {
           [conversation_id || null, order_id || null, sender_id, sender_type, content]
         );
 
-        // Update last_message_at for conversations to keep sorting fresh in Admin Portal
+        // Update last_active_at for support conversations
         if (conversation_id) {
             await db.query(
                 "UPDATE conversations SET last_message_at = CURRENT_TIMESTAMP WHERE id = $1",
@@ -82,10 +82,19 @@ const init = (server) => {
             );
         }
       } catch (e) {
-        console.warn(`[Socket] DB persist skip (Test/Missing Record): ${e.message}`);
+        console.warn(`[Socket] DB persist error: ${e.message}`);
       }
 
-      const broadcastMsg = { ...data, created_at: new Date().toISOString() };
+      const broadcastMsg = {
+        id: require('uuid').v4(),
+        conversation_id,
+        order_id,
+        sender_id,
+        sender_type,
+        content,
+        body: content, // Backward compatibility for app
+        created_at: new Date().toISOString()
+      };
       io.to(room).emit("receive_message", broadcastMsg);
 
       // Global Alert for Admin Dashboard (Sync with layout.ejs)

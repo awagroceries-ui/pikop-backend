@@ -229,7 +229,7 @@ const refresh = async (req, res) => {
 
     try {
         const { rows } = await db.query(
-            "SELECT u.* FROM user_sessions s JOIN users u ON u.id = s.user_id WHERE s.refresh_token = $1 AND s.revoked = false",
+            "SELECT u.* FROM user_sessions s JOIN users u ON u.id = s.user_id WHERE s.refresh_token = $1 AND s.is_revoked = false",
             [refreshToken]
         );
 
@@ -242,7 +242,7 @@ const refresh = async (req, res) => {
 
         // Update session with new refresh token (Rotate)
         await db.query(
-            "UPDATE user_sessions SET refresh_token = $1, last_active = CURRENT_TIMESTAMP WHERE refresh_token = $2",
+            "UPDATE user_sessions SET refresh_token = $1, last_active_at = CURRENT_TIMESTAMP WHERE refresh_token = $2",
             [tokens.refreshToken, refreshToken]
         );
 

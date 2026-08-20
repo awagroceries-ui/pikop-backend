@@ -66,6 +66,7 @@ fun MapPickerSheet(
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
     var sessionToken by remember { mutableStateOf(UUID.randomUUID().toString()) }
+    var searchJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
@@ -138,7 +139,8 @@ fun MapPickerSheet(
                         scrollGesturesEnabled = true,
                         zoomGesturesEnabled = true,
                         tiltGesturesEnabled = false,
-                        rotationGesturesEnabled = false
+                        rotationGesturesEnabled = false,
+                        scrollGesturesEnabledDuringRotateOrZoom = true
                     ),
                     properties = MapProperties(
                         isMyLocationEnabled = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED,
@@ -174,12 +176,17 @@ fun MapPickerSheet(
                             value = searchQuery,
                             onValueChange = {
                                 searchQuery = it
+                                searchJob?.cancel()
                                 if (it.length > 2) {
-                                    scope.launch {
+                                    searchJob = scope.launch {
+                                        kotlinx.coroutines.delay(350)
                                         try {
+                                            android.util.Log.d("PikopMapSearch", "Querying: $it")
                                             val res = apiService.getAutocomplete(it, sessionToken)
                                             searchSuggestions = res.predictions
-                                        } catch (_: Exception) {}
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("PikopMapSearch", "Error: ${e.message}")
+                                        }
                                     }
                                 } else {
                                     searchSuggestions = emptyList()

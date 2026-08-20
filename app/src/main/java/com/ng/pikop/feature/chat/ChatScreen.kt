@@ -24,6 +24,7 @@ import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ChatMessage
 import com.ng.pikop.core.network.SocketManager
 import org.json.JSONObject
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,21 +74,20 @@ fun ChatScreen(
 
         SocketManager.off("receive_message") // Clear old listeners
         SocketManager.on("receive_message") { data ->
-            android.util.Log.d("PikopChat", "New message data: $data")
+            android.util.Log.d("PikopChat", "Socket Data: $data")
             val newMsg = ChatMessage(
-                id = data.optString("id", "temp"),
+                id = data.optString("id", UUID.randomUUID().toString()),
                 sender_id = data.optInt("sender_id", 0),
                 sender_type = data.optString("sender_type", "USER"),
-                body = data.optString("body", data.optString("content", "")),
+                body = data.optString("body", ""),
+                content = data.optString("content", ""),
                 created_at = data.optString("created_at", "")
             )
             // Ensure UI update on Main Thread
             (context as? Activity)?.runOnUiThread {
-                if (messages.none { it.id == newMsg.id && it.id != "temp" }) {
+                if (messages.none { it.id == newMsg.id }) {
+                    android.util.Log.d("PikopChat", "Adding message to UI: ${newMsg.messageText}")
                     messages.add(newMsg)
-                    if (newMsg.sender_type != userRole) {
-                        Toast.makeText(context, "New message received", Toast.LENGTH_SHORT).show()
-                    }
                 }
             }
         }

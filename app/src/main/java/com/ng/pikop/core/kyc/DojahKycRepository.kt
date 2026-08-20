@@ -46,8 +46,8 @@ class DojahKycRepository @Inject constructor(
         referenceId: String
     ) {
         val activity = context.findActivity()
-        if (activity == null) {
-            android.util.Log.e("DojahRepo", "CRITICAL: Cannot launch KYC without an Activity context.")
+        if (activity == null || activity.isFinishing || activity.isDestroyed) {
+            android.util.Log.e("DojahRepo", "CRITICAL: Activity is null or finishing. Cannot launch KYC.")
             return
         }
 
@@ -55,7 +55,7 @@ class DojahKycRepository @Inject constructor(
         
         // Step 1: SDK Setup (Ensuring Container is initialized with Activity context)
         try {
-            DojahSdk.with(activity)
+            DojahSdk.with(activity.applicationContext) // Use applicationContext for container warmup
             setupSdk(activity)
         } catch (e: Exception) {
             android.util.Log.w("DojahRepo", "Step 1 Warmup warning: ${e.message}")
