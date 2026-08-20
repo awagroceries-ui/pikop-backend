@@ -53,8 +53,13 @@ class DojahKycRepository @Inject constructor(
 
         android.util.Log.d("DojahRepo", "INIT: $email | ref: $referenceId")
         
-        // Step 1: SDK Setup
-        setupSdk(activity)
+        // Step 1: SDK Setup (Ensuring Container is initialized with Activity context)
+        try {
+            DojahSdk.with(activity)
+            setupSdk(activity)
+        } catch (e: Exception) {
+            android.util.Log.w("DojahRepo", "Step 1 Warmup warning: ${e.message}")
+        }
 
         try {
             android.util.Log.d("DojahRepo", "STEP 2: Issuing DojahSdk.launch...")
@@ -65,8 +70,8 @@ class DojahKycRepository @Inject constructor(
                 email = email
             )
             android.util.Log.d("DojahRepo", "SUCCESS: Widget command sent to system.")
-        } catch (e: Exception) {
-            android.util.Log.e("DojahRepo", "FAILURE: Primary launch failed: ${e.message}")
+        } catch (e: Throwable) {
+            android.util.Log.e("DojahRepo", "FAILURE: Primary launch failed: ${e.message}", e)
             try {
                 android.util.Log.d("DojahRepo", "RETRY: Attempting fallback with appId as widgetId...")
                 DojahSdk.launch(
@@ -76,8 +81,8 @@ class DojahKycRepository @Inject constructor(
                     email = email
                 )
                 android.util.Log.d("DojahRepo", "SUCCESS: Fallback launch issued.")
-            } catch (e2: Exception) {
-                android.util.Log.e("DojahRepo", "CRITICAL: Fallback failed: ${e2.message}")
+            } catch (e2: Throwable) {
+                android.util.Log.e("DojahRepo", "CRITICAL: Fallback failed: ${e2.message}", e2)
                 Toast.makeText(activity, "KYC System Error. Please try again later.", Toast.LENGTH_LONG).show()
             }
         }

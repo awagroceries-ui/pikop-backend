@@ -36,6 +36,8 @@ import java.io.FileOutputStream
 @Composable
 fun OrderQuoteScreen(
     userEmail: String,
+    userName: String = "",
+    userPhone: String = "",
     onOrderComplete: (String) -> Unit,
     onNavigateToPayment: (url: String, quoteId: String, pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemUrl: String, pSum: String, dSum: String, rName: String, rPhone: String, notes: String?, promoId: String?) -> Unit
 ) {
@@ -55,9 +57,15 @@ fun OrderQuoteScreen(
     var promoCode by remember { mutableStateOf("") }
     var activePromo by remember { mutableStateOf<PromoValidationResponse?>(null) }
     
-    var recipientName by remember { mutableStateOf("") }
-    var recipientPhone by remember { mutableStateOf("") }
+    var recipientName by remember { mutableStateOf(userName) }
+    var recipientPhone by remember { mutableStateOf(userPhone) }
     var notes by remember { mutableStateOf("") }
+
+    // Sync from profile if initial values were empty
+    LaunchedEffect(userName, userPhone) {
+        if (recipientName.isBlank()) recipientName = userName
+        if (recipientPhone.isBlank()) recipientPhone = userPhone
+    }
 
     var searchModeFor by remember { mutableStateOf<String?>(null) }
 

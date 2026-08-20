@@ -16,7 +16,8 @@ const getKnowledgeBase = async (req, res) => {
       [userRole]
     );
 
-    res.status(200).json({ success: true, data: rows });
+    // FLATTEN: Return raw array for the Android app
+    res.status(200).json(rows);
   } catch (error) {
     throw error;
   }

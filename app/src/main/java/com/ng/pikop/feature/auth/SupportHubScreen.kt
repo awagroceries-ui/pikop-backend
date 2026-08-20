@@ -140,7 +140,7 @@ fun CategoryItem(name: String, onClick: () -> Unit) {
         ) {
             Icon(Icons.Default.QuestionAnswer, contentDescription = null, tint = PikopOrange, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(16.dp))
-            Text(name, color = Color.White, modifier = Modifier.weight(1f))
+            Text(name, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
         }
     }

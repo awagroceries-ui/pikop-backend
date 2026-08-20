@@ -313,9 +313,12 @@ data class ChatMessage(
     val sender_id: Int? = null,
     val sender_type: String? = null,
     val body: String? = null,
-    val content: String? = null, // Support backward compatibility
+    val content: String? = null, 
     val created_at: String? = null
-)
+) {
+    // Helper to get text regardless of backend column name (content vs body)
+    val messageText: String get() = content ?: body ?: ""
+}
 
 data class WithdrawalRequest(
     val amount: Double,
@@ -561,8 +564,9 @@ interface ApiService {
                 val token = runBlocking {
                     tokenManager.accessToken.first()
                 }
+                android.util.Log.d("PikopApi", "Request: ${chain.request().url} | HasToken: ${!token.isNullOrBlank()}")
                 val request = chain.request().newBuilder().apply {
-                    if (token != null) {
+                    if (!token.isNullOrBlank()) {
                         addHeader("Authorization", "Bearer $token")
                     }
                 }.build()
@@ -570,43 +574,47 @@ interface ApiService {
             }
 
             val authenticator = okhttp3.Authenticator { _, response ->
-                android.util.Log.d("PikopApi", "Authenticator triggered: ${response.code}")
+                android.util.Log.d("PikopApi", "Authenticator triggered: ${response.code} for ${response.request.url}")
+                
+                // Only attempt refresh for 401 Unauthorized
                 if (response.code == 401) {
                     synchronized(this) {
                         val newToken = runBlocking {
                             try {
                                 val refreshToken = tokenManager.refreshToken.first()
-                                android.util.Log.d("PikopApi", "Attempting refresh with token: ${refreshToken?.take(10)}...")
-                                if (refreshToken != null) {
-                                    val api = Retrofit.Builder()
-                                        .baseUrl(BASE_URL)
-                                        .addConverterFactory(GsonConverterFactory.create())
-                                        .build()
-                                        .create(ApiService::class.java)
+                                if (refreshToken.isNullOrBlank()) {
+                                    android.util.Log.e("PikopApi", "Refresh failed: No refresh token")
+                                    return@runBlocking null
+                                }
 
-                                    val res = api.refresh(mapOf("refreshToken" to refreshToken))
-                                    if (res.accessToken != null && res.refreshToken != null) {
-                                        android.util.Log.d("PikopApi", "Token refresh SUCCESS")
-                                        tokenManager.saveTokens(
-                                            accessToken = res.accessToken,
-                                            refreshToken = res.refreshToken,
-                                            email = tokenManager.userEmail.first() ?: "",
-                                            role = tokenManager.userRole.first() ?: "",
-                                            name = tokenManager.userName.first(),
-                                            phone = tokenManager.userPhone.first(),
-                                            referralCode = tokenManager.referralCode.first()
-                                        )
-                                        res.accessToken
-                                    } else {
-                                        android.util.Log.e("PikopApi", "Token refresh failed: Missing fields in response")
-                                        null
-                                    }
+                                android.util.Log.d("PikopApi", "Refreshing session...")
+                                val refreshApi = Retrofit.Builder()
+                                    .baseUrl(BASE_URL)
+                                    .addConverterFactory(GsonConverterFactory.create())
+                                    .build()
+                                    .create(ApiService::class.java)
+
+                                val res = refreshApi.refresh(mapOf("refreshToken" to refreshToken))
+                                if (res.accessToken != null) {
+                                    android.util.Log.d("PikopApi", "Token refresh SUCCESS")
+                                    tokenManager.saveTokens(
+                                        accessToken = res.accessToken,
+                                        refreshToken = res.refreshToken ?: refreshToken,
+                                        userId = tokenManager.userId.first(),
+                                        email = tokenManager.userEmail.first() ?: "",
+                                        role = tokenManager.userRole.first() ?: "CUSTOMER",
+                                        name = tokenManager.userName.first(),
+                                        phone = tokenManager.userPhone.first(),
+                                        isVerified = tokenManager.isVerified.first(),
+                                        referralCode = tokenManager.referralCode.first()
+                                    )
+                                    res.accessToken
                                 } else {
-                                    android.util.Log.e("PikopApi", "Token refresh failed: No refresh token found in DataStore")
+                                    android.util.Log.e("PikopApi", "Refresh failed: Empty response")
                                     null
                                 }
                             } catch (e: Exception) {
-                                android.util.Log.e("PikopApi", "Token refresh exception: ${e.message}")
+                                android.util.Log.e("PikopApi", "Refresh error: ${e.message}")
                                 null
                             }
                         }

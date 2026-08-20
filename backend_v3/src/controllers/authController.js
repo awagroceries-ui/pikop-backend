@@ -220,10 +220,47 @@ const updateFCMToken = async (req, res) => {
     }
 };
 
+/**
+ * Refreshes the access token using a valid refresh token.
+ */
+const refresh = async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(401).json({ success: false, message: 'Refresh token required' });
+
+    try {
+        const { rows } = await db.query(
+            "SELECT u.* FROM user_sessions s JOIN users u ON u.id = s.user_id WHERE s.refresh_token = $1 AND s.revoked = false",
+            [refreshToken]
+        );
+
+        if (rows.length === 0) {
+            return res.status(401).json({ success: false, message: 'Invalid or revoked refresh token' });
+        }
+
+        const user = rows[0];
+        const tokens = authService.generateTokens(user);
+
+        // Update session with new refresh token (Rotate)
+        await db.query(
+            "UPDATE user_sessions SET refresh_token = $1, last_active = CURRENT_TIMESTAMP WHERE refresh_token = $2",
+            [tokens.refreshToken, refreshToken]
+        );
+
+        res.status(200).json({
+            success: true,
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken
+        });
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
   signup,
   verifyEmail,
   login,
   resendOtp,
+  refresh,
   updateFCMToken
 };

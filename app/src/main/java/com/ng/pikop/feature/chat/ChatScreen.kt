@@ -71,6 +71,7 @@ fun ChatScreen(
             SocketManager.emit("join_order", orderId!!)
         }
 
+        SocketManager.off("receive_message") // Clear old listeners
         SocketManager.on("receive_message") { data ->
             android.util.Log.d("PikopChat", "New message data: $data")
             val newMsg = ChatMessage(
@@ -239,7 +240,7 @@ fun ChatBubble(msg: ChatMessage, isMe: Boolean) {
             tonalElevation = 2.dp
         ) {
             Text(
-                text = msg.body ?: msg.content ?: "",
+                text = msg.messageText,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
                 color = if (isMe) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface

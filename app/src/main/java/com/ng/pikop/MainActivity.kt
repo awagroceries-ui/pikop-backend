@@ -38,6 +38,7 @@ import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.ui.theme.PikopTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -144,9 +145,32 @@ fun PikopAppNavigation() {
         }
     }
 
-    // Push Token Registration (Safe)
+    // Profile Auto-Sync & Push Token Registration
     LaunchedEffect(accessToken) {
         if (accessToken != null) {
+            // 1. Sync Profile Data
+            scope.launch {
+                try {
+                    val api = ApiService.create(tokenManager)
+                    val profile = api.getUserProfile()
+                    tokenManager.saveTokens(
+                        accessToken = accessToken!!,
+                        refreshToken = tokenManager.refreshToken.first() ?: "",
+                        userId = userId,
+                        email = userEmail ?: "",
+                        role = userRole ?: "CUSTOMER",
+                        name = profile.full_name,
+                        phone = profile.phone,
+                        isVerified = isVerified,
+                        referralCode = referralCode
+                    )
+                    android.util.Log.d("PikopSync", "Profile background sync complete")
+                } catch (e: Exception) {
+                    android.util.Log.e("PikopSync", "Profile sync failed: ${e.message}")
+                }
+            }
+
+            // 2. FCM Token Registration
             try {
                 val apps = FirebaseApp.getApps(context)
                 if (apps.isNotEmpty()) {
@@ -275,7 +299,9 @@ fun PikopAppNavigation() {
         }
         composable("order_quote") {
             OrderQuoteScreen(
-                userEmail = userEmail ?: "", 
+                userEmail = userEmail ?: "",
+                userName = userName ?: "",
+                userPhone = userPhone ?: "",
                 onOrderComplete = { navController.popBackStack() },
                 onNavigateToPayment = { url, qId, pLat, pLng, dLat, dLng, itemUrl, pSum, dSum, rName, rPhone, notes, promoId ->
                     val encUrl = java.net.URLEncoder.encode(url, "UTF-8")

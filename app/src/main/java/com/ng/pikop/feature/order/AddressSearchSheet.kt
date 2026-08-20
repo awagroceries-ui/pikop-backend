@@ -75,9 +75,13 @@ fun AddressSearchSheet(
                                     delay(300)
                                     isSearching = true
                                     try {
-                                        val res = apiService.getAutocomplete(it, sessionToken)
-                                        suggestions = res.predictions
-                                    } catch (_: Exception) {}
+                                    android.util.Log.d("PikopSearch", "Querying autocomplete: $it")
+                                    val res = apiService.getAutocomplete(it, sessionToken)
+                                    suggestions = res.predictions
+                                    android.util.Log.d("PikopSearch", "Suggestions received: ${res.predictions.size}")
+                                } catch (e: Exception) {
+                                    android.util.Log.e("PikopSearch", "Autocomplete error: ${e.message}")
+                                }
                                     isSearching = false
                                 }
                             } else {
