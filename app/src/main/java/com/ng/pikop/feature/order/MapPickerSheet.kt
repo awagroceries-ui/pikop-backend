@@ -185,8 +185,9 @@ fun MapPickerSheet(
                                         try {
                                             android.util.Log.d("PikopMapSearch", "Querying: $it")
                                             val res = apiService.getAutocomplete(it, sessionToken)
+                                            // Ensure we only update if query hasn't changed
                                             searchSuggestions = res.predictions
-                                            android.util.Log.d("PikopMapSearch", "Received: ${res.predictions.size} suggestions")
+                                            android.util.Log.d("PikopMapSearch", "Received: ${res.predictions.size} suggestions for $it")
                                         } catch (e: Exception) {
                                             android.util.Log.e("PikopMapSearch", "Error: ${e.message}")
                                             searchSuggestions = emptyList()

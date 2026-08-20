@@ -429,7 +429,8 @@ fun OrderQuoteScreen(
 }
 
 @Composable
-fun LocationInput(label: String, address: String, onClick: () -> Unit) {
+fun LocationInput(label: String, address: String?, onClick: () -> Unit) {
+    val displayAddress = address ?: ""
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -461,9 +462,9 @@ fun LocationInput(label: String, address: String, onClick: () -> Unit) {
             Column {
                 Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontWeight = FontWeight.Bold)
                 Text(
-                    text = address.ifBlank { "Search address..." },
+                    text = displayAddress.ifBlank { "Search address..." },
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (address.isBlank()) Color.LightGray else Color.Black,
+                    color = if (displayAddress.isBlank()) Color.LightGray else Color.Black,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )

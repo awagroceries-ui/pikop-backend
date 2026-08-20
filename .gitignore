@@ -13,3 +13,14 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Backend Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+.env
+
+# Mobile
+*.apk
+*.ap_
+*.dex
