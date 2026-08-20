@@ -93,6 +93,7 @@ const init = (server) => {
         sender_type,
         content,
         body: content, // Backward compatibility for app
+        text: content, // Dual broadcast for robustness
         created_at: new Date().toISOString()
       };
       io.to(room).emit("receive_message", broadcastMsg);

@@ -15,12 +15,12 @@ const classifyItemSize = async (description) => {
     Context: You are the logistics classifier for Pikop (a Nigerian delivery app).
     Analyze this item description: "${description}"
 
-    Rules for size_tier:
-    1. SMALL: Envelopes, documents, single small food items, keys, or items < 2kg.
-    2. MEDIUM: Boxes, multiple grocery bags, microwave-sized items, or items 2kg-15kg.
-    3. LARGE: Generators, furniture, appliances, bulk sacks, or items > 15kg.
+    Rules for size_tier (Logistics standard):
+    1. SMALL: Envelopes, keys, single small document, very light food items, or items weighing less than 2kg.
+    2. MEDIUM: Standard boxes, grocery bags, microwaves, medium luggage, or items weighing 2kg to 20kg.
+    3. LARGE: Generators, engine parts, fridge, desks, heavy bulk sacks (rice/cement), or any item weighing over 20kg.
 
-    Special instruction: If "generator", "engine", "fridge", "table", or weights like "20kg", "50kg" are mentioned, ALWAYS classify as LARGE.
+    CRITICAL: If the description contains "kg", "generator", "heavy", "engine", "machine", "bulky", or "big", you MUST classify as LARGE.
 
     Return ONLY a JSON object: { "size_tier": "SMALL" | "MEDIUM" | "LARGE", "confidence": number }
   `;

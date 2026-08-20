@@ -271,10 +271,16 @@ fun OrderQuoteScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                     val total = quoteResult!!.total_fare ?: 0.0
+                    val size = quoteResult!!.size_tier ?: "MEDIUM"
                     val promo = activePromo
                     val discount = if (promo == null) 0.0 else if (promo.discount_type == "flat") promo.value ?: 0.0 else total * ((promo.value ?: 0.0) / 100)
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Text("Total Fare", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Total Fare", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                            Badge(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
+                                Text(size, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                         Text("₦${total - discount}", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
                         if (discount > 0) Text("Original: ₦$total | Discount: -₦$discount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                     }
@@ -346,10 +352,11 @@ fun OrderQuoteScreen(
 
                                     try {
                                         val paymentInit = apiService.initializePayment(PaymentInitializationRequest(amount = amountToCharge, email = userEmail))
+                                        val authUrl = paymentInit.authorization_url
                                         
-                                        if (paymentInit.authorization_url.isNotBlank()) {
+                                        if (!authUrl.isNullOrBlank()) {
                                             onNavigateToPayment(
-                                                paymentInit.authorization_url,
+                                                authUrl!!,
                                                 qId,
                                                 pickupLatLng?.latitude ?: 0.0,
                                                 pickupLatLng?.longitude ?: 0.0,

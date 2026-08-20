@@ -365,9 +365,9 @@ data class PaymentInitializationRequest(
 )
 
 data class PaymentInitializationResponse(
-    val authorization_url: String,
-    val access_code: String,
-    val reference: String
+    val authorization_url: String? = null,
+    val access_code: String? = null,
+    val reference: String? = null
 )
 
 interface ApiService {

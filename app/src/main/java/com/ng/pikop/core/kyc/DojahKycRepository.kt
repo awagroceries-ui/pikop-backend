@@ -72,6 +72,9 @@ class DojahKycRepository @Inject constructor(
             android.util.Log.d("DojahRepo", "SUCCESS: Widget command sent to system.")
         } catch (e: Throwable) {
             android.util.Log.e("DojahRepo", "FAILURE: Primary launch failed: ${e.message}", e)
+            val errorMessage = e.message ?: "Unknown SDK error"
+            Toast.makeText(activity, "KYC Error: $errorMessage", Toast.LENGTH_LONG).show()
+            
             try {
                 android.util.Log.d("DojahRepo", "RETRY: Attempting fallback with appId as widgetId...")
                 DojahSdk.launch(
@@ -83,7 +86,6 @@ class DojahKycRepository @Inject constructor(
                 android.util.Log.d("DojahRepo", "SUCCESS: Fallback launch issued.")
             } catch (e2: Throwable) {
                 android.util.Log.e("DojahRepo", "CRITICAL: Fallback failed: ${e2.message}", e2)
-                Toast.makeText(activity, "KYC System Error. Please try again later.", Toast.LENGTH_LONG).show()
             }
         }
     }

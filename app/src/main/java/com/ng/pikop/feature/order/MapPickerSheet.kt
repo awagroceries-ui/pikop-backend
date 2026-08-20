@@ -67,6 +67,7 @@ fun MapPickerSheet(
     val apiService = remember { ApiService.create(tokenManager) }
     var sessionToken by remember { mutableStateOf(UUID.randomUUID().toString()) }
     var searchJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var isSearchingSuggestions by remember { mutableStateOf(false) }
 
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
@@ -179,17 +180,22 @@ fun MapPickerSheet(
                                 searchJob?.cancel()
                                 if (it.length > 2) {
                                     searchJob = scope.launch {
-                                        kotlinx.coroutines.delay(350)
+                                        isSearchingSuggestions = true
+                                        kotlinx.coroutines.delay(500)
                                         try {
                                             android.util.Log.d("PikopMapSearch", "Querying: $it")
                                             val res = apiService.getAutocomplete(it, sessionToken)
                                             searchSuggestions = res.predictions
                                         } catch (e: Exception) {
                                             android.util.Log.e("PikopMapSearch", "Error: ${e.message}")
+                                            searchSuggestions = emptyList()
+                                        } finally {
+                                            isSearchingSuggestions = false
                                         }
                                     }
                                 } else {
                                     searchSuggestions = emptyList()
+                                    isSearchingSuggestions = false
                                 }
                             },
                             modifier = Modifier.weight(1f),
@@ -215,12 +221,16 @@ fun MapPickerSheet(
                         )
                     }
 
-                    if (searchSuggestions.isNotEmpty()) {
+                    if (searchSuggestions.isNotEmpty() || isSearchingSuggestions) {
                         Card(
                             modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
                             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
                         ) {
+                            if (isSearchingSuggestions && searchSuggestions.isEmpty()) {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
+                            }
                             LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
                                 items(searchSuggestions) { p ->
                                     ListItem(
