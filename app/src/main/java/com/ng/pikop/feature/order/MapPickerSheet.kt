@@ -181,15 +181,16 @@ fun MapPickerSheet(
                                 if (it.length > 2) {
                                     searchJob = scope.launch {
                                         isSearchingSuggestions = true
-                                        kotlinx.coroutines.delay(500)
+                                        kotlinx.coroutines.delay(300)
                                         try {
-                                            android.util.Log.d("PikopMapSearch", "Querying: $it")
+                                            android.util.Log.d("PikopMapSearch", "Autocomplete Fetching for: $it")
                                             val res = apiService.getAutocomplete(it, sessionToken)
-                                            // Ensure we only update if query hasn't changed
+                                            // Force UI update by clearing and re-setting
+                                            searchSuggestions = emptyList()
                                             searchSuggestions = res.predictions
-                                            android.util.Log.d("PikopMapSearch", "Received: ${res.predictions.size} suggestions for $it")
+                                            android.util.Log.d("PikopMapSearch", "Autocomplete SUCCESS: ${res.predictions.size} items")
                                         } catch (e: Exception) {
-                                            android.util.Log.e("PikopMapSearch", "Error: ${e.message}")
+                                            android.util.Log.e("PikopMapSearch", "Autocomplete FAIL: ${e.message}")
                                             searchSuggestions = emptyList()
                                         } finally {
                                             isSearchingSuggestions = false

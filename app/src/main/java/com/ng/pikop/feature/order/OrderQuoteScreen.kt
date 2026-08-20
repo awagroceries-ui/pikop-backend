@@ -61,10 +61,14 @@ fun OrderQuoteScreen(
     var recipientPhone by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
-    // Sync from profile if initial values were empty
+    // Sync from profile if initial values were empty (Strict Null Safety)
     LaunchedEffect(userName, userPhone) {
-        if (recipientName.isBlank()) recipientName = userName ?: ""
-        if (recipientPhone.isBlank()) recipientPhone = userPhone ?: ""
+        if (recipientName.isNullOrBlank()) {
+            recipientName = userName ?: ""
+        }
+        if (recipientPhone.isNullOrBlank()) {
+            recipientPhone = userPhone ?: ""
+        }
     }
 
     var searchModeFor by remember { mutableStateOf<String?>(null) }

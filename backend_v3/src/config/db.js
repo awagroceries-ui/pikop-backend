@@ -28,15 +28,22 @@ if (config.password) {
 const pool = new Pool({
   host: config.host || 'localhost',
   user: config.user || '',
-  password: config.password || '', // EXPLICIT STRING
+  password: config.password || '',
   database: config.database || 'pikop',
   port: config.port || 5432,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
-  ssl: (connectionString && connectionString.includes('sslmode=require'))
+  ssl: (connectionString && (connectionString.includes('sslmode=require') || connectionString.includes('render.com')))
        ? { rejectUnauthorized: false } : false
 });
+
+// Host Sanitization: Prevent "base" ENOTFOUND error
+if (pool.options.host === 'base') {
+    pool.options.host = 'localhost';
+}
+
+console.log(`[Database] Target: ${pool.options.host}:${pool.options.port} | DB: ${pool.options.database}`);
 
 pool.on('connect', () => {
     // Authenticated successfully
