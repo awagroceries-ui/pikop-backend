@@ -313,11 +313,12 @@ data class ChatMessage(
     val sender_id: Int? = null,
     val sender_type: String? = null,
     val body: String? = null,
-    val content: String? = null, 
+    val content: String? = null,
+    val text: String? = null, 
     val created_at: String? = null
 ) {
-    // Helper to get text regardless of backend column name (content vs body)
-    val messageText: String get() = content ?: body ?: ""
+    // Helper to get text regardless of backend column name (content vs body vs text)
+    val messageText: String get() = content ?: body ?: text ?: ""
 }
 
 data class WithdrawalRequest(

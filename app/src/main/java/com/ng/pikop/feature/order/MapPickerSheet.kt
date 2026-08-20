@@ -186,6 +186,7 @@ fun MapPickerSheet(
                                             android.util.Log.d("PikopMapSearch", "Querying: $it")
                                             val res = apiService.getAutocomplete(it, sessionToken)
                                             searchSuggestions = res.predictions
+                                            android.util.Log.d("PikopMapSearch", "Received: ${res.predictions.size} suggestions")
                                         } catch (e: Exception) {
                                             android.util.Log.e("PikopMapSearch", "Error: ${e.message}")
                                             searchSuggestions = emptyList()
@@ -223,20 +224,44 @@ fun MapPickerSheet(
 
                     if (searchSuggestions.isNotEmpty() || isSearchingSuggestions) {
                         Card(
-                            modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                            modifier = Modifier
+                                .padding(top = 8.dp)
+                                .fillMaxWidth()
+                                .heightIn(max = 400.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
                         ) {
                             if (isSearchingSuggestions && searchSuggestions.isEmpty()) {
                                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
                             }
-                            LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                            LazyColumn(modifier = Modifier.fillMaxWidth()) {
                                 items(searchSuggestions) { p ->
                                     ListItem(
-                                        headlineContent = { Text(p.main_text, color = Color.Black, fontWeight = FontWeight.Bold) },
-                                        supportingContent = { Text(p.secondary_text, color = Color.Gray, maxLines = 1) },
-                                        leadingContent = { Icon(Icons.Default.Place, null, tint = MaterialTheme.colorScheme.primary) },
+                                        headlineContent = { 
+                                            Text(
+                                                text = p.main_text, 
+                                                color = Color.Black, 
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyLarge
+                                            ) 
+                                        },
+                                        supportingContent = { 
+                                            Text(
+                                                text = p.secondary_text, 
+                                                color = Color.Gray, 
+                                                maxLines = 1,
+                                                style = MaterialTheme.typography.bodySmall
+                                            ) 
+                                        },
+                                        leadingContent = { 
+                                            Icon(
+                                                imageVector = Icons.Default.Place, 
+                                                contentDescription = null, 
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(24.dp)
+                                            ) 
+                                        },
                                         modifier = Modifier.clickable {
                                             scope.launch {
                                                 try {
@@ -245,6 +270,7 @@ fun MapPickerSheet(
                                                     cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(details.lat, details.lng), 17f))
                                                     searchQuery = ""
                                                     searchSuggestions = emptyList()
+                                                    sessionToken = java.util.UUID.randomUUID().toString()
                                                 } catch (_: Exception) {
                                                     Toast.makeText(context, "Search failed", Toast.LENGTH_SHORT).show()
                                                 } finally {
@@ -254,7 +280,7 @@ fun MapPickerSheet(
                                         },
                                         colors = ListItemDefaults.colors(containerColor = Color.White)
                                     )
-                                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+                                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
                                 }
                             }
                         }

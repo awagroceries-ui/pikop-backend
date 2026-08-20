@@ -57,8 +57,8 @@ fun OrderQuoteScreen(
     var promoCode by remember { mutableStateOf("") }
     var activePromo by remember { mutableStateOf<PromoValidationResponse?>(null) }
     
-    var recipientName by remember { mutableStateOf(userName ?: "") }
-    var recipientPhone by remember { mutableStateOf(userPhone ?: "") }
+    var recipientName by remember { mutableStateOf("") }
+    var recipientPhone by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
     // Sync from profile if initial values were empty

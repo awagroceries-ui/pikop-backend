@@ -7,6 +7,10 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import com.dojah.kyc_sdk_kotlin.DojahSdk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -53,39 +57,36 @@ class DojahKycRepository @Inject constructor(
 
         android.util.Log.d("DojahRepo", "INIT: $email | ref: $referenceId")
         
-        // Step 1: SDK Setup (Ensuring Container is initialized with Activity context)
-        try {
-            DojahSdk.with(activity.applicationContext) // Use applicationContext for container warmup
-            setupSdk(activity)
-        } catch (e: Exception) {
-            android.util.Log.w("DojahRepo", "Step 1 Warmup warning: ${e.message}")
+        // Step 1: SDK Setup (Ensuring Container is initialized with Activity context on UI thread)
+        activity.runOnUiThread {
+            try {
+                DojahSdk.with(activity.applicationContext)
+                setupSdk(activity)
+            } catch (e: Exception) {
+                android.util.Log.w("DojahRepo", "Step 1 warmup warning: ${e.message}")
+            }
         }
 
-        try {
-            android.util.Log.d("DojahRepo", "STEP 2: Issuing DojahSdk.launch...")
-            DojahSdk.launch(
-                dojahLauncher = launcher,
-                widgetId = widgetId,
-                referenceId = referenceId,
-                email = email
-            )
-            android.util.Log.d("DojahRepo", "SUCCESS: Widget command sent to system.")
-        } catch (e: Throwable) {
-            android.util.Log.e("DojahRepo", "FAILURE: Primary launch failed: ${e.message}", e)
-            val errorMessage = e.message ?: "Unknown SDK error"
-            Toast.makeText(activity, "KYC Error: $errorMessage", Toast.LENGTH_LONG).show()
-            
+        // Give UI thread a moment to stabilize
+        kotlinx.coroutines.MainScope().launch {
+            kotlinx.coroutines.delay(500)
             try {
-                android.util.Log.d("DojahRepo", "RETRY: Attempting fallback with appId as widgetId...")
+                android.util.Log.d("DojahRepo", "STEP 2: Issuing DojahSdk.launch...")
                 DojahSdk.launch(
                     dojahLauncher = launcher,
-                    widgetId = appId,
+                    widgetId = widgetId,
                     referenceId = referenceId,
                     email = email
                 )
-                android.util.Log.d("DojahRepo", "SUCCESS: Fallback launch issued.")
-            } catch (e2: Throwable) {
-                android.util.Log.e("DojahRepo", "CRITICAL: Fallback failed: ${e2.message}", e2)
+                android.util.Log.d("DojahRepo", "SUCCESS: Widget command sent.")
+            } catch (e: Throwable) {
+                android.util.Log.e("DojahRepo", "FAILURE: ${e.message}", e)
+                Toast.makeText(activity, "KYC Error: ${e.message}", Toast.LENGTH_LONG).show()
+                
+                // Final fallback
+                try {
+                    DojahSdk.launch(dojahLauncher = launcher, widgetId = appId, referenceId = referenceId, email = email)
+                } catch (_: Exception) {}
             }
         }
     }
