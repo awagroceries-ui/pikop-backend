@@ -11,8 +11,10 @@ echo "🛠️  Installing dependencies..."
 npm install --production
 
 echo "🏗️  Running database migrations..."
-# Using explicit dotenv loading to ensure migrations see the quoted connection string
 node -r dotenv/config ./node_modules/.bin/node-pg-migrate up
+
+echo "🔧 Running Super Repair script..."
+node scratch/super_restore.js
 
 echo "🚀 Restarting production process via PM2..."
 pm2 restart ecosystem.config.js --env production

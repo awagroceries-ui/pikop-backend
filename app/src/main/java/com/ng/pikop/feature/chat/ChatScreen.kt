@@ -48,7 +48,10 @@ fun ChatScreen(
 
     // Fetch History
     LaunchedEffect(conversationId, orderId) {
-        if (conversationId == null && orderId == null) return@LaunchedEffect
+        if (conversationId == null && orderId == null) {
+            android.util.Log.w("PikopChat", "Skipping history fetch: Both IDs are null")
+            return@LaunchedEffect
+        }
         
         isLoading = true
         try {
