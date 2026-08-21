@@ -1,5 +1,6 @@
 package com.ng.pikop.feature.fulfiller
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsBike
@@ -9,26 +10,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.ng.pikop.core.datastore.TokenManager
-import com.ng.pikop.core.network.ApiService
-import com.ng.pikop.core.network.ProfileUpdateRequest
-import kotlinx.coroutines.launch
 
 @Composable
-fun FulfillerTypeSelectionScreen(onClassSelected: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val tokenManager = remember { TokenManager(context) }
-    val apiService = remember { ApiService.create(tokenManager) }
-    
-    var isLoading by remember { mutableStateOf(false) }
-
+fun FulfillerTypeSelectionScreen(
+    selectedClass: String?,
+    onClassSelected: (String) -> Unit
+) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -39,9 +32,9 @@ fun FulfillerTypeSelectionScreen(onClassSelected: () -> Unit) {
             fontWeight = FontWeight.Bold
         )
         Text(
-            "Select the category that matches your transportation mode.",
+            "Select a category. You can change this later in settings.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+            color = Color.Gray,
             textAlign = TextAlign.Center
         )
 
@@ -51,9 +44,8 @@ fun FulfillerTypeSelectionScreen(onClassSelected: () -> Unit) {
             title = "Rider",
             description = "Bikes, Scooters, or Motorcycles.",
             icon = Icons.Default.DirectionsBike,
-            onClick = {
-                selectClass(scope, apiService, "rider", onClassSelected) { isLoading = it }
-            }
+            isSelected = selectedClass == "rider",
+            onClick = { onClassSelected("rider") }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -62,9 +54,8 @@ fun FulfillerTypeSelectionScreen(onClassSelected: () -> Unit) {
             title = "Driver",
             description = "Cars, Vans, or Trucks.",
             icon = Icons.Default.DirectionsCar,
-            onClick = {
-                selectClass(scope, apiService, "driver", onClassSelected) { isLoading = it }
-            }
+            isSelected = selectedClass == "driver",
+            onClick = { onClassSelected("driver") }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -73,50 +64,43 @@ fun FulfillerTypeSelectionScreen(onClassSelected: () -> Unit) {
             title = "Foot Agent",
             description = "Walking or Public Transit.",
             icon = Icons.Default.Person,
-            onClick = {
-                selectClass(scope, apiService, "agent", onClassSelected) { isLoading = it }
-            }
+            isSelected = selectedClass == "agent",
+            onClick = { onClassSelected("agent") }
         )
-        
-        if (isLoading) {
-            Spacer(modifier = Modifier.height(24.dp))
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-        }
-    }
-}
-
-private fun selectClass(
-    scope: kotlinx.coroutines.CoroutineScope,
-    api: ApiService,
-    className: String,
-    onSuccess: () -> Unit,
-    setLoading: (Boolean) -> Unit
-) {
-    scope.launch {
-        setLoading(true)
-        try {
-            api.updateFulfillerProfile(ProfileUpdateRequest(primary_class = className))
-            onSuccess()
-        } catch (_: Exception) {}
-        setLoading(false)
     }
 }
 
 @Composable
-fun FulfillerClassCard(title: String, description: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+fun FulfillerClassCard(
+    title: String, 
+    description: String, 
+    icon: androidx.compose.ui.graphics.vector.ImageVector, 
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 2.dp),
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp, 
+            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.3f)
+        )
     ) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+            Icon(
+                icon, 
+                contentDescription = null, 
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray, 
+                modifier = Modifier.size(32.dp)
+            )
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.Black)
+                Text(description, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
         }
     }

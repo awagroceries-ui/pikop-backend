@@ -20,10 +20,12 @@ const upload = multer({ storage });
 
 router.post('/kyc/start', authenticateToken, fulfillerController.startIdentityVerification);
 router.post('/kyc/document', authenticateToken, upload.single('file'), fulfillerController.uploadDocument);
+router.post('/kyc/verify-plate', authenticateToken, fulfillerController.verifyVehiclePlate);
 router.post('/kyc/webhook', fulfillerController.handleDiditWebhook); // Public for Didit
 
 // Fleet Operations
 router.get('/profile', authenticateToken, fulfillerController.getProfile);
+router.patch('/profile', authenticateToken, fulfillerController.updateFulfillerProfile);
 router.patch('/status', authenticateToken, fulfillerController.updateStatus);
 
 module.exports = router;

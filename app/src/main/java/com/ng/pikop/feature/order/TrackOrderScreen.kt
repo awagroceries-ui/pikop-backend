@@ -239,12 +239,12 @@ fun calculateDistance(start: LatLng, end: LatLng): Double {
     return r * 2 * atan2(sqrt(a), sqrt(1 - a))
 }
 
-fun formatTime(isoTimestamp: String): String {
-    if (isoTimestamp.isBlank()) return ""
+fun formatTime(isoTimestamp: String?): String {
+    if (isoTimestamp.isNullOrBlank()) return ""
     return try {
-        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        parser.timeZone = TimeZone.getTimeZone("UTC")
-        val date = parser.parse(isoTimestamp)
-        SimpleDateFormat("h:mm a", Locale.getDefault()).format(date!!)
-    } catch (e: Exception) { isoTimestamp }
+        val parser = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
+        parser.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val date = parser.parse(isoTimestamp!!)
+        java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date!!)
+    } catch (e: Exception) { "" }
 }

@@ -1,7 +1,7 @@
 package com.ng.pikop.core.di
 
-import com.ng.pikop.core.kyc.DojahKycRepository
 import com.ng.pikop.core.kyc.KycManager
+import com.ng.pikop.core.kyc.PremblyKycRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -15,6 +15,6 @@ abstract class KycModule {
     @Binds
     @Singleton
     abstract fun bindKycManager(
-        dojahKycRepository: DojahKycRepository
+        premblyKycRepository: PremblyKycRepository
     ): KycManager
 }

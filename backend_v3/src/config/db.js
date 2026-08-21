@@ -19,6 +19,11 @@ if (connectionString) {
 
 const config = parse(connectionString || '');
 
+// Host Sanitization: Prevent "base" ENOTFOUND error
+if (config.host === 'base' || !config.host) {
+    config.host = 'localhost';
+}
+
 // Ensure password is treated as a literal string to fix "SASL: password must be a string"
 // Decodes URL-encoded characters (like %40 to @)
 if (config.password) {

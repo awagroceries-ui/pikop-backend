@@ -34,13 +34,14 @@ const init = (server) => {
     // Join room for specific mission tracking
     socket.on("join_order", (orderId) => {
       socket.join(`order_${orderId}`);
-      console.log(`[Socket] Client joined order: ${orderId}`);
+      console.log(`[Socket] Client ${socket.id} joined order room: ${orderId}`);
     });
 
     // Join room for support session
     socket.on("join_support", (conversationId) => {
+      if (!conversationId) return console.error("[Socket] Join support failed: No conversationId");
       socket.join(`support_${conversationId}`);
-      console.log(`[Socket] Client joined support: ${conversationId}`);
+      console.log(`[Socket] Client ${socket.id} joined support room: support_${conversationId}`);
     });
 
     // Mission Location Stream (Fulfiller -> Room)

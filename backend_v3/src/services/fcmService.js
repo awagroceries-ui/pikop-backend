@@ -13,8 +13,13 @@ try {
         try {
             serviceAccount = JSON.parse(rawConfig);
         } catch (e) {
-            console.error('❌ FCM: FIREBASE_SERVICE_ACCOUNT is not valid JSON. Check for newlines.');
+            console.error('❌ FCM: FIREBASE_SERVICE_ACCOUNT is not valid JSON. Content preview:', rawConfig.substring(0, 30));
             throw e;
+        }
+
+        if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
+            console.error('❌ FCM: FIREBASE_SERVICE_ACCOUNT is missing critical fields (project_id, private_key, or client_email)');
+            throw new Error('Incomplete Firebase JSON');
         }
 
         if (!admin.apps.length) {

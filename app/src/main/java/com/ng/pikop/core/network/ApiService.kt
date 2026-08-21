@@ -562,10 +562,9 @@ interface ApiService {
             }
 
             val authInterceptor = Interceptor { chain ->
-                val token = runBlocking {
-                    tokenManager.accessToken.first()
-                }
-                android.util.Log.d("PikopApi", "Request: ${chain.request().url} | HasToken: ${!token.isNullOrBlank()}")
+                val token = tokenManager.getAccessTokenSync()
+                android.util.Log.d("PikopApi", "Interceptor URL: ${chain.request().url} | Has Token: ${!token.isNullOrBlank()}")
+                
                 val request = chain.request().newBuilder().apply {
                     if (!token.isNullOrBlank()) {
                         addHeader("Authorization", "Bearer $token")
@@ -575,60 +574,49 @@ interface ApiService {
             }
 
             val authenticator = okhttp3.Authenticator { _, response ->
-                android.util.Log.d("PikopApi", "Authenticator triggered: ${response.code} for ${response.request.url}")
+                android.util.Log.d("PikopApi", "Authenticator -> Code: ${response.code} for: ${response.request.url}")
                 
-                // Only attempt refresh for 401 Unauthorized
                 if (response.code == 401) {
                     synchronized(this) {
-                        val newToken = runBlocking {
+                        val refreshToken = tokenManager.getRefreshTokenSync()
+                        if (refreshToken.isNullOrBlank()) return@synchronized null
+
+                        val api = Retrofit.Builder()
+                            .baseUrl(BASE_URL)
+                            .addConverterFactory(GsonConverterFactory.create())
+                            .build()
+                            .create(ApiService::class.java)
+
+                        val res = runBlocking {
                             try {
-                                val refreshToken = tokenManager.refreshToken.first()
-                                if (refreshToken.isNullOrBlank()) {
-                                    android.util.Log.e("PikopApi", "Refresh failed: No refresh token")
-                                    return@runBlocking null
-                                }
-
-                                android.util.Log.d("PikopApi", "Refreshing session...")
-                                val refreshApi = Retrofit.Builder()
-                                    .baseUrl(BASE_URL)
-                                    .addConverterFactory(GsonConverterFactory.create())
-                                    .build()
-                                    .create(ApiService::class.java)
-
-                                val res = refreshApi.refresh(mapOf("refreshToken" to refreshToken))
-                                if (res.accessToken != null) {
-                                    android.util.Log.d("PikopApi", "Token refresh SUCCESS")
-                                    tokenManager.saveTokens(
-                                        accessToken = res.accessToken,
-                                        refreshToken = res.refreshToken ?: refreshToken,
-                                        userId = tokenManager.userId.first(),
-                                        email = tokenManager.userEmail.first() ?: "",
-                                        role = tokenManager.userRole.first() ?: "CUSTOMER",
-                                        name = tokenManager.userName.first(),
-                                        phone = tokenManager.userPhone.first(),
-                                        isVerified = tokenManager.isVerified.first(),
-                                        referralCode = tokenManager.referralCode.first()
-                                    )
-                                    res.accessToken
-                                } else {
-                                    android.util.Log.e("PikopApi", "Refresh failed: Empty response")
-                                    null
-                                }
+                                api.refresh(mapOf("refreshToken" to refreshToken))
                             } catch (e: Exception) {
-                                android.util.Log.e("PikopApi", "Refresh error: ${e.message}")
+                                android.util.Log.e("PikopApi", "Refresh Call Error: ${e.message}")
                                 null
                             }
                         }
 
-                        if (newToken != null) {
-                            response.request.newBuilder()
-                                .header("Authorization", "Bearer $newToken")
+                        if (res?.accessToken != null) {
+                            android.util.Log.d("PikopApi", "Refresh SUCCESS. Retrying original request.")
+                            runBlocking {
+                                tokenManager.saveTokens(
+                                    accessToken = res.accessToken,
+                                    refreshToken = res.refreshToken ?: refreshToken,
+                                    email = tokenManager.userEmail.first() ?: "",
+                                    role = tokenManager.userRole.first() ?: "CUSTOMER",
+                                    name = tokenManager.userName.first(),
+                                    phone = tokenManager.userPhone.first(),
+                                    isVerified = tokenManager.isVerified.first(),
+                                    referralCode = tokenManager.referralCode.first()
+                                )
+                            }
+                            return@Authenticator response.request.newBuilder()
+                                .header("Authorization", "Bearer ${res.accessToken}")
                                 .build()
-                        } else {
-                            null
                         }
                     }
-                } else null
+                }
+                null
             }
 
             val client = OkHttpClient.Builder()

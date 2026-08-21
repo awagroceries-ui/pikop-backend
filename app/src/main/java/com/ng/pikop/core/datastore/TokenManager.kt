@@ -6,10 +6,14 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore by preferencesDataStore(name = "pikop_preferences")
 
 class TokenManager(private val context: Context) {
+
+    private val sharedPrefs = context.getSharedPreferences("pikop_sync_prefs", Context.MODE_PRIVATE)
 
     companion object {
         private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
@@ -23,50 +27,21 @@ class TokenManager(private val context: Context) {
         private val REFERRAL_CODE_KEY = stringPreferencesKey("referral_code")
     }
 
-    val accessToken: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[ACCESS_TOKEN_KEY]
-        }
+    val accessToken: Flow<String?> = context.dataStore.data.map { it[ACCESS_TOKEN_KEY] }
+    val refreshToken: Flow<String?> = context.dataStore.data.map { it[REFRESH_TOKEN_KEY] }
+    val userId: Flow<String?> = context.dataStore.data.map { it[USER_ID_KEY] }
+    val userEmail: Flow<String?> = context.dataStore.data.map { it[USER_EMAIL_KEY] }
+    val userName: Flow<String?> = context.dataStore.data.map { it[USER_NAME_KEY] }
+    val userPhone: Flow<String?> = context.dataStore.data.map { it[USER_PHONE_KEY] }
+    val userRole: Flow<String?> = context.dataStore.data.map { it[USER_ROLE_KEY] }
+    val isVerified: Flow<Boolean> = context.dataStore.data.map { it[IS_VERIFIED_KEY] ?: false }
+    val referralCode: Flow<String?> = context.dataStore.data.map { it[REFERRAL_CODE_KEY] }
 
-    val refreshToken: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[REFRESH_TOKEN_KEY]
-        }
-
-    val userId: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[USER_ID_KEY]
-        }
-
-    val userEmail: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[USER_EMAIL_KEY]
-        }
-
-    val userName: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[USER_NAME_KEY]
-        }
-
-    val userPhone: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[USER_PHONE_KEY]
-        }
-
-    val userRole: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[USER_ROLE_KEY]
-        }
-
-    val isVerified: Flow<Boolean> = context.dataStore.data
-        .map { preferences ->
-            preferences[IS_VERIFIED_KEY] ?: false
-        }
-
-    val referralCode: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[REFERRAL_CODE_KEY]
-        }
+    /**
+     * Synchronous access for Network Interceptors to avoid DataStore async race conditions.
+     */
+    fun getAccessTokenSync(): String? = sharedPrefs.getString("access_token", null)
+    fun getRefreshTokenSync(): String? = sharedPrefs.getString("refresh_token", null)
 
     suspend fun saveTokens(
         accessToken: String, 
@@ -79,6 +54,13 @@ class TokenManager(private val context: Context) {
         isVerified: Boolean = false,
         referralCode: String? = null
     ) {
+        // Parallel Sync save to SharedPrefs
+        sharedPrefs.edit().apply {
+            putString("access_token", accessToken)
+            putString("refresh_token", refreshToken)
+            apply()
+        }
+
         context.dataStore.edit { preferences ->
             preferences[ACCESS_TOKEN_KEY] = accessToken
             preferences[REFRESH_TOKEN_KEY] = refreshToken
@@ -93,8 +75,7 @@ class TokenManager(private val context: Context) {
     }
 
     suspend fun clearTokens() {
-        context.dataStore.edit { preferences ->
-            preferences.clear()
-        }
+        sharedPrefs.edit().clear().apply()
+        context.dataStore.edit { it.clear() }
     }
 }

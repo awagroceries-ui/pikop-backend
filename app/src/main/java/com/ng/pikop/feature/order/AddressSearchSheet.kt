@@ -212,7 +212,12 @@ fun AddressSearchSheet(
                                 isSearching = false
                             }
                         },
-                        colors = ListItemDefaults.colors(containerColor = Color.White)
+                        colors = ListItemDefaults.colors(containerColor = Color.White),
+                        trailingContent = {
+                            IconButton(onClick = { query = p.main_text }) {
+                                Icon(Icons.Default.NorthWest, null, tint = Color.LightGray)
+                            }
+                        }
                     )
                     HorizontalDivider(thickness = 0.5.dp)
                 }

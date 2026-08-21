@@ -6,6 +6,8 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -71,10 +74,11 @@ fun KycUploadScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isLaunching by viewModel.isLaunching.collectAsStateWithLifecycle()
 
-    var currentStep by rememberSaveable { mutableIntStateOf(0) } // Start at 0 for Class Selection
+    var currentStep by rememberSaveable { mutableIntStateOf(0) }
     var refreshKey by rememberSaveable { mutableIntStateOf(0) }
+    var selectedClass by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Photo State - Survives recreation
+    // Photo State
     var profilePhotoUriString by rememberSaveable { mutableStateOf<String?>(null) }
     val profilePhotoUri = remember(profilePhotoUriString) { 
         profilePhotoUriString?.let { Uri.parse(it) } 
@@ -95,13 +99,9 @@ fun KycUploadScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Dojah Result Launcher
     val dojahLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        // After Dojah finishes, refresh the profile to get updated status
-        viewModel.refreshProfile()
-    }
+    ) { viewModel.refreshProfile() }
 
     val cameraLauncher = rememberLauncherForActivityResult(TakeSelfieContract()) { success ->
         if (success) {
@@ -112,9 +112,7 @@ fun KycUploadScreen(
                     }
                 }
                 profilePhotoUriString = Uri.fromFile(internalPhotoFile).toString()
-                android.util.Log.d("PikopCamera", "Photo verified and saved internally")
             } catch (e: Exception) {
-                android.util.Log.e("PikopCamera", "Copy failed", e)
                 Toast.makeText(context, "Error saving photo", Toast.LENGTH_SHORT).show()
             }
         }
@@ -124,50 +122,32 @@ fun KycUploadScreen(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions[Manifest.permission.CAMERA] == true) {
-            if (currentStep == 1) {
-                cameraLauncher.launch(captureUri)
-            } else if (currentStep == 2) {
-                // Permissions granted for Step 2, re-trigger the launch logic 
-                // but handled by the IdentityStep click or auto-launch
-                refreshKey++
-            }
+            if (currentStep == 1) cameraLauncher.launch(captureUri)
+            else if (currentStep == 2) refreshKey++
         }
     }
 
-    LaunchedEffect(refreshKey) {
-        viewModel.refreshProfile()
-    }
+    LaunchedEffect(refreshKey) { viewModel.refreshProfile() }
 
     LaunchedEffect(profile) {
         val res = profile ?: return@LaunchedEffect
-        // Auto-advance logic: Sync step with backend state
         if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
             currentStep = 5
         } else if (res.profile_photo_url == null) {
             currentStep = if (res.primary_class == null) 0 else 1
         } else if (res.kyc_verification_status != "approved") {
             currentStep = 2
-        } else if (res.primary_class != "agent" && (res.registration_number == null)) {
+        } else if (res.primary_class?.lowercase() == "driver" && res.registration_number == null) {
             currentStep = 3
         } else {
             currentStep = 5
         }
     }
 
-    // Auto-poll status when in identity step and pending
-    LaunchedEffect(currentStep, profile?.kyc_verification_status) {
-        if (currentStep == 2 && profile?.kyc_verification_status != "approved") {
-            while(true) {
-                kotlinx.coroutines.delay(10000)
-                viewModel.refreshProfile()
-            }
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Fulfiller Onboarding") },
+                title = { Text("Account Activation") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
                 }
@@ -183,7 +163,8 @@ fun KycUploadScreen(
 
             when (currentStep) {
                 0 -> FulfillerTypeSelectionScreen(
-                    onClassSelected = { refreshKey++ }
+                    selectedClass = selectedClass,
+                    onClassSelected = { cls -> selectedClass = cls }
                 )
                 1 -> ProfilePhotoStep(profilePhotoUri) { 
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
@@ -202,19 +183,11 @@ fun KycUploadScreen(
                         viewModel.initiateVerification(context, dojahLauncher, email)
                     },
                     onPermissionRequest = { 
-                        permissionLauncher.launch(arrayOf(
-                            Manifest.permission.CAMERA, 
-                            Manifest.permission.RECORD_AUDIO
-                        )) 
+                        permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) 
                     },
                     onRefresh = { viewModel.refreshProfile() }
                 )
-                3 -> LicenseStep(
-                    role = profile?.primary_class ?: "rider",
-                    tokenManager = remember { TokenManager(context) },
-                    onComplete = { currentStep = 4 }
-                )
-                4 -> VehicleStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 5 })
+                3 -> VehicleStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 5 })
                 5 -> SubmissionStep(
                     isLoading = isLoading,
                     status = profile?.kyc_status ?: "NOT_SUBMITTED",
@@ -233,22 +206,29 @@ fun KycUploadScreen(
                     onClick = {
                         scope.launch {
                             val tokenManager = TokenManager(context)
-                            val apiService = ApiService.create(tokenManager)
-                            // ... rest of the logic
+                            val api = ApiService.create(tokenManager)
                             try {
                                 when (currentStep) {
+                                    0 -> {
+                                        if (selectedClass != null) {
+                                            api.updateFulfillerProfile(ProfileUpdateRequest(primary_class = selectedClass))
+                                            viewModel.refreshProfile()
+                                        }
+                                    }
                                     1 -> {
                                         if (internalPhotoFile.exists()) {
                                             val compressed = ImageUtils.compressFile(context, internalPhotoFile)
                                             val body = MultipartBody.Part.createFormData("photo", "profile.jpg", compressed.asRequestBody("image/*".toMediaTypeOrNull()))
-                                            apiService.uploadProfilePhoto(body)
+                                            api.uploadProfilePhoto(body)
                                             viewModel.refreshProfile()
                                         }
                                     }
                                     2 -> {
                                         if (profile?.kyc_verification_status == "approved") {
-                                            if (profile?.primary_class == "agent") currentStep = 5
+                                            if (profile?.primary_class?.lowercase() == "agent") currentStep = 5
                                             else currentStep = 3
+                                        } else {
+                                            viewModel.refreshProfile()
                                         }
                                     }
                                 }
@@ -257,121 +237,26 @@ fun KycUploadScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading && (currentStep != 1 || profilePhotoUri != null)
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    enabled = !isLoading && (
+                        (currentStep == 0 && selectedClass != null) ||
+                        (currentStep == 1 && profilePhotoUri != null) ||
+                        (currentStep == 2)
+                    )
                 ) {
                     if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    else if (currentStep == 2) Text("Refresh Status")
-                    else Text("Continue")
+                    else if (currentStep == 2) Text("Verify & Refresh")
+                    else Text("CONTINUE", fontWeight = FontWeight.Bold)
                 }
             }
         }
     }
-}
-
-@Composable
-fun VehicleStep(tokenManager: TokenManager, onComplete: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val api = remember { ApiService.create(tokenManager) }
-    var regNum by remember { mutableStateOf("") }
-    var make by remember { mutableStateOf("") }
-    var model by remember { mutableStateOf("") }
-    var color by remember { mutableStateOf("") }
-    var isSaving by remember { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Vehicle Details", style = MaterialTheme.typography.titleLarge)
-        OutlinedTextField(value = regNum, onValueChange = { regNum = it }, label = { Text("Registration Number") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = make, onValueChange = { make = it }, label = { Text("Vehicle Make (e.g. Honda)") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("Vehicle Model") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = color, onValueChange = { color = it }, label = { Text("Color") }, modifier = Modifier.fillMaxWidth())
-        
-        Button(
-            onClick = {
-                scope.launch {
-                    isSaving = true
-                    try {
-                        api.updateFulfillerProfile(ProfileUpdateRequest(
-                            vehicle_details = VehicleDetails(regNum, make, model, color)
-                        ))
-                        onComplete()
-                    } catch (_: Exception) {}
-                    isSaving = false
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isSaving && regNum.isNotBlank() && make.isNotBlank()
-        ) {
-            if (isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp))
-            else Text("Save Vehicle Info")
-        }
-    }
-}
-
-@Composable
-fun LicenseStep(role: String, tokenManager: TokenManager, onComplete: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val api = remember { ApiService.create(tokenManager) }
-    var selectedUri by remember { mutableStateOf<Uri?>(null) }
-    var isUploading by remember { mutableStateOf(false) }
-    
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        selectedUri = uri
-    }
-
-    val docType = if (role == "rider") "RIDERS_LICENSE" else "DRIVERS_LICENSE"
-
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Legal Authorization", style = MaterialTheme.typography.titleLarge)
-        Text("Please upload a clear photo of your valid ${docType.replace("_", " ")}.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-        
-        Card(
-            onClick = { launcher.launch("image/*") },
-            modifier = Modifier.fillMaxWidth().height(200.dp),
-            colors = CardDefaults.cardColors(containerColor = if (selectedUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                if (selectedUri != null) Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
-                else Icon(Icons.Default.UploadFile, null, modifier = Modifier.size(64.dp), tint = Color.Gray)
-            }
-        }
-
-        Button(
-            onClick = {
-                scope.launch {
-                    isUploading = true
-                    try {
-                        val file = getFileFromUri(context, selectedUri!!)
-                        val compressed = ImageUtils.compressFile(context, file)
-                        val body = MultipartBody.Part.createFormData("document", "license.jpg", compressed.asRequestBody("image/*".toMediaTypeOrNull()))
-                        val typePart = docType.toRequestBody("text/plain".toMediaTypeOrNull())
-                        api.uploadKYC(typePart, body)
-                        onComplete()
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Upload failed", Toast.LENGTH_SHORT).show()
-                    } finally { isUploading = false }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isUploading && selectedUri != null
-        ) {
-            if (isUploading) CircularProgressIndicator(modifier = Modifier.size(24.dp))
-            else Text("Upload License")
-        }
-    }
-}
-
-private fun getFileFromUri(context: android.content.Context, uri: Uri): File {
-    val tempFile = File(context.cacheDir, "kyc_temp_${System.currentTimeMillis()}.jpg")
-    context.contentResolver.openInputStream(uri)?.use { input -> FileOutputStream(tempFile).use { output -> input.copyTo(output) } }
-    return tempFile
 }
 
 @Composable
 fun StepIndicator(current: Int) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        (0..5).forEach { i ->
+        (0..4).forEach { i ->
             Box(modifier = Modifier.size(10.dp).padding(2.dp)) {
                 Surface(
                     shape = androidx.compose.foundation.shape.CircleShape,
@@ -385,31 +270,20 @@ fun StepIndicator(current: Int) {
 
 @Composable
 fun ProfilePhotoStep(uri: Uri?, onCapture: () -> Unit) {
-    Text("Face Capture", style = MaterialTheme.typography.titleLarge)
+    Text("Face Capture", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
     Text("Live capture required for security.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-    Spacer(modifier = Modifier.height(24.dp))
-    Card(onClick = onCapture, modifier = Modifier.size(200.dp), shape = androidx.compose.foundation.shape.CircleShape) {
+    Spacer(modifier = Modifier.height(32.dp))
+    Card(onClick = onCapture, modifier = Modifier.size(220.dp), shape = androidx.compose.foundation.shape.CircleShape, elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            if (uri != null) Icon(Icons.Default.Check, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
-            else Icon(Icons.Default.CameraAlt, null, modifier = Modifier.size(64.dp), tint = Color.Gray)
+            if (uri != null) Icon(Icons.Default.Check, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+            else Icon(Icons.Default.CameraAlt, null, modifier = Modifier.size(80.dp), tint = Color.Gray)
         }
     }
 }
 
 @Composable
-fun IdentityStep(
-    status: String, 
-    role: String,
-    isLaunching: Boolean,
-    onVerifyClick: () -> Unit,
-    onPermissionRequest: () -> Unit, 
-    onRefresh: () -> Unit
-) {
-    val scope = rememberCoroutineScope()
+fun IdentityStep(status: String, role: String, isLaunching: Boolean, onVerifyClick: () -> Unit, onPermissionRequest: () -> Unit, onRefresh: () -> Unit) {
     val context = LocalContext.current
-    
-    var mobilityType by rememberSaveable { mutableStateOf("on_foot") }
-
     val statusColor = when (status.lowercase()) {
         "approved" -> Color(0xFF4CAF50)
         "declined" -> MaterialTheme.colorScheme.error
@@ -417,140 +291,69 @@ fun IdentityStep(
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    val statusText = when (status.lowercase()) {
-        "approved" -> "Identity Verified"
-        "declined" -> "Verification Declined"
-        "pending", "needs_review" -> "Pending Approval"
-        else -> "Verify Identity"
-    }
-
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Identity Verification", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Card(modifier = Modifier.fillMaxWidth(), onClick = {
             if (isLaunching || status == "approved") return@Card
-            
             val hasCamera = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
             val hasAudio = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-            
-            if (!hasCamera || !hasAudio) {
-                onPermissionRequest()
-                return@Card
-            }
-            
-            onVerifyClick()
+            if (!hasCamera || !hasAudio) onPermissionRequest() else onVerifyClick()
         }) {
-            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (isLaunching) CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                else Icon(
-                    imageVector = if (status == "approved") Icons.Default.CheckCircle else Icons.Default.Fingerprint,
-                    contentDescription = null,
-                    tint = if (status == "approved") Color(0xFF4CAF50) else Color.Unspecified
-                )
+                else Icon(imageVector = if (status == "approved") Icons.Default.CheckCircle else Icons.Default.Fingerprint, contentDescription = null, tint = if (status == "approved") Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(statusText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(if (status == "approved") "Identity Verified" else "Start Verification", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(status.uppercase(), style = MaterialTheme.typography.labelSmall, color = statusColor)
                 }
                 IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, null) }
-            }
-        }
-
-        if (status.lowercase() == "approved" && role.lowercase() == "agent") {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Select Your Mobility", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    val options = listOf("on_foot" to "Walking", "public_transit" to "Public Transit", "bicycle" to "Bicycle")
-                    options.forEach { (key, label) ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = mobilityType == key, onClick = { 
-                                mobilityType = key
-                                scope.launch {
-                                    try {
-                                        val tokenManager = TokenManager(context)
-                                        val api = ApiService.create(tokenManager)
-                                        api.updateFulfillerProfile(ProfileUpdateRequest(mobility_type = key))
-                                    } catch (e: Exception) {}
-                                }
-                            })
-                            Text(label, modifier = Modifier.padding(start = 8.dp))
-                        }
-                    }
-                }
-            }
-        }
-
-        if (status.lowercase() == "pending" || status.lowercase() == "needs_review") {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, null, tint = Color(0xFFE65100))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        "Our security partner is reviewing your documents. This usually takes 2-5 minutes. Tap refresh above to check.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFE65100)
-                    )
-                }
             }
         }
     }
 }
 
 @Composable
-fun SubmissionStep(
-    isLoading: Boolean,
-    status: String,
-    onComplete: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Icon(
-            Icons.Default.LibraryAddCheck, 
-            null, 
-            modifier = Modifier.size(64.dp), 
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Text("Final Review", style = MaterialTheme.typography.titleLarge)
-        Text(
-            "Your identity has been verified. Tap the button below to submit your application for final manual review by our operations team.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
+fun VehicleStep(tokenManager: TokenManager, onComplete: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val api = remember { ApiService.create(tokenManager) }
+    var regNum by remember { mutableStateOf("") }
+    var make by remember { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
 
-        if (status == "PENDING_REVIEW") {
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))) {
-                Text(
-                    "Application Submitted! We will notify you once you're activated.",
-                    modifier = Modifier.padding(16.dp),
-                    color = Color(0xFF2E7D32)
-                )
-            }
-        } else {
-            Button(
-                onClick = onComplete,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
-            ) {
-                if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                else Text("Complete Onboarding")
-            }
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Vehicle Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        OutlinedTextField(value = regNum, onValueChange = { regNum = it }, label = { Text("Registration Number") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = make, onValueChange = { make = it }, label = { Text("Vehicle Make (e.g. Honda)") }, modifier = Modifier.fillMaxWidth())
+        Button(
+            onClick = {
+                scope.launch {
+                    isSaving = true
+                    try {
+                        api.updateFulfillerProfile(ProfileUpdateRequest(vehicle_details = VehicleDetails(regNum, make, null, null)))
+                        onComplete()
+                    } catch (_: Exception) {}
+                    isSaving = false
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            enabled = !isSaving && regNum.isNotBlank() && make.isNotBlank()
+        ) {
+            if (isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Save & Finalize")
         }
     }
 }
 
-private fun Context.findActivity(): Activity? {
-    var context = this
-    while (context is ContextWrapper) {
-        if (context is Activity) return context
-        context = context.baseContext
+@Composable
+fun SubmissionStep(isLoading: Boolean, status: String, onComplete: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Icon(Icons.Default.LibraryAddCheck, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+        Text("Final Review", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Your profile is complete. Tap below to submit for activation.", textAlign = TextAlign.Center, color = Color.Gray)
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(onClick = onComplete, modifier = Modifier.fillMaxWidth().height(56.dp), enabled = !isLoading && status != "PENDING_REVIEW") {
+            if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+            else Text(if (status == "PENDING_REVIEW") "Application Pending" else "SUBMIT APPLICATION", fontWeight = FontWeight.Bold)
+        }
     }
-    return null
 }

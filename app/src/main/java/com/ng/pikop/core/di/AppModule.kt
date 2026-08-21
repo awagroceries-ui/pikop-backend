@@ -34,4 +34,8 @@ object AppModule {
     @Provides
     @Named("dojahPublicKey")
     fun provideDojahPublicKey(): String = "test_pk_QJ6fDpLqE8itI3pbxTzLcheYa"
+
+    @Provides
+    @Named("premblyPublicKey")
+    fun providePremblyPublicKey(): String = "YOUR_PREMBLY_PUBLIC_KEY"
 }

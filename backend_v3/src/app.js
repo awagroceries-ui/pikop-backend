@@ -35,8 +35,13 @@ try {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
 
   if (serviceAccount.project_id && serviceAccount.private_key) {
-    // FIX: PEM formatting often gets mangled in .env files (\\n vs \n)
+    // FIX 1: PEM formatting (\\n vs \n)
     serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+
+    // FIX 2: URL-encoding repair (Some VPS mangles '+' into ' ')
+    if (serviceAccount.private_key.includes(' ')) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/ /g, '+');
+    }
 
     firebaseAdmin.initializeApp({
       credential: firebaseAdmin.credential.cert(serviceAccount)
@@ -109,6 +114,7 @@ app.use('/api/v1/merchants', require('./routes/merchantRoutes'));
 app.use('/api/v1/growth', require('./routes/growthRoutes'));
 app.use('/api/v1/places', require('./routes/placesRoutes'));
 app.use('/api/v1/addresses', require('./routes/addressRoutes'));
+app.use('/api/v1/webhooks', require('./routes/webhookRoutes')); // Added for Prembly
 app.use('/legal', require('./routes/legalRoutes'));
 
 // 6. Health & Base Routes
