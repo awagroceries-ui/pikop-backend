@@ -48,6 +48,8 @@ fun ChatScreen(
 
     // Fetch History
     LaunchedEffect(conversationId, orderId) {
+        if (conversationId == null && orderId == null) return@LaunchedEffect
+        
         isLoading = true
         try {
             val history = if (isSupport) {

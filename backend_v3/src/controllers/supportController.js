@@ -59,6 +59,10 @@ const getOrCreateConversation = async (req, res) => {
 const getMessages = async (req, res) => {
   const { conversationId } = req.params;
 
+  if (!conversationId || conversationId === 'null') {
+      return res.status(400).json({ success: false, message: 'Invalid conversation ID' });
+  }
+
   try {
     const { rows } = await db.query(
       "SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 100",

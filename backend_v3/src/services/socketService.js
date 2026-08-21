@@ -65,7 +65,12 @@ const init = (server) => {
 
     // Message handler (Master Brief Milestone 8)
     socket.on("send_message", async (data) => {
-      const { conversation_id, order_id, sender_id, sender_type, content } = data;
+      let { conversation_id, order_id, sender_id, sender_type, content } = data;
+
+      // SANITIZE: Handle "null" strings from clients
+      if (conversation_id === "null") conversation_id = null;
+      if (order_id === "null") order_id = null;
+
       const room = conversation_id ? `support_${conversation_id}` : `order_${order_id}`;
 
       try {

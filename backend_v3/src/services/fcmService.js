@@ -4,21 +4,30 @@ const db = require('../config/db');
 try {
     let rawConfig = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (rawConfig) {
-        // Handle potential wrapping quotes if added by shell
-        if (rawConfig.startsWith("'") && rawConfig.endsWith("'")) {
-            rawConfig = rawConfig.slice(1, -1);
-        }
+        // Handle potential wrapping quotes or extra spaces from shell/env
+        rawConfig = rawConfig.trim();
+        if (rawConfig.startsWith("'") && rawConfig.endsWith("'")) rawConfig = rawConfig.slice(1, -1);
+        if (rawConfig.startsWith("\"") && rawConfig.endsWith("\"")) rawConfig = rawConfig.slice(1, -1);
 
         let serviceAccount;
         try {
             serviceAccount = JSON.parse(rawConfig);
         } catch (e) {
-            console.error('❌ FCM: FIREBASE_SERVICE_ACCOUNT is not valid JSON. Content preview:', rawConfig.substring(0, 30));
+            console.error('❌ FCM: FIREBASE_SERVICE_ACCOUNT is not valid JSON. Error:', e.message);
             throw e;
         }
 
+        if (serviceAccount.private_key) {
+            // FIX 1: PEM formatting (\\n vs \n)
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+            // FIX 2: Repair mangled '+' (Some VPS environments)
+            if (serviceAccount.private_key.includes(' ') && !serviceAccount.private_key.includes('+')) {
+                serviceAccount.private_key = serviceAccount.private_key.replace(/ /g, '+');
+            }
+        }
+
         if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-            console.error('❌ FCM: FIREBASE_SERVICE_ACCOUNT is missing critical fields (project_id, private_key, or client_email)');
+            console.error('❌ FCM: FIREBASE_SERVICE_ACCOUNT is missing critical fields');
             throw new Error('Incomplete Firebase JSON');
         }
 

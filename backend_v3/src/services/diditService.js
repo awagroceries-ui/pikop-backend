@@ -1,5 +1,5 @@
 const axios = require('axios');
-const crypto = require('node:crypto');
+const crypto = require('crypto');
 
 const DIDIT_API_KEY = process.env.DIDIT_API_KEY;
 const DIDIT_WEBHOOK_SECRET = process.env.DIDIT_WEBHOOK_SECRET;
