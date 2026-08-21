@@ -24,6 +24,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.os.Build
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.compose.*
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.messaging.FirebaseMessaging
@@ -306,7 +308,8 @@ fun PikopAppNavigation() {
                 onNavigateToPayment = { url, qId, pLat, pLng, dLat, dLng, itemUrl, pSum, dSum, rName, rPhone, notes, promoId ->
                     val encUrl = java.net.URLEncoder.encode(url, "UTF-8")
                     val encItemUrl = java.net.URLEncoder.encode(itemUrl, "UTF-8")
-                    navController.navigate("payment_webview/$encUrl/$qId/$pLat/$pLng/$dLat/$dLng/$encItemUrl/$pSum/$dSum/$rName/$rPhone/${notes ?: "null"}/${promoId ?: "null"}")
+                    // Move URL and ItemUrl to Query params to avoid path segment mangling
+                    navController.navigate("payment_webview/$qId/$pLat/$pLng/$dLat/$dLng/$pSum/$dSum/$rName/$rPhone/${notes ?: "null"}/${promoId ?: "null"}?url=$encUrl&itemUrl=$encItemUrl")
                 }
             )
         }
@@ -374,7 +377,13 @@ fun PikopAppNavigation() {
             )
         }
 
-        composable("payment_webview/{url}/{quoteId}/{pLat}/{pLng}/{dLat}/{dLng}/{itemUrl}/{pSum}/{dSummary}/{recipientName}/{recipientPhone}/{notes}/{promoId}") { backStackEntry ->
+        composable(
+            route = "payment_webview/{quoteId}/{pLat}/{pLng}/{dLat}/{dLng}/{pSum}/{dSummary}/{recipientName}/{recipientPhone}/{notes}/{promoId}?url={url}&itemUrl={itemUrl}",
+            arguments = listOf(
+                navArgument("url") { type = androidx.navigation.NavType.StringType },
+                navArgument("itemUrl") { type = androidx.navigation.NavType.StringType }
+            )
+        ) { backStackEntry ->
             val url = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("url") ?: "", "UTF-8")
             val qId = backStackEntry.arguments?.getString("quoteId") ?: ""
             val pLat = backStackEntry.arguments?.getString("pLat")?.toDouble() ?: 0.0

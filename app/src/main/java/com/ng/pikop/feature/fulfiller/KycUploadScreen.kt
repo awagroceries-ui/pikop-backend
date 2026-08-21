@@ -211,6 +211,7 @@ fun KycUploadScreen(
                                 when (currentStep) {
                                     0 -> {
                                         if (selectedClass != null) {
+                                            currentStep = 1 // Optimistic Advance
                                             api.updateFulfillerProfile(ProfileUpdateRequest(primary_class = selectedClass))
                                             viewModel.refreshProfile()
                                         }

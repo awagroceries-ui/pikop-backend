@@ -61,16 +61,15 @@ const getMessages = async (req, res) => {
 
   if (!conversationId || conversationId === 'null' || conversationId === 'undefined') {
       console.warn('[Support] getMessages called with invalid ID:', conversationId);
-      return res.status(200).json([]); // Return empty list instead of 400 to prevent app alerts
+      return res.status(200).json([]);
   }
 
   try {
     const { rows } = await db.query(
-      "SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 100",
+      "SELECT id, sender_id, sender_type, content, content as text, content as body, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 100",
       [conversationId]
     );
 
-    // FLATTEN: Return rows directly as the Android app expects a List<ChatMessage>
     res.status(200).json(rows);
   } catch (error) {
     throw error;

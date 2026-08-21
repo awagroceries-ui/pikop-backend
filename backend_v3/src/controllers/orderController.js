@@ -263,10 +263,9 @@ const getOrderMessages = async (req, res) => {
   const { orderId } = req.params;
   try {
     const { rows } = await db.query(
-      "SELECT * FROM messages WHERE order_id = $1 ORDER BY created_at ASC LIMIT 100",
+      "SELECT id, sender_id, sender_type, content, content as text, content as body, created_at FROM messages WHERE order_id = $1 ORDER BY created_at ASC LIMIT 100",
       [orderId]
     );
-    // FLATTEN: Return rows directly
     res.status(200).json(rows);
   } catch (error) {
     throw error;

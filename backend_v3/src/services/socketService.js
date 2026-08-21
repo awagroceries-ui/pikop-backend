@@ -6,134 +6,132 @@ let io;
 
 /**
  * Initializes Socket.io for v3.
- * Uses a room-based pattern for Tracking and Support.
+ * Pattern: Server-Authoritative Mission Control.
  */
 const init = (server) => {
   io = new Server(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"]
-    },
+    cors: { origin: "*", methods: ["GET", "POST"] },
     transports: ['websocket', 'polling'],
     allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000
   });
 
-  io.on("connection", (socket) => {
-    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
-    console.log(`[Socket] Connection attempt: ${socket.id} from ${clientIp} using ${socket.conn.transport.name}`);
-
-    // Milestone 2/4: Join self-room for targeted dispatch
+  io.on("connection", async (socket) => {
     const userId = socket.handshake.query.userId;
-    if (userId) {
-        socket.join(`user_${userId}`);
-        console.log(`[Socket] User ${userId} joined their private channel.`);
+    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+
+    if (!userId || userId === 'null' || userId === 'undefined') {
+        console.warn(`[Socket] Connection without valid userId from ${clientIp}. Limited functionality.`);
+        return;
     }
 
-    // Join room for specific mission tracking
-    socket.on("join_order", (orderId) => {
-      socket.join(`order_${orderId}`);
-      console.log(`[Socket] Client ${socket.id} joined order room: ${orderId}`);
-    });
+    console.log(`[Socket] User ${userId} connected from ${clientIp}. Performing Auto-Join...`);
 
-    // Join room for support session
-    socket.on("join_support", (conversationId) => {
-      if (!conversationId || conversationId === 'null' || conversationId === 'undefined') {
-          return console.warn("[Socket] Join support skipped: Invalid ID", conversationId);
-      }
-      socket.join(`support_${conversationId}`);
-      console.log(`[Socket] Client ${socket.id} joined support room: support_${conversationId}`);
-    });
+    try {
+        // 1. Join Personal Room
+        socket.join(`user_${userId}`);
 
-    // Mission Location Stream (Fulfiller -> Room)
+        // 2. Auto-Join Active Missions (as customer or fulfiller)
+        const missionRes = await db.query(
+            "SELECT id FROM orders WHERE (user_id = $1 OR fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1)) AND status NOT IN ('DELIVERED', 'CANCELLED')",
+            [userId]
+        );
+        missionRes.rows.forEach(order => {
+            socket.join(`order_${order.id}`);
+            console.log(`[Socket] Auto-joined Order Room: ${order.id}`);
+        });
+
+        // 3. Auto-Join Open Support Conversations
+        const supportRes = await db.query(
+            "SELECT id FROM conversations WHERE participant_id = $1 AND status = 'OPEN'",
+            [userId]
+        );
+        supportRes.rows.forEach(conv => {
+            socket.join(`support_${conv.id}`);
+            console.log(`[Socket] Auto-joined Support Room: ${conv.id}`);
+        });
+
+        console.log(`[Socket] Setup complete for User ${userId}.`);
+    } catch (e) {
+        console.error(`[Socket] Auto-join failed for ${userId}:`, e.message);
+    }
+
+    // Manual Joins (Legacy support for App v3.0)
+    socket.on("join_order", (id) => { if(id && id !== 'null') socket.join(`order_${id}`); });
+    socket.on("join_support", (id) => { if(id && id !== 'null') socket.join(`support_${id}`); });
+
+    // Location Stream (Fulfiller -> Room)
     socket.on("update_mission_location", async (data) => {
         const { orderId, lat, lng } = data;
         if (!orderId || orderId === 'null') return;
 
-        // 1. Broadcast to participants
         io.to(`order_${orderId}`).emit("location_updated", { lat, lng });
 
-        // 2. Persist to DB for dispatch visibility (Milestone 6)
-        // Note: Using throttled/efficient update to fulfillers table
+        // Throttle updates to DB (Milestone 6)
         try {
             await db.query(
                 "UPDATE fulfillers SET current_location = ST_SetSRID(ST_MakePoint($1, $2), 4326), last_ping_at = CURRENT_TIMESTAMP WHERE id = (SELECT fulfiller_id FROM orders WHERE id = $3)",
                 [lng, lat, orderId]
             );
-        } catch (e) {
-            // Silently fail persistence in socket stream to maintain latency
-        }
+        } catch (e) {}
     });
 
-    // Message handler (Master Brief Milestone 8)
+    // Unified Messaging Handler
     socket.on("send_message", async (data) => {
       let { conversation_id, order_id, sender_id, sender_type, content } = data;
 
-      // SANITIZE: Handle "null" strings from clients
       if (conversation_id === "null") conversation_id = null;
       if (order_id === "null") order_id = null;
 
       const room = conversation_id ? `support_${conversation_id}` : `order_${order_id}`;
 
       try {
-        await db.query(
+        const insertRes = await db.query(
           `INSERT INTO messages (conversation_id, order_id, sender_id, sender_type, content)
-           VALUES ($1, $2, $3, $4, $5)`,
+           VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
           [conversation_id || null, order_id || null, sender_id, sender_type, content]
         );
 
-        // Update last_active_at for support conversations
         if (conversation_id) {
-            await db.query(
-                "UPDATE conversations SET last_message_at = CURRENT_TIMESTAMP WHERE id = $1",
-                [conversation_id]
-            );
+            await db.query("UPDATE conversations SET last_message_at = CURRENT_TIMESTAMP WHERE id = $1", [conversation_id]);
+        }
+
+        // UNIFIED PAYLOAD
+        const pikopMessage = {
+            id: insertRes.rows[0].id,
+            conversation_id,
+            order_id,
+            sender_id,
+            sender_type,
+            text: content, // Standardized field
+            content,       // Backward compatibility
+            body: content,  // Legacy compatibility
+            created_at: insertRes.rows[0].created_at
+        };
+
+        io.to(room).emit("receive_message", pikopMessage);
+
+        // Global Alert (Admin dashboard)
+        if (sender_type !== 'ADMIN') {
+            const event = conversation_id ? 'new_support_alert' : 'new_order_chat_alert';
+            io.emit(event, { conversationId: conversation_id, orderId: order_id, body: content.substring(0, 50) });
+        }
+
+        // PUSH Notification for Support
+        if (conversation_id && sender_type === 'ADMIN') {
+            const convRes = await db.query("SELECT participant_id FROM conversations WHERE id = $1", [conversation_id]);
+            if (convRes.rows.length > 0) {
+                await fcmService.sendNotification(convRes.rows[0].participant_id, "Pikop Support", content);
+            }
         }
       } catch (e) {
-        console.warn(`[Socket] DB persist error: ${e.message}`);
+        console.warn(`[Socket] Send failed: ${e.message}`);
       }
-
-      const broadcastMsg = {
-        id: require('uuid').v4(),
-        conversation_id,
-        order_id,
-        sender_id,
-        sender_type,
-        content,
-        body: content, // Backward compatibility for app
-        text: content, // Dual broadcast for robustness
-        message: content, // Triple broadcast for safety
-        created_at: new Date().toISOString()
-      };
-      io.to(room).emit("receive_message", broadcastMsg);
-
-      // Global Alert for Admin Dashboard (Sync with layout.ejs)
-      if (sender_type !== 'ADMIN') {
-          const alertEvent = conversation_id ? 'new_support_alert' : 'new_order_chat_alert';
-          io.emit(alertEvent, {
-              conversationId: conversation_id,
-              orderId: order_id,
-              body: content.substring(0, 50)
-          });
-      }
-
-      // PUSH Notification for Support (v3.5.1)
-      if (conversation_id && sender_type === 'ADMIN') {
-          const convRes = await db.query("SELECT participant_id FROM conversations WHERE id = $1", [conversation_id]);
-          if (convRes.rows.length > 0) {
-              await fcmService.sendNotification(convRes.rows[0].participant_id, "Support Message", content);
-          }
-      }
-    });
-
-    // KYC Alert Handler
-    socket.on("internal_kyc_alert", (data) => {
-        io.emit("new_kyc_alert", data);
     });
 
     socket.on("disconnect", () => {
-      console.log(`[Socket] Disconnected: ${socket.id}`);
+      console.log(`[Socket] User ${userId} disconnected.`);
     });
   });
 

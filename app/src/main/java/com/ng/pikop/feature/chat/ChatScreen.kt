@@ -86,6 +86,7 @@ fun ChatScreen(
                 sender_type = data.optString("sender_type", "USER"),
                 body = data.optString("body", ""),
                 content = data.optString("content", ""),
+                text = data.optString("text", ""), // Unified field
                 created_at = data.optString("created_at", "")
             )
             // Ensure UI update on Main Thread
