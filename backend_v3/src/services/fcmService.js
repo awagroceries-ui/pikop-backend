@@ -24,10 +24,11 @@ try {
             if (serviceAccount.private_key.includes(' ') && !serviceAccount.private_key.includes('+')) {
                 serviceAccount.private_key = serviceAccount.private_key.replace(/ /g, '+');
             }
+            console.log(`[FCM] Service Account parsed. Keys: ${Object.keys(serviceAccount).join(', ')}`);
         }
 
         if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-            console.error('❌ FCM: FIREBASE_SERVICE_ACCOUNT is missing critical fields');
+            console.error('❌ FCM: Incomplete JSON. Keys found:', Object.keys(serviceAccount));
             throw new Error('Incomplete Firebase JSON');
         }
 

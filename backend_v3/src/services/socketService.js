@@ -39,7 +39,9 @@ const init = (server) => {
 
     // Join room for support session
     socket.on("join_support", (conversationId) => {
-      if (!conversationId) return console.error("[Socket] Join support failed: No conversationId");
+      if (!conversationId || conversationId === 'null' || conversationId === 'undefined') {
+          return console.warn("[Socket] Join support skipped: Invalid ID", conversationId);
+      }
       socket.join(`support_${conversationId}`);
       console.log(`[Socket] Client ${socket.id} joined support room: support_${conversationId}`);
     });
@@ -47,6 +49,7 @@ const init = (server) => {
     // Mission Location Stream (Fulfiller -> Room)
     socket.on("update_mission_location", async (data) => {
         const { orderId, lat, lng } = data;
+        if (!orderId || orderId === 'null') return;
 
         // 1. Broadcast to participants
         io.to(`order_${orderId}`).emit("location_updated", { lat, lng });

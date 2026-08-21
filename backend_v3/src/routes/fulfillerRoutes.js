@@ -23,6 +23,9 @@ router.post('/kyc/document', authenticateToken, upload.single('file'), fulfiller
 router.post('/kyc/verify-plate', authenticateToken, fulfillerController.verifyVehiclePlate);
 router.post('/kyc/webhook', fulfillerController.handleDiditWebhook); // Public for Didit
 
+// Diagnostic
+router.get('/ping', (req, res) => res.send('FULFILLER ROUTES ACTIVE'));
+
 // Fleet Operations
 router.get('/profile', authenticateToken, fulfillerController.getProfile);
 router.patch('/profile', authenticateToken, fulfillerController.updateFulfillerProfile);

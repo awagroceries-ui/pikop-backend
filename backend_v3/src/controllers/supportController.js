@@ -59,8 +59,9 @@ const getOrCreateConversation = async (req, res) => {
 const getMessages = async (req, res) => {
   const { conversationId } = req.params;
 
-  if (!conversationId || conversationId === 'null') {
-      return res.status(400).json({ success: false, message: 'Invalid conversation ID' });
+  if (!conversationId || conversationId === 'null' || conversationId === 'undefined') {
+      console.warn('[Support] getMessages called with invalid ID:', conversationId);
+      return res.status(200).json([]); // Return empty list instead of 400 to prevent app alerts
   }
 
   try {
