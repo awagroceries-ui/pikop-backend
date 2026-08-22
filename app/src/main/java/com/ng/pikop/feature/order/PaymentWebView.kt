@@ -4,9 +4,7 @@ import android.annotation.SuppressLint
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -15,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,6 +26,15 @@ fun PaymentWebView(
 ) {
     var isLoading by remember { mutableStateOf(true) }
     var isPaymentConfirmed by remember { mutableStateOf(false) }
+    var timerSeconds by remember { mutableIntStateOf(10) }
+
+    // Manual Recovery Timer: Show button after 10 seconds
+    LaunchedEffect(Unit) {
+        while (timerSeconds > 0) {
+            kotlinx.coroutines.delay(1000)
+            timerSeconds--
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -43,16 +51,16 @@ fun PaymentWebView(
                     }
                 },
                 actions = {
-                    // Manual Escape Hatch if Paystack doesn't auto-redirect
-                    if (isPaymentConfirmed) {
+                    // Manual Escape Hatch: Always show if confirmed or after 10s
+                    if (isPaymentConfirmed || timerSeconds == 0) {
                         Button(
-                            onClick = { onSuccess("manual_confirm") },
+                            onClick = { onSuccess("manual_confirmed") },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary,
+                                containerColor = if (isPaymentConfirmed) Color(0xFF008751) else MaterialTheme.colorScheme.secondary,
                                 contentColor = Color.White
                             )
                         ) {
-                            Text("CONTINUE MISSION", fontWeight = FontWeight.ExtraBold)
+                            Text("CONTINUE TO MISSION", fontWeight = FontWeight.ExtraBold)
                         }
                     }
                 },
@@ -64,73 +72,69 @@ fun PaymentWebView(
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            AndroidView(
-                factory = { context ->
-                    WebView(context).apply {
-                        @SuppressLint("SetJavaScriptEnabled")
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                isLoading = false
-                                val currentUrl = url ?: ""
-                                val title = view?.title ?: ""
-                                
-                                android.util.Log.d("PikopPayment", "Finished: $currentUrl | Title: $title")
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (timerSeconds > 0 && !isPaymentConfirmed) {
+                Surface(color = Color.LightGray.copy(alpha = 0.2f), modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "The 'CONTINUE' button will appear in $timerSeconds seconds.",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(8.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
 
-                                // AGGRESSIVE DETECTION: Domain keywords, Title keywords, or Short-links
-                                if (currentUrl.contains("success") || 
-                                    currentUrl.contains("callback") || 
-                                    currentUrl.contains("pstk.co") ||
-                                    title.contains("Successful", ignoreCase = true) ||
-                                    title.contains("Approved", ignoreCase = true) ||
-                                    title.contains("Verified", ignoreCase = true) ||
-                                    title.contains("Confirmed", ignoreCase = true) ||
-                                    title.contains("Thank you", ignoreCase = true)) {
+            Box(modifier = Modifier.weight(1f)) {
+                AndroidView(
+                    factory = { context ->
+                        WebView(context).apply {
+                            @SuppressLint("SetJavaScriptEnabled")
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    isLoading = false
+                                    val currentUrl = url ?: ""
+                                    val title = view?.title ?: ""
                                     
-                                    if (!isPaymentConfirmed) {
+                                    // Aggressive detection
+                                    if (currentUrl.contains("success") || 
+                                        currentUrl.contains("callback") || 
+                                        title.contains("Successful", ignoreCase = true) ||
+                                        title.contains("Approved", ignoreCase = true)) {
+                                        
                                         isPaymentConfirmed = true
-                                        android.util.Log.d("PikopPayment", "Success detected! Returning in 1.5s")
-                                        postDelayed({ onSuccess("auto_detected") }, 1500)
+                                        android.util.Log.d("PikopPayment", "Success detected! Auto-redirecting in 2s")
+                                        postDelayed({ onSuccess("auto_detected") }, 2000)
                                     }
                                 }
-                            }
 
-                            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                                val currentUrl = request?.url?.toString() ?: ""
-                                android.util.Log.d("PikopPayment", "Intercepting URL: $currentUrl")
-                                
-                                if (currentUrl.contains("callback") || 
-                                    currentUrl.contains("success") || 
-                                    currentUrl.contains("checkout.paystack.com")) {
-                                    
-                                    val reference = request?.url?.getQueryParameter("reference")
-                                    if (reference != null) {
-                                        isPaymentConfirmed = true
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                    val currentUrl = request?.url?.toString() ?: ""
+                                    if (currentUrl.contains("callback") || currentUrl.contains("success")) {
+                                        val reference = request?.url?.getQueryParameter("reference") ?: "manual"
                                         onSuccess(reference)
                                         return true
                                     }
+                                    if (currentUrl.contains("cancel")) {
+                                        onCancel()
+                                        return true
+                                    }
+                                    return false
                                 }
-                                if (currentUrl.contains("cancel")) {
-                                    onCancel()
-                                    return true
-                                }
-                                return false
                             }
+                            loadUrl(url)
                         }
-                        loadUrl(url)
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.primary
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
+
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }

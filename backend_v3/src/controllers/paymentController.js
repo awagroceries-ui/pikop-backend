@@ -111,7 +111,7 @@ const handleWebhook = async (req, res) => {
   console.log(`[Webhook] Paystack Event: ${event.event} | Ref: ${event.data?.reference}`);
 
   if (event.event === 'charge.success') {
-    const { reference, metadata, channel, paid_at } = event.data;
+    const { reference, metadata, channel } = event.data;
 
     // Handle CoD Collection Webhook
     if (metadata.collection_type === 'COD') {
@@ -121,16 +121,13 @@ const handleWebhook = async (req, res) => {
                 [reference, channel, metadata.order_id]
             );
 
-            // Notify Fulfiller via socket that payment is received
             const socketService = require('../services/socketService');
             socketService.getIO().to(`order_${metadata.order_id}`).emit("status_updated", {
                 orderId: metadata.order_id,
                 status: 'PAYMENT_RECEIVED'
             });
 
-            // Trigger Remittance to Vendor (v3.7.0)
             await walletService.processCoDRemittance(metadata.order_id);
-
             console.log(`[Webhook] CoD Collected for Order ${metadata.order_id}`);
             return res.sendStatus(200);
         } catch (e) {
@@ -139,17 +136,24 @@ const handleWebhook = async (req, res) => {
         }
     }
 
-    const client = await db.pool.connect();
+    console.log(`[Webhook] Processing charge.success for Ref: ${reference}. QuoteID: ${metadata?.quote_id}`);
 
+    const client = await db.pool.connect();
     try {
         await client.query('BEGIN');
 
         // 1. Fetch Quote
         const quoteRes = await client.query("SELECT * FROM quotes WHERE id = $1", [metadata.quote_id]);
-        if (quoteRes.rows.length === 0) throw new Error('Quote not found');
+        console.log(`[Webhook] DB Quote Fetch Result: ${quoteRes.rows.length} rows found.`);
+
+        if (quoteRes.rows.length === 0) {
+            console.error(`[Webhook] CRITICAL: Quote ${metadata.quote_id} not found in DB. Activation aborted.`);
+            throw new Error('Quote not found');
+        }
         const q = quoteRes.rows[0];
 
         // 2. Persist Addresses
+        console.log('[Webhook] Persisting mission addresses...');
         const pAddr = await client.query(
             "INSERT INTO addresses (user_id, formatted_address, location, landmark_description) VALUES ($1, $2, $3, 'Standard Pickup') RETURNING id",
             [metadata.user_id, q.pickup_address, q.pickup_location]
@@ -160,7 +164,8 @@ const handleWebhook = async (req, res) => {
         );
 
         // 3. Create Unified Order
-        await client.query(
+        console.log('[Webhook] Creating order record...');
+        const orderInsertRes = await client.query(
             `INSERT INTO orders (
                 order_type, user_id, quote_id, status,
                 item_description, size_tier,
@@ -177,7 +182,7 @@ const handleWebhook = async (req, res) => {
                 $9, $10,
                 $11, $12, 'PAID', $13,
                 $14, $15
-            )`,
+            ) RETURNING id`,
             [
                 metadata.user_id, q.id,
                 q.item_description, q.size_tier,
@@ -190,7 +195,7 @@ const handleWebhook = async (req, res) => {
         );
 
         await client.query('COMMIT');
-        console.log(`[Webhook] Mission Activated for Quote: ${metadata.quote_id} | Ref: ${reference}`);
+        console.log(`[Webhook] Mission SUCCESS. OrderID: ${orderInsertRes.rows[0].id} created for Quote: ${metadata.quote_id}`);
 
         // 4. TRIGGER DISPATCH (Master Brief Milestone 6)
         // ... (remaining dispatch logic)

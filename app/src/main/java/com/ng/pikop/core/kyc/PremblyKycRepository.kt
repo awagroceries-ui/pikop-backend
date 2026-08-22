@@ -9,32 +9,19 @@ import android.webkit.*
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.ng.pikop.core.network.ApiService
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Named
 
 /**
  * Prembly (Identitypass) KYC implementation.
- * Uses a Compose-friendly Dialog + WebView flow for maximum reliability.
+ * Uses a High-Resilience Sequential Loader to bypass URL errors.
  */
 class PremblyKycRepository @Inject constructor(
     private val apiService: ApiService,
     @Named("premblyPublicKey") private val publicKey: String
 ) : KycManager {
 
-    // Internal state to hold the Composable UI if needed, but KycManager is usually called from ViewModel
-    // We will use a dedicated screen or a global dialog trigger.
-    
     override fun startVerification(
         context: Context,
         email: String,
@@ -45,23 +32,17 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // RESILIENT LOADER: Try stable Identitypass endpoint with Triple-Key parameters
-        val primaryUrl = "https://widget.identitypass.com/launch" +
-                "?public_key=$publicKey" +
-                "&merchant_key=$publicKey" +
-                "&app_id=$publicKey" +
-                "&user_ref=$referenceId" +
-                "&email=$email"
+        // RESILIENT URL LIST with Multi-Param alignment
+        val urls = listOf(
+            "https://widget.identitypass.com/launch?public_key=$publicKey&app_id=$publicKey&merchant_key=$publicKey&user_ref=$referenceId&email=$email",
+            "https://widget.prembly.com/launch?public_key=$publicKey&app_id=$publicKey&merchant_key=$publicKey&user_ref=$referenceId&email=$email",
+            "https://app.prembly.com/launch?merchant_key=$publicKey&app_id=$publicKey&user_ref=$referenceId&email=$email"
+        )
 
-        val fallbackUrl = "https://widget.prembly.com/launch" +
-                "?public_key=$publicKey" +
-                "&user_ref=$referenceId" +
-                "&email=$email"
-
-        android.util.Log.d("PremblyKYC", "Launching Resilient Widget Loader")
+        android.util.Log.d("PremblyKYC", "Launching Resilient Loader...")
         
         activity.runOnUiThread {
-            showWebViewDialog(activity, primaryUrl, fallbackUrl, onSuccess, onError, onClose)
+            showResilientWebView(activity, urls, onSuccess, onError, onClose)
         }
     }
 
@@ -75,15 +56,16 @@ class PremblyKycRepository @Inject constructor(
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun showWebViewDialog(
+    private fun showResilientWebView(
         activity: Activity,
-        url: String,
-        fallbackUrl: String,
+        urls: List<String>,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
         onClose: () -> Unit
     ) {
         val dialog = android.app.Dialog(activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        var currentUrlIndex = 0
+        
         val webView = WebView(activity).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -93,33 +75,27 @@ class PremblyKycRepository @Inject constructor(
             settings.domStorageEnabled = true
             settings.setSupportMultipleWindows(true)
             
-            // Pro-Tier User Agent to prevent bot-detection blocking
-            settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36"
+            // Standard User Agent
+            settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36"
             
             webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    super.onPageFinished(view, url)
-                    android.util.Log.d("PremblyKYC", "Loaded: $url")
-                }
-
                 override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
-                    val errorUrl = request?.url?.toString() ?: ""
-                    if (errorUrl == url && !errorUrl.contains(fallbackUrl)) {
-                        android.util.Log.w("PremblyKYC", "Primary URL failed. Trying fallback...")
-                        view?.loadUrl(fallbackUrl)
+                    val failingUrl = request?.url.toString()
+                    if (failingUrl == urls[currentUrlIndex] && currentUrlIndex < urls.size - 1) {
+                        currentUrlIndex++
+                        android.util.Log.w("PremblyKYC", "URL failed. Retrying with variant $currentUrlIndex...")
+                        view?.loadUrl(urls[currentUrlIndex])
                     }
                 }
 
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val uri = request?.url.toString()
-                    android.util.Log.d("PremblyKYC", "URL Trigger: $uri")
-                    
-                    if (uri.contains("success") || uri.contains("approved") || uri.contains("/webhooks/redirect")) {
+                    if (uri.contains("success") || uri.contains("approved") || uri.contains("verified")) {
                         onSuccess("verified")
                         dialog.dismiss()
                         return true
                     }
-                    if (uri.contains("cancel") || uri.contains("close") || uri.contains("failure")) {
+                    if (uri.contains("cancel") || uri.contains("close") || uri.contains("exit")) {
                         onClose()
                         dialog.dismiss()
                         return true
@@ -131,7 +107,7 @@ class PremblyKycRepository @Inject constructor(
 
         dialog.setContentView(webView)
         dialog.show()
-        webView.loadUrl(url)
+        webView.loadUrl(urls[0])
     }
 
     private fun Context.findActivity(): Activity? {
