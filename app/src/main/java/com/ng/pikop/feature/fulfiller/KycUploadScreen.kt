@@ -133,14 +133,18 @@ fun KycUploadScreen(
     LaunchedEffect(profile) {
         if (isSavingStep) return@LaunchedEffect
         val res = profile ?: return@LaunchedEffect
+        
+        // SYNC LOGIC: Only update step if it's a major state change (Verified/Pending)
+        // or if we are not currently manually advancing.
         if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
             currentStep = 5
         } else if (res.profile_photo_url == null) {
-            currentStep = if (res.primary_class == null) 0 else 1
+            val target = if (res.primary_class == null) 0 else 1
+            if (target > currentStep) currentStep = target
         } else if (res.kyc_verification_status != "approved") {
-            currentStep = 2
+            if (2 > currentStep) currentStep = 2
         } else if (res.primary_class?.lowercase() == "driver" && res.registration_number == null) {
-            currentStep = 3
+            if (3 > currentStep) currentStep = 3
         } else {
             currentStep = 5
         }

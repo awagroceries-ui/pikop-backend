@@ -352,7 +352,7 @@ fun OrderQuoteScreen(
                                     val total = result.total_fare ?: 0.0
                                     val promo = activePromo
                                     val discount = if (promo == null) 0.0 else if (promo.discount_type == "flat") promo.value ?: 0.0 else total * ((promo.value ?: 0.0)/100)
-                                    val amountToCharge = ((total - discount) * 100).toLong()
+                                    val amountToCharge = total - discount // Send raw Naira amount
 
                                     try {
                                         val paymentInit = apiService.initializePayment(PaymentInitializationRequest(amount = amountToCharge, email = userEmail))
@@ -487,8 +487,19 @@ suspend fun finalizeOrderAfterPayment(
     apiService: ApiService, quoteId: String, corporateAccountId: String?, promoId: String?, paymentReference: String, recipientName: String, recipientPhone: String, notes: String?, pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemPhotoUrl: String, pSummary: String, dSummary: String
 ): Boolean {
     return try {
+        // 1. Check if Webhook already created the mission (Preferred v3 Flow)
+        val check = apiService.getOrderByQuote(quoteId)
+        if (check["success"] == true) {
+            android.util.Log.d("PikopPayment", "Order already active via Webhook. Advancing.")
+            return true
+        }
+
+        // 2. Fallback: Manually trigger activation if Webhook is delayed
         val request = CreateOrderRequest(quote_id = quoteId, corporate_account_id = corporateAccountId, promo_id = promoId, payment_method = "card", recipient_name = recipientName, recipient_phone = recipientPhone, notes = notes, pickup_lat = pLat, pickup_lng = pLng, delivery_lat = dLat, delivery_lng = dLng, item_photo_url = itemPhotoUrl, pickup_display_summary = pSummary, delivery_display_summary = dSummary)
         val response = apiService.createOrder(request)
         response.status == "SEARCHING" || response.status == "MATCHED"
-    } catch (e: Exception) { false }
+    } catch (e: Exception) { 
+        android.util.Log.e("PikopPayment", "Finalization error: ${e.message}")
+        false 
+    }
 }

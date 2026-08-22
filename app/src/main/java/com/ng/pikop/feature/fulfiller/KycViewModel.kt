@@ -42,7 +42,8 @@ class KycViewModel @Inject constructor(
     }
 
     fun initiateVerification(context: Context, launcher: ActivityResultLauncher<Intent>, email: String) {
-        val referenceId = "pikop_verify_${System.currentTimeMillis()}"
+        val uid = _profile.value?.id ?: System.currentTimeMillis()
+        val referenceId = "pikop_kyc_$uid"
         kycManager.launchVerification(context, launcher, email, referenceId)
     }
 
@@ -50,8 +51,8 @@ class KycViewModel @Inject constructor(
         viewModelScope.launch {
             _isLaunching.value = true
             try {
-                // Request a session from backend if needed, or use a unique reference
-                val referenceId = "pikop_verify_${System.currentTimeMillis()}"
+                val uid = _profile.value?.id ?: System.currentTimeMillis()
+                val referenceId = "pikop_kyc_$uid"
                 
                 kycManager.startVerification(
                     context = context,

@@ -263,7 +263,7 @@ const getOrderMessages = async (req, res) => {
   const { orderId } = req.params;
   try {
     const { rows } = await db.query(
-      "SELECT id, sender_id, sender_type, content, content as text, content as body, created_at FROM messages WHERE order_id = $1 ORDER BY created_at ASC LIMIT 100",
+      "SELECT id, sender_id, sender_type, content, content as text, content as body, created_at, is_read FROM messages WHERE order_id = $1 ORDER BY created_at ASC LIMIT 100",
       [orderId]
     );
     res.status(200).json(rows);
@@ -272,8 +272,27 @@ const getOrderMessages = async (req, res) => {
   }
 };
 
+/**
+ * Finds an order by its source quote ID.
+ * Used for auto-return after payment webhook.
+ */
+const getOrderByQuote = async (req, res) => {
+    const { quoteId } = req.params;
+    try {
+        const { rows } = await db.query(
+            "SELECT id, status FROM orders WHERE quote_id = $1 LIMIT 1",
+            [quoteId]
+        );
+        if (rows.length === 0) return res.status(404).json({ success: false });
+        res.status(200).json({ success: true, order_id: rows[0].id, status: rows[0].status });
+    } catch (e) {
+        res.status(500).json({ success: false });
+    }
+};
+
 module.exports = {
   getQuote,
+  getOrderByQuote,
   acceptOrder,
   getOrderDetails,
   updateStatus,

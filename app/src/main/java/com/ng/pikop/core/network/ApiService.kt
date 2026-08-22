@@ -361,7 +361,7 @@ data class PromoValidationResponse(
 )
 
 data class PaymentInitializationRequest(
-    val amount: Long, // in Kobo
+    val amount: Double, // in Naira
     val email: String,
     val metadata: Map<String, String>? = null
 )
@@ -396,6 +396,9 @@ interface ApiService {
 
     @POST("api/v1/orders/quote")
     suspend fun getQuote(@Body request: QuoteRequest): QuoteResponse
+
+    @GET("api/v1/orders/by-quote/{quoteId}")
+    suspend fun getOrderByQuote(@retrofit2.http.Path("quoteId") quoteId: String): Map<String, Any>
 
     @POST("api/v1/orders")
     suspend fun createOrder(@Body request: CreateOrderRequest): OrderResponse

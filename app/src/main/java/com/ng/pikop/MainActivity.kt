@@ -33,13 +33,14 @@ import com.google.firebase.FirebaseApp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.feature.auth.*
-import com.ng.pikop.feature.chat.ChatScreen
+import com.ng.pikop.feature.chat.*
 import com.ng.pikop.feature.fulfiller.*
 import com.ng.pikop.feature.order.*
 import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.ui.theme.PikopTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -306,19 +307,22 @@ fun PikopAppNavigation() {
                 userPhone = userPhone ?: "",
                 onOrderComplete = { navController.popBackStack() },
                 onNavigateToPayment = { url, qId, pLat, pLng, dLat, dLng, itemUrl, pSum, dSum, rName, rPhone, notes, promoId ->
-                    val encUrl = java.net.URLEncoder.encode(url, "UTF-8")
-                    val encItemUrl = java.net.URLEncoder.encode(itemUrl, "UTF-8")
-                    val encPSum = java.net.URLEncoder.encode(pSum, "UTF-8")
-                    val encDSum = java.net.URLEncoder.encode(dSum, "UTF-8")
-                    val encRName = java.net.URLEncoder.encode(rName, "UTF-8")
-                    val encRPhone = java.net.URLEncoder.encode(rPhone, "UTF-8")
-                    val encNotes = java.net.URLEncoder.encode(notes ?: "null", "UTF-8")
-                    
-                    // ULTRA-SAFE NAVIGATION: Pass ALL text and IDs as Query Parameters
-                    // Path only contains the literal 'payment_webview'
-                    navController.navigate(
-                        "payment_webview?url=$encUrl&qId=$qId&pLat=$pLat&pLng=$pLng&dLat=$dLat&dLng=$dLng&itemUrl=$encItemUrl&pSum=$encPSum&dSum=$encDSum&rName=$encRName&rPhone=$encRPhone&notes=$encNotes&promoId=${promoId ?: "null"}"
+                    CheckoutHelper.activeQuote = CheckoutHelper.CheckoutData(
+                        url = url,
+                        quoteId = qId,
+                        pLat = pLat,
+                        pLng = pLng,
+                        dLat = dLat,
+                        dLng = dLng,
+                        itemPhotoUrl = itemUrl,
+                        pickupSummary = pSum,
+                        deliverySummary = dSum,
+                        recipientName = rName,
+                        recipientPhone = rPhone,
+                        notes = notes,
+                        promoId = promoId
                     )
+                    navController.navigate("payment_webview")
                 }
             )
         }
@@ -386,44 +390,45 @@ fun PikopAppNavigation() {
             )
         }
 
-        composable(
-            route = "payment_webview?url={url}&qId={qId}&pLat={pLat}&pLng={pLng}&dLat={dLat}&dLng={dLng}&itemUrl={itemUrl}&pSum={pSum}&dSum={dSum}&rName={rName}&rPhone={rPhone}&notes={notes}&promoId={promoId}",
-            arguments = listOf(
-                navArgument("url") { type = NavType.StringType },
-                navArgument("qId") { type = NavType.StringType },
-                navArgument("pLat") { type = NavType.StringType },
-                navArgument("pLng") { type = NavType.StringType },
-                navArgument("dLat") { type = NavType.StringType },
-                navArgument("dLng") { type = NavType.StringType },
-                navArgument("itemUrl") { type = NavType.StringType },
-                navArgument("pSum") { type = NavType.StringType },
-                navArgument("dSum") { type = NavType.StringType },
-                navArgument("rName") { type = NavType.StringType },
-                navArgument("rPhone") { type = NavType.StringType },
-                navArgument("notes") { type = NavType.StringType },
-                navArgument("promoId") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val url = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("url") ?: "", "UTF-8")
-            val qId = backStackEntry.arguments?.getString("qId") ?: ""
-            val pLat = backStackEntry.arguments?.getString("pLat")?.toDouble() ?: 0.0
-            val pLng = backStackEntry.arguments?.getString("pLng")?.toDouble() ?: 0.0
-            val dLat = backStackEntry.arguments?.getString("dLat")?.toDouble() ?: 0.0
-            val dLng = backStackEntry.arguments?.getString("dLng")?.toDouble() ?: 0.0
-            val itemUrl = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("itemUrl") ?: "", "UTF-8")
-            val pSum = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("pSum") ?: "", "UTF-8")
-            val dSum = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("dSum") ?: "", "UTF-8")
-            val rName = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("rName") ?: "", "UTF-8")
-            val rPhone = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("rPhone") ?: "", "UTF-8")
-            val notes = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("notes") ?: "null", "UTF-8").let { if (it == "null") null else it }
-            val promoId = backStackEntry.arguments?.getString("promoId")?.let { if (it == "null") null else it }
+        composable("payment_webview") {
+            val data = CheckoutHelper.activeQuote
+            if (data == null) {
+                navController.popBackStack()
+                return@composable
+            }
+
+            // AUTO-RECOVERY: Poll for order creation in background
+            // This ensures we return even if Paystack redirect fails
+            LaunchedEffect(data.quoteId) {
+                val api = ApiService.create(tokenManager)
+                while (true) {
+                    kotlinx.coroutines.delay(5000) // 5 sec interval
+                    try {
+                        val res = api.getOrderByQuote(data.quoteId)
+                        if (res["success"] == true) {
+                            android.util.Log.d("PikopPayment", "Order detected via background polling. Returning to mission...")
+                            navController.navigate("main") {
+                                popUpTo("order_quote") { inclusive = true }
+                            }
+                            break
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("PikopPayment", "Polling check skipped: ${e.message}")
+                    }
+                }
+            }
 
             PaymentWebView(
-                url = url,
+                url = data.url,
                 onSuccess = { ref ->
                     scope.launch {
                         val api = ApiService.create(tokenManager)
-                        val success = finalizeOrderAfterPayment(api, qId, null, promoId, ref, rName, rPhone, notes, pLat, pLng, dLat, dLng, itemUrl, pSum, dSum)
+                        val success = finalizeOrderAfterPayment(
+                            api, data.quoteId, null, data.promoId, ref, 
+                            data.recipientName, data.recipientPhone, data.notes, 
+                            data.pLat, data.pLng, data.dLat, data.dLng, 
+                            data.itemPhotoUrl, data.pickupSummary, data.deliverySummary
+                        )
                         if (success) {
                             navController.navigate("main") {
                                 popUpTo("order_quote") { inclusive = true }

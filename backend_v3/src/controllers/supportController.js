@@ -66,7 +66,7 @@ const getMessages = async (req, res) => {
 
   try {
     const { rows } = await db.query(
-      "SELECT id, sender_id, sender_type, content, content as text, content as body, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 100",
+      "SELECT id, sender_id, sender_type, content, content as text, content as body, created_at, is_read FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 100",
       [conversationId]
     );
 

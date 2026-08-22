@@ -1,3 +1,5 @@
+package com.ng.pikop.feature.chat
+
 import android.app.Activity
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*

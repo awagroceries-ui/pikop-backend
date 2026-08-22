@@ -45,15 +45,23 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // Prembly Widget URL (Public Key is usually used for Frontend)
-        // referenceId matches user_ref for webhook identification
-        val premblyUrl = "https://widget.prembly.com/launch?public_key=$publicKey&user_ref=$referenceId&email=$email"
+        // RESILIENT LOADER: Try stable Identitypass endpoint with Triple-Key parameters
+        val primaryUrl = "https://widget.identitypass.com/launch" +
+                "?public_key=$publicKey" +
+                "&merchant_key=$publicKey" +
+                "&app_id=$publicKey" +
+                "&user_ref=$referenceId" +
+                "&email=$email"
 
-        android.util.Log.d("PremblyKYC", "Launching Prembly Widget: $premblyUrl")
+        val fallbackUrl = "https://widget.prembly.com/launch" +
+                "?public_key=$publicKey" +
+                "&user_ref=$referenceId" +
+                "&email=$email"
+
+        android.util.Log.d("PremblyKYC", "Launching Resilient Widget Loader")
         
-        // Use a traditional Activity-based WebView if Compose state isn't available
         activity.runOnUiThread {
-            showWebViewDialog(activity, premblyUrl, onSuccess, onError, onClose)
+            showWebViewDialog(activity, primaryUrl, fallbackUrl, onSuccess, onError, onClose)
         }
     }
 
@@ -70,6 +78,7 @@ class PremblyKycRepository @Inject constructor(
     private fun showWebViewDialog(
         activity: Activity,
         url: String,
+        fallbackUrl: String,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
         onClose: () -> Unit
@@ -84,10 +93,21 @@ class PremblyKycRepository @Inject constructor(
             settings.domStorageEnabled = true
             settings.setSupportMultipleWindows(true)
             
+            // Pro-Tier User Agent to prevent bot-detection blocking
+            settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36"
+            
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     android.util.Log.d("PremblyKYC", "Loaded: $url")
+                }
+
+                override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                    val errorUrl = request?.url?.toString() ?: ""
+                    if (errorUrl == url && !errorUrl.contains(fallbackUrl)) {
+                        android.util.Log.w("PremblyKYC", "Primary URL failed. Trying fallback...")
+                        view?.loadUrl(fallbackUrl)
+                    }
                 }
 
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {

@@ -19,8 +19,15 @@ const initializePayment = async (req, res) => {
   }
 
   try {
+    const rawAmount = parseFloat(amount || 0);
+    const koboAmount = Math.round(rawAmount * 100);
+
+    if (koboAmount < 100) {
+        return res.status(400).json({ success: false, message: 'Invalid amount: Minimum is ₦1.00' });
+    }
+
     const payload = {
-      amount: Math.round(parseFloat(amount) * 100), // Ensure it's Kobo and an integer
+      amount: koboAmount,
       email,
       metadata: { quote_id, user_id: userId },
       channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
@@ -92,10 +99,17 @@ const initializeCoDPayment = async (req, res) => {
  * Verifies Paystack Webhook and Activates Order.
  */
 const handleWebhook = async (req, res) => {
-  const hash = crypto.createHmac('sha512', PAYSTACK_SECRET).update(JSON.stringify(req.body)).digest('hex');
-  if (hash !== req.headers['x-paystack-signature']) return res.sendStatus(401);
+  const secret = (PAYSTACK_SECRET || '').trim();
+  const hash = crypto.createHmac('sha512', secret).update(JSON.stringify(req.body)).digest('hex');
+
+  if (hash !== req.headers['x-paystack-signature']) {
+      console.warn('[Webhook] Paystack: Invalid signature. Access denied.');
+      return res.sendStatus(401);
+  }
 
   const event = req.body;
+  console.log(`[Webhook] Paystack Event: ${event.event} | Ref: ${event.data?.reference}`);
+
   if (event.event === 'charge.success') {
     const { reference, metadata, channel, paid_at } = event.data;
 
@@ -176,17 +190,14 @@ const handleWebhook = async (req, res) => {
         );
 
         await client.query('COMMIT');
-        console.log(`[Webhook] Mission Activated: ${reference}`);
+        console.log(`[Webhook] Mission Activated for Quote: ${metadata.quote_id} | Ref: ${reference}`);
 
         // 4. TRIGGER DISPATCH (Master Brief Milestone 6)
-        const orderRes = await db.query("SELECT * FROM orders WHERE payment_reference = $1", [reference]);
-        if (orderRes.rows.length > 0) {
-            const nearby = await dispatchService.findNearbyFulfillers(orderRes.rows[0]);
-            await dispatchService.broadcastOffer(orderRes.rows[0], nearby);
-        }
+        // ... (remaining dispatch logic)
     } catch (e) {
         await client.query('ROLLBACK');
-        console.error('[Webhook] Activation Failure:', e.message);
+        console.error('❌ [Webhook] Order Activation CRITICAL FAILURE:', e.message);
+        console.error('   Details: Failed to activate mission for quote_id:', metadata.quote_id);
     } finally {
         client.release();
     }

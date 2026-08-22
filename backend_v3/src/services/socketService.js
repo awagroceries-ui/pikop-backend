@@ -18,8 +18,11 @@ const init = (server) => {
   });
 
   io.on("connection", async (socket) => {
-    const userId = socket.handshake.query.userId;
+    const query = socket.handshake.query;
+    const userId = query.userId;
     const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+
+    console.log(`[Socket] Connection attempt: id=${socket.id} | userId=${userId} | queryKeys=${Object.keys(query)}`);
 
     if (!userId || userId === 'null' || userId === 'undefined') {
         console.warn(`[Socket] Connection attempt without valid userId from ${clientIp}. Limited functionality.`);

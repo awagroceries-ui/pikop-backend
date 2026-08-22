@@ -10,19 +10,24 @@ object SocketManager {
     private const val SOCKET_URL = "https://api.awa.name.ng"
 
     fun connect(userId: String? = null) {
-        if (socket != null && currentUserId != userId) {
+        val safeUserId = userId ?: currentUserId
+        if (safeUserId == null || safeUserId == "null" || safeUserId == "0") {
+            android.util.Log.w("PikopSocket", "Connection aborted: Invalid userId")
+            return
+        }
+
+        if (socket != null && currentUserId != safeUserId) {
             socket?.disconnect()
             socket = null
         }
 
         if (socket == null) {
-            currentUserId = userId
+            currentUserId = safeUserId
             val options = IO.Options().apply {
                 forceNew = true
                 reconnection = true
-                if (userId != null) {
-                    query = "userId=$userId"
-                }
+                // Standard Query String for maximum VPS compatibility
+                query = "userId=$safeUserId"
             }
             socket = IO.socket(SOCKET_URL, options)
 

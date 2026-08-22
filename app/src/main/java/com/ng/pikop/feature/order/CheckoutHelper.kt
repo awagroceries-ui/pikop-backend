@@ -1,41 +1,27 @@
 package com.ng.pikop.feature.order
 
-import android.app.Activity
-import co.paystack.android.PaystackSdk
-import co.paystack.android.Transaction
-import co.paystack.android.model.Charge
+import com.google.android.gms.maps.model.LatLng
 
+/**
+ * Singleton to pass complex order data between screens without
+ * breaking the Navigation Component with long, encoded URL strings.
+ */
 object CheckoutHelper {
-    fun startCheckout(
-        activity: Activity,
-        email: String,
-        amountInKobo: Long,
-        accessCode: String,
-        onSuccess: (Transaction) -> Unit,
-        onError: (Throwable) -> Unit
-    ) {
-        val charge = Charge().apply {
-            amount = amountInKobo.toInt()
-            this.email = email
-            this.accessCode = accessCode
-            currency = "NGN"
-        }
+    var activeQuote: CheckoutData? = null
 
-        PaystackSdk.chargeCard(activity, charge, object : co.paystack.android.Paystack.TransactionCallback {
-            override fun onSuccess(transaction: Transaction?) {
-                if (transaction != null) {
-                    onSuccess(transaction)
-                }
-            }
-
-            override fun beforeValidate(transaction: Transaction?) {
-            }
-
-            override fun onError(error: Throwable?, transaction: Transaction?) {
-                if (error != null) {
-                    onError(error)
-                }
-            }
-        })
-    }
+    data class CheckoutData(
+        val url: String,
+        val quoteId: String,
+        val pLat: Double,
+        val pLng: Double,
+        val dLat: Double,
+        val dLng: Double,
+        val itemPhotoUrl: String,
+        val pickupSummary: String,
+        val deliverySummary: String,
+        val recipientName: String,
+        val recipientPhone: String,
+        val notes: String?,
+        val promoId: String?
+    )
 }
