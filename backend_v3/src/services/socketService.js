@@ -22,11 +22,11 @@ const init = (server) => {
     const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
     if (!userId || userId === 'null' || userId === 'undefined') {
-        console.warn(`[Socket] Connection without valid userId from ${clientIp}. Limited functionality.`);
+        console.warn(`[Socket] Connection attempt without valid userId from ${clientIp}. Limited functionality.`);
         return;
     }
 
-    console.log(`[Socket] User ${userId} connected from ${clientIp}. Performing Auto-Join...`);
+    console.log(`[Socket] User ${userId} connected from ${clientIp}. Performing Auto-Room Join...`);
 
     try {
         // 1. Join Personal Room
@@ -52,14 +52,13 @@ const init = (server) => {
             console.log(`[Socket] Auto-joined Support Room: ${conv.id}`);
         });
 
-        console.log(`[Socket] Setup complete for User ${userId}.`);
     } catch (e) {
-        console.error(`[Socket] Auto-join failed for ${userId}:`, e.message);
+        console.error(`[Socket] Auto-join failed for User ${userId}:`, e.message);
     }
 
-    // Manual Joins (Legacy support for App v3.0)
-    socket.on("join_order", (id) => { if(id && id !== 'null') socket.join(`order_${id}`); });
-    socket.on("join_support", (id) => { if(id && id !== 'null') socket.join(`support_${id}`); });
+    // Manual Joins (Legacy support)
+    socket.on("join_order", (orderId) => { if(orderId && orderId !== 'null') socket.join(`order_${orderId}`); });
+    socket.on("join_support", (conversationId) => { if(conversationId && conversationId !== 'null') socket.join(`support_${conversationId}`); });
 
     // Location Stream (Fulfiller -> Room)
     socket.on("update_mission_location", async (data) => {
@@ -74,6 +73,32 @@ const init = (server) => {
                 "UPDATE fulfillers SET current_location = ST_SetSRID(ST_MakePoint($1, $2), 4326), last_ping_at = CURRENT_TIMESTAMP WHERE id = (SELECT fulfiller_id FROM orders WHERE id = $3)",
                 [lng, lat, orderId]
             );
+        } catch (e) {}
+    });
+
+    // Typing Indicators (Pro-Tier UX)
+    socket.on("typing_start", (data) => {
+        const { conversation_id, order_id } = data;
+        const room = conversation_id ? `support_${conversation_id}` : `order_${order_id}`;
+        socket.to(room).emit("user_typing", { userId, isTyping: true });
+    });
+
+    socket.on("typing_stop", (data) => {
+        const { conversation_id, order_id } = data;
+        const room = conversation_id ? `support_${conversation_id}` : `order_${order_id}`;
+        socket.to(room).emit("user_typing", { userId, isTyping: false });
+    });
+
+    // Read Receipts
+    socket.on("mark_read", async (data) => {
+        const { conversation_id, order_id } = data;
+        const room = conversation_id ? `support_${conversation_id}` : `order_${order_id}`;
+        try {
+            await db.query(
+                "UPDATE messages SET is_read = true WHERE (conversation_id = $1 OR order_id = $2) AND sender_id != $3",
+                [conversation_id || null, order_id || null, userId]
+            );
+            io.to(room).emit("messages_read", { room, readBy: userId });
         } catch (e) {}
     });
 
@@ -131,7 +156,7 @@ const init = (server) => {
     });
 
     socket.on("disconnect", () => {
-      console.log(`[Socket] User ${userId} disconnected.`);
+      console.log(`[Socket] User disconnected.`);
     });
   });
 

@@ -77,6 +77,7 @@ fun KycUploadScreen(
     var currentStep by rememberSaveable { mutableIntStateOf(0) }
     var refreshKey by rememberSaveable { mutableIntStateOf(0) }
     var selectedClass by rememberSaveable { mutableStateOf<String?>(null) }
+    var isSavingStep by rememberSaveable { mutableStateOf(false) }
 
     // Photo State
     var profilePhotoUriString by rememberSaveable { mutableStateOf<String?>(null) }
@@ -130,6 +131,7 @@ fun KycUploadScreen(
     LaunchedEffect(refreshKey) { viewModel.refreshProfile() }
 
     LaunchedEffect(profile) {
+        if (isSavingStep) return@LaunchedEffect
         val res = profile ?: return@LaunchedEffect
         if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
             currentStep = 5
@@ -207,6 +209,7 @@ fun KycUploadScreen(
                         scope.launch {
                             val tokenManager = TokenManager(context)
                             val api = ApiService.create(tokenManager)
+                            isSavingStep = true
                             try {
                                 when (currentStep) {
                                     0 -> {
@@ -218,6 +221,7 @@ fun KycUploadScreen(
                                     }
                                     1 -> {
                                         if (internalPhotoFile.exists()) {
+                                            currentStep = 2 // Optimistic Advance
                                             val compressed = ImageUtils.compressFile(context, internalPhotoFile)
                                             val body = MultipartBody.Part.createFormData("photo", "profile.jpg", compressed.asRequestBody("image/*".toMediaTypeOrNull()))
                                             api.uploadProfilePhoto(body)
@@ -235,17 +239,19 @@ fun KycUploadScreen(
                                 }
                             } catch (e: Exception) {
                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
+                            } finally {
+                                isSavingStep = false
                             }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    enabled = !isLoading && (
+                    enabled = !isLoading && !isSavingStep && (
                         (currentStep == 0 && selectedClass != null) ||
                         (currentStep == 1 && profilePhotoUri != null) ||
                         (currentStep == 2)
                     )
                 ) {
-                    if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    if (isLoading || isSavingStep) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                     else if (currentStep == 2) Text("Verify & Refresh")
                     else Text("CONTINUE", fontWeight = FontWeight.Bold)
                 }

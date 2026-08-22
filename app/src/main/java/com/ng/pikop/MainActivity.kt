@@ -308,8 +308,17 @@ fun PikopAppNavigation() {
                 onNavigateToPayment = { url, qId, pLat, pLng, dLat, dLng, itemUrl, pSum, dSum, rName, rPhone, notes, promoId ->
                     val encUrl = java.net.URLEncoder.encode(url, "UTF-8")
                     val encItemUrl = java.net.URLEncoder.encode(itemUrl, "UTF-8")
-                    // Move URL and ItemUrl to Query params to avoid path segment mangling
-                    navController.navigate("payment_webview/$qId/$pLat/$pLng/$dLat/$dLng/$pSum/$dSum/$rName/$rPhone/${notes ?: "null"}/${promoId ?: "null"}?url=$encUrl&itemUrl=$encItemUrl")
+                    val encPSum = java.net.URLEncoder.encode(pSum, "UTF-8")
+                    val encDSum = java.net.URLEncoder.encode(dSum, "UTF-8")
+                    val encRName = java.net.URLEncoder.encode(rName, "UTF-8")
+                    val encRPhone = java.net.URLEncoder.encode(rPhone, "UTF-8")
+                    val encNotes = java.net.URLEncoder.encode(notes ?: "null", "UTF-8")
+                    
+                    // ULTRA-SAFE NAVIGATION: Pass ALL text and IDs as Query Parameters
+                    // Path only contains the literal 'payment_webview'
+                    navController.navigate(
+                        "payment_webview?url=$encUrl&qId=$qId&pLat=$pLat&pLng=$pLng&dLat=$dLat&dLng=$dLng&itemUrl=$encItemUrl&pSum=$encPSum&dSum=$encDSum&rName=$encRName&rPhone=$encRPhone&notes=$encNotes&promoId=${promoId ?: "null"}"
+                    )
                 }
             )
         }
@@ -378,24 +387,35 @@ fun PikopAppNavigation() {
         }
 
         composable(
-            route = "payment_webview/{quoteId}/{pLat}/{pLng}/{dLat}/{dLng}/{pSum}/{dSummary}/{recipientName}/{recipientPhone}/{notes}/{promoId}?url={url}&itemUrl={itemUrl}",
+            route = "payment_webview?url={url}&qId={qId}&pLat={pLat}&pLng={pLng}&dLat={dLat}&dLng={dLng}&itemUrl={itemUrl}&pSum={pSum}&dSum={dSum}&rName={rName}&rPhone={rPhone}&notes={notes}&promoId={promoId}",
             arguments = listOf(
-                navArgument("url") { type = androidx.navigation.NavType.StringType },
-                navArgument("itemUrl") { type = androidx.navigation.NavType.StringType }
+                navArgument("url") { type = NavType.StringType },
+                navArgument("qId") { type = NavType.StringType },
+                navArgument("pLat") { type = NavType.StringType },
+                navArgument("pLng") { type = NavType.StringType },
+                navArgument("dLat") { type = NavType.StringType },
+                navArgument("dLng") { type = NavType.StringType },
+                navArgument("itemUrl") { type = NavType.StringType },
+                navArgument("pSum") { type = NavType.StringType },
+                navArgument("dSum") { type = NavType.StringType },
+                navArgument("rName") { type = NavType.StringType },
+                navArgument("rPhone") { type = NavType.StringType },
+                navArgument("notes") { type = NavType.StringType },
+                navArgument("promoId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val url = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("url") ?: "", "UTF-8")
-            val qId = backStackEntry.arguments?.getString("quoteId") ?: ""
+            val qId = backStackEntry.arguments?.getString("qId") ?: ""
             val pLat = backStackEntry.arguments?.getString("pLat")?.toDouble() ?: 0.0
             val pLng = backStackEntry.arguments?.getString("pLng")?.toDouble() ?: 0.0
             val dLat = backStackEntry.arguments?.getString("dLat")?.toDouble() ?: 0.0
             val dLng = backStackEntry.arguments?.getString("dLng")?.toDouble() ?: 0.0
             val itemUrl = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("itemUrl") ?: "", "UTF-8")
-            val pSum = backStackEntry.arguments?.getString("pSum") ?: ""
-            val dSum = backStackEntry.arguments?.getString("dSummary") ?: ""
-            val rName = backStackEntry.arguments?.getString("recipientName") ?: ""
-            val rPhone = backStackEntry.arguments?.getString("recipientPhone") ?: ""
-            val notes = backStackEntry.arguments?.getString("notes")?.let { if (it == "null") null else it }
+            val pSum = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("pSum") ?: "", "UTF-8")
+            val dSum = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("dSum") ?: "", "UTF-8")
+            val rName = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("rName") ?: "", "UTF-8")
+            val rPhone = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("rPhone") ?: "", "UTF-8")
+            val notes = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("notes") ?: "null", "UTF-8").let { if (it == "null") null else it }
             val promoId = backStackEntry.arguments?.getString("promoId")?.let { if (it == "null") null else it }
 
             PaymentWebView(

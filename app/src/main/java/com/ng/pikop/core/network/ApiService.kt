@@ -315,7 +315,8 @@ data class ChatMessage(
     val body: String? = null,
     val content: String? = null,
     val text: String? = null, 
-    val created_at: String? = null
+    val created_at: String? = null,
+    val is_read: Boolean = false
 ) {
     // Helper to get text regardless of backend column name (content vs body vs text)
     val messageText: String get() = content ?: body ?: text ?: ""
