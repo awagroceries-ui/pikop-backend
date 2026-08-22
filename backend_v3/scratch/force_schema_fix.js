@@ -1,7 +1,7 @@
 const db = require('../src/config/db');
 require('dotenv').config();
 
-async fun fixSchema() {
+async function fixSchema() {
     console.log('🛠️  FORCING DATABASE SCHEMA REPAIR...');
 
     try {
