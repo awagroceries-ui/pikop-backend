@@ -37,5 +37,9 @@ object AppModule {
 
     @Provides
     @Named("premblyPublicKey")
-    fun providePremblyPublicKey(): String = "live_pk_1b88a3b62d2a401b9ae2b925636ed455" // REPLACE WITH YOUR ACTUAL KEY
+    fun providePremblyPublicKey(): String = "live_pk_1b88a3b62d2a401b9ae2b925636ed455"
+
+    @Provides
+    @Named("premblyConfigId")
+    fun providePremblyConfigId(): String = "YOUR_CONFIG_ID_HERE" // GET THIS FROM PREMBLY DASHBOARD
 }

@@ -15,11 +15,12 @@ import javax.inject.Named
 
 /**
  * Prembly (Identitypass) KYC implementation.
- * Uses a High-Resilience Sequential Loader to bypass URL errors.
+ * Uses a High-Resilience Sequential Loader with explicit Config ID and Guest Mode support.
  */
 class PremblyKycRepository @Inject constructor(
     private val apiService: ApiService,
-    @Named("premblyPublicKey") private val publicKey: String
+    @Named("premblyPublicKey") private val publicKey: String,
+    @Named("premblyConfigId") private val configId: String
 ) : KycManager {
 
     override fun startVerification(
@@ -32,14 +33,14 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // RESILIENT URL LIST - Using Official Identitypass V2 Endpoints
-        // We use 'public_key' for the hosted widget.
+        // RESILIENT URL LIST - Direct Widget Launch with Guest Mode (is_widget=true)
         val urls = listOf(
-            "https://widget.identitypass.com/launch?public_key=$publicKey&user_ref=$referenceId&email=$email",
-            "https://widget.prembly.com/launch?public_key=$publicKey&user_ref=$referenceId&email=$email"
+            "https://widget.identitypass.com/launch/$configId?public_key=$publicKey&user_ref=$referenceId&email=$email&is_widget=true",
+            "https://widget.prembly.com/launch/$configId?public_key=$publicKey&user_ref=$referenceId&email=$email&is_widget=true",
+            "https://widget.identitypass.com/launch?public_key=$publicKey&config_id=$configId&user_ref=$referenceId&email=$email&is_widget=true"
         )
 
-        android.util.Log.d("PremblyKYC", "Attempting URL: ${urls[0]}")
+        android.util.Log.d("PremblyKYC", "Launching Guest-Mode Widget: ${urls[0]}")
         
         activity.runOnUiThread {
             showResilientWebView(activity, urls, onSuccess, onError, onClose)
@@ -71,25 +72,33 @@ class PremblyKycRepository @Inject constructor(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+            
+            clearCache(true)
+            clearHistory()
+            CookieManager.getInstance().removeAllCookies(null)
+            
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.setSupportMultipleWindows(true)
             
-            // Standard User Agent
-            settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36"
+            // Modern Mobile UA to satisfy widget security
+            settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
             
             webViewClient = object : WebViewClient() {
                 override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                     val failingUrl = request?.url.toString()
-                    if (failingUrl == urls[currentUrlIndex] && currentUrlIndex < urls.size - 1) {
+                    // Only retry if the failing URL is the one we tried to load (ignores sub-resources)
+                    if (request?.isForMainFrame == true && currentUrlIndex < urls.size - 1) {
                         currentUrlIndex++
-                        android.util.Log.w("PremblyKYC", "URL failed. Retrying with variant $currentUrlIndex...")
+                        android.util.Log.w("PremblyKYC", "Variant $currentUrlIndex loading after error: ${error?.description}")
                         view?.loadUrl(urls[currentUrlIndex])
                     }
                 }
 
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val uri = request?.url.toString()
+                    android.util.Log.d("PremblyKYC", "Nav: $uri")
+                    
                     if (uri.contains("success") || uri.contains("approved") || uri.contains("verified")) {
                         onSuccess("verified")
                         dialog.dismiss()

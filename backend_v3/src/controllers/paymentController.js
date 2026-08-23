@@ -100,15 +100,21 @@ const initializeCoDPayment = async (req, res) => {
  */
 const handleWebhook = async (req, res) => {
   const secret = (PAYSTACK_SECRET || '').trim();
-  const hash = crypto.createHmac('sha512', secret).update(JSON.stringify(req.body)).digest('hex');
+  const rawBody = JSON.stringify(req.body);
+  const hash = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
+  const receivedSig = req.headers['x-paystack-signature'];
 
-  if (hash !== req.headers['x-paystack-signature']) {
-      console.warn('[Webhook] Paystack: Invalid signature. Access denied.');
+  console.log('--- PAYSTACK WEBHOOK INBOUND ---');
+  console.log(`[Webhook] Signature Received: ${receivedSig}`);
+  console.log(`[Webhook] Signature Calculated: ${hash}`);
+
+  if (hash !== receivedSig) {
+      console.warn('[Webhook] CRITICAL: Signature mismatch. If these values are different, your PAYSTACK_SECRET_KEY in .env is likely wrong.');
       return res.sendStatus(401);
   }
 
   const event = req.body;
-  console.log(`[Webhook] Paystack Event: ${event.event} | Ref: ${event.data?.reference}`);
+  console.log(`[Webhook] Event: ${event.event} | Ref: ${event.data?.reference}`);
 
   if (event.event === 'charge.success') {
     const { reference, metadata, channel } = event.data;

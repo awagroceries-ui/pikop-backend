@@ -26,7 +26,8 @@ fun PaymentWebView(
 ) {
     var isLoading by remember { mutableStateOf(true) }
     var isPaymentConfirmed by remember { mutableStateOf(false) }
-    var countdown by remember { mutableIntStateOf(20) } // Increased to 20s to prevent premature clicks
+    var countdown by remember { mutableIntStateOf(10) }
+    var isAutoDetectActive by remember { mutableStateOf(false) }
 
     // Manual Recovery Timer
     LaunchedEffect(Unit) {
@@ -41,7 +42,7 @@ fun PaymentWebView(
             TopAppBar(
                 title = { 
                     Text(
-                        if (isPaymentConfirmed) "Success!" else "Secure Payment", 
+                        if (isPaymentConfirmed) "Payment Received" else "Secure Payment", 
                         fontWeight = FontWeight.Bold
                     ) 
                 },
@@ -51,26 +52,21 @@ fun PaymentWebView(
                     }
                 },
                 actions = {
-                    // Manual Escape Hatch: Only visible after 20 seconds OR if auto-detected
-                    if (isPaymentConfirmed || countdown == 0) {
-                        Button(
-                            onClick = { onSuccess("manual_confirmed") },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isPaymentConfirmed) Color(0xFF008751) else MaterialTheme.colorScheme.error,
-                                contentColor = Color.White
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
-                        ) {
-                            Text("CONTINUE TO MISSION", fontWeight = FontWeight.ExtraBold)
-                        }
-                    } else {
-                        // Show timer as inactive text
-                        Text(
-                            text = "Verify in ${countdown}s",
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(end = 12.dp),
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
+                    val isActive = isPaymentConfirmed || countdown == 0
+                    Button(
+                        onClick = { onSuccess("manual_confirm") },
+                        enabled = isActive,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isPaymentConfirmed) Color(0xFF008751) else MaterialTheme.colorScheme.error,
+                            contentColor = Color.White,
+                            disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                         )
+                    ) {
+                        if (countdown > 0 && !isPaymentConfirmed) {
+                            Text("WAIT ${countdown}s", style = MaterialTheme.typography.labelSmall)
+                        } else {
+                            Text("I HAVE PAID", fontWeight = FontWeight.ExtraBold)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -82,20 +78,17 @@ fun PaymentWebView(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Prominent Guide Banner
-            Surface(
-                color = if (countdown == 0) MaterialTheme.colorScheme.errorContainer else Color.LightGray.copy(alpha = 0.1f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (countdown > 0) 
-                        "Complete payment on the page below. A manual confirm button will appear shortly." 
-                        else "If payment is finished but page hasn't closed, tap CONTINUE TO MISSION above.",
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(12.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    fontWeight = if (countdown == 0) FontWeight.Bold else FontWeight.Normal
-                )
+            // Success detection banner
+            if (isPaymentConfirmed) {
+                Surface(color = Color(0xFFE8F5E9), modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Payment Detected! Tap 'I HAVE PAID' if you are not redirected.",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(8.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = Color(0xFF2E7D32)
+                    )
+                }
             }
 
             Box(modifier = Modifier.weight(1f)) {
@@ -111,23 +104,25 @@ fun PaymentWebView(
                                     val currentUrl = url ?: ""
                                     val title = view?.title ?: ""
                                     
-                                    // Aggressive detection
                                     if (currentUrl.contains("success") || 
                                         currentUrl.contains("callback") || 
                                         title.contains("Successful", ignoreCase = true) ||
                                         title.contains("Approved", ignoreCase = true)) {
                                         
                                         isPaymentConfirmed = true
-                                        android.util.Log.d("PikopPayment", "Success detected! Auto-redirecting in 2s")
-                                        postDelayed({ onSuccess("auto_detected") }, 2000)
+                                        // Still try auto-detect success, but rely more on the manual button
+                                        if (!isAutoDetectActive) {
+                                            isAutoDetectActive = true
+                                            postDelayed({ onSuccess("auto_detected") }, 3000)
+                                        }
                                     }
                                 }
 
                                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                     val currentUrl = request?.url?.toString() ?: ""
                                     if (currentUrl.contains("callback") || currentUrl.contains("success")) {
-                                        val reference = request?.url?.getQueryParameter("reference") ?: "manual"
-                                        onSuccess(reference)
+                                        isPaymentConfirmed = true
+                                        onSuccess("url_detected")
                                         return true
                                     }
                                     if (currentUrl.contains("cancel")) {
