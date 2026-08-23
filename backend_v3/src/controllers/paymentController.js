@@ -136,7 +136,7 @@ const handleWebhook = async (req, res) => {
         }
     }
 
-    console.log(`[Webhook] Processing charge.success for Ref: ${reference}. QuoteID: ${metadata?.quote_id}`);
+    console.log(`[Webhook] charge.success received. QuoteID: ${metadata?.quote_id} | Reference: ${reference}`);
 
     const client = await db.pool.connect();
     try {
@@ -144,16 +144,14 @@ const handleWebhook = async (req, res) => {
 
         // 1. Fetch Quote
         const quoteRes = await client.query("SELECT * FROM quotes WHERE id = $1", [metadata.quote_id]);
-        console.log(`[Webhook] DB Quote Fetch Result: ${quoteRes.rows.length} rows found.`);
-
         if (quoteRes.rows.length === 0) {
-            console.error(`[Webhook] CRITICAL: Quote ${metadata.quote_id} not found in DB. Activation aborted.`);
+            console.error(`[Webhook] Quote ${metadata.quote_id} NOT FOUND in database.`);
             throw new Error('Quote not found');
         }
         const q = quoteRes.rows[0];
 
         // 2. Persist Addresses
-        console.log('[Webhook] Persisting mission addresses...');
+        console.log(`[Webhook] Creating addresses for User ${metadata.user_id}...`);
         const pAddr = await client.query(
             "INSERT INTO addresses (user_id, formatted_address, location, landmark_description) VALUES ($1, $2, $3, 'Standard Pickup') RETURNING id",
             [metadata.user_id, q.pickup_address, q.pickup_location]

@@ -32,14 +32,14 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // RESILIENT URL LIST with Multi-Param alignment
+        // RESILIENT URL LIST - Using Official Identitypass V2 Endpoints
+        // We use 'public_key' for the hosted widget.
         val urls = listOf(
-            "https://widget.identitypass.com/launch?public_key=$publicKey&app_id=$publicKey&merchant_key=$publicKey&user_ref=$referenceId&email=$email",
-            "https://widget.prembly.com/launch?public_key=$publicKey&app_id=$publicKey&merchant_key=$publicKey&user_ref=$referenceId&email=$email",
-            "https://app.prembly.com/launch?merchant_key=$publicKey&app_id=$publicKey&user_ref=$referenceId&email=$email"
+            "https://widget.identitypass.com/launch?public_key=$publicKey&user_ref=$referenceId&email=$email",
+            "https://widget.prembly.com/launch?public_key=$publicKey&user_ref=$referenceId&email=$email"
         )
 
-        android.util.Log.d("PremblyKYC", "Launching Resilient Loader...")
+        android.util.Log.d("PremblyKYC", "Attempting URL: ${urls[0]}")
         
         activity.runOnUiThread {
             showResilientWebView(activity, urls, onSuccess, onError, onClose)

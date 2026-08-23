@@ -26,13 +26,13 @@ fun PaymentWebView(
 ) {
     var isLoading by remember { mutableStateOf(true) }
     var isPaymentConfirmed by remember { mutableStateOf(false) }
-    var timerSeconds by remember { mutableIntStateOf(10) }
+    var countdown by remember { mutableIntStateOf(20) } // Increased to 20s to prevent premature clicks
 
-    // Manual Recovery Timer: Show button after 10 seconds
+    // Manual Recovery Timer
     LaunchedEffect(Unit) {
-        while (timerSeconds > 0) {
+        while (countdown > 0) {
             kotlinx.coroutines.delay(1000)
-            timerSeconds--
+            countdown--
         }
     }
 
@@ -41,7 +41,7 @@ fun PaymentWebView(
             TopAppBar(
                 title = { 
                     Text(
-                        if (isPaymentConfirmed) "Payment Received" else "Secure Payment", 
+                        if (isPaymentConfirmed) "Success!" else "Secure Payment", 
                         fontWeight = FontWeight.Bold
                     ) 
                 },
@@ -51,17 +51,26 @@ fun PaymentWebView(
                     }
                 },
                 actions = {
-                    // Manual Escape Hatch: Always show if confirmed or after 10s
-                    if (isPaymentConfirmed || timerSeconds == 0) {
+                    // Manual Escape Hatch: Only visible after 20 seconds OR if auto-detected
+                    if (isPaymentConfirmed || countdown == 0) {
                         Button(
                             onClick = { onSuccess("manual_confirmed") },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isPaymentConfirmed) Color(0xFF008751) else MaterialTheme.colorScheme.secondary,
+                                containerColor = if (isPaymentConfirmed) Color(0xFF008751) else MaterialTheme.colorScheme.error,
                                 contentColor = Color.White
-                            )
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
                         ) {
                             Text("CONTINUE TO MISSION", fontWeight = FontWeight.ExtraBold)
                         }
+                    } else {
+                        // Show timer as inactive text
+                        Text(
+                            text = "Verify in ${countdown}s",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(end = 12.dp),
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -73,15 +82,20 @@ fun PaymentWebView(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (timerSeconds > 0 && !isPaymentConfirmed) {
-                Surface(color = Color.LightGray.copy(alpha = 0.2f), modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "The 'CONTINUE' button will appear in $timerSeconds seconds.",
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(8.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
+            // Prominent Guide Banner
+            Surface(
+                color = if (countdown == 0) MaterialTheme.colorScheme.errorContainer else Color.LightGray.copy(alpha = 0.1f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (countdown > 0) 
+                        "Complete payment on the page below. A manual confirm button will appear shortly." 
+                        else "If payment is finished but page hasn't closed, tap CONTINUE TO MISSION above.",
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(12.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    fontWeight = if (countdown == 0) FontWeight.Bold else FontWeight.Normal
+                )
             }
 
             Box(modifier = Modifier.weight(1f)) {
