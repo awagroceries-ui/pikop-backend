@@ -38,7 +38,8 @@ const getOrCreateConversation = async (req, res) => {
     );
 
     if (rows.length > 0) {
-      return res.status(200).json({ success: true, data: rows[0] });
+      // FLATTEN: Return fields directly for Android App compatibility
+      return res.status(200).json({ id: rows[0].id, status: rows[0].status });
     }
 
     // 2. Create new one
@@ -47,7 +48,7 @@ const getOrCreateConversation = async (req, res) => {
       [userId, participantType]
     );
 
-    res.status(201).json({ success: true, data: createRes.rows[0] });
+    res.status(201).json({ id: createRes.rows[0].id, status: createRes.rows[0].status });
   } catch (error) {
     throw error;
   }

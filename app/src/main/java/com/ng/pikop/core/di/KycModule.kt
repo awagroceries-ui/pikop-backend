@@ -1,7 +1,7 @@
 package com.ng.pikop.core.di
 
 import com.ng.pikop.core.kyc.KycManager
-import com.ng.pikop.core.kyc.PremblyKycRepository
+import com.ng.pikop.core.kyc.ResilientKycManager
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -15,6 +15,6 @@ abstract class KycModule {
     @Binds
     @Singleton
     abstract fun bindKycManager(
-        premblyKycRepository: PremblyKycRepository
+        resilientKycManager: ResilientKycManager
     ): KycManager
 }

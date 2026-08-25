@@ -41,5 +41,9 @@ object AppModule {
 
     @Provides
     @Named("premblyConfigId")
-    fun providePremblyConfigId(): String = "YOUR_CONFIG_ID_HERE" // GET THIS FROM PREMBLY DASHBOARD
+    fun providePremblyConfigId(): String = "2183d331-33bd-4568-a67f-c21ffab5e274"
+
+    @Provides
+    @Named("premblyWidgetId")
+    fun providePremblyWidgetId(): String = "wdgt_02c17a8d92e54c659279db8cdf5839a2"
 }

@@ -430,9 +430,13 @@ fun PikopAppNavigation() {
                             data.itemPhotoUrl, data.pickupSummary, data.deliverySummary
                         )
                         if (success) {
+                            CheckoutHelper.activeQuote = null // Clear memory
                             navController.navigate("main") {
                                 popUpTo("order_quote") { inclusive = true }
                             }
+                        } else {
+                            android.util.Log.e("PikopPayment", "Finalization failed for Quote: ${data.quoteId}")
+                            android.widget.Toast.makeText(context, "Payment verified, but mission failed to start. Our team has been notified.", android.widget.Toast.LENGTH_LONG).show()
                         }
                     }
                 },

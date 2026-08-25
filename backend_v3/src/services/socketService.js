@@ -18,11 +18,14 @@ const init = (server) => {
   });
 
   io.on("connection", async (socket) => {
-    const query = socket.handshake.query;
-    const userId = query.userId;
+    // MILSTONE: Support both modern 'auth' object and legacy query params
+    const authUserId = socket.handshake.auth?.userId;
+    const queryUserId = socket.handshake.query?.userId;
+    const userId = authUserId || queryUserId;
+
     const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
-    console.log(`[Socket] Connection attempt: id=${socket.id} | userId=${userId} | queryKeys=${Object.keys(query)}`);
+    console.log(`[Socket] Connection attempt: id=${socket.id} | userId=${userId}`);
 
     if (!userId || userId === 'null' || userId === 'undefined') {
         console.warn(`[Socket] Connection attempt without valid userId from ${clientIp}. Limited functionality.`);

@@ -7,18 +7,22 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import com.dojah.kyc_sdk_kotlin.DojahSdk
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Named
 
+/**
+ * Dojah KYC implementation.
+ * Used as high-reliability fallback for Prembly.
+ */
 class DojahKycRepository @Inject constructor(
     @Named("dojahAppId") private val appId: String,
     @Named("dojahPublicKey") private val publicKey: String
 ) : KycManager {
 
+    // Dojah Widget ID (Restored from history)
     private val widgetId = "66bc92043621434c4f369d1b"
 
     override fun startVerification(
@@ -29,18 +33,24 @@ class DojahKycRepository @Inject constructor(
         onError: (String) -> Unit,
         onClose: () -> Unit
     ) {
+        // startVerification is intended for SDK-less or pure callback flows
+        // For Dojah, we primarily use the ActivityResultLauncher flow (launchVerification)
         val activity = context.findActivity() ?: return
-
-        // Ensure SDK is initialized with credentials
-        setupSdk(context)
-
-        DojahSdk.launchWithBackwardCompatibility(
-            activity = activity,
-            widgetId = widgetId,
-            referenceId = referenceId,
-            email = email
-        )
-        onSuccess("session_launched")
+        activity.runOnUiThread {
+            try {
+                setupSdk(activity)
+                DojahSdk.launchWithBackwardCompatibility(
+                    activity = activity,
+                    widgetId = widgetId,
+                    referenceId = referenceId,
+                    email = email
+                )
+                onSuccess("session_launched")
+            } catch (e: Exception) {
+                android.util.Log.e("DojahRepo", "Direct launch failed: ${e.message}")
+                onError(e.message ?: "Launch failed")
+            }
+        }
     }
 
     override fun launchVerification(
@@ -51,56 +61,46 @@ class DojahKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity()
         if (activity == null || activity.isFinishing || activity.isDestroyed) {
-            android.util.Log.e("DojahRepo", "CRITICAL: Activity is null or finishing. Cannot launch KYC.")
+            android.util.Log.e("DojahRepo", "CRITICAL: Activity not ready for KYC.")
             return
         }
 
-        android.util.Log.d("DojahRepo", "INIT: $email | ref: $referenceId")
+        android.util.Log.d("DojahRepo", "Initializing Dojah for: $email")
         
-        // Step 1: SDK Setup (Ensuring Container is initialized with Activity context on UI thread)
         activity.runOnUiThread {
             try {
-                DojahSdk.with(activity.applicationContext)
                 setupSdk(activity)
             } catch (e: Exception) {
-                android.util.Log.w("DojahRepo", "Step 1 warmup warning: ${e.message}")
+                android.util.Log.w("DojahRepo", "Warmup warning: ${e.message}")
             }
         }
 
-        // Give UI thread a moment to stabilize
-        kotlinx.coroutines.MainScope().launch {
-            kotlinx.coroutines.delay(500)
+        MainScope().launch {
+            delay(500)
             try {
-                android.util.Log.d("DojahRepo", "STEP 2: Issuing DojahSdk.launch...")
                 DojahSdk.launch(
                     dojahLauncher = launcher,
                     widgetId = widgetId,
                     referenceId = referenceId,
                     email = email
                 )
-                android.util.Log.d("DojahRepo", "SUCCESS: Widget command sent.")
+                android.util.Log.d("DojahRepo", "Dojah SDK command sent.")
             } catch (e: Throwable) {
-                android.util.Log.e("DojahRepo", "FAILURE: ${e.message}", e)
-                Toast.makeText(activity, "KYC Error: ${e.message}", Toast.LENGTH_LONG).show()
-                
-                // Final fallback
-                try {
-                    DojahSdk.launch(dojahLauncher = launcher, widgetId = appId, referenceId = referenceId, email = email)
-                } catch (_: Exception) {}
+                android.util.Log.e("DojahRepo", "SDK launch failed: ${e.message}")
+                Toast.makeText(activity, "KYC System Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
     private fun setupSdk(context: Context) {
         try {
-            android.util.Log.d("DojahRepo", "Setting up SDK | appId: $appId | pKey: ${publicKey.take(8)}... | widgetId: $widgetId")
             DojahSdk.with(context)
             DojahSdk.dojahContainer.sharedPreferenceManager.setAppId(appId)
             DojahSdk.dojahContainer.sharedPreferenceManager.setPKey(publicKey)
             DojahSdk.dojahContainer.sharedPreferenceManager.setWidgetId(widgetId)
-            android.util.Log.d("DojahRepo", "SDK Configured Successfully")
+            android.util.Log.d("DojahRepo", "SDK Parameters Verified")
         } catch (e: Exception) {
-            android.util.Log.e("DojahRepo", "SDK setup critical failure: ${e.message}")
+            android.util.Log.e("DojahRepo", "Setup critical error: ${e.message}")
         }
     }
 

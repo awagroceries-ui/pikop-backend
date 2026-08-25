@@ -26,10 +26,19 @@ const initializePayment = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Invalid amount: Minimum is ₦1.00' });
     }
 
+    // Fetch user details for metadata
+    const userRes = await db.query("SELECT full_name, phone FROM users WHERE id = $1", [userId]);
+    const user = userRes.rows[0];
+
     const payload = {
       amount: koboAmount,
       email,
-      metadata: { quote_id, user_id: userId },
+      metadata: {
+        quote_id,
+        user_id: userId,
+        recipient_name: user?.full_name,
+        recipient_phone: user?.phone
+      },
       channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
     };
 
@@ -43,7 +52,6 @@ const initializePayment = async (req, res) => {
       timeout: 10000
     });
 
-    // FLATTEN: Return data directly at root to match Android App expectation
     res.status(200).json(response.data.data);
   } catch (error) {
     console.error('[Paystack] API Error:', error.response?.data || error.message);
@@ -100,16 +108,14 @@ const initializeCoDPayment = async (req, res) => {
  */
 const handleWebhook = async (req, res) => {
   const secret = (PAYSTACK_SECRET || '').trim();
-  const rawBody = JSON.stringify(req.body);
-  const hash = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
+  // CRITICAL: Paystack signature requires the original RAW request body
+  const payload = req.rawBody || JSON.stringify(req.body);
+  const hash = crypto.createHmac('sha512', secret).update(payload).digest('hex');
   const receivedSig = req.headers['x-paystack-signature'];
 
   console.log('--- PAYSTACK WEBHOOK INBOUND ---');
-  console.log(`[Webhook] Signature Received: ${receivedSig}`);
-  console.log(`[Webhook] Signature Calculated: ${hash}`);
-
   if (hash !== receivedSig) {
-      console.warn('[Webhook] CRITICAL: Signature mismatch. If these values are different, your PAYSTACK_SECRET_KEY in .env is likely wrong.');
+      console.warn('[Webhook] ERROR: Signature mismatch. Access denied.');
       return res.sendStatus(401);
   }
 
@@ -156,57 +162,45 @@ const handleWebhook = async (req, res) => {
         }
         const q = quoteRes.rows[0];
 
-        // 2. Persist Addresses
-        console.log(`[Webhook] Creating addresses for User ${metadata.user_id}...`);
-        const pAddr = await client.query(
-            "INSERT INTO addresses (user_id, formatted_address, location, landmark_description) VALUES ($1, $2, $3, 'Standard Pickup') RETURNING id",
-            [metadata.user_id, q.pickup_address, q.pickup_location]
-        );
-        const dAddr = await client.query(
-            "INSERT INTO addresses (user_id, formatted_address, location, landmark_description) VALUES ($1, $2, $3, 'Standard Delivery') RETURNING id",
-            [metadata.user_id, q.delivery_address, q.delivery_location]
-        );
-
-        // 3. Create Unified Order
-        console.log('[Webhook] Creating order record...');
+        // 2. Create Unified Order (DEFINITIVE ALIGNMENT)
+        console.log('[Webhook] Activating mission...');
         const orderInsertRes = await client.query(
             `INSERT INTO orders (
                 order_type, user_id, quote_id, status,
                 item_description, size_tier,
-                pickup_address_id, delivery_address_id,
                 pickup_address, delivery_address,
                 pickup_location, delivery_location,
                 total_fare, payment_reference, payment_status, payment_channel,
-                pickup_code_hash, delivery_code_hash
+                pickup_code_hash, delivery_code_hash,
+                recipient_name, recipient_phone,
+                pickup_display_summary, delivery_display_summary
             ) VALUES (
                 'pickup_delivery', $1, $2, 'SEARCHING',
                 $3, $4,
                 $5, $6,
                 $7, $8,
-                $9, $10,
-                $11, $12, 'PAID', $13,
-                $14, $15
+                $9, $10, 'PAID', $11,
+                'v3_pending', 'v3_pending',
+                $12, $13, $14, $15
             ) RETURNING id`,
             [
                 metadata.user_id, q.id,
                 q.item_description, q.size_tier,
-                pAddr.rows[0].id, dAddr.rows[0].id,
                 q.pickup_address, q.delivery_address,
                 q.pickup_location, q.delivery_location,
                 q.total_fare, reference, channel,
-                'v3_pending_hash', 'v3_pending_hash'
+                metadata.recipient_name || 'Recipient',
+                metadata.recipient_phone || '000',
+                q.pickup_address.substring(0, 50),
+                q.delivery_address.substring(0, 50)
             ]
         );
 
         await client.query('COMMIT');
-        console.log(`[Webhook] Mission SUCCESS. OrderID: ${orderInsertRes.rows[0].id} created for Quote: ${metadata.quote_id}`);
-
-        // 4. TRIGGER DISPATCH (Master Brief Milestone 6)
-        // ... (remaining dispatch logic)
+        console.log(`[Webhook] Mission SUCCESS. OrderID: ${orderInsertRes.rows[0].id} created.`);
     } catch (e) {
         await client.query('ROLLBACK');
         console.error('❌ [Webhook] Order Activation CRITICAL FAILURE:', e.message);
-        console.error('   Details: Failed to activate mission for quote_id:', metadata.quote_id);
     } finally {
         client.release();
     }

@@ -12,8 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +29,7 @@ import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ChatMessage
 import com.ng.pikop.core.network.SocketManager
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.UUID
 
@@ -56,49 +56,67 @@ fun ChatScreen(
 
     val isSupport = conversationId != null
 
-    // DEFINITIVE REFRESH: Pull history every time screen opens
+    fun refreshHistory() {
+        isLoading = true
+        scope.launch {
+            try {
+                val history = if (isSupport) {
+                    apiService.getSupportMessages(conversationId!!)
+                } else {
+                    apiService.getOrderMessages(orderId!!)
+                }
+                messages.clear()
+                messages.addAll(history)
+                if (messages.isNotEmpty()) {
+                    listState.animateScrollToItem(messages.size - 1)
+                }
+            } catch (_: Exception) {}
+            isLoading = false
+        }
+    }
+
+    // Initial Pull
     LaunchedEffect(conversationId, orderId) {
         if (conversationId == null && orderId == null) return@LaunchedEffect
-        
-        isLoading = true
-        try {
-            val history = if (isSupport) apiService.getSupportMessages(conversationId!!) else apiService.getOrderMessages(orderId!!)
-            messages.clear()
-            messages.addAll(history)
-            if (messages.isNotEmpty()) listState.scrollToItem(messages.size - 1)
-        } catch (_: Exception) {}
-        isLoading = false
+        refreshHistory()
     }
 
     // Real-time Socket Setup
     DisposableEffect(conversationId, orderId) {
         SocketManager.connect(userId.toString())
         
+        SocketManager.on("connect") { 
+            (context as? Activity)?.runOnUiThread { isConnected = true }
+        }
+        
+        SocketManager.on("disconnect") { 
+            (context as? Activity)?.runOnUiThread { isConnected = false }
+        }
+
         SocketManager.on("receive_message") { data ->
             val newMsg = ChatMessage(
                 id = data.optString("id", UUID.randomUUID().toString()),
                 sender_id = data.optInt("sender_id", 0),
                 sender_type = data.optString("sender_type", "USER"),
-                body = data.optString("body", ""),
                 content = data.optString("content", ""),
                 text = data.optString("text", ""),
                 created_at = data.optString("created_at", ""),
                 is_read = data.optBoolean("is_read", false)
             )
             (context as? Activity)?.runOnUiThread {
-                if (messages.none { it.id == newMsg.id }) messages.add(newMsg)
+                if (messages.none { it.id == newMsg.id }) {
+                    messages.add(newMsg)
+                }
             }
         }
 
         SocketManager.on("user_typing") { data ->
             if (data.optInt("userId") != userId) {
-                (context as? Activity)?.runOnUiThread { isTyping = data.optBoolean("isTyping") }
+                (context as? Activity)?.runOnUiThread {
+                    isTyping = data.optBoolean("isTyping")
+                }
             }
         }
-
-        // Connection Monitor
-        SocketManager.on("connect") { (context as? Activity)?.runOnUiThread { isConnected = true } }
-        SocketManager.on("disconnect") { (context as? Activity)?.runOnUiThread { isConnected = false } }
 
         onDispose {
             SocketManager.off("receive_message")
@@ -114,21 +132,39 @@ fun ChatScreen(
                 title = { 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(if (isSupport) "Pikop Support" else "Mission Chat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(if (isConnected) "Online" else "Connecting...", style = MaterialTheme.typography.labelSmall, color = if (isConnected) Color.Green else Color.White.copy(alpha = 0.6f))
+                            Text(
+                                if (isSupport) "Pikop Support" else "Mission Chat",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                if (isConnected) "Connected" else "Connecting...",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isConnected) Color.Green else Color.White.copy(alpha = 0.6f)
+                            )
                         }
-                        // Status Indicator Dot
-                        Box(modifier = Modifier.size(8.dp).background(if (isConnected) Color.Green else Color.Red, CircleShape))
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(if (isConnected) Color.Green else Color.Red, CircleShape)
+                        )
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { refreshHistory() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
@@ -149,7 +185,12 @@ fun ChatScreen(
             }
 
             AnimatedVisibility(visible = isTyping) {
-                Text("Agent is typing...", modifier = Modifier.padding(start = 24.dp, bottom = 8.dp), style = MaterialTheme.typography.labelSmall.copy(fontStyle = FontStyle.Italic), color = Color.Gray)
+                Text(
+                    "Agent is typing...",
+                    modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontStyle = FontStyle.Italic),
+                    color = Color.Gray
+                )
             }
 
             // Input Bar
@@ -178,8 +219,11 @@ fun ChatScreen(
                             if (inputText.isBlank()) return@FloatingActionButton
                             val content = inputText
                             inputText = ""
+                            
                             val data = JSONObject().apply {
-                                if (isSupport) put("conversation_id", conversationId) else put("order_id", orderId)
+                                if (isSupport) put("conversation_id", conversationId)
+                                else put("order_id", orderId)
+                                
                                 put("sender_id", userId)
                                 put("sender_type", if (userRole == "CUSTOMER") "USER" else userRole)
                                 put("content", content)
@@ -212,10 +256,6 @@ fun ChatBubble(msg: ChatMessage, isMe: Boolean) {
                 Text(text = msg.messageText, style = MaterialTheme.typography.bodyMedium, color = if (isMe) Color.White else Color.Black)
                 Row(modifier = Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
                     Text(text = msg.created_at?.takeLast(5) ?: "", style = MaterialTheme.typography.labelSmall, color = if (isMe) Color.White.copy(alpha = 0.7f) else Color.Gray, fontSize = 10.sp)
-                    if (isMe) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(imageVector = if (msg.is_read) Icons.Default.DoneAll else Icons.Default.Done, contentDescription = null, modifier = Modifier.size(12.dp), tint = Color.White.copy(alpha = 0.7f))
-                    }
                 }
             }
         }

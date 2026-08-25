@@ -44,6 +44,8 @@ const getQuote = async (req, res) => {
   const distance_fare = Math.ceil(distanceKm * perKmRate);
   const total_fare = base_fare + distance_fare;
 
+  console.log(`[Quote] User: ${userId} | Dist: ${distanceKm.toFixed(2)}km | Base: ${base_fare} | DistFare: ${distance_fare} | Total: ${total_fare}`);
+
   // 4. Save Quote
   const quoteRes = await db.query(
     `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare)
@@ -290,9 +292,80 @@ const getOrderByQuote = async (req, res) => {
     }
 };
 
+/**
+ * Manually creates an order from a verified payment.
+ * Fallback for delayed webhooks.
+ */
+const createOrder = async (req, res) => {
+    const { quote_id, payment_method, recipient_name, recipient_phone, notes, pickup_display_summary, delivery_display_summary, item_photo_url } = req.body;
+    const userId = req.user.id;
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Check if already active
+        const existing = await client.query("SELECT id FROM orders WHERE quote_id = $1", [quote_id]);
+        if (existing.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(200).json({ success: true, order_id: existing.rows[0].id, status: 'SEARCHING' });
+        }
+
+        // 2. Fetch Quote
+        const quoteRes = await client.query("SELECT * FROM quotes WHERE id = $1", [quote_id]);
+        if (quoteRes.rows.length === 0) throw new Error('Quote not found');
+        const q = quoteRes.rows[0];
+
+        // 3. Create Order (DEFINITIVE ALIGNMENT WITH WEBHOOK)
+        const orderRes = await client.query(
+            `INSERT INTO orders (
+                order_type, user_id, quote_id, status,
+                item_description, size_tier,
+                pickup_address, delivery_address,
+                pickup_location, delivery_location,
+                total_fare, payment_status, payment_method,
+                recipient_name, recipient_phone, notes,
+                pickup_display_summary, delivery_display_summary, item_photo_url,
+                pickup_code_hash, delivery_code_hash
+            ) VALUES (
+                'pickup_delivery', $1, $2, 'SEARCHING',
+                $3, $4,
+                $5, $6,
+                $7, $8,
+                $9, 'PAID', $10,
+                $11, $12, $13, $14, $15, $16,
+                'v3_pending', 'v3_pending'
+            ) RETURNING id`,
+            [
+                userId, q.id, q.item_description, q.size_tier,
+                q.pickup_address, q.delivery_address,
+                q.pickup_location, q.delivery_location,
+                q.total_fare, payment_method || 'card',
+                recipient_name || 'Recipient',
+                recipient_phone || '000',
+                notes,
+                pickup_display_summary || q.pickup_address.substring(0, 50),
+                delivery_display_summary || q.delivery_address.substring(0, 50),
+                item_photo_url
+            ]
+        );
+
+        await client.query('COMMIT');
+        console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId}`);
+        res.status(201).json({ success: true, order_id: orderRes.rows[0].id, status: 'SEARCHING' });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('[ManualOrder] Activation failed:', e.message);
+        res.status(500).json({ success: false, message: e.message });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
+  createOrder,
   acceptOrder,
   getOrderDetails,
   updateStatus,

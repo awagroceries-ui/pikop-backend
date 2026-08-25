@@ -26,7 +26,11 @@ object SocketManager {
             val options = IO.Options().apply {
                 forceNew = true
                 reconnection = true
-                // Standard Query String for maximum VPS compatibility
+                
+                // MILSTONE: Auth-Object Handshake (VPS Reliable)
+                auth = mapOf("userId" to safeUserId)
+                
+                // Fallback for older VPS parsers
                 query = "userId=$safeUserId"
             }
             socket = IO.socket(SOCKET_URL, options)
@@ -58,14 +62,19 @@ object SocketManager {
     fun on(event: String, callback: (JSONObject) -> Unit) {
         socket?.on(event) { args ->
             android.util.Log.d("PikopSocket", "Event received: $event")
-            if (args.isNotEmpty()) {
+            if (args.isEmpty()) {
+                // Trigger callback even without data (for connect/disconnect)
+                callback(JSONObject())
+            } else {
                 val data = args[0]
                 if (data is JSONObject) {
                     callback(data)
                 } else if (data is String) {
                     try {
                         callback(JSONObject(data))
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) {
+                        callback(JSONObject().put("message", data))
+                    }
                 }
             }
         }
