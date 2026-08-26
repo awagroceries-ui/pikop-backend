@@ -83,6 +83,8 @@ fun ChatScreen(
 
     // Real-time Socket Setup
     DisposableEffect(conversationId, orderId) {
+        if (userId <= 0) return@DisposableEffect onDispose {}
+        
         SocketManager.connect(userId.toString())
         
         SocketManager.on("connect") { 

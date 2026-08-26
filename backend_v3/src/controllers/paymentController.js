@@ -19,8 +19,17 @@ const initializePayment = async (req, res) => {
   }
 
   try {
+    let koboAmount;
     const rawAmount = parseFloat(amount || 0);
-    const koboAmount = Math.round(rawAmount * 100);
+
+    // INTELLIGENT KOBO DETECTION: If amount > 50,000, it's likely already in Kobo format.
+    // Standard Naira quotes are usually 500 - 15,000.
+    if (rawAmount > 50000) {
+        koboAmount = Math.round(rawAmount);
+        console.log(`[Paystack] High-value detected (${rawAmount}). Assuming Kobo format.`);
+    } else {
+        koboAmount = Math.round(rawAmount * 100);
+    }
 
     if (koboAmount < 100) {
         return res.status(400).json({ success: false, message: 'Invalid amount: Minimum is ₦1.00' });
@@ -163,41 +172,46 @@ const handleWebhook = async (req, res) => {
         const q = quoteRes.rows[0];
 
         // 2. Create Unified Order (DEFINITIVE ALIGNMENT)
-        console.log('[Webhook] Activating mission...');
-        const orderInsertRes = await client.query(
-            `INSERT INTO orders (
-                order_type, user_id, quote_id, status,
-                item_description, size_tier,
-                pickup_address, delivery_address,
-                pickup_location, delivery_location,
-                total_fare, payment_reference, payment_status, payment_channel,
-                pickup_code_hash, delivery_code_hash,
-                recipient_name, recipient_phone,
-                pickup_display_summary, delivery_display_summary
-            ) VALUES (
-                'pickup_delivery', $1, $2, 'SEARCHING',
-                $3, $4,
-                $5, $6,
-                $7, $8,
-                $9, $10, 'PAID', $11,
-                'v3_pending', 'v3_pending',
-                $12, $13, $14, $15
-            ) RETURNING id`,
-            [
-                metadata.user_id, q.id,
-                q.item_description, q.size_tier,
-                q.pickup_address, q.delivery_address,
-                q.pickup_location, q.delivery_location,
-                q.total_fare, reference, channel,
-                metadata.recipient_name || 'Recipient',
-                metadata.recipient_phone || '000',
-                q.pickup_address.substring(0, 50),
-                q.delivery_address.substring(0, 50)
-            ]
-        );
+        console.log(`[Webhook] Attempting to activate mission for quote: ${metadata.quote_id}...`);
+        try {
+            const orderInsertRes = await client.query(
+                `INSERT INTO orders (
+                    order_type, user_id, quote_id, status,
+                    item_description, size_tier,
+                    pickup_address, delivery_address,
+                    pickup_location, delivery_location,
+                    total_fare, payment_reference, payment_status, payment_channel,
+                    pickup_code_hash, delivery_code_hash,
+                    recipient_name, recipient_phone,
+                    pickup_display_summary, delivery_display_summary
+                ) VALUES (
+                    'pickup_delivery', $1, $2, 'SEARCHING',
+                    $3, $4,
+                    $5, $6,
+                    $7, $8,
+                    $9, $10, 'PAID', $11,
+                    'v3_pending', 'v3_pending',
+                    $12, $13, $14, $15
+                ) RETURNING id`,
+                [
+                    metadata.user_id, q.id,
+                    q.item_description, q.size_tier,
+                    q.pickup_address, q.delivery_address,
+                    q.pickup_location, q.delivery_location,
+                    q.total_fare, reference, channel,
+                    metadata.recipient_name || 'Recipient',
+                    metadata.recipient_phone || '000',
+                    q.pickup_address.substring(0, 50),
+                    q.delivery_address.substring(0, 50)
+                ]
+            );
+            console.log(`[Webhook] SUCCESS. Mission ${orderInsertRes.rows[0].id} is now active.`);
+        } catch (dbError) {
+            console.error('[Webhook] DB INSERT ERROR:', dbError.message);
+            throw dbError; // Trigger rollback
+        }
 
         await client.query('COMMIT');
-        console.log(`[Webhook] Mission SUCCESS. OrderID: ${orderInsertRes.rows[0].id} created.`);
     } catch (e) {
         await client.query('ROLLBACK');
         console.error('❌ [Webhook] Order Activation CRITICAL FAILURE:', e.message);
@@ -209,8 +223,24 @@ const handleWebhook = async (req, res) => {
   res.sendStatus(200);
 };
 
+/**
+ * Friendly redirect for browser-based webhook GET requests.
+ */
+const handleWebhookGET = (req, res) => {
+    res.send(`
+        <html>
+            <body style="font-family: sans-serif; text-align: center; padding-top: 100px;">
+                <h1 style="color: #008751;">Payment Successful</h1>
+                <p>You can now return to the Pikop app to continue your mission.</p>
+                <button onclick="window.close()" style="padding: 10px 20px; background: #008751; color: white; border: none; border-radius: 5px; cursor: pointer;">Return to App</button>
+            </body>
+        </html>
+    `);
+};
+
 module.exports = {
   initializePayment,
   initializeCoDPayment,
-  handleWebhook
+  handleWebhook,
+  handleWebhookGET
 };

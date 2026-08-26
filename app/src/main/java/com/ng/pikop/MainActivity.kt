@@ -420,7 +420,7 @@ fun PikopAppNavigation() {
 
             PaymentWebView(
                 url = data.url,
-                onSuccess = { ref ->
+                onSuccess = { ref, onResult ->
                     scope.launch {
                         val api = ApiService.create(tokenManager)
                         val success = finalizeOrderAfterPayment(
@@ -429,6 +429,7 @@ fun PikopAppNavigation() {
                             data.pLat, data.pLng, data.dLat, data.dLng, 
                             data.itemPhotoUrl, data.pickupSummary, data.deliverySummary
                         )
+                        onResult(success)
                         if (success) {
                             CheckoutHelper.activeQuote = null // Clear memory
                             navController.navigate("main") {
@@ -436,7 +437,7 @@ fun PikopAppNavigation() {
                             }
                         } else {
                             android.util.Log.e("PikopPayment", "Finalization failed for Quote: ${data.quoteId}")
-                            android.widget.Toast.makeText(context, "Payment verified, but mission failed to start. Our team has been notified.", android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(context, "Verifying payment... If you have paid, please wait a moment or contact support if the status doesn't update.", android.widget.Toast.LENGTH_LONG).show()
                         }
                     }
                 },

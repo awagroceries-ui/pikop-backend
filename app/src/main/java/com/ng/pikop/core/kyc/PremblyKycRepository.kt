@@ -14,7 +14,7 @@ import javax.inject.Named
 
 /**
  * Prembly (Identitypass) KYC implementation.
- * Uses the High-Stability Identitypass Hosted Pattern.
+ * Uses the High-Stability Identitypass V1 Hosted Endpoint.
  */
 class PremblyKycRepository @Inject constructor(
     private val apiService: ApiService,
@@ -32,17 +32,15 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // STABLE HOSTED ENDPOINT
-        // This is the most reliable production endpoint for Prembly integrations.
-        val premblyUrl = "https://widget.identitypass.com/launch" +
+        // HIGH-STABILITY WIDGET ENDPOINT
+        // Using widget key and config_id with the direct identitypass widget launch.
+        val premblyUrl = "https://widget.identitypass.com/launch/$configId" +
                 "?public_key=$publicKey" +
-                "&merchant_key=$publicKey" + 
-                "&config_id=$configId" +
                 "&user_ref=$referenceId" +
                 "&email=$email" +
                 "&is_widget=true"
 
-        android.util.Log.d("PremblyKYC", "Launching Resilient Hosted Loader: $premblyUrl")
+        android.util.Log.d("PremblyKYC", "Launching Production Widget: $premblyUrl")
         
         activity.runOnUiThread {
             showHostedWebView(activity, premblyUrl, onSuccess, onError, onClose)
@@ -74,18 +72,18 @@ class PremblyKycRepository @Inject constructor(
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
             
-            // Modern Webview settings
+            // Security & Modern Compatibility
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.setSupportMultipleWindows(true)
             
-            // Professional Mobile User-Agent
+            // Professional Mobile User-Agent to avoid bot-detection
             settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
             
             webViewClient = object : WebViewClient() {
                 override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                     if (request?.isForMainFrame == true) {
-                        android.util.Log.e("PremblyKYC", "Load Error: ${error?.description}")
+                        android.util.Log.e("PremblyKYC", "Load Error: ${error?.description} for URL: ${request?.url}")
                         onError(error?.description?.toString() ?: "Connection failed")
                         dialog.dismiss()
                     }
@@ -100,7 +98,7 @@ class PremblyKycRepository @Inject constructor(
                         dialog.dismiss()
                         return true
                     }
-                    if (uri.contains("cancel") || uri.contains("close") || uri.contains("exit")) {
+                    if (uri.contains("cancel") || uri.contains("close") || uri.contains("exit") || uri.contains("failure")) {
                         onClose()
                         dialog.dismiss()
                         return true

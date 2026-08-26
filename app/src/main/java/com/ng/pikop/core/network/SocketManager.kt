@@ -27,10 +27,8 @@ object SocketManager {
                 forceNew = true
                 reconnection = true
                 
-                // MILSTONE: Auth-Object Handshake (VPS Reliable)
+                // MILSTONE: Multi-Handshake Pattern for VPS Reliability
                 auth = mapOf("userId" to safeUserId)
-                
-                // Fallback for older VPS parsers
                 query = "userId=$safeUserId"
             }
             socket = IO.socket(SOCKET_URL, options)

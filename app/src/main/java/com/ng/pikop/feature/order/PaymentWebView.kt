@@ -20,14 +20,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 @Composable
 fun PaymentWebView(
     url: String,
-    onSuccess: (String) -> Unit,
+    onSuccess: (String, onResult: (Boolean) -> Unit) -> Unit,
     onCancel: () -> Unit,
     onBack: () -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }
     var isPaymentConfirmed by remember { mutableStateOf(false) }
-    var countdown by remember { mutableIntStateOf(15) } 
-    var isReturning by remember { mutableStateOf(false) }
+    var countdown by remember { mutableIntStateOf(10) } 
+    var isProcessing by remember { mutableStateOf(false) }
 
     // Manual Recovery Timer
     LaunchedEffect(Unit) {
@@ -56,17 +56,19 @@ fun PaymentWebView(
                     if (isPaymentConfirmed || countdown == 0) {
                         Button(
                             onClick = { 
-                                isReturning = true
-                                onSuccess("manual_confirm") 
+                                isProcessing = true
+                                onSuccess("manual_confirm") { success ->
+                                    if (!success) isProcessing = false
+                                } 
                             },
-                            enabled = !isReturning,
+                            enabled = !isProcessing,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isPaymentConfirmed) Color(0xFF008751) else MaterialTheme.colorScheme.secondary,
                                 contentColor = Color.White
                             ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                         ) {
-                            if (isReturning) {
+                            if (isProcessing) {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
                             } else {
                                 Text("CONTINUE MISSION", fontWeight = FontWeight.ExtraBold)
@@ -127,7 +129,7 @@ fun PaymentWebView(
                                     val currentUrl = request?.url?.toString() ?: ""
                                     if (currentUrl.contains("callback") || currentUrl.contains("success")) {
                                         isPaymentConfirmed = true
-                                        onSuccess("url_detected")
+                                        onSuccess("url_detected") { /* Auto return */ }
                                         return true
                                     }
                                     if (currentUrl.contains("cancel")) {
