@@ -29,7 +29,7 @@ fun IncomingOfferComponent(
             // Item Photo Preview
             if (offer.item_photo_url != null) {
                 AsyncImage(
-                    model = "https://api.awa.name.ng${offer.item_photo_url}",
+                    model = "https://api.pikop.com.ng${offer.item_photo_url}",
                     contentDescription = "Item Photo",
                     modifier = Modifier
                         .fillMaxWidth()

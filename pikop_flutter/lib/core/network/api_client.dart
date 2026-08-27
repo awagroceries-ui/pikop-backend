@@ -6,7 +6,7 @@ class ApiClient {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   ApiClient() {
-    _dio.options.baseUrl = 'https://api.awa.name.ng/api/v1';
+    _dio.options.baseUrl = 'https://api.pikop.com.ng/api/v1';
     _dio.options.connectTimeout = const Duration(seconds: 15);
     _dio.options.receiveTimeout = const Duration(seconds: 15);
 

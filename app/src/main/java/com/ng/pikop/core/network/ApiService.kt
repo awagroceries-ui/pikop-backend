@@ -558,7 +558,7 @@ interface ApiService {
     suspend fun updateUserProfile(@Body request: ProfileUpdateRequest): AuthResponse
 
     companion object {
-        private const val BASE_URL = "https://api.awa.name.ng/"
+        private const val BASE_URL = "https://api.pikop.com.ng/"
 
         fun create(tokenManager: TokenManager): ApiService {
             val logger = HttpLoggingInterceptor().apply {

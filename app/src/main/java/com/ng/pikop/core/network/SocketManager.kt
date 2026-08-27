@@ -7,7 +7,7 @@ import org.json.JSONObject
 object SocketManager {
     private var socket: Socket? = null
     private var currentUserId: String? = null
-    private const val SOCKET_URL = "https://api.awa.name.ng"
+    private const val SOCKET_URL = "https://api.pikop.com.ng"
 
     fun connect(userId: String? = null) {
         val safeUserId = userId ?: currentUserId

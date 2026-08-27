@@ -2,7 +2,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
   late io.Socket _socket;
-  final String _baseUrl = 'https://api.awa.name.ng';
+  final String _baseUrl = 'https://api.pikop.com.ng';
 
   void connect(int userId) {
     _socket = io.io(

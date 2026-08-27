@@ -63,7 +63,7 @@ class AccountScreen extends StatelessWidget {
                     Icons.gavel_outlined,
                     () => Navigator.pushNamed(context, '/policy', arguments: {
                       'title': 'Terms & Conditions',
-                      'url': 'https://api.awa.name.ng/legal/terms'
+                      'url': 'https://api.pikop.com.ng/legal/terms'
                     }),
                   ),
                   _buildOption(
@@ -72,7 +72,7 @@ class AccountScreen extends StatelessWidget {
                     Icons.security_outlined,
                     () => Navigator.pushNamed(context, '/policy', arguments: {
                       'title': 'Privacy Policy',
-                      'url': 'https://api.awa.name.ng/legal/privacy'
+                      'url': 'https://api.pikop.com.ng/legal/privacy'
                     }),
                   ),
                   _buildOption(

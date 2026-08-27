@@ -38,7 +38,14 @@ const init = (server) => {
         // 1. Join Personal Room
         socket.join(`user_${userId}`);
 
-        // 2. Auto-Join Active Missions (as customer or fulfiller)
+        // 2. Admin Global Room (Mirroring)
+        const userRes = await db.query("SELECT role FROM users WHERE id = $1", [userId]);
+        if (userRes.rows[0]?.role === 'ADMIN') {
+            socket.join('admins');
+            console.log(`[Socket] User ${userId} joined Admin Global Mirror.`);
+        }
+
+        // 3. Auto-Join Active Missions (as customer or fulfiller)
         const missionRes = await db.query(
             "SELECT id FROM orders WHERE (user_id = $1 OR fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1)) AND status NOT IN ('DELIVERED', 'CANCELLED')",
             [userId]
@@ -116,6 +123,7 @@ const init = (server) => {
       if (order_id === "null") order_id = null;
 
       const room = conversation_id ? `support_${conversation_id}` : `order_${order_id}`;
+      console.log(`[Socket] Message from ${sender_type} ${sender_id} to room ${room}`);
 
       try {
         const insertRes = await db.query(
@@ -135,15 +143,19 @@ const init = (server) => {
             order_id,
             sender_id,
             sender_type,
-            text: content, // Standardized field
-            content,       // Backward compatibility
-            body: content,  // Legacy compatibility
+            text: content,
+            content,
             created_at: insertRes.rows[0].created_at
         };
 
+        // Emit to the specific chat room
         io.to(room).emit("receive_message", pikopMessage);
 
-        // Global Alert (Admin dashboard)
+        // MIRROR TO ADMIN: If sent by admin, ensures admin's own UI sees it instantly
+        // If sent by user, ensures admin's global board sees it
+        io.to('admins').emit("receive_message", pikopMessage);
+
+        // Global Alert (Admin dashboard notification)
         if (sender_type !== 'ADMIN') {
             const event = conversation_id ? 'new_support_alert' : 'new_order_chat_alert';
             io.emit(event, { conversationId: conversation_id, orderId: order_id, body: content.substring(0, 50) });
