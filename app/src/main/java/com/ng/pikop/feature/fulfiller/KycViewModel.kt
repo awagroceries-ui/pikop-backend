@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.kyc.KycManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.FulfillerProfileResponse
@@ -12,13 +13,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class KycViewModel @Inject constructor(
     private val apiService: ApiService,
-    private val kycManager: KycManager
+    private val kycManager: KycManager,
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
     private val _profile = MutableStateFlow<FulfillerProfileResponse?>(null)
@@ -42,16 +45,18 @@ class KycViewModel @Inject constructor(
     }
 
     fun initiateVerification(context: Context, launcher: ActivityResultLauncher<Intent>, email: String) {
-        val uid = _profile.value?.id ?: System.currentTimeMillis()
-        val referenceId = "pikop_kyc_$uid"
-        kycManager.launchVerification(context, launcher, email, referenceId)
+        viewModelScope.launch {
+            val uid = tokenManager.userId.first() ?: System.currentTimeMillis().toString()
+            val referenceId = "pikop_kyc_$uid"
+            kycManager.launchVerification(context, launcher, email, referenceId)
+        }
     }
 
     fun startVerification(context: Context, email: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             _isLaunching.value = true
             try {
-                val uid = _profile.value?.id ?: System.currentTimeMillis()
+                val uid = tokenManager.userId.first() ?: System.currentTimeMillis().toString()
                 val referenceId = "pikop_kyc_$uid"
                 
                 kycManager.startVerification(

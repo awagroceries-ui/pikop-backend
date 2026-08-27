@@ -32,14 +32,14 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // RESILIENT URL LIST - Attempting all known production variants
+        // RESILIENT URL LIST - Optimized for production Config IDs
         val urls = listOf(
+            "https://widget.identitypass.com/launch?public_key=$publicKey&config_id=$configId&user_ref=$referenceId&email=$email&is_widget=true",
             "https://verify.prembly.com/hosted/launch?public_key=$publicKey&config_id=$configId&user_ref=$referenceId&email=$email",
-            "https://widget.identitypass.com/launch/$configId?public_key=$publicKey&user_ref=$referenceId&email=$email&is_widget=true",
-            "https://widget.prembly.com/launch/$configId?public_key=$publicKey&user_ref=$referenceId&email=$email&is_widget=true"
+            "https://widget.identitypass.com/launch/$configId?public_key=$publicKey&user_ref=$referenceId&email=$email&is_widget=true"
         )
 
-        android.util.Log.d("PremblyKYC", "Launching Resilient Loader with ${urls.size} variants")
+        android.util.Log.d("PremblyKYC", "Launching Resilient Loader with ${urls.size} variants. Ref: $referenceId")
         
         activity.runOnUiThread {
             showResilientWebView(activity, urls, onSuccess, onError, onClose)

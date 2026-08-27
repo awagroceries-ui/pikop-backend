@@ -352,7 +352,21 @@ fun OrderQuoteScreen(
                                     val total = result.total_fare ?: 0.0
                                     val promo = activePromo
                                     val discount = if (promo == null) 0.0 else if (promo.discount_type == "flat") promo.value ?: 0.0 else total * ((promo.value ?: 0.0)/100)
-                                    val amountToCharge = total - discount // Send raw Naira amount
+                                    val amountToCharge = total - discount 
+
+                                    // 100% DISCOUNT BYPASS
+                                    if (amountToCharge <= 0) {
+                                        val success = finalizeOrderAfterPayment(
+                                            apiService, qId, null, activePromo?.promo_id, "FREE_TEST", 
+                                            recipientName, recipientPhone, notes, 
+                                            pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, 
+                                            deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, 
+                                            pUrl, pickupAddress.take(50), deliveryAddress.take(50)
+                                        )
+                                        if (success) onOrderComplete("FREE")
+                                        isLoading = false
+                                        return@launch
+                                    }
 
                                     try {
                                         val paymentInit = apiService.initializePayment(PaymentInitializationRequest(amount = amountToCharge, email = userEmail))
