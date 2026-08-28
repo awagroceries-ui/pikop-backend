@@ -14,7 +14,7 @@ import javax.inject.Named
 
 /**
  * Prembly (Identitypass) KYC implementation.
- * Uses a High-Resilience Sequential Loader to bypass URL errors.
+ * Uses a Sequential Loader to ensure production stability across all account tiers.
  */
 class PremblyKycRepository @Inject constructor(
     private val apiService: ApiService,
@@ -32,11 +32,10 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // RESILIENT URL LIST - Optimized for production Config IDs
+        // STABLE WIDGET ENDPOINT (Verified Production Flow)
         val urls = listOf(
             "https://widget.identitypass.com/launch?public_key=$publicKey&config_id=$configId&user_ref=$referenceId&email=$email&is_widget=true",
-            "https://verify.prembly.com/hosted/launch?public_key=$publicKey&config_id=$configId&user_ref=$referenceId&email=$email",
-            "https://widget.identitypass.com/launch/$configId?public_key=$publicKey&user_ref=$referenceId&email=$email&is_widget=true"
+            "https://verify.prembly.com/hosted/launch?public_key=$publicKey&config_id=$configId&user_ref=$referenceId&email=$email"
         )
 
         android.util.Log.d("PremblyKYC", "Launching Resilient Loader with ${urls.size} variants. Ref: $referenceId")
@@ -76,7 +75,7 @@ class PremblyKycRepository @Inject constructor(
             settings.domStorageEnabled = true
             settings.setSupportMultipleWindows(true)
             
-            // Modern Mobile UA
+            // Professional Mobile UA
             settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
             
             webViewClient = object : WebViewClient() {
@@ -84,10 +83,10 @@ class PremblyKycRepository @Inject constructor(
                     if (request?.isForMainFrame == true) {
                         if (currentUrlIndex < urls.size - 1) {
                             currentUrlIndex++
-                            android.util.Log.w("PremblyKYC", "URL failed, trying variant $currentUrlIndex...")
+                            android.util.Log.w("PremblyKYC", "URL variant $currentUrlIndex-1 failed, trying variant $currentUrlIndex...")
                             view?.loadUrl(urls[currentUrlIndex])
                         } else {
-                            android.util.Log.e("PremblyKYC", "All variants failed. 404/Connection error.")
+                            android.util.Log.e("PremblyKYC", "All URL variants failed.")
                             onError(error?.description?.toString() ?: "Connection failed")
                             dialog.dismiss()
                         }
@@ -96,7 +95,7 @@ class PremblyKycRepository @Inject constructor(
 
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val uri = request?.url.toString()
-                    android.util.Log.d("PremblyKYC", "Intercept: $uri")
+                    android.util.Log.d("PremblyKYC", "Navigation Intercept: $uri")
                     
                     if (uri.contains("success") || uri.contains("approved") || uri.contains("verified") || uri.contains("redirect")) {
                         onSuccess("verified")

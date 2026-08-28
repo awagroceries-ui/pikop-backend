@@ -228,11 +228,31 @@ const handleWebhook = async (req, res) => {
  */
 const handleWebhookGET = (req, res) => {
     res.send(`
+        <!DOCTYPE html>
         <html>
-            <body style="font-family: sans-serif; text-align: center; padding-top: 100px;">
-                <h1 style="color: #008751;">Payment Successful</h1>
-                <p>You can now return to the Pikop app to continue your mission.</p>
-                <button onclick="window.close()" style="padding: 10px 20px; background: #008751; color: white; border: none; border-radius: 5px; cursor: pointer;">Return to App</button>
+            <head>
+                <title>Payment Success | Pikop</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 50px 20px; background: #f9f9f9; color: #333; }
+                    .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 400px; margin: 0 auto; }
+                    .icon { font-size: 60px; color: #008751; margin-bottom: 20px; }
+                    h1 { color: #1A1A1A; margin-bottom: 10px; font-weight: 800; }
+                    p { color: #666; line-height: 1.6; margin-bottom: 30px; }
+                    .btn { display: inline-block; padding: 16px 40px; background: #008751; color: white; border: none; border-radius: 12px; font-weight: 700; text-decoration: none; cursor: pointer; transition: all 0.2s; }
+                    .btn:hover { background: #006b3f; transform: translateY(-2px); }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="icon">✓</div>
+                    <h1>SUCCESS!</h1>
+                    <p>Your payment was verified. You can now return to the Pikop app to track your mission.</p>
+                    <a href="javascript:window.close()" class="btn">RETURN TO APP</a>
+                </div>
+                <script>
+                    setTimeout(() => { window.close(); }, 5000);
+                </script>
             </body>
         </html>
     `);

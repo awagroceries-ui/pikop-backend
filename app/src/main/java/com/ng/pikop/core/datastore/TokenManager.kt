@@ -9,11 +9,24 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+
 private val Context.dataStore by preferencesDataStore(name = "pikop_preferences")
 
 class TokenManager(private val context: Context) {
 
     private val sharedPrefs = context.getSharedPreferences("pikop_sync_prefs", Context.MODE_PRIVATE)
+
+    private val _sessionEvents = MutableSharedFlow<SessionEvent>()
+    val sessionEvents: SharedFlow<SessionEvent> = _sessionEvents.asSharedFlow()
+
+    enum class SessionEvent { EXPIRED }
+
+    suspend fun emitSessionExpired() {
+        _sessionEvents.emit(SessionEvent.EXPIRED)
+    }
 
     companion object {
         private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")

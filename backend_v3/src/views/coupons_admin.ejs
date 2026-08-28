@@ -3,7 +3,7 @@
         <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">COUPON ENGINE</h3>
         <p class="text-muted small">Manage discount codes and promotional campaigns.</p>
     </div>
-    <button class="btn-pikop-primary px-4">GENERATE NEW COUPON</button>
+    <button class="btn-pikop-primary px-4" data-bs-toggle="modal" data-bs-target="#createCouponModal">GENERATE NEW COUPON</button>
 </div>
 
 <div class="row g-4">
@@ -16,23 +16,85 @@
                             <th class="p-4">CODE</th>
                             <th class="p-4">DISCOUNT</th>
                             <th class="p-4">MIN ORDER</th>
+                            <th class="p-4">USAGE</th>
                             <th class="p-4">STATUS</th>
                             <th class="p-4 text-end">ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td class="p-4 fw-bold text-black">PIKOP500</td>
-                            <td class="p-4 text-black">₦500.00 (Fixed)</td>
-                            <td class="p-4 text-black">₦2,000.00</td>
-                            <td class="p-4"><span class="badge bg-green text-white fw-bold">ACTIVE</span></td>
-                            <td class="p-4 text-end">
-                                <button class="btn btn-sm btn-outline-danger fw-bold px-3">REVOKE</button>
-                            </td>
-                        </tr>
+                        <% if (coupons && coupons.length > 0) { %>
+                            <% coupons.forEach(coupon => { %>
+                                <tr>
+                                    <td class="p-4 fw-bold text-black"><%= coupon.code %></td>
+                                    <td class="p-4 text-black">
+                                        <%= coupon.discount_value %><%= coupon.discount_type === 'PERCENTAGE' ? '%' : ' ₦' %>
+                                    </td>
+                                    <td class="p-4 text-black">₦<%= coupon.min_order_amount %></td>
+                                    <td class="p-4 text-black"><%= coupon.usage_count %> / <%= coupon.usage_limit %></td>
+                                    <td class="p-4">
+                                        <% if (coupon.is_active) { %>
+                                            <span class="badge bg-green text-white fw-bold">ACTIVE</span>
+                                        <% } else { %>
+                                            <span class="badge bg-secondary text-white fw-bold">INACTIVE</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="p-4 text-end">
+                                        <form action="/admin/coupons/<%= coupon.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete this coupon?')">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger fw-bold px-3">DELETE</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr><td colspan="6" class="p-5 text-center text-muted">No coupons found. Click Generate to create one.</td></tr>
+                        <% } %>
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Coupon Modal -->
+<div class="modal fade" id="createCouponModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="fw-bold text-black">Generate New Coupon</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/admin/coupons" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">COUPON CODE</label>
+                        <input type="text" name="code" class="form-control form-control-lg bg-light border-0" placeholder="e.g. SAVE50" required style="border-radius: 12px;">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">DISCOUNT TYPE</label>
+                            <select name="discount_type" class="form-select form-select-lg bg-light border-0" required style="border-radius: 12px;">
+                                <option value="PERCENTAGE">Percentage (%)</option>
+                                <option value="FIXED">Fixed Amount (₦)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">VALUE</label>
+                            <input type="number" step="0.01" name="discount_value" class="form-control form-control-lg bg-light border-0" placeholder="0" required style="border-radius: 12px;">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">MINIMUM ORDER AMOUNT (₦)</label>
+                        <input type="number" name="min_order_amount" class="form-control form-control-lg bg-light border-0" value="0" required style="border-radius: 12px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">USAGE LIMIT</label>
+                        <input type="number" name="usage_limit" class="form-control form-control-lg bg-light border-0" value="100" required style="border-radius: 12px;">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn-pikop-primary w-100 py-3 fw-bold">CREATE COUPON</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

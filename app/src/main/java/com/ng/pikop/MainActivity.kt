@@ -79,6 +79,19 @@ fun PikopAppNavigation() {
     val referralCode by tokenManager.referralCode.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
 
+    // Global Session Monitor
+    LaunchedEffect(Unit) {
+        tokenManager.sessionEvents.collect { event ->
+            if (event == TokenManager.SessionEvent.EXPIRED) {
+                tokenManager.clearTokens()
+                navController.navigate("login") {
+                    popUpTo(0) { inclusive = true }
+                }
+                android.widget.Toast.makeText(context, "Session expired. Please sign in again.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     // Redirect to OTP if not verified (Strict Gating)
     LaunchedEffect(accessToken, isVerified) {
         if (accessToken != null && !isVerified) {

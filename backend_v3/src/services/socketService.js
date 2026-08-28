@@ -21,57 +21,70 @@ const init = (server) => {
     // MILSTONE: Support both modern 'auth' object and legacy query params
     const authUserId = socket.handshake.auth?.userId;
     const queryUserId = socket.handshake.query?.userId;
-    const userId = authUserId || queryUserId;
+    let userId = authUserId || queryUserId;
+
+    // Admin Detection (from dashboard)
+    const isAdmin = socket.handshake.auth?.role === 'ADMIN' || (userId && userId.startsWith('admin_'));
 
     const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
-    console.log(`[Socket] Connection attempt: id=${socket.id} | userId=${userId}`);
+    console.log(`[Socket] Connection attempt: id=${socket.id} | userId=${userId} | isAdmin=${isAdmin}`);
 
-    if (!userId || userId === 'null' || userId === 'undefined') {
-        console.warn(`[Socket] Connection attempt without valid userId from ${clientIp}. Limited functionality.`);
-        return;
-    }
-
-    console.log(`[Socket] User ${userId} connected from ${clientIp}. Performing Auto-Room Join...`);
-
-    try {
-        // 1. Join Personal Room
-        socket.join(`user_${userId}`);
-
-        // 2. Admin Global Room (Mirroring)
-        const userRes = await db.query("SELECT role FROM users WHERE id = $1", [userId]);
-        if (userRes.rows[0]?.role === 'ADMIN') {
-            socket.join('admins');
-            console.log(`[Socket] User ${userId} joined Admin Global Mirror.`);
+    if (isAdmin) {
+        socket.join('admins');
+        console.log(`[Socket] Admin ${userId} joined system rooms.`);
+        // Note: Admins can manually join specific mission rooms via dashboard UI
+    } else {
+        if (!userId || userId === 'null' || userId === 'undefined') {
+            console.warn(`[Socket] Connection attempt without valid userId from ${clientIp}. Limited functionality.`);
+            return;
         }
 
-        // 3. Auto-Join Active Missions (as customer or fulfiller)
-        const missionRes = await db.query(
-            "SELECT id FROM orders WHERE (user_id = $1 OR fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1)) AND status NOT IN ('DELIVERED', 'CANCELLED')",
-            [userId]
-        );
-        missionRes.rows.forEach(order => {
-            socket.join(`order_${order.id}`);
-            console.log(`[Socket] Auto-joined Order Room: ${order.id}`);
-        });
+        console.log(`[Socket] User ${userId} connected from ${clientIp}. Performing Auto-Room Join...`);
 
-        // 3. Auto-Join Open Support Conversations
-        const supportRes = await db.query(
-            "SELECT id FROM conversations WHERE participant_id = $1 AND status = 'OPEN'",
-            [userId]
-        );
-        supportRes.rows.forEach(conv => {
-            socket.join(`support_${conv.id}`);
-            console.log(`[Socket] Auto-joined Support Room: ${conv.id}`);
-        });
+        try {
+            // 1. Join Personal Room
+            socket.join(`user_${userId}`);
 
-    } catch (e) {
-        console.error(`[Socket] Auto-join failed for User ${userId}:`, e.message);
+            // 2. Auto-Join Active Missions (as customer or fulfiller)
+            const missionRes = await db.query(
+                "SELECT id FROM orders WHERE (user_id = $1 OR fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1)) AND status NOT IN ('DELIVERED', 'CANCELLED')",
+                [userId]
+            );
+            missionRes.rows.forEach(order => {
+                socket.join(`order_${order.id}`);
+                console.log(`[Socket] Auto-joined Order Room: ${order.id}`);
+            });
+
+            // 3. Auto-Join Open Support Conversations
+            const supportRes = await db.query(
+                "SELECT id FROM conversations WHERE participant_id = $1 AND status = 'OPEN'",
+                [userId]
+            );
+            supportRes.rows.forEach(conv => {
+                socket.join(`support_${conv.id}`);
+                console.log(`[Socket] Auto-joined Support Room: ${conv.id}`);
+            });
+
+        } catch (e) {
+            console.error(`[Socket] Auto-join failed for User ${userId}:`, e.message);
+        }
     }
 
     // Manual Joins (Legacy support)
-    socket.on("join_order", (orderId) => { if(orderId && orderId !== 'null') socket.join(`order_${orderId}`); });
-    socket.on("join_support", (conversationId) => { if(conversationId && conversationId !== 'null') socket.join(`support_${conversationId}`); });
+    socket.on("join_order", (orderId) => {
+        if(orderId && orderId !== 'null') {
+            socket.join(`order_${orderId}`);
+            console.log(`[Socket] User ${userId} manually joined Order: ${orderId}`);
+        }
+    });
+
+    socket.on("join_support", (conversationId) => {
+        if(conversationId && conversationId !== 'null') {
+            socket.join(`support_${conversationId}`);
+            console.log(`[Socket] User ${userId} manually joined Support: ${conversationId}`);
+        }
+    });
 
     // Location Stream (Fulfiller -> Room)
     socket.on("update_mission_location", async (data) => {

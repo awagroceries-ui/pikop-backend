@@ -291,6 +291,42 @@ const getProfile = async (req, res) => {
     }
 };
 
+/**
+ * Coupon Management (v3 Growth Engine)
+ */
+const getCoupons = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM coupons ORDER BY created_at DESC");
+        res.render('coupons_admin', { coupons: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const createCoupon = async (req, res) => {
+    const { code, discount_type, discount_value, min_order_amount, usage_limit } = req.body;
+    try {
+        await db.query(
+            `INSERT INTO coupons (code, discount_type, discount_value, min_order_amount, usage_limit, is_active)
+             VALUES ($1, $2, $3, $4, $5, true)`,
+            [code.toUpperCase(), discount_type, discount_value, min_order_amount || 0, usage_limit || 100]
+        );
+        res.redirect('/admin/coupons');
+    } catch (error) {
+        res.status(500).send(`Failed to create coupon: ${error.message}`);
+    }
+};
+
+const deleteCoupon = async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query("DELETE FROM coupons WHERE id = $1", [id]);
+        res.redirect('/admin/coupons');
+    } catch (error) {
+        res.status(500).send('Deletion failed');
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -307,5 +343,8 @@ module.exports = {
   getAdminUsers,
   addAdmin,
   deleteAdmin,
-  getProfile
+  getProfile,
+  getCoupons,
+  createCoupon,
+  deleteCoupon
 };

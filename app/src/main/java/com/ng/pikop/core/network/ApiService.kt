@@ -617,6 +617,9 @@ interface ApiService {
                             return@Authenticator response.request.newBuilder()
                                 .header("Authorization", "Bearer ${res.accessToken}")
                                 .build()
+                        } else {
+                            // Refresh FAILED
+                            runBlocking { tokenManager.emitSessionExpired() }
                         }
                     }
                 }
