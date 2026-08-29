@@ -41,20 +41,36 @@ import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.ui.theme.PikopTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val _intentFlow = MutableStateFlow<Intent?>(null)
+    val intentFlow = _intentFlow.asStateFlow()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         android.util.Log.d("PikopLifecycle", "MainActivity onCreate (Process ID: ${android.os.Process.myPid()})")
         enableEdgeToEdge()
+        
+        // Initial intent
+        _intentFlow.value = intent
+
         setContent {
             PikopTheme {
-                PikopAppNavigation()
+                PikopAppNavigation(intentFlow = intentFlow)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        _intentFlow.value = intent
+        android.util.Log.d("PikopLifecycle", "MainActivity onNewIntent: ${intent.data}")
     }
 
     override fun onDestroy() {
@@ -64,12 +80,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun PikopAppNavigation() {
+fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
     val navController = rememberNavController()
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val scope = rememberCoroutineScope()
     
+    val incomingIntent by intentFlow.collectAsState()
     val userEmail by tokenManager.userEmail.collectAsState(initial = null)
     val userId by tokenManager.userId.collectAsState(initial = null)
     val userName by tokenManager.userName.collectAsState(initial = null)
@@ -123,11 +140,13 @@ fun PikopAppNavigation() {
     }
 
     // Handle Intent Deep-linking
-    val activity = context as? ComponentActivity
-    LaunchedEffect(activity?.intent) {
-        val dataUri = activity?.intent?.data
-        val navigateTo = activity?.intent?.getStringExtra("navigate_to")
-        val orderId = activity?.intent?.getStringExtra("order_id")
+    LaunchedEffect(incomingIntent) {
+        val intent = incomingIntent ?: return@LaunchedEffect
+        val dataUri = intent.data
+        val navigateTo = intent.getStringExtra("navigate_to")
+        val orderId = intent.getStringExtra("order_id")
+
+        android.util.Log.d("PikopIntent", "Processing intent: $dataUri | navigate_to: $navigateTo")
 
         // 1. Handle Scheme-based Deep Links (e.g. pikop://payment/success)
         if (dataUri != null && dataUri.scheme == "pikop") {

@@ -52,6 +52,7 @@
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Pikop"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -59,7 +60,7 @@
             </intent-filter>
 
             <!-- Payment Success Deep Link (Phase 28 alignment) -->
-            <intent-filter android:autoVerify="true">
+            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />

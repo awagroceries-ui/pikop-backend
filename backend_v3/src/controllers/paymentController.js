@@ -246,27 +246,27 @@ const handleWebhookGET = (req, res) => {
                 p { font-size: 16px; color: #6B7280; line-height: 1.6; margin-bottom: 40px; }
                 .btn { display: block; width: 100%; padding: 18px 0; background: #008751; color: white; border: none; border-radius: 16px; font-weight: 700; text-decoration: none; font-size: 16px; transition: all 0.2s; box-shadow: 0 10px 15px -3px rgba(0, 135, 81, 0.3); }
                 .btn:hover { background: #006b3f; transform: translateY(-2px); }
-                .fallback-link { display: block; margin-top: 24px; color: #6B7280; font-size: 13px; text-decoration: none; }
+                .fallback-link { display: block; margin-top: 24px; color: #6B7280; font-size: 13px; text-decoration: none; font-weight: 600; }
             </style>
         </head>
         <body>
             <div class="card">
                 <div class="success-icon">✓</div>
-                <h1>Payment Successful</h1>
-                <p>We've verified your transaction. You can now return to the app to manage your mission.</p>
+                <h1>Mission Activated!</h1>
+                <p>Payment confirmed. You are being redirected back to your mission control.</p>
                 <a href="${intentUrl}" class="btn">RETURN TO APP</a>
-                <a href="${directUrl}" class="fallback-link">Click here if you are not redirected automatically</a>
+                <a href="${directUrl}" class="fallback-link">Click here if not redirected</a>
             </div>
             <script>
-                // Automated force redirect using Intent pattern for Android Chrome
-                setTimeout(() => {
+                // Automated force redirect
+                const autoRedirect = () => {
                     window.location.replace("${intentUrl}");
-                }, 1200);
+                    setTimeout(() => {
+                        window.location.href = "${directUrl}";
+                    }, 500);
+                };
 
-                // Fallback for internal WebViews
-                setTimeout(() => {
-                    window.location.replace("${directUrl}");
-                }, 3000);
+                setTimeout(autoRedirect, 1000);
             </script>
         </body>
         </html>

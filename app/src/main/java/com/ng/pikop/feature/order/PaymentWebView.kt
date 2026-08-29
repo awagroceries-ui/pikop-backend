@@ -68,15 +68,31 @@ fun PaymentWebView(
                                     
                                     // Handle Intent/Pikop schemes for return-to-app
                                     if (currentUrl.startsWith("intent://") || currentUrl.startsWith("pikop://")) {
-                                        android.util.Log.d("PikopPayment", "SUCCESS: Returning to mission center.")
+                                        android.util.Log.d("PikopPayment", "SUCCESS: Intercepted return signal.")
+                                        
+                                        // Handle manual intent resolution for intent:// schemes
+                                        if (currentUrl.startsWith("intent://")) {
+                                            try {
+                                                val intent = android.content.Intent.parseUri(currentUrl, android.content.Intent.URI_INTENT_SCHEME)
+                                                context.startActivity(intent)
+                                                isPaymentConfirmed = true
+                                                onSuccess("intent_scheme") { }
+                                                return true
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("PikopPayment", "Failed to parse intent: ${e.message}")
+                                            }
+                                        }
+
                                         isPaymentConfirmed = true
                                         onSuccess("direct_link") { /* Auto-close handled in main */ }
                                         return true
                                     }
 
                                     if (currentUrl.contains("callback") || currentUrl.contains("success")) {
-                                        isPaymentConfirmed = true
-                                        onSuccess("url_match") { /* Auto-close handled in main */ }
+                                        if (!isPaymentConfirmed) {
+                                            isPaymentConfirmed = true
+                                            onSuccess("url_match") { /* Auto-close handled in main */ }
+                                        }
                                         return true
                                     }
 
