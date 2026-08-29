@@ -4,8 +4,8 @@ const IdentityVerificationProvider = require('./IdentityVerificationProvider');
 class DojahProvider extends IdentityVerificationProvider {
     constructor() {
         super('Dojah');
-        this.apiKey = process.env.DIDIT_API_KEY; // Reusing existing var if it holds Dojah key
-        this.appId = process.env.FIREBASE_SERVICE_ACCOUNT ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT).project_id : '';
+        this.apiKey = process.env.DOJAH_SECRET_KEY;
+        this.appId = process.env.DOJAH_APP_ID;
     }
 
     async verifyNIN(vnin, userData) {

@@ -93,6 +93,7 @@ app.use('/api/v1/kitchens', require('./routes/kitchenRoutes'));
 app.use('/api/v1/wallets', require('./routes/walletRoutes'));
 app.use('/api/v1/merchants', require('./routes/merchantRoutes'));
 app.use('/api/v1/growth', require('./routes/growthRoutes'));
+app.use('/api/v1/promo-codes', require('./routes/growthRoutes')); // Legacy Compatibility
 app.use('/api/v1/places', require('./routes/placesRoutes'));
 app.use('/api/v1/addresses', require('./routes/addressRoutes'));
 app.use('/api/v1/webhooks', require('./routes/webhookRoutes')); // Added for Prembly

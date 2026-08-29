@@ -136,7 +136,7 @@ const init = (server) => {
       if (order_id === "null") order_id = null;
 
       const room = conversation_id ? `support_${conversation_id}` : `order_${order_id}`;
-      console.log(`[Socket] Inbound Message from ${sender_type} ${sender_id} to room ${room}`);
+      console.log(`[Socket] Message from ${sender_type} ${sender_id} to room ${room}`);
 
       try {
         const insertRes = await db.query(

@@ -32,18 +32,19 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // RESILIENT URL LIST - Attempting all known production variants
-        val urls = listOf(
-            "https://widget.identitypass.com/launch/$configId?public_key=$publicKey&user_ref=$referenceId&email=$email&is_widget=true",
-            "https://widget.identitypass.com/launch?merchant_key=$publicKey&config_id=$configId&user_ref=$referenceId&email=$email",
-            "https://verify.prembly.com/hosted/launch?public_key=$publicKey&config_id=$configId&user_ref=$referenceId&email=$email",
-            "https://widget.prembly.com/launch/$configId?public_key=$publicKey&user_ref=$referenceId&email=$email&is_widget=true"
-        )
+        // STABLE WIDGET ENDPOINT (Verified Production Flow)
+        // Using config_id and public_key with the direct identitypass widget launch.
+        val premblyUrl = "https://widget.identitypass.com/launch" +
+                "?public_key=$publicKey" +
+                "&config_id=$configId" +
+                "&user_ref=$referenceId" +
+                "&email=$email" +
+                "&is_widget=true"
 
-        android.util.Log.d("PremblyKYC", "Launching Resilient Loader with ${urls.size} variants. Ref: $referenceId")
+        android.util.Log.d("PremblyKYC", "Launching Direct Widget: $premblyUrl")
         
         activity.runOnUiThread {
-            showResilientWebView(activity, urls, onSuccess, onError, onClose)
+            showResilientWebView(activity, listOf(premblyUrl), onSuccess, onError, onClose)
         }
     }
 

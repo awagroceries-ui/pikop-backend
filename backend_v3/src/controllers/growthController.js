@@ -36,13 +36,12 @@ const validateCoupon = async (req, res) => {
             }
         }
 
+        // UNIFIED RESPONSE: Matches Android App's PromoValidationResponse
         res.status(200).json({
-            success: true,
-            data: {
-                code: coupon.code,
-                discount_amount: discount,
-                final_amount: Math.max(0, numericAmount - discount)
-            }
+            promo_id: coupon.code,
+            discount_type: coupon.discount_type.toLowerCase(), // 'flat' or 'percentage'
+            value: parseFloat(coupon.discount_value),
+            message: `Coupon ${coupon.code} applied successfully.`
         });
 
     } catch (error) {
