@@ -3,94 +3,96 @@ const axios = require('axios');
 require('dotenv').config();
 
 async function check() {
-    console.log('🔍 PIKOP V3 SYSTEM INTEGRITY DIAGNOSTIC');
+    console.log('🔍 PIKOP V3 SYSTEM INTEGRITY DIAGNOSTIC (v2)');
+    console.log('--- Checking core components ---');
 
     try {
         // 1. Verify DB Connection
         const dbRes = await db.query('SELECT NOW()');
-        console.log('✅ Database Connected:', dbRes.rows[0].now);
+        console.log('✅ Database: Connected (', dbRes.rows[0].now, ')');
 
         // 2. Seed TEST100 Coupon
-        console.log('🎟️  Ensuring TEST100 coupon exists...');
+        console.log('🎟️  Coupon: Ensuring TEST100 exists...');
         await db.query("DELETE FROM coupons WHERE code = 'TEST100'");
         await db.query(
             "INSERT INTO coupons (code, discount_type, discount_value, is_active, usage_limit) VALUES ('TEST100', 'PERCENTAGE', 100.00, true, 9999)"
         );
-        console.log('✅ Coupon TEST100 is live.');
+        console.log('✅ Coupon: TEST100 is live.');
 
         // 3. Check Messages Schema
-        console.log('💬 Checking messaging schema...');
         const colRes = await db.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'messages'");
         const columns = colRes.rows.map(r => r.column_name);
         if (!columns.includes('is_read')) {
-            console.log('⚠️  Adding is_read to messages...');
+            console.log('⚠️  Schema: Adding is_read to messages...');
             await db.query('ALTER TABLE messages ADD COLUMN is_read BOOLEAN DEFAULT false');
         }
-        console.log('✅ Messaging schema is healthy.');
+        console.log('✅ Schema: Healthy.');
 
         // 4. SMTP Connectivity Test
-        console.log('📧 Testing SMTP Configuration...');
+        console.log('📧 Email: Testing SMTP Configuration...');
         const emailService = require('../src/services/emailService');
         const testRes = await emailService.sendMail('pikop.ng@gmail.com', 'System Diagnostic', '<h1>Integrity Check Passed</h1>');
         if (testRes.success) {
-            console.log('✅ SMTP Relay is functional.');
+            console.log('✅ Email: SMTP Relay is functional.');
         } else {
-            console.warn('❌ SMTP Relay failed. Check your credentials in .env');
+            console.warn('❌ Email: SMTP Relay failed. Check your credentials in .env');
         }
 
+        console.log('\n--- Checking 3rd-Party Integrations ---');
+
         // 5. Paystack Connectivity
-        console.log('💳 Checking Paystack Integration...');
-        const psKey = process.env.PAYSTACK_SECRET_KEY;
+        const psKey = (process.env.PAYSTACK_SECRET_KEY || '').trim();
         if (psKey) {
+            console.log('💳 Paystack: Checking connection...');
             try {
                 const psRes = await axios.get('https://api.paystack.co/balance', {
-                    headers: { Authorization: `Bearer ${psKey.trim()}` }
+                    headers: { Authorization: `Bearer ${psKey}` }
                 });
-                console.log(`✅ Paystack: Authenticated. Balance: ${psRes.data.data[0]?.currency} ${psRes.data.data[0]?.balance / 100}`);
+                console.log(`✅ Paystack: OK. Balance: ${psRes.data.data[0]?.currency} ${psRes.data.data[0]?.balance / 100}`);
             } catch (e) {
-                console.warn('❌ Paystack: Authentication failed. Check PAYSTACK_SECRET_KEY.');
+                console.warn('❌ Paystack: FAIL. Error:', e.response?.data?.message || e.message);
             }
         } else {
-            console.warn('⚠️  Paystack: PAYSTACK_SECRET_KEY missing in .env.');
+            console.warn('⚠️  Paystack: MISSING. PAYSTACK_SECRET_KEY not in .env.');
         }
 
         // 6. Prembly Connectivity
-        console.log('🆔 Checking Prembly Integration...');
-        const prKey = process.env.PREMBLY_SECRET_KEY;
+        const prKey = (process.env.PREMBLY_SECRET_KEY || '').trim();
         if (prKey) {
+            console.log('🆔 Prembly: Checking connection...');
             try {
                 const prRes = await axios.get('https://api.prembly.com/identitypass/verification/account/balance', {
-                    headers: { 'x-api-key': prKey.trim() }
+                    headers: { 'x-api-key': prKey }
                 });
-                console.log(`✅ Prembly: Authenticated. Status: ${prRes.data.status}`);
+                console.log(`✅ Prembly: OK. Status: ${prRes.data.status}`);
             } catch (e) {
-                console.warn('❌ Prembly: Authentication failed. Check PREMBLY_SECRET_KEY.');
+                console.warn('❌ Prembly: FAIL. Error:', e.response?.data?.message || e.message);
             }
         } else {
-            console.warn('⚠️  Prembly: PREMBLY_SECRET_KEY missing in .env.');
+            console.warn('⚠️  Prembly: MISSING. PREMBLY_SECRET_KEY not in .env.');
         }
 
         // 7. Dojah Connectivity
-        console.log('🆔 Checking Dojah Integration...');
-        const djKey = process.env.DIDIT_API_KEY; // Reusing key as mapped in provider
-        const djAppId = process.env.DOJAH_APP_ID;
+        const djKey = (process.env.DIDIT_API_KEY || '').trim(); // Using the key mapped in Dojah provider
+        const djAppId = (process.env.DOJAH_APP_ID || '').trim();
         if (djKey && djAppId) {
+            console.log('🆔 Dojah: Checking connection...');
             try {
                 const djRes = await axios.get('https://api.dojah.io/api/v1/balance', {
-                    headers: { Authorization: djKey.trim(), 'App-Id': djAppId.trim() }
+                    headers: { Authorization: djKey, 'App-Id': djAppId }
                 });
-                console.log(`✅ Dojah: Authenticated. Wallet: ${djRes.data.entity.wallet_balance}`);
+                console.log(`✅ Dojah: OK. Wallet Balance: ${djRes.data.entity.wallet_balance}`);
             } catch (e) {
-                console.warn('❌ Dojah: Authentication failed. Check DOJAH keys.');
+                console.warn('❌ Dojah: FAIL. Error:', e.response?.data?.message || e.message);
             }
         } else {
-            console.warn('⚠️  Dojah: Credentials missing in .env.');
+            console.warn('⚠️  Dojah: MISSING. Check DIDIT_API_KEY and DOJAH_APP_ID in .env.');
         }
 
-        console.log('\n✨ INTEGRITY CHECK COMPLETE.');
+        console.log('\n✨ ALL CHECKS COMPLETED.');
         process.exit(0);
     } catch (e) {
-        console.error('❌ FATAL ERROR during integrity check:', e.message);
+        console.error('\n❌ CRITICAL SYSTEM ERROR:', e.message);
         process.exit(1);
     }
 }
