@@ -54,6 +54,22 @@ const getOrCreateConversation = async (req, res) => {
   }
 };
 
+const getSupportInbox = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT c.*, u.full_name as participant_name,
+            (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND is_read = false AND sender_type != 'ADMIN') as unread_count
+            FROM conversations c
+            JOIN users u ON u.id = c.participant_id
+            WHERE c.status = 'OPEN'
+            ORDER BY c.last_message_at DESC
+        `);
+        res.render('support_inbox', { conversations: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
 /**
  * Fetches message history for a specific conversation.
  */
@@ -66,6 +82,9 @@ const getMessages = async (req, res) => {
   }
 
   try {
+    // Mark as read when messages are fetched
+    await db.query("UPDATE messages SET is_read = true WHERE conversation_id = $1 AND sender_type != 'ADMIN'", [conversationId]);
+
     const { rows } = await db.query(
       "SELECT id, sender_id, sender_type, content, content as text, content as body, created_at, is_read FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 100",
       [conversationId]
@@ -80,5 +99,6 @@ const getMessages = async (req, res) => {
 module.exports = {
   getKnowledgeBase,
   getOrCreateConversation,
-  getMessages
+  getMessages,
+  getSupportInbox
 };

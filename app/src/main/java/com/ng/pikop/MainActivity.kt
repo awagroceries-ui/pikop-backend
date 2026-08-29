@@ -125,8 +125,21 @@ fun PikopAppNavigation() {
     // Handle Intent Deep-linking
     val activity = context as? ComponentActivity
     LaunchedEffect(activity?.intent) {
+        val dataUri = activity?.intent?.data
         val navigateTo = activity?.intent?.getStringExtra("navigate_to")
         val orderId = activity?.intent?.getStringExtra("order_id")
+
+        // 1. Handle Scheme-based Deep Links (e.g. pikop://payment/success)
+        if (dataUri != null && dataUri.scheme == "pikop") {
+            if (dataUri.host == "payment" && dataUri.path == "/success") {
+                android.util.Log.d("PikopIntent", "Success deep-link detected. Clearing checkout state.")
+                CheckoutHelper.activeQuote = null
+                navController.navigate("main") {
+                    popUpTo(0) { inclusive = true }
+                }
+                return@LaunchedEffect
+            }
+        }
         
         if (accessToken != null && navigateTo != null) {
             when (navigateTo) {

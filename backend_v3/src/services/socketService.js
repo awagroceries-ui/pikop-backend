@@ -136,13 +136,13 @@ const init = (server) => {
       if (order_id === "null") order_id = null;
 
       const room = conversation_id ? `support_${conversation_id}` : `order_${order_id}`;
-      console.log(`[Socket] Message from ${sender_type} ${sender_id} to room ${room}`);
+      console.log(`[Socket] Inbound Message from ${sender_type} ${sender_id} to room ${room}`);
 
       try {
         const insertRes = await db.query(
           `INSERT INTO messages (conversation_id, order_id, sender_id, sender_type, content)
            VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
-          [conversation_id || null, order_id || null, sender_id, sender_type, content]
+          [conversation_id || null, order_id || null, parseInt(sender_id) || 0, sender_type, content]
         );
 
         if (conversation_id) {
@@ -154,24 +154,30 @@ const init = (server) => {
             id: insertRes.rows[0].id,
             conversation_id,
             order_id,
-            sender_id,
+            sender_id: parseInt(sender_id) || 0,
             sender_type,
             text: content,
             content,
             created_at: insertRes.rows[0].created_at
         };
 
-        // Emit to the specific chat room
+        // Broadcast to the target room (Everyone inside sees it)
         io.to(room).emit("receive_message", pikopMessage);
 
-        // MIRROR TO ADMIN: If sent by admin, ensures admin's own UI sees it instantly
-        // If sent by user, ensures admin's global board sees it
+        // Mirror to global admin room
         io.to('admins').emit("receive_message", pikopMessage);
+
+        console.log(`[Socket] Broadcasted message ${pikopMessage.id} to ${room} and admins.`);
 
         // Global Alert (Admin dashboard notification)
         if (sender_type !== 'ADMIN') {
             const event = conversation_id ? 'new_support_alert' : 'new_order_chat_alert';
-            io.emit(event, { conversationId: conversation_id, orderId: order_id, body: content.substring(0, 50) });
+            io.emit(event, {
+                conversationId: conversation_id,
+                orderId: order_id,
+                body: content.substring(0, 50),
+                room: room
+            });
         }
 
         // PUSH Notification for Support

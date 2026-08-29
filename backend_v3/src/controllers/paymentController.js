@@ -248,10 +248,10 @@ const handleWebhookGET = (req, res) => {
                     <div class="icon">✓</div>
                     <h1>SUCCESS!</h1>
                     <p>Your payment was verified. You can now return to the Pikop app to track your mission.</p>
-                    <a href="javascript:window.close()" class="btn">RETURN TO APP</a>
+                    <a href="pikop://payment/success" class="btn">RETURN TO APP</a>
                 </div>
                 <script>
-                    setTimeout(() => { window.close(); }, 5000);
+                    setTimeout(() => { window.location.href = "pikop://payment/success"; }, 5000);
                 </script>
             </body>
         </html>

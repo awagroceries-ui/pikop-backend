@@ -166,7 +166,8 @@ const updateSettings = async (req, res) => {
 const getSupportInbox = async (req, res) => {
     try {
         const { rows } = await db.query(`
-            SELECT c.*, u.full_name as participant_name
+            SELECT c.*, u.full_name as participant_name,
+            (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND is_read = false AND sender_type != 'ADMIN') as unread_count
             FROM conversations c
             JOIN users u ON u.id = c.participant_id
             WHERE c.status = 'OPEN'

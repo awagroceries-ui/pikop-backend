@@ -27,7 +27,7 @@ if (SMTP_USER && SMTP_PASS) {
  * Sends a transactional email with high priority headers.
  */
 const sendMail = async (to, subject, html) => {
-  const cleanFrom = EMAIL_FROM.replace(/["'<>]/g, '').trim();
+  const cleanFrom = (EMAIL_FROM || 'awagroceries@gmail.com').replace(/["'<>]/g, '').trim();
 
   if (!transporter) {
     console.log('\n--- MOCK EMAIL ---');
@@ -43,6 +43,7 @@ const sendMail = async (to, subject, html) => {
       to,
       subject,
       html,
+      sender: cleanFrom,
       headers: {
         'X-Priority': '1 (Highest)',
         'X-MSMail-Priority': 'High',
@@ -50,10 +51,11 @@ const sendMail = async (to, subject, html) => {
       }
     });
 
-    console.log(`[Email] Sent to ${to}. ID: ${info.messageId}`);
+    console.log(`[Email] Success! Sent to ${to}. ID: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error(`[Email] Failed to send to ${to}:`, error.message);
+    console.error(`[Email] FATAL ERROR sending to ${to}:`, error.message);
+    if (error.response) console.error(`[Email] Provider Response: ${error.response}`);
     return { success: false, error: error.message };
   }
 };
