@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# PIKOP V3 NUCLEAR ALIGNMENT & RESTORATION
+# PIKOP V3 NUCLEAR ALIGNMENT & RESTORATION (v3)
 # This script flattens the directory, fixes keys, and restores services.
 
 PROJECT_ROOT="/var/www/pikop-api/backend_v3"
@@ -15,8 +15,8 @@ cd $PROJECT_ROOT
 # If we are in the nested trap, move everything up
 if [ -d "backend_v3" ]; then
     echo "🏗️  Detected nested folder. Moving files to root..."
-    cp -rn backend_v3/* .
-    cp -rn backend_v3/.* . 2>/dev/null
+    cp -rf backend_v3/* .
+    cp -rf backend_v3/.* . 2>/dev/null
 fi
 
 # Ensure .env is in the root
@@ -34,8 +34,8 @@ node -r dotenv/config ./node_modules/.bin/node-pg-migrate up
 echo "🔧 Running Super Repair..."
 node scratch/super_restore.js
 
-echo "🎟️  Seeding Test Coupon..."
-node scratch/v3_seed_test_coupon.js
+echo "🎟️  Running System Integrity Tool..."
+node scratch/v3_system_integrity.js
 
 echo "🚀 Starting PIKOP-V3..."
 pm2 start src/app.js --name pikop-v3 --update-env

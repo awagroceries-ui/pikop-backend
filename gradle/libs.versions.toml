@@ -1,26 +1,26 @@
 [versions]
-agp = "9.3.2"
-coreKtx = "1.15.0"
+agp = "8.4.2"
+coreKtx = "1.13.1"
 junit = "4.13.2"
-junitVersion = "1.2.1"
-espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.8.7"
-activityCompose = "1.9.3"
-kotlin = "2.0.21"
-composeBom = "2024.12.01"
-navigationCompose = "2.8.5"
+junitVersion = "1.1.5"
+espressoCore = "3.5.1"
+lifecycleRuntimeKtx = "2.8.2"
+activityCompose = "1.9.0"
+kotlin = "1.9.24"
+composeBom = "2024.06.00"
+navigationCompose = "2.7.7"
 mapsCompose = "4.4.1"
-playServicesMaps = "19.0.0"
+playServicesMaps = "18.2.0"
 playServicesLocation = "21.3.0"
 socketIo = "2.1.0"
 googlePlaces = "3.5.0"
 firebaseBom = "33.1.2"
 coil = "2.6.0"
 googleServices = "4.4.2"
-hilt = "2.60.1"
+hilt = "2.51.1"
 hiltNavigationCompose = "1.2.0"
 dojah = "0.4.1"
-ksp = "2.0.21-1.0.27"
+ksp = "1.9.24-1.0.20"
 
 [libraries]
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
@@ -59,4 +59,3 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-

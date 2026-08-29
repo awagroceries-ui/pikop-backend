@@ -24,7 +24,7 @@
                         <tr class="align-middle clickable-row" onclick="window.location.href='/admin/support/<%= conv.id %>'">
                             <td>
                                 <div class="d-flex align-items-center gap-3">
-                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 35px; height: 35px; border: 1px solid var(--border); position: relative;">
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center position-relative" style="width: 35px; height: 35px; border: 1px solid var(--border);">
                                         <span class="fw-bold text-green small"><%= conv.participant_name.charAt(0) %></span>
                                         <% if (conv.unread_count > 0) { %>
                                             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 8px;">

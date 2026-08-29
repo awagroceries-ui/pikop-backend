@@ -82,7 +82,7 @@ const getMessages = async (req, res) => {
   }
 
   try {
-    // Mark as read when messages are fetched
+    // Mark as read when messages are fetched by admin or user
     await db.query("UPDATE messages SET is_read = true WHERE conversation_id = $1 AND sender_type != 'ADMIN'", [conversationId]);
 
     const { rows } = await db.query(

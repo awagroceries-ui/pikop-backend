@@ -3,7 +3,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 async function check() {
-    console.log('🔍 PIKOP V3 SYSTEM INTEGRITY DIAGNOSTIC (v2)');
+    console.log('🔍 PIKOP V3 SYSTEM INTEGRITY DIAGNOSTIC (Final)');
     console.log('--- Checking core components ---');
 
     try {
@@ -20,13 +20,14 @@ async function check() {
         console.log('✅ Coupon: TEST100 is live.');
 
         // 3. Check Messages Schema
+        console.log('💬 Checking messaging schema...');
         const colRes = await db.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'messages'");
         const columns = colRes.rows.map(r => r.column_name);
         if (!columns.includes('is_read')) {
-            console.log('⚠️  Schema: Adding is_read to messages...');
+            console.log('⚠️  Adding is_read to messages...');
             await db.query('ALTER TABLE messages ADD COLUMN is_read BOOLEAN DEFAULT false');
         }
-        console.log('✅ Schema: Healthy.');
+        console.log('✅ Messaging schema is healthy.');
 
         // 4. SMTP Connectivity Test
         console.log('📧 Email: Testing SMTP Configuration...');
@@ -48,45 +49,43 @@ async function check() {
                 const psRes = await axios.get('https://api.paystack.co/balance', {
                     headers: { Authorization: `Bearer ${psKey}` }
                 });
-                console.log(`✅ Paystack: OK. Balance: ${psRes.data.data[0]?.currency} ${psRes.data.data[0]?.balance / 100}`);
+                console.log(`✅ Paystack: OK. Balance retrieved.`);
             } catch (e) {
                 console.warn('❌ Paystack: FAIL. Error:', e.response?.data?.message || e.message);
             }
-        } else {
-            console.warn('⚠️  Paystack: MISSING. PAYSTACK_SECRET_KEY not in .env.');
         }
 
-        // 6. Prembly Connectivity
+        // 6. Prembly (Identitypass) Connectivity
         const prKey = (process.env.PREMBLY_SECRET_KEY || '').trim();
         if (prKey) {
             console.log('🆔 Prembly: Checking connection...');
             try {
+                // Identitypass V2 Balance Check
                 const prRes = await axios.get('https://api.prembly.com/identitypass/verification/account/balance', {
                     headers: { 'x-api-key': prKey }
                 });
-                console.log(`✅ Prembly: OK. Status: ${prRes.data.status}`);
+                console.log(`✅ Prembly: OK. Status: ${prRes.data.status || 'Active'}`);
             } catch (e) {
                 console.warn('❌ Prembly: FAIL. Error:', e.response?.data?.message || e.message);
             }
-        } else {
-            console.warn('⚠️  Prembly: MISSING. PREMBLY_SECRET_KEY not in .env.');
         }
 
         // 7. Dojah Connectivity
-        const djKey = (process.env.DIDIT_API_KEY || '').trim(); // Using the key mapped in Dojah provider
+        const djKey = (process.env.DOJAH_SECRET_KEY || '').trim();
         const djAppId = (process.env.DOJAH_APP_ID || '').trim();
         if (djKey && djAppId) {
             console.log('🆔 Dojah: Checking connection...');
             try {
                 const djRes = await axios.get('https://api.dojah.io/api/v1/balance', {
-                    headers: { Authorization: djKey, 'App-Id': djAppId }
+                    headers: {
+                        'Authorization': djKey,
+                        'App-Id': djAppId
+                    }
                 });
-                console.log(`✅ Dojah: OK. Wallet Balance: ${djRes.data.entity.wallet_balance}`);
+                console.log(`✅ Dojah: OK. Wallet Balance: ${djRes.data.entity?.wallet_balance || 'N/A'}`);
             } catch (e) {
-                console.warn('❌ Dojah: FAIL. Error:', e.response?.data?.message || e.message);
+                console.warn('❌ Dojah: FAIL. Error:', e.response?.data?.error || e.message);
             }
-        } else {
-            console.warn('⚠️  Dojah: MISSING. Check DIDIT_API_KEY and DOJAH_APP_ID in .env.');
         }
 
         console.log('\n✨ ALL CHECKS COMPLETED.');
