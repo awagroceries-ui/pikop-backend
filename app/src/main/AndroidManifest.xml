@@ -57,8 +57,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Payment Success Deep Link -->
-            <intent-filter android:label="@string/app_name">
+            <!-- Payment Success Deep Link (Phase 30 alignment) -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />

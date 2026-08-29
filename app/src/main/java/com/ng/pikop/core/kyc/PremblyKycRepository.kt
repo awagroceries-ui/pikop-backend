@@ -32,8 +32,8 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // STABLE WIDGET ENDPOINT (Verified Production Flow)
-        // Using config_id and public_key with the direct identitypass widget launch.
+        // STABLE WIDGET ENDPOINT (The Definitive Production URL)
+        // Using config_id as a query parameter bypasses 404 segment errors.
         val premblyUrl = "https://widget.identitypass.com/launch" +
                 "?public_key=$publicKey" +
                 "&config_id=$configId" +

@@ -64,17 +64,18 @@ fun PaymentWebView(
 
                                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                     val currentUrl = request?.url?.toString() ?: ""
+                                    android.util.Log.d("PikopPayment", "Navigating to: $currentUrl")
                                     
-                                    // Custom scheme intercept
+                                    // Custom scheme intercept (pikop://payment/success)
                                     if (currentUrl.startsWith("pikop://payment/success")) {
                                         isPaymentConfirmed = true
-                                        onSuccess("pikop_direct") { /* Handled by caller */ }
+                                        onSuccess("pikop_direct") { /* Auto-close on success */ }
                                         return true
                                     }
 
                                     if (currentUrl.contains("callback") || currentUrl.contains("success")) {
                                         isPaymentConfirmed = true
-                                        onSuccess("url_detected") { /* Auto return */ }
+                                        onSuccess("url_detected") { /* Auto-close on success */ }
                                         return true
                                     }
 
