@@ -122,38 +122,7 @@ fun AddressSearchSheet(
             }
 
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                // 1. Current Location (Top action)
-                item {
-                    ListItem(
-                        headlineContent = { Text("Use my current location", fontWeight = FontWeight.Bold, color = Color.Black) },
-                        leadingContent = { Icon(Icons.Default.MyLocation, null, tint = MaterialTheme.colorScheme.primary) },
-                        modifier = Modifier.clickable {
-                            scope.launch {
-                                try {
-                                    isSearching = true
-                                    val loc = try {
-                                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                                    } catch (se: SecurityException) {
-                                        null
-                                    }
-                                    if (loc != null) {
-                                        // Simple placeholder for geocoding
-                                        onAddressSelected("Current Location (${"%.4f".format(loc.latitude)}, ${"%.4f".format(loc.longitude)})", LatLng(loc.latitude, loc.longitude))
-                                    } else {
-                                        Toast.makeText(context, "Location permission or GPS required", Toast.LENGTH_SHORT).show()
-                                    }
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Location unavailable", Toast.LENGTH_SHORT).show()
-                                }
-                                isSearching = false
-                            }
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.White)
-                    )
-                    HorizontalDivider(thickness = 0.5.dp)
-                }
-
-                // 2. Map Picker (Pinned action)
+                // 1. Map Picker (Pinned action)
                 item {
                     ListItem(
                         headlineContent = { Text("Set location on map", fontWeight = FontWeight.Bold, color = Color.Black) },

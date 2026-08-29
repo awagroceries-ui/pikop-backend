@@ -10,15 +10,15 @@ const validateCoupon = async (req, res) => {
     try {
         const { rows } = await db.query(
             "SELECT * FROM coupons WHERE code = $1 AND is_active = true AND (expiry_at IS NULL OR expiry_at > NOW())",
-            [code ? code.toUpperCase() : '']
+            [code ? code.toUpperCase().trim() : '']
         );
 
         if (rows.length === 0) {
+            console.warn(`[Coupon] Validation failed for code: "${code}". No active coupon found.`);
             return res.status(404).json({ success: false, message: 'Invalid or expired coupon code' });
         }
 
         const coupon = rows[0];
-        const numericAmount = parseFloat(amount);
 
         if (numericAmount < parseFloat(coupon.min_order_amount)) {
             return res.status(400).json({

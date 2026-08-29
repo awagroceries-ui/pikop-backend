@@ -32,19 +32,25 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // STABLE WIDGET ENDPOINT (The Definitive Production URL)
-        // Using config_id and public_key as query parameters bypasses path segment issues.
-        val premblyUrl = "https://widget.identitypass.com/launch" +
+        // URL Variant 1: Direct Widget
+        val v1 = "https://widget.identitypass.com/launch" +
                 "?public_key=$publicKey" +
                 "&config_id=$configId" +
                 "&user_ref=$referenceId" +
                 "&email=$email" +
                 "&is_widget=true"
 
-        android.util.Log.d("PremblyKYC", "Launching Direct Widget: $premblyUrl")
+        // URL Variant 2: Checkout V2 (Fallback)
+        val v2 = "https://checkout.identitypass.com/v2/launch" +
+                "?public_key=$publicKey" +
+                "&config_id=$configId" +
+                "&user_ref=$referenceId" +
+                "&email=$email"
+
+        android.util.Log.d("PremblyKYC", "Launching Resilient WebView with variants.")
         
         activity.runOnUiThread {
-            showResilientWebView(activity, listOf(premblyUrl), onSuccess, onError, onClose)
+            showResilientWebView(activity, listOf(v1, v2), onSuccess, onError, onClose)
         }
     }
 

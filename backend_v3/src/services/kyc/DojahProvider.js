@@ -12,10 +12,18 @@ class DojahProvider extends IdentityVerificationProvider {
         try {
             const res = await axios.get(`https://api.dojah.io/api/v1/kyc/nin/vnin`, {
                 params: { vnin },
-                headers: { Authorization: this.apiKey, 'App-Id': this.appId }
+                headers: {
+                    Authorization: this.apiKey,
+                    'App-Id': this.appId
+                }
             });
             return this.mapResponse(true, res.data.entity);
         } catch (e) {
+            console.error('[KYC] Dojah Error Response:', {
+                status: e.response?.status,
+                data: e.response?.data,
+                message: e.message
+            });
             return this.mapResponse(false, null, e);
         }
     }

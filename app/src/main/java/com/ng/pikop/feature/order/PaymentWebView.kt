@@ -66,16 +66,17 @@ fun PaymentWebView(
                                     val currentUrl = request?.url?.toString() ?: ""
                                     android.util.Log.d("PikopPayment", "Navigating to: $currentUrl")
                                     
-                                    // Custom scheme intercept (pikop://payment/success)
-                                    if (currentUrl.startsWith("pikop://payment/success")) {
+                                    // Handle Intent/Pikop schemes for return-to-app
+                                    if (currentUrl.startsWith("intent://") || currentUrl.startsWith("pikop://")) {
+                                        android.util.Log.d("PikopPayment", "SUCCESS: Returning to mission center.")
                                         isPaymentConfirmed = true
-                                        onSuccess("pikop_direct") { /* Auto-close on success */ }
+                                        onSuccess("direct_link") { /* Auto-close handled in main */ }
                                         return true
                                     }
 
                                     if (currentUrl.contains("callback") || currentUrl.contains("success")) {
                                         isPaymentConfirmed = true
-                                        onSuccess("url_detected") { /* Auto-close on success */ }
+                                        onSuccess("url_match") { /* Auto-close handled in main */ }
                                         return true
                                     }
 

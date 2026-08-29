@@ -42,12 +42,12 @@ const signup = async (req, res) => {
     // 5. Send OTP Email (Async)
     const subject = `Verify your Pikop Account: ${otp}`;
     const html = `
-        <h1 class="title">Welcome to Pikop!</h1>
+        <h2 class="greeting">Welcome to Pikop!</h2>
         <p class="text">We're excited to have you on board. To complete your registration and secure your account, please use the following verification code:</p>
-        <div class="cta-box">
-            <span style="font-family: monospace; font-size: 32px; font-weight: 800; color: #008751; letter-spacing: 5px;">${otp}</span>
+        <div class="cta-container">
+            <span class="otp-code">${otp}</span>
         </div>
-        <p class="text">This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
+        <p class="text" style="text-align: center;">This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
     `;
     emailService.sendMail(email, subject, html).catch(err => console.error('[Auth] Initial OTP fail:', err.message));
 
@@ -199,12 +199,12 @@ const resendOtp = async (req, res) => {
     // Send Email
     const subject = `Your New Pikop Verification Code: ${otp}`;
     const html = `
-        <h1 class="title">New Verification Code</h1>
+        <h2 class="greeting">New Verification Code</h2>
         <p class="text">You requested a new verification code for your Pikop account. Please use the code below to continue:</p>
-        <div class="cta-box">
-            <span style="font-family: monospace; font-size: 32px; font-weight: 800; color: #008751; letter-spacing: 5px;">${otp}</span>
+        <div class="cta-container">
+            <span class="otp-code">${otp}</span>
         </div>
-        <p class="text">This code will expire in 10 minutes. For your security, do not share this code with anyone.</p>
+        <p class="text" style="text-align: center;">This code will expire in 10 minutes. For your security, do not share this code with anyone.</p>
     `;
     emailService.sendMail(email, subject, html).catch(err => console.error('[Auth] Resend fail:', err.message));
 

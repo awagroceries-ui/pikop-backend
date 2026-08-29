@@ -63,7 +63,7 @@ fun MapPickerSheet(
     }
     
     var currentAddress by remember { mutableStateOf("Locating...") }
-    var selectedLatLng by remember { mutableStateOf(LatLng(4.8156, 7.0498)) }
+    var selectedLatLng by remember { mutableStateOf(LatLng(6.5244, 3.3792)) } // Default to Lagos
     var isGeocoding by remember { mutableStateOf(false) }
 
     // Advanced Search State
@@ -76,6 +76,23 @@ fun MapPickerSheet(
     var isSearchingSuggestions by remember { mutableStateOf(false) }
     var userLocation by remember { mutableStateOf<LatLng?>(null) }
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            scope.launch {
+                try {
+                    val location: Location? = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                    if (location != null) {
+                        val latLng = LatLng(location.latitude, location.longitude)
+                        userLocation = latLng
+                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 17f))
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
     fun centerOnUser() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             scope.launch {
@@ -85,11 +102,15 @@ fun MapPickerSheet(
                         val latLng = LatLng(location.latitude, location.longitude)
                         userLocation = latLng
                         cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 17f))
+                    } else {
+                        Toast.makeText(context, "GPS Signal weak", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(context, "GPS Signal weak", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "GPS Error", Toast.LENGTH_SHORT).show()
                 }
             }
+        } else {
+            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }
 
@@ -163,7 +184,7 @@ fun MapPickerSheet(
                                         searchJob?.cancel()
                                         if (it.length >= 2) {
                                             searchJob = scope.launch {
-                                                kotlinx.coroutines.delay(400)
+                                                kotlinx.coroutines.delay(250) // Reduced delay for fluidity
                                                 isSearchingSuggestions = true
                                                 try {
                                                     val res = apiService.getAutocomplete(it, sessionToken, userLocation?.latitude, userLocation?.longitude)
@@ -248,9 +269,10 @@ fun MapPickerSheet(
                 // Locate Me FAB
                 FloatingActionButton(
                     onClick = { centerOnUser() },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = 160.dp).zIndex(1f),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = 110.dp).zIndex(1f),
                     containerColor = Color.White,
-                    contentColor = MaterialTheme.colorScheme.primary
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    shape = CircleShape
                 ) { Icon(Icons.Default.MyLocation, "Locate Me") }
 
                 // Bottom Panel
