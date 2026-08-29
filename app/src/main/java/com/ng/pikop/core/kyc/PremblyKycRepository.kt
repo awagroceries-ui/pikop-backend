@@ -19,7 +19,8 @@ import javax.inject.Named
 class PremblyKycRepository @Inject constructor(
     private val apiService: ApiService,
     @Named("premblyPublicKey") private val publicKey: String,
-    @Named("premblyConfigId") private val configId: String
+    @Named("premblyConfigId") private val configId: String,
+    @Named("premblyWidgetId") private val widgetId: String
 ) : KycManager {
 
     override fun startVerification(
@@ -32,7 +33,9 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // URL Variant 1: Direct Widget
+        // High-Precision URL Variants
+        
+        // Variant 1: Direct Widget (Modern PK Segment)
         val v1 = "https://widget.identitypass.com/launch" +
                 "?public_key=$publicKey" +
                 "&config_id=$configId" +
@@ -40,17 +43,24 @@ class PremblyKycRepository @Inject constructor(
                 "&email=$email" +
                 "&is_widget=true"
 
-        // URL Variant 2: Checkout V2 (Fallback)
+        // Variant 2: Checkout V2 (Alternative Endpoint)
         val v2 = "https://checkout.identitypass.com/v2/launch" +
                 "?public_key=$publicKey" +
                 "&config_id=$configId" +
                 "&user_ref=$referenceId" +
                 "&email=$email"
+                
+        // Variant 3: Legacy App ID mapping (if PK is rejected)
+        val v3 = "https://widget.identitypass.com/launch" +
+                "?app_id=$widgetId" +
+                "&config_id=$configId" +
+                "&user_ref=$referenceId" +
+                "&email=$email"
 
-        android.util.Log.d("PremblyKYC", "Launching Resilient WebView with variants.")
+        android.util.Log.d("PremblyKYC", "Initializing Resilient Loader with provided LIVE keys.")
         
         activity.runOnUiThread {
-            showResilientWebView(activity, listOf(v1, v2), onSuccess, onError, onClose)
+            showResilientWebView(activity, listOf(v1, v2, v3), onSuccess, onError, onClose)
         }
     }
 
@@ -88,17 +98,38 @@ class PremblyKycRepository @Inject constructor(
             settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
             
             webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    
+                    // Visual Error Detection: Scan for "Broken" state in the DOM
+                    view?.evaluateJavascript(
+                        "(function() { " +
+                        "  var text = document.body.innerText || ''; " +
+                        "  return text.includes('Something is broken') || text.includes('Error 404'); " +
+                        "})();"
+                    ) { isError ->
+                        if (isError == "true") {
+                            android.util.Log.e("PremblyKYC", "Visual Error Detected. Switching variants...")
+                            handleVariantFailure(view)
+                        }
+                    }
+                }
+
                 override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                     if (request?.isForMainFrame == true) {
-                        if (currentUrlIndex < urls.size - 1) {
-                            currentUrlIndex++
-                            android.util.Log.w("PremblyKYC", "URL variant $currentUrlIndex-1 failed, trying variant $currentUrlIndex...")
-                            view?.loadUrl(urls[currentUrlIndex])
-                        } else {
-                            android.util.Log.e("PremblyKYC", "All URL variants failed.")
-                            onError(error?.description?.toString() ?: "Connection failed")
-                            dialog.dismiss()
-                        }
+                        handleVariantFailure(view)
+                    }
+                }
+
+                private fun handleVariantFailure(view: WebView?) {
+                    if (currentUrlIndex < urls.size - 1) {
+                        currentUrlIndex++
+                        android.util.Log.w("PremblyKYC", "Switching to variant $currentUrlIndex...")
+                        view?.loadUrl(urls[currentUrlIndex])
+                    } else {
+                        android.util.Log.e("PremblyKYC", "All Prembly variants failed. Resorting to fallback.")
+                        onError("Prembly failed all attempts")
+                        dialog.dismiss()
                     }
                 }
 
