@@ -1,4 +1,5 @@
 const db = require('../src/config/db');
+const axios = require('axios');
 require('dotenv').config();
 
 async function check() {
@@ -35,6 +36,55 @@ async function check() {
             console.log('✅ SMTP Relay is functional.');
         } else {
             console.warn('❌ SMTP Relay failed. Check your credentials in .env');
+        }
+
+        // 5. Paystack Connectivity
+        console.log('💳 Checking Paystack Integration...');
+        const psKey = process.env.PAYSTACK_SECRET_KEY;
+        if (psKey) {
+            try {
+                const psRes = await axios.get('https://api.paystack.co/balance', {
+                    headers: { Authorization: `Bearer ${psKey.trim()}` }
+                });
+                console.log(`✅ Paystack: Authenticated. Balance: ${psRes.data.data[0]?.currency} ${psRes.data.data[0]?.balance / 100}`);
+            } catch (e) {
+                console.warn('❌ Paystack: Authentication failed. Check PAYSTACK_SECRET_KEY.');
+            }
+        } else {
+            console.warn('⚠️  Paystack: PAYSTACK_SECRET_KEY missing in .env.');
+        }
+
+        // 6. Prembly Connectivity
+        console.log('🆔 Checking Prembly Integration...');
+        const prKey = process.env.PREMBLY_SECRET_KEY;
+        if (prKey) {
+            try {
+                const prRes = await axios.get('https://api.prembly.com/identitypass/verification/account/balance', {
+                    headers: { 'x-api-key': prKey.trim() }
+                });
+                console.log(`✅ Prembly: Authenticated. Status: ${prRes.data.status}`);
+            } catch (e) {
+                console.warn('❌ Prembly: Authentication failed. Check PREMBLY_SECRET_KEY.');
+            }
+        } else {
+            console.warn('⚠️  Prembly: PREMBLY_SECRET_KEY missing in .env.');
+        }
+
+        // 7. Dojah Connectivity
+        console.log('🆔 Checking Dojah Integration...');
+        const djKey = process.env.DIDIT_API_KEY; // Reusing key as mapped in provider
+        const djAppId = process.env.DOJAH_APP_ID;
+        if (djKey && djAppId) {
+            try {
+                const djRes = await axios.get('https://api.dojah.io/api/v1/balance', {
+                    headers: { Authorization: djKey.trim(), 'App-Id': djAppId.trim() }
+                });
+                console.log(`✅ Dojah: Authenticated. Wallet: ${djRes.data.entity.wallet_balance}`);
+            } catch (e) {
+                console.warn('❌ Dojah: Authentication failed. Check DOJAH keys.');
+            }
+        } else {
+            console.warn('⚠️  Dojah: Credentials missing in .env.');
         }
 
         console.log('\n✨ INTEGRITY CHECK COMPLETE.');
