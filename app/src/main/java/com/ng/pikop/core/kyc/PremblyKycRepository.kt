@@ -41,12 +41,17 @@ class PremblyKycRepository @Inject constructor(
                 if (!verificationUrl.isNullOrBlank()) {
                     android.util.Log.d("PremblyKYC", "Session received. Launching URL: $verificationUrl")
                     
-                    // Generate fallback URL using the session token on the old domain if the new one 404s
                     val sessionId = response.data?.session_id ?: response.session_id ?: ""
-                    val fallbackUrl = "https://sdk.identitypass.com/?session=$sessionId"
+                    
+                    // URL Variants to try sequentially if one fails
+                    val urls = listOf(
+                        verificationUrl, // sdk-live.prembly.com/?session=...
+                        "https://sdk.prembly.com/?session=$sessionId",
+                        "https://sdk.identitypass.com/?session=$sessionId"
+                    )
                     
                     activity.runOnUiThread {
-                        showResilientWebView(activity, listOf(verificationUrl, fallbackUrl), onSuccess, onError, onClose)
+                        showResilientWebView(activity, urls, onSuccess, onError, onClose)
                     }
                 } else {
                     android.util.Log.e("PremblyKYC", "Backend returned empty verification URL")
@@ -96,15 +101,18 @@ class PremblyKycRepository @Inject constructor(
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     
-                    // Visual Error Detection: Scan for "Broken" state in the DOM
+                    // Visual Error Detection: Scan for "Broken" or "Not Found" state in the DOM
                     view?.evaluateJavascript(
                         "(function() { " +
-                        "  var text = document.body.innerText || ''; " +
-                        "  return text.includes('Something is broken') || text.includes('Error 404'); " +
+                        "  var text = (document.body.innerText || '').toLowerCase(); " +
+                        "  return text.includes('something is broken') || " +
+                        "         text.includes('widget not found') || " +
+                        "         text.includes('error 404') || " +
+                        "         text.includes('temporarily unavailable'); " +
                         "})();"
                     ) { isError ->
                         if (isError == "true") {
-                            android.util.Log.e("PremblyKYC", "Visual Error Detected. Switching variants...")
+                            android.util.Log.e("PremblyKYC", "Visual Error detected in DOM. Switching variants...")
                             handleVariantFailure(view)
                         }
                     }
