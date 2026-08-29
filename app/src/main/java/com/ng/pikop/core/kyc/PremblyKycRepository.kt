@@ -40,8 +40,13 @@ class PremblyKycRepository @Inject constructor(
                 
                 if (!verificationUrl.isNullOrBlank()) {
                     android.util.Log.d("PremblyKYC", "Session received. Launching URL: $verificationUrl")
+                    
+                    // Generate fallback URL using the session token on the old domain if the new one 404s
+                    val sessionId = response.data?.session_id ?: response.session_id ?: ""
+                    val fallbackUrl = "https://sdk.identitypass.com/?session=$sessionId"
+                    
                     activity.runOnUiThread {
-                        showResilientWebView(activity, listOf(verificationUrl), onSuccess, onError, onClose)
+                        showResilientWebView(activity, listOf(verificationUrl, fallbackUrl), onSuccess, onError, onClose)
                     }
                 } else {
                     android.util.Log.e("PremblyKYC", "Backend returned empty verification URL")
@@ -105,8 +110,19 @@ class PremblyKycRepository @Inject constructor(
                     }
                 }
 
+                override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, errorResponse: WebResourceResponse?) {
+                    if (request?.isForMainFrame == true) {
+                        val statusCode = errorResponse?.statusCode ?: 0
+                        android.util.Log.e("PremblyKYC", "HTTP Error Detected: $statusCode. Switching variants...")
+                        if (statusCode == 404 || statusCode >= 500) {
+                            handleVariantFailure(view)
+                        }
+                    }
+                }
+
                 override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                     if (request?.isForMainFrame == true) {
+                        android.util.Log.e("PremblyKYC", "Resource Error: ${error?.description}. Switching variants...")
                         handleVariantFailure(view)
                     }
                 }

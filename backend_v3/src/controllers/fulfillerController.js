@@ -45,7 +45,11 @@ const startIdentityVerification = async (req, res) => {
 
         try {
             const response = await axios.post('https://backend.prembly.com/api/v1/checker-widget/sdk/sessions/initiate/', payload, {
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'x-api-key': process.env.PREMBLY_SECRET_KEY
+                },
                 timeout: 10000
             });
 
