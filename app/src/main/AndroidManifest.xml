@@ -15,6 +15,7 @@
     <application
         android:name=".PikopApp"
         android:allowBackup="true"
+        android:extractNativeLibs="true"
         tools:ignore="UnusedAttribute"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -57,7 +58,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Payment Success Deep Link (Phase 30 alignment) -->
+            <!-- Payment Success Deep Link (Phase 28 alignment) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

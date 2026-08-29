@@ -4,6 +4,7 @@ const growthController = require('../controllers/growthController');
 const { authenticateToken } = require('../middleware/authMiddleware');
 
 router.post('/coupons/validate', authenticateToken, growthController.validateCoupon);
+router.post('/validate', authenticateToken, growthController.validateCoupon); // Legacy Bridge
 router.get('/stats', authenticateToken, growthController.getMyGrowthStats);
 
 module.exports = router;

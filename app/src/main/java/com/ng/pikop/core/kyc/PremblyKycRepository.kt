@@ -33,7 +33,7 @@ class PremblyKycRepository @Inject constructor(
         val activity = context.findActivity() ?: return
         
         // STABLE WIDGET ENDPOINT (The Definitive Production URL)
-        // Using config_id as a query parameter bypasses 404 segment errors.
+        // Using config_id and public_key as query parameters bypasses path segment issues.
         val premblyUrl = "https://widget.identitypass.com/launch" +
                 "?public_key=$publicKey" +
                 "&config_id=$configId" +

@@ -9,28 +9,13 @@ async function seed() {
         const discountType = 'PERCENTAGE';
         const discountValue = 100.00;
 
-        // Ensure table exists (pre-migration check)
-        await db.query(`
-            CREATE TABLE IF NOT EXISTS coupons (
-                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-                code varchar(50) UNIQUE NOT NULL,
-                discount_type varchar(20) NOT NULL,
-                discount_value decimal(12,2) NOT NULL,
-                min_order_amount decimal(12,2) DEFAULT 0,
-                is_active boolean DEFAULT true,
-                usage_limit integer DEFAULT 9999,
-                usage_count integer DEFAULT 0,
-                created_at timestamp DEFAULT current_timestamp
-            )
-        `);
-
         // Clean up existing if any
         await db.query("DELETE FROM coupons WHERE code = $1", [code]);
 
-        // Insert new coupon
+        // Insert new coupon with 0 min order and no expiry
         await db.query(
-            `INSERT INTO coupons (code, discount_type, discount_value, is_active, usage_limit)
-             VALUES ($1, $2, $3, true, 9999)`,
+            `INSERT INTO coupons (code, discount_type, discount_value, is_active, usage_limit, min_order_amount)
+             VALUES ($1, $2, $3, true, 9999, 0)`,
             [code, discountType, discountValue]
         );
 

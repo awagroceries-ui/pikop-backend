@@ -172,7 +172,7 @@ const handleWebhook = async (req, res) => {
         const q = quoteRes.rows[0];
 
         // 2. Create Unified Order (DEFINITIVE ALIGNMENT)
-        console.log(`[Webhook] Attempting to activate mission for quote: ${metadata.quote_id}...`);
+        console.log('[Webhook] Attempting to activate mission...');
         try {
             const orderInsertRes = await client.query(
                 `INSERT INTO orders (
@@ -227,33 +227,40 @@ const handleWebhook = async (req, res) => {
  * Friendly redirect for browser-based webhook GET requests.
  */
 const handleWebhookGET = (req, res) => {
+    const intentUrl = "intent://payment/success#Intent;scheme=pikop;package=com.ng.pikop;end";
+
     res.send(`
         <!DOCTYPE html>
-        <html>
-            <head>
-                <title>Payment Success | Pikop</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1">
-                <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 50px 20px; background: #f9f9f9; color: #333; }
-                    .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 400px; margin: 0 auto; }
-                    .icon { font-size: 60px; color: #008751; margin-bottom: 20px; }
-                    h1 { color: #1A1A1A; margin-bottom: 10px; font-weight: 800; }
-                    p { color: #666; line-height: 1.6; margin-bottom: 30px; }
-                    .btn { display: inline-block; padding: 16px 40px; background: #008751; color: white; border: none; border-radius: 12px; font-weight: 700; text-decoration: none; cursor: pointer; transition: all 0.2s; }
-                    .btn:hover { background: #006b3f; transform: translateY(-2px); }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <div class="icon">✓</div>
-                    <h1>SUCCESS!</h1>
-                    <p>Your payment was verified. You can now return to the Pikop app to track your mission.</p>
-                    <a href="pikop://payment/success" class="btn">RETURN TO APP</a>
-                </div>
-                <script>
-                    setTimeout(() => { window.location.href = "pikop://payment/success"; }, 5000);
-                </script>
-            </body>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Payment Success | Pikop</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
+                body { font-family: 'Inter', -apple-system, sans-serif; background-color: #F3F4F6; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
+                .card { background: white; padding: 60px 40px; border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); max-width: 400px; width: 90%; text-align: center; }
+                .success-icon { width: 80px; height: 80px; background: #008751; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto 32px; }
+                h1 { font-size: 24px; font-weight: 800; color: #111827; margin-bottom: 12px; letter-spacing: -0.5px; }
+                p { font-size: 16px; color: #6B7280; line-height: 1.6; margin-bottom: 40px; }
+                .btn { display: block; width: 100%; padding: 18px 0; background: #008751; color: white; border: none; border-radius: 16px; font-weight: 700; text-decoration: none; font-size: 16px; transition: all 0.2s; box-shadow: 0 10px 15px -3px rgba(0, 135, 81, 0.3); }
+                .btn:hover { background: #006b3f; transform: translateY(-2px); }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="success-icon">✓</div>
+                <h1>Payment Successful</h1>
+                <p>We've verified your transaction. You can now return to the app to manage your mission.</p>
+                <a href="${intentUrl}" class="btn">RETURN TO APP</a>
+            </div>
+            <script>
+                // Automated force redirect using Intent pattern for Android Chrome
+                setTimeout(() => {
+                    window.location.replace("${intentUrl}");
+                }, 1000);
+            </script>
+        </body>
         </html>
     `);
 };

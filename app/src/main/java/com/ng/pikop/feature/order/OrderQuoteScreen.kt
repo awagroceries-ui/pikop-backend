@@ -186,7 +186,11 @@ fun OrderQuoteScreen(
                     onClick = {
                         coroutineScope.launch {
                             try {
-                                activePromo = apiService.validatePromoCode(mapOf("code" to promoCode))
+                                val total = quoteResult?.total_fare ?: 0.0
+                                activePromo = apiService.validatePromoCode(mapOf(
+                                    "code" to promoCode,
+                                    "amount" to total.toString()
+                                ))
                                 Toast.makeText(context, activePromo?.message ?: "Code Applied", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
                                 Toast.makeText(context, "Invalid Code", Toast.LENGTH_SHORT).show()

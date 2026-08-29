@@ -5,11 +5,12 @@ const db = require('../config/db');
  */
 const validateCoupon = async (req, res) => {
     const { code, amount } = req.body;
+    const numericAmount = parseFloat(amount || 0);
 
     try {
         const { rows } = await db.query(
             "SELECT * FROM coupons WHERE code = $1 AND is_active = true AND (expiry_at IS NULL OR expiry_at > NOW())",
-            [code.toUpperCase()]
+            [code ? code.toUpperCase() : '']
         );
 
         if (rows.length === 0) {
