@@ -2,6 +2,8 @@ const db = require('../config/db');
 const diditService = require('../services/diditService');
 const kycService = require('../services/kycService');
 
+const axios = require('axios');
+
 /**
  * Initializes a KYC session.
  */
@@ -10,6 +12,11 @@ const startIdentityVerification = async (req, res) => {
   const { provider = process.env.PRIMARY_KYC_PROVIDER || 'prembly' } = req.body;
 
   try {
+    // 1. Fetch user info for initiation
+    const userRes = await db.query("SELECT full_name, email FROM users WHERE id = $1", [userId]);
+    if (userRes.rows.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+    const user = userRes.rows[0];
+
     // Standardizing on v3 abstraction
     if (provider === 'didit') {
         const session = await diditService.createSession(userId);
@@ -20,14 +27,58 @@ const startIdentityVerification = async (req, res) => {
         return res.status(200).json({ success: true, data: { url: session.url, token: session.session_token, session_id: session.session_id } });
     }
 
-    // Default to Prembly/New Flow
+    // NEW PREMBLY SDK FLOW (Initiate Session)
+    if (provider === 'prembly') {
+        const nameParts = (user.full_name || 'Pikop User').split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'User';
+
+        const payload = {
+            first_name: firstName,
+            last_name: lastName,
+            email: user.email,
+            widget_id: process.env.PREMBLY_WIDGET_ID || '2183d331-33bd-4568-a67f-c21ffab5e274',
+            widget_key: process.env.PREMBLY_WIDGET_KEY || 'wdgt_02c17a8d92e54c659279db8cdf5839a2'
+        };
+
+        console.log(`[Prembly] Initiating session for: ${user.email}`);
+
+        try {
+            const response = await axios.post('https://backend.prembly.com/api/v1/checker-widget/sdk/sessions/initiate/', payload, {
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                timeout: 10000
+            });
+
+            if (response.data.status) {
+                const sessionId = response.data.data.session.session_id;
+                const verificationUrl = `https://sdk-live.prembly.com/?session=${sessionId}`;
+
+                return res.status(200).json({
+                    success: true,
+                    data: {
+                        url: verificationUrl,
+                        session_id: sessionId,
+                        session_token: sessionId // Alias
+                    }
+                });
+            } else {
+                console.error('[Prembly] Initiation failed:', response.data.message);
+                return res.status(400).json({ success: false, message: response.data.message });
+            }
+        } catch (apiError) {
+            console.error('[Prembly] API Error:', apiError.response?.data || apiError.message);
+            return res.status(502).json({ success: false, message: 'Could not connect to Prembly' });
+        }
+    }
+
+    // Default Fallback
     res.status(200).json({
         success: true,
         message: 'KYC initialized via abstraction layer',
         provider
     });
   } catch (error) {
-    res.status(502).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

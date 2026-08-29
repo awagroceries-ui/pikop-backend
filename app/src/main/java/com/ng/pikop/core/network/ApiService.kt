@@ -146,9 +146,18 @@ data class FulfillerProfileResponse(
 )
 
 data class KycSessionResponse(
+    val success: Boolean = false,
+    val data: KycSessionData? = null,
+    // Keep old fields for backward compatibility if any parts of the app rely on flat structure
     @SerializedName("url") val url: String? = null,
     @SerializedName("session_token", alternate = ["token"]) val session_token: String? = null,
     @SerializedName("session_id") val session_id: String? = null
+)
+
+data class KycSessionData(
+    val url: String? = null,
+    val session_id: String? = null,
+    val session_token: String? = null
 )
 
 data class VehicleDetails(
@@ -530,8 +539,8 @@ interface ApiService {
     @POST("api/v1/withdrawals")
     suspend fun requestWithdrawal(@Body request: WithdrawalRequest): AuthResponse
 
-    @POST("api/v1/fulfillers/kyc/start-verification")
-    suspend fun startKycVerification(): KycSessionResponse
+    @POST("api/v1/fulfillers/kyc/start")
+    suspend fun startKycSession(@Body request: Map<String, String> = mapOf("provider" to "prembly")): KycSessionResponse
 
     @POST("api/v1/corporate/accounts")
     suspend fun createCorporateAccount(@Body request: CreateCorporateRequest): CorporateAccount

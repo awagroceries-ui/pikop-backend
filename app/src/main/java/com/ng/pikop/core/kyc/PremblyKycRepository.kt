@@ -9,18 +9,16 @@ import android.webkit.*
 import android.widget.FrameLayout
 import androidx.activity.result.ActivityResultLauncher
 import com.ng.pikop.core.network.ApiService
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import javax.inject.Inject
-import javax.inject.Named
 
 /**
  * Prembly (Identitypass) KYC implementation.
  * Uses a Sequential Loader to ensure production stability across all account tiers.
  */
 class PremblyKycRepository @Inject constructor(
-    private val apiService: ApiService,
-    @Named("premblyPublicKey") private val publicKey: String,
-    @Named("premblyConfigId") private val configId: String,
-    @Named("premblyWidgetId") private val widgetId: String
+    private val apiService: ApiService
 ) : KycManager {
 
     override fun startVerification(
@@ -33,34 +31,26 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         
-        // High-Precision URL Variants
+        android.util.Log.d("PremblyKYC", "Initiating Session via Backend...")
         
-        // Variant 1: Direct Widget (Modern PK Segment)
-        val v1 = "https://widget.identitypass.com/launch" +
-                "?public_key=$publicKey" +
-                "&config_id=$configId" +
-                "&user_ref=$referenceId" +
-                "&email=$email" +
-                "&is_widget=true"
-
-        // Variant 2: Checkout V2 (Alternative Endpoint)
-        val v2 = "https://checkout.identitypass.com/v2/launch" +
-                "?public_key=$publicKey" +
-                "&config_id=$configId" +
-                "&user_ref=$referenceId" +
-                "&email=$email"
+        MainScope().launch {
+            try {
+                val response = apiService.startKycSession(mapOf("provider" to "prembly"))
+                val verificationUrl = response.data?.url ?: response.url
                 
-        // Variant 3: Legacy App ID mapping (if PK is rejected)
-        val v3 = "https://widget.identitypass.com/launch" +
-                "?app_id=$widgetId" +
-                "&config_id=$configId" +
-                "&user_ref=$referenceId" +
-                "&email=$email"
-
-        android.util.Log.d("PremblyKYC", "Initializing Resilient Loader with provided LIVE keys.")
-        
-        activity.runOnUiThread {
-            showResilientWebView(activity, listOf(v1, v2, v3), onSuccess, onError, onClose)
+                if (!verificationUrl.isNullOrBlank()) {
+                    android.util.Log.d("PremblyKYC", "Session received. Launching URL: $verificationUrl")
+                    activity.runOnUiThread {
+                        showResilientWebView(activity, listOf(verificationUrl), onSuccess, onError, onClose)
+                    }
+                } else {
+                    android.util.Log.e("PremblyKYC", "Backend returned empty verification URL")
+                    onError("Failed to initiate session")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PremblyKYC", "Initiation failure: ${e.message}")
+                onError("Connection error: ${e.message}")
+            }
         }
     }
 
