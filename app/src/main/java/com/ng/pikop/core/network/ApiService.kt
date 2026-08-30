@@ -522,6 +522,9 @@ interface ApiService {
     @POST("api/v1/payments/initialize")
     suspend fun initializePayment(@retrofit2.http.Body request: PaymentInitializationRequest): PaymentInitializationResponse
 
+    @GET("api/v1/payments/verify/{reference}")
+    suspend fun verifyPayment(@retrofit2.http.Path("reference") reference: String): Map<String, Any>
+
     @DELETE("api/v1/addresses/{id}")
     suspend fun deleteAddress(@retrofit2.http.Path("id") id: Int): AuthResponse
 

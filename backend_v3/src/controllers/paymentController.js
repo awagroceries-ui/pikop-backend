@@ -47,7 +47,7 @@ const initializePayment = async (req, res) => {
     const payload = {
       amount: koboAmount,
       email,
-      callback_url: 'https://api.pikop.com.ng/api/v1/payments/webhook',
+      callback_url: 'pikop://payment/success',
       metadata: {
         quote_id,
         user_id: userId,
@@ -93,7 +93,7 @@ const initializeCoDPayment = async (req, res) => {
         const payload = {
             amount: Math.round(parseFloat(order.collect_on_delivery_amount) * 100),
             email: 'billing@pikop.ng', // Use a generic email for recipient collection
-            callback_url: 'https://api.pikop.com.ng/api/v1/payments/webhook',
+            callback_url: 'pikop://payment/success',
             metadata: {
                 order_id: order.id,
                 collection_type: 'COD'
@@ -140,6 +140,16 @@ const handleWebhook = async (req, res) => {
 
   if (event.event === 'charge.success') {
     const { reference, metadata, channel } = event.data;
+
+    // 0. IDEMPOTENCY CHECK: Has this reference already been processed?
+    const existingOrder = await db.query(
+        "SELECT id FROM orders WHERE payment_reference = $1",
+        [reference]
+    );
+    if (existingOrder.rows.length > 0) {
+        console.log(`[Webhook] Reference ${reference} already processed. Skipping.`);
+        return res.sendStatus(200);
+    }
 
     // Handle CoD Collection Webhook
     if (metadata.collection_type === 'COD') {
@@ -280,9 +290,91 @@ const handleWebhookGET = (req, res) => {
     `);
 };
 
+/**
+ * Verifies a transaction reference directly with Paystack.
+ * Source of Truth for the Android client.
+ */
+const verifyPayment = async (req, res) => {
+    const { reference } = req.params;
+    if (!reference) return res.status(400).json({ success: false, message: 'Reference required' });
+
+    try {
+        console.log(`[Paystack] Verifying reference: ${reference}`);
+        const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
+            headers: { Authorization: `Bearer ${PAYSTACK_SECRET.trim()}` }
+        });
+
+        const tx = response.data.data;
+        if (tx.status === 'success') {
+            const { quote_id, user_id, recipient_name, recipient_phone } = tx.metadata;
+
+            // Trigger activation logic (mirroring Webhook for robustness)
+            const client = await db.pool.connect();
+            try {
+                await client.query('BEGIN');
+
+                // Check if already active
+                const existing = await client.query("SELECT id FROM orders WHERE payment_reference = $1", [reference]);
+                if (existing.rows.length === 0) {
+                    const quoteRes = await client.query("SELECT * FROM quotes WHERE id = $1", [quote_id]);
+                    if (quoteRes.rows.length > 0) {
+                        const q = quoteRes.rows[0];
+                        await client.query(
+                            `INSERT INTO orders (
+                                order_type, user_id, quote_id, status,
+                                item_description, size_tier,
+                                pickup_address, delivery_address,
+                                pickup_location, delivery_location,
+                                total_fare, payment_reference, payment_status, payment_channel,
+                                pickup_code_hash, delivery_code_hash,
+                                recipient_name, recipient_phone,
+                                pickup_display_summary, delivery_display_summary
+                            ) VALUES (
+                                'pickup_delivery', $1, $2, 'SEARCHING',
+                                $3, $4,
+                                $5, $6,
+                                $7, $8,
+                                $9, $10, 'PAID', $11,
+                                'v3_pending', 'v3_pending',
+                                $12, $13, $14, $15
+                            )`,
+                            [
+                                user_id, q.id, q.item_description, q.size_tier,
+                                q.pickup_address, q.delivery_address,
+                                q.pickup_location, q.delivery_location,
+                                q.total_fare, reference, tx.channel,
+                                recipient_name || 'Recipient',
+                                recipient_phone || '000',
+                                q.pickup_address.substring(0, 50),
+                                q.delivery_address.substring(0, 50)
+                            ]
+                        );
+                        console.log(`[Verify] Mission activated via client-triggered verification: ${reference}`);
+                    }
+                }
+                await client.query('COMMIT');
+            } catch (e) {
+                await client.query('ROLLBACK');
+                console.error('[Verify] DB Error:', e.message);
+            } finally {
+                client.release();
+            }
+
+            return res.status(200).json({ success: true, status: 'PAID' });
+        } else {
+            return res.status(200).json({ success: false, status: tx.status });
+        }
+
+    } catch (error) {
+        console.error('[Paystack Verify] Error:', error.message);
+        res.status(500).json({ success: false, message: 'Verification failed' });
+    }
+};
+
 module.exports = {
   initializePayment,
   initializeCoDPayment,
   handleWebhook,
-  handleWebhookGET
+  handleWebhookGET,
+  verifyPayment
 };

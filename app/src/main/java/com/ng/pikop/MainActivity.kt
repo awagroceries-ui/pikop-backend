@@ -464,16 +464,18 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 return@composable
             }
 
-            // AUTO-RECOVERY: Poll for order creation in background
-            // This ensures we return even if Paystack redirect fails
+            var isConfirming by remember { mutableStateOf(false) }
+            val api = remember { ApiService.create(tokenManager) }
+
+            // AUTO-RECOVERY & POLLING: Decoupled Source of Truth
             LaunchedEffect(data.quoteId) {
-                val api = ApiService.create(tokenManager)
                 while (true) {
-                    kotlinx.coroutines.delay(5000) // 5 sec interval
+                    delay(3000) // Poll every 3 seconds
                     try {
                         val res = api.getOrderByQuote(data.quoteId)
                         if (res["success"] == true) {
-                            android.util.Log.d("PikopPayment", "Order detected via background polling. Returning to mission...")
+                            android.util.Log.d("PikopPayment", "POLLING SUCCESS: Order activated.")
+                            CheckoutHelper.activeQuote = null
                             navController.navigate("main") {
                                 popUpTo("order_quote") { inclusive = true }
                             }
@@ -487,24 +489,25 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
 
             PaymentWebView(
                 url = data.url,
-                onSuccess = { ref, onResult ->
+                onSuccess = { reference: String, onResult: (Boolean) -> Unit ->
+                    isConfirming = true
                     scope.launch {
-                        val api = ApiService.create(tokenManager)
-                        val success = finalizeOrderAfterPayment(
-                            api, data.quoteId, null, data.promoId, ref, 
-                            data.recipientName, data.recipientPhone, data.notes, 
-                            data.pLat, data.pLng, data.dLat, data.dLng, 
-                            data.itemPhotoUrl, data.pickupSummary, data.deliverySummary
-                        )
-                        onResult(success)
-                        if (success) {
-                            CheckoutHelper.activeQuote = null // Clear memory
-                            navController.navigate("main") {
-                                popUpTo("order_quote") { inclusive = true }
+                        try {
+                            android.util.Log.d("PikopPayment", "CLIENT VERIFY: Triggering for $reference")
+                            val verifyRes = api.verifyPayment(reference)
+                            if (verifyRes["success"] == true) {
+                                android.util.Log.d("PikopPayment", "VERIFY SUCCESS: Proceeding to main.")
+                                CheckoutHelper.activeQuote = null
+                                navController.navigate("main") {
+                                    popUpTo("order_quote") { inclusive = true }
+                                }
+                            } else {
+                                android.util.Log.w("PikopPayment", "VERIFY REJECTED: Status=${verifyRes["status"]}")
                             }
-                        } else {
-                            android.util.Log.e("PikopPayment", "Finalization failed for Quote: ${data.quoteId}")
-                            android.widget.Toast.makeText(context, "Verifying payment... If you have paid, please wait a moment or contact support if the status doesn't update.", android.widget.Toast.LENGTH_LONG).show()
+                        } catch (e: Exception) {
+                            android.util.Log.e("PikopPayment", "Verify API call failed: ${e.message}")
+                        } finally {
+                            onResult(true)
                         }
                     }
                 },

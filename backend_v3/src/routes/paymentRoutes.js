@@ -5,6 +5,7 @@ const { authenticateToken } = require('../middleware/authMiddleware');
 
 router.post('/initialize', authenticateToken, paymentController.initializePayment);
 router.post('/initialize/cod/:orderId', authenticateToken, paymentController.initializeCoDPayment);
+router.get('/verify/:reference', authenticateToken, paymentController.verifyPayment);
 router.post('/webhook', paymentController.handleWebhook);
 router.get('/webhook', paymentController.handleWebhookGET);
 
