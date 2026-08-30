@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.R
 import com.ng.pikop.core.datastore.TokenManager
@@ -35,6 +36,7 @@ import java.io.FileOutputStream
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderQuoteScreen(
+    navController: NavHostController,
     userEmail: String,
     userName: String = "",
     userPhone: String = "",
@@ -46,13 +48,37 @@ fun OrderQuoteScreen(
     var deliveryAddress by remember { mutableStateOf("") }
     var deliveryLatLng by remember { mutableStateOf<LatLng?>(null) }
     
+    // Result Observers using StateFlow
+    val pAddrRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<String?>("pickup_address", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+    val pLatRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Double?>("pickup_lat", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+    val pLngRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Double?>("pickup_lng", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    val dAddrRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<String?>("delivery_address", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+    val dLatRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Double?>("delivery_lat", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+    val dLngRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Double?>("delivery_lng", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    LaunchedEffect(pAddrRes, pLatRes, pLngRes) {
+        if (pAddrRes != null && pLatRes != null && pLngRes != null) {
+            pickupAddress = pAddrRes!!
+            pickupLatLng = LatLng(pLatRes!!, pLngRes!!)
+            navController.currentBackStackEntry?.savedStateHandle?.set("pickup_address", null)
+        }
+    }
+
+    LaunchedEffect(dAddrRes, dLatRes, dLngRes) {
+        if (dAddrRes != null && dLatRes != null && dLngRes != null) {
+            deliveryAddress = dAddrRes!!
+            deliveryLatLng = LatLng(dLatRes!!, dLngRes!!)
+            navController.currentBackStackEntry?.savedStateHandle?.set("delivery_address", null)
+        }
+    }
+
     var savedAddresses by remember { mutableStateOf<List<SavedAddress>>(emptyList()) }
     var corporateAccounts by remember { mutableStateOf<List<CorporateAccount>>(emptyList()) }
     var selectedCorporateAccount by remember { mutableStateOf<CorporateAccount?>(null) }
     
     var description by remember { mutableStateOf("") }
     var itemPhotoUri by remember { mutableStateOf<Uri?>(null) }
-    var showMapPickerFor by remember { mutableStateOf<String?>(null) }
 
     var promoCode by remember { mutableStateOf("") }
     var activePromo by remember { mutableStateOf<PromoValidationResponse?>(null) }
@@ -61,7 +87,6 @@ fun OrderQuoteScreen(
     var recipientPhone by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
-    // Sync from profile if initial values were empty (Strict Null Safety)
     LaunchedEffect(userName, userPhone) {
         if (recipientName.isNullOrBlank()) {
             recipientName = userName ?: ""
@@ -70,8 +95,6 @@ fun OrderQuoteScreen(
             recipientPhone = userPhone ?: ""
         }
     }
-
-    var searchModeFor by remember { mutableStateOf<String?>(null) }
 
     var quoteResult by remember { mutableStateOf<QuoteResponse?>(null) }
     var quoteId by remember { mutableStateOf<String?>(null) }
@@ -119,13 +142,13 @@ fun OrderQuoteScreen(
             LocationInput(
                 label = "Pickup Location",
                 address = pickupAddress,
-                onClick = { searchModeFor = "pickup" }
+                onClick = { navController.navigate("map_address_search/Pickup/pickup") }
             )
             Spacer(modifier = Modifier.height(16.dp))
             LocationInput(
                 label = "Delivery Location",
                 address = deliveryAddress,
-                onClick = { searchModeFor = "delivery" }
+                onClick = { navController.navigate("map_address_search/Delivery/delivery") }
             )
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -430,29 +453,6 @@ fun OrderQuoteScreen(
             
             Spacer(modifier = Modifier.height(40.dp))
         }
-    }
-
-    if (showMapPickerFor != null) MapPickerSheet(onDismiss = { showMapPickerFor = null }, onLocationSelected = { address, latLng -> if (showMapPickerFor == "pickup") { pickupAddress = address; pickupLatLng = latLng } else { deliveryAddress = address; deliveryLatLng = latLng }; showMapPickerFor = null })
-    
-    if (searchModeFor != null) {
-        AddressSearchSheet(
-            title = if (searchModeFor == "pickup") "Pickup" else "Delivery",
-            onDismiss = { searchModeFor = null },
-            onAddressSelected = { address, latLng ->
-                if (searchModeFor == "pickup") {
-                    pickupAddress = address
-                    pickupLatLng = latLng
-                } else {
-                    deliveryAddress = address
-                    deliveryLatLng = latLng
-                }
-                searchModeFor = null
-            },
-            onOpenMap = {
-                showMapPickerFor = searchModeFor
-                searchModeFor = null
-            }
-        )
     }
 }
 

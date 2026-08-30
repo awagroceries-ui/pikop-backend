@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.AddressRequest
@@ -24,12 +25,27 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SavedAddressesScreen(onBack: () -> Unit) {
+fun SavedAddressesScreen(
+    navController: NavHostController,
+    onBack: () -> Unit
+) {
     var addresses by remember { mutableStateOf<List<SavedAddress>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
-    var showMapPicker by remember { mutableStateOf(false) }
     var showLabelDialog by remember { mutableStateOf<LatLng?>(null) }
     var tempAddressText by remember { mutableStateOf("") }
+
+    // Observers for result from Map search
+    val newAddr by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<String?>("new_address", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+    val newLat by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Double?>("new_lat", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+    val newLng by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Double?>("new_lng", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    LaunchedEffect(newAddr, newLat, newLng) {
+        if (newAddr != null && newLat != null && newLng != null) {
+            tempAddressText = newAddr!!
+            showLabelDialog = LatLng(newLat!!, newLng!!)
+            navController.currentBackStackEntry?.savedStateHandle?.set("new_address", null)
+        }
+    }
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -61,7 +77,7 @@ fun SavedAddressesScreen(onBack: () -> Unit) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showMapPicker = true }) {
+            FloatingActionButton(onClick = { navController.navigate("map_address_search/Add Address/new") }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Address")
             }
         }
@@ -89,17 +105,6 @@ fun SavedAddressesScreen(onBack: () -> Unit) {
                 }
             }
         }
-    }
-
-    if (showMapPicker) {
-        MapPickerSheet(
-            onDismiss = { showMapPicker = false },
-            onLocationSelected = { address, latLng ->
-                tempAddressText = address
-                showLabelDialog = latLng
-                showMapPicker = false
-            }
-        )
     }
 
     if (showLabelDialog != null) {

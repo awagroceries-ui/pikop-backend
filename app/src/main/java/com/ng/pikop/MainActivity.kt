@@ -369,6 +369,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
         composable("order_quote") {
             OrderQuoteScreen(
+                navController = navController,
                 userEmail = userEmail ?: "",
                 userName = userName ?: "",
                 userPhone = userPhone ?: "",
@@ -425,7 +426,28 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         composable("session_mgmt") { SessionManagementScreen(onBack = { navController.popBackStack() }) }
         composable("corporate_dashboard") { CorporateDashboardScreen(onBack = { navController.popBackStack() }) }
         composable("insights") { InsightsScreen(onBack = { navController.popBackStack() }) }
+        composable("saved_addresses") { 
+            SavedAddressesScreen(
+                navController = navController,
+                onBack = { navController.popBackStack() }
+            ) 
+        }
         
+        composable("map_address_search/{title}/{type}") { backStackEntry ->
+            val title = backStackEntry.arguments?.getString("title") ?: "Location"
+            val type = backStackEntry.arguments?.getString("type") ?: "pickup"
+            MapAddressSearchScreen(
+                title = title,
+                onBack = { navController.popBackStack() },
+                onAddressSelected = { address, lat, lng ->
+                    navController.previousBackStackEntry?.savedStateHandle?.set("${type}_address", address)
+                    navController.previousBackStackEntry?.savedStateHandle?.set("${type}_lat", lat)
+                    navController.previousBackStackEntry?.savedStateHandle?.set("${type}_lng", lng)
+                    navController.popBackStack()
+                }
+            )
+        }
+
         composable("support_hub") {
             SupportHubScreen(
                 onNavigateToFaqList = { category -> navController.navigate("faq_list/$category") },

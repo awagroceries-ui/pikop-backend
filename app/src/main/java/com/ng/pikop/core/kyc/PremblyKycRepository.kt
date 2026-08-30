@@ -12,13 +12,16 @@ import com.ng.pikop.core.network.ApiService
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import javax.inject.Named
 
 /**
  * Prembly (Identitypass) KYC implementation.
- * Uses a Sequential Loader to ensure production stability across all account tiers.
+ * Uses the official Inline JS Widget for maximum reliability.
  */
 class PremblyKycRepository @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    @Named("premblyPublicKey") private val publicKey: String,
+    @Named("premblyConfigId") private val configId: String
 ) : KycManager {
 
     override fun startVerification(
@@ -30,37 +33,8 @@ class PremblyKycRepository @Inject constructor(
         onClose: () -> Unit
     ) {
         val activity = context.findActivity() ?: return
-        
-        android.util.Log.d("PremblyKYC", "Initiating Session via Backend...")
-        
-        MainScope().launch {
-            try {
-                val response = apiService.startKycSession(mapOf("provider" to "prembly"))
-                val verificationUrl = response.data?.url ?: response.url
-                
-                if (!verificationUrl.isNullOrBlank()) {
-                    android.util.Log.d("PremblyKYC", "Session received. Launching URL: $verificationUrl")
-                    
-                    val sessionId = response.data?.session_id ?: response.session_id ?: ""
-                    
-                    // URL Variants to try sequentially if one fails
-                    val urls = listOf(
-                        verificationUrl, // sdk-live.prembly.com/?session=...
-                        "https://sdk.prembly.com/?session=$sessionId",
-                        "https://sdk.identitypass.com/?session=$sessionId"
-                    )
-                    
-                    activity.runOnUiThread {
-                        showResilientWebView(activity, urls, onSuccess, onError, onClose)
-                    }
-                } else {
-                    android.util.Log.e("PremblyKYC", "Backend returned empty verification URL")
-                    onError("Failed to initiate session")
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("PremblyKYC", "Initiation failure: ${e.message}")
-                onError("Connection error: ${e.message}")
-            }
+        activity.runOnUiThread {
+            showInlineWidget(activity, email, referenceId, onSuccess, onError, onClose)
         }
     }
 
@@ -74,15 +48,15 @@ class PremblyKycRepository @Inject constructor(
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun showResilientWebView(
+    private fun showInlineWidget(
         activity: Activity,
-        urls: List<String>,
+        email: String,
+        referenceId: String,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
         onClose: () -> Unit
     ) {
         val dialog = android.app.Dialog(activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
-        var currentUrlIndex = 0
         
         val webView = WebView(activity).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -92,85 +66,93 @@ class PremblyKycRepository @Inject constructor(
             
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.setSupportMultipleWindows(true)
+            settings.databaseEnabled = true
             
-            // Professional Mobile UA
-            settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
-            
-            webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    super.onPageFinished(view, url)
-                    
-                    // Visual Error Detection: Scan for "Broken" or "Not Found" state in the DOM
-                    view?.evaluateJavascript(
-                        "(function() { " +
-                        "  var text = (document.body.innerText || '').toLowerCase(); " +
-                        "  return text.includes('something is broken') || " +
-                        "         text.includes('widget not found') || " +
-                        "         text.includes('error 404') || " +
-                        "         text.includes('temporarily unavailable'); " +
-                        "})();"
-                    ) { isError ->
-                        if (isError == "true") {
-                            android.util.Log.e("PremblyKYC", "Visual Error detected in DOM. Switching variants...")
-                            handleVariantFailure(view)
-                        }
-                    }
-                }
-
-                override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, errorResponse: WebResourceResponse?) {
-                    if (request?.isForMainFrame == true) {
-                        val statusCode = errorResponse?.statusCode ?: 0
-                        android.util.Log.e("PremblyKYC", "HTTP Error Detected: $statusCode. Switching variants...")
-                        if (statusCode == 404 || statusCode >= 500) {
-                            handleVariantFailure(view)
-                        }
-                    }
-                }
-
-                override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
-                    if (request?.isForMainFrame == true) {
-                        android.util.Log.e("PremblyKYC", "Resource Error: ${error?.description}. Switching variants...")
-                        handleVariantFailure(view)
-                    }
-                }
-
-                private fun handleVariantFailure(view: WebView?) {
-                    if (currentUrlIndex < urls.size - 1) {
-                        currentUrlIndex++
-                        android.util.Log.w("PremblyKYC", "Switching to variant $currentUrlIndex...")
-                        view?.loadUrl(urls[currentUrlIndex])
-                    } else {
-                        android.util.Log.e("PremblyKYC", "All Prembly attempts failed. Triggering Dojah fallback.")
-                        activity.runOnUiThread {
-                            if (dialog.isShowing) dialog.dismiss()
-                            onError("Prembly failed all attempts")
-                        }
-                    }
-                }
-
-                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                    val uri = request?.url.toString()
-                    android.util.Log.d("PremblyKYC", "Navigation Intercept: $uri")
-                    
-                    if (uri.contains("success") || uri.contains("approved") || uri.contains("verified") || uri.contains("redirect")) {
-                        onSuccess("verified")
+            addJavascriptInterface(object {
+                @JavascriptInterface
+                fun onSuccess(response: String) {
+                    android.util.Log.d("PremblyKYC", "Success: ${'$'}response")
+                    activity.runOnUiThread {
+                        onSuccess(response)
                         dialog.dismiss()
-                        return true
                     }
-                    if (uri.contains("cancel") || uri.contains("close") || uri.contains("exit") || uri.contains("failure")) {
+                }
+                
+                @JavascriptInterface
+                fun onClose() {
+                    android.util.Log.d("PremblyKYC", "Closed")
+                    activity.runOnUiThread {
                         onClose()
                         dialog.dismiss()
-                        return true
                     }
-                    return false
+                }
+
+                @JavascriptInterface
+                fun onError(error: String) {
+                    android.util.Log.e("PremblyKYC", "Error: ${'$'}error")
+                    activity.runOnUiThread {
+                        onError(error)
+                        dialog.dismiss()
+                    }
+                }
+            }, "AndroidBridge")
+
+            webViewClient = object : WebViewClient() {
+                override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                    if (request?.isForMainFrame == true) {
+                        android.util.Log.e("PremblyKYC", "WebView Error: ${'$'}{error?.description}")
+                    }
                 }
             }
         }
 
+        // Inline Widget HTML Shell
+        val html = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                <title>Verification | Pikop</title>
+                <style>
+                    body { margin: 0; padding: 0; background-color: #ffffff; display: flex; flex-direction: column; height: 100vh; font-family: -apple-system, sans-serif; }
+                    #prembly-widget-container { flex: 1; width: 100%; height: 100%; }
+                </style>
+            </head>
+            <body>
+                <div id="prembly-widget-container"></div>
+                <script src="https://js.prembly.com/v1/inline/widget.js"></script>
+                <script>
+                    try {
+                        var widget = new PremblyWidget({
+                            publicKey: "$publicKey",
+                            configId: "$configId",
+                            userRef: "$referenceId",
+                            email: "$email",
+                            onSuccess: function(response) { 
+                                AndroidBridge.onSuccess(JSON.stringify(response)); 
+                            },
+                            onClose: function() { 
+                                AndroidBridge.onClose(); 
+                            },
+                            onError: function(err) {
+                                AndroidBridge.onError(err ? err.message || JSON.stringify(err) : "Unknown Error");
+                            }
+                        });
+                        widget.launch();
+                    } catch (e) {
+                        AndroidBridge.onError(e.message);
+                    }
+                </script>
+            </body>
+            </html>
+        """.trimIndent()
+
         dialog.setContentView(webView)
         dialog.show()
-        webView.loadUrl(urls[0])
+        
+        // Load the local HTML shell with the remote script base
+        webView.loadDataWithBaseURL("https://js.prembly.com", html, "text/html", "UTF-8", null)
     }
 
     private fun Context.findActivity(): Activity? {
