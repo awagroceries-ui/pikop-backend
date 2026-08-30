@@ -99,10 +99,15 @@ const sendMail = async (to, subject, html) => {
       }
     });
 
-    console.log(\`[Email] Branded success! Delivered to \${to}.\`);
+    console.log(`[Email] Branded success! Delivered to ${to}.`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error(\`[Email] Critical Delivery Failure:\`, error.message);
+    console.error(`[Email] CRITICAL FAILURE for ${to}:`, {
+        message: error.message,
+        code: error.code,
+        command: error.command,
+        response: error.response
+    });
     return { success: false, error: error.message };
   }
 };

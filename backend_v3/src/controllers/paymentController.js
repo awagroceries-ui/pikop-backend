@@ -13,6 +13,11 @@ const initializePayment = async (req, res) => {
   const { quote_id, amount, email } = req.body;
   const userId = req.user.id;
 
+  if (!quote_id) {
+      console.error('[Paystack] ERROR: Missing quote_id in request body');
+      return res.status(400).json({ success: false, message: 'quote_id is required for activation' });
+  }
+
   if (!PAYSTACK_SECRET || PAYSTACK_SECRET.includes('your_')) {
       console.error('[Paystack] ERROR: Missing or invalid secret key in .env');
       return res.status(500).json({ success: false, message: 'Payment gateway not configured' });

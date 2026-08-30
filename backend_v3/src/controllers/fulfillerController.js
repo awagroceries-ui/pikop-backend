@@ -10,6 +10,10 @@ const axios = require('axios');
 const startIdentityVerification = async (req, res) => {
   const userId = req.user.id;
   const { provider = process.env.PRIMARY_KYC_PROVIDER || 'prembly' } = req.body;
+  const normalizedProvider = provider.toLowerCase();
+
+  console.log(`[KYC] User ${userId} requested verification via: ${normalizedProvider}`);
+  console.log(`[KYC] Request Body:`, JSON.stringify(req.body));
 
   try {
     // 1. Fetch user info for initiation
@@ -18,7 +22,7 @@ const startIdentityVerification = async (req, res) => {
     const user = userRes.rows[0];
 
     // Standardizing on v3 abstraction
-    if (provider === 'didit') {
+    if (normalizedProvider === 'didit') {
         const session = await diditService.createSession(userId);
         await db.query(
           "UPDATE fulfillers SET didit_session_id = $1, didit_verification_status = 'pending' WHERE user_id = $2",

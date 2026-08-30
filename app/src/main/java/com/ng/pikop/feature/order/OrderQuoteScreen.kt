@@ -373,7 +373,13 @@ fun OrderQuoteScreen(
                                     }
 
                                     try {
-                                        val paymentInit = apiService.initializePayment(PaymentInitializationRequest(amount = amountToCharge, email = userEmail))
+                                        val paymentInit = apiService.initializePayment(
+                                            PaymentInitializationRequest(
+                                                amount = amountToCharge, 
+                                                email = userEmail,
+                                                quote_id = qId
+                                            )
+                                        )
                                         val authUrl = paymentInit.authorization_url
                                         
                                         if (!authUrl.isNullOrBlank()) {

@@ -372,6 +372,7 @@ data class PromoValidationResponse(
 data class PaymentInitializationRequest(
     val amount: Double, // in Naira
     val email: String,
+    val quote_id: String? = null,
     val metadata: Map<String, String>? = null
 )
 
