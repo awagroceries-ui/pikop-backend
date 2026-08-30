@@ -36,7 +36,6 @@ import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.chat.*
 import com.ng.pikop.feature.fulfiller.*
 import com.ng.pikop.feature.order.*
-import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.ui.theme.PikopTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -53,16 +52,39 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        android.util.Log.d("PikopLifecycle", "MainActivity onCreate (Process ID: ${android.os.Process.myPid()})")
-        enableEdgeToEdge()
-        
-        // Initial intent
-        _intentFlow.value = intent
+        try {
+            android.util.Log.d("PikopLifecycle", "MainActivity onCreate - START (Process: ${android.os.Process.myPid()})")
+            enableEdgeToEdge()
+            
+            // Initial intent
+            _intentFlow.value = intent
 
-        setContent {
-            PikopTheme {
-                PikopAppNavigation(intentFlow = intentFlow)
+            setContent {
+                PikopTheme {
+                    var canLaunch by remember { mutableStateOf(false) }
+                    SideEffect {
+                        android.util.Log.d("PikopLifecycle", "MainActivity - Theme Applied")
+                    }
+                    LaunchedEffect(Unit) {
+                        delay(400) // Increased settle delay to ensure OS processes launch signal
+                        canLaunch = true
+                        android.util.Log.d("PikopLifecycle", "MainActivity - Ready to Launch Navigation")
+                    }
+                    if (canLaunch) {
+                        PikopAppNavigation(intentFlow = intentFlow)
+                    } else {
+                        // Very light placeholder to keep main thread free
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
             }
+            android.util.Log.d("PikopLifecycle", "MainActivity onCreate - SUCCESS")
+        } catch (e: Throwable) {
+            android.util.Log.e("PikopLifecycle", "CRITICAL CRASH IN ONCREATE: ${e.message}", e)
+            // Show toast if possible or just crash with log
+            throw e
         }
     }
 
