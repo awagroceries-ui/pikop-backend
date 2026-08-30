@@ -14,15 +14,14 @@ cd $PROJECT_ROOT
 
 # Flatten if nested
 if [ -d "backend_v3" ]; then
-    echo "🏗️  Detected nested folder. Performing deep merge..."
-    # Copy files, not overwriting newer ones if any
-    cp -rn backend_v3/* .
-    cp -rn backend_v3/.* . 2>/dev/null
+    echo "🏗️  Detected nested folder. Performing DEEP FORCE MERGE..."
+    # Force overwrite existing files with the new ones from Git
+    cp -rf backend_v3/* .
+    cp -rf backend_v3/.* . 2>/dev/null
 
-    # Ensure the .env is in the root
-    if [ -f "backend_v3/.env" ]; then
-        mv backend_v3/.env ./.env
-    fi
+    # Cleanup the nested folder to prevent future confusion
+    rm -rf backend_v3
+    echo "✅ Directory flattened and old nested folder removed."
 fi
 
 echo "📦 Reinstalling Node Dependencies (Force)..."
