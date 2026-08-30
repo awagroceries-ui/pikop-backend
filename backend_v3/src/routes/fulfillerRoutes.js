@@ -29,6 +29,8 @@ router.get('/ping', (req, res) => res.send('FULFILLER ROUTES ACTIVE'));
 // Fleet Operations
 router.get('/profile', authenticateToken, fulfillerController.getProfile);
 router.patch('/profile', authenticateToken, fulfillerController.updateFulfillerProfile);
+router.post('/profile-photo', authenticateToken, upload.single('photo'), fulfillerController.uploadProfilePhoto);
 router.patch('/status', authenticateToken, fulfillerController.updateStatus);
+router.get('/orders', authenticateToken, fulfillerController.getFulfillerOrders);
 
 module.exports = router;

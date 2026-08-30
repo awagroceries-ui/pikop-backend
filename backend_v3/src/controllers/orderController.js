@@ -362,6 +362,29 @@ const createOrder = async (req, res) => {
     }
 };
 
+/**
+ * Returns missions for the authenticated customer.
+ */
+const getUserOrders = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const { rows } = await db.query(
+      `SELECT o.*,
+       ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
+       ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng
+       FROM orders o
+       WHERE o.user_id = $1
+       ORDER BY o.created_at DESC`,
+      [userId]
+    );
+
+    res.status(200).json(rows);
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -370,5 +393,6 @@ module.exports = {
   getOrderDetails,
   updateStatus,
   initiateReturn,
-  getOrderMessages
+  getOrderMessages,
+  getUserOrders
 };

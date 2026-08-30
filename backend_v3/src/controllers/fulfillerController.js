@@ -301,6 +301,52 @@ const getProfile = async (req, res) => {
   }
 };
 
+/**
+ * Returns missions assigned to or completed by the fulfiller.
+ */
+const getFulfillerOrders = async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+        const { rows: fulfiller } = await db.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
+        if (fulfiller.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller not found' });
+
+        const { rows } = await db.query(
+            `SELECT o.*,
+             ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
+             ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng
+             FROM orders o
+             WHERE o.fulfiller_id = $1 OR o.queued_for_fulfiller_id = $1
+             ORDER BY o.created_at DESC`,
+            [fulfiller[0].id]
+        );
+
+        res.status(200).json(rows);
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Handles fulfiller avatar updates.
+ */
+const uploadProfilePhoto = async (req, res) => {
+    const userId = req.user.id;
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+
+    const photoUrl = `/uploads/${req.file.filename}`;
+
+    try {
+        await db.query(
+            "UPDATE fulfillers SET profile_photo_url = $1 WHERE user_id = $2",
+            [photoUrl, userId]
+        );
+        res.status(200).json({ success: true, url: photoUrl });
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
   startIdentityVerification,
   updateFulfillerProfile,
@@ -308,5 +354,7 @@ module.exports = {
   handleDiditWebhook,
   uploadDocument,
   updateStatus,
-  getProfile
+  getProfile,
+  getFulfillerOrders,
+  uploadProfilePhoto
 };

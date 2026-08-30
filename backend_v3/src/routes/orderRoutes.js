@@ -20,6 +20,7 @@ const upload = multer({ storage });
 
 router.post('/quote', authenticateToken, orderController.getQuote);
 router.get('/by-quote/:quoteId', authenticateToken, orderController.getOrderByQuote);
+router.get('/', authenticateToken, orderController.getUserOrders);
 router.post('/', authenticateToken, orderController.createOrder);
 router.get('/:orderId', authenticateToken, orderController.getOrderDetails);
 router.patch('/:orderId/status', authenticateToken, orderController.updateStatus);

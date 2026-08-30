@@ -31,7 +31,11 @@ const classifyItemSize = async (description) => {
     const jsonMatch = text.match(/\{.*\}/);
     return JSON.parse(jsonMatch[0]);
   } catch (error) {
-    console.warn('[Gemini] Classification failed, falling back to MEDIUM.');
+    console.error('[Gemini] Classification CRITICAL FAILURE:', {
+        message: error.message,
+        stack: error.stack,
+        description
+    });
     return { size_tier: 'MEDIUM', confidence: 0.5 };
   }
 };
