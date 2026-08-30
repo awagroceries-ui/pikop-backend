@@ -88,7 +88,7 @@ const sendMail = async (to, subject, html) => {
 
   try {
     const info = await transporter.sendMail({
-      from: \`"Pikop" <\${cleanFrom}>\`,
+      from: `"Pikop" <${cleanFrom}>`,
       to,
       subject: subject.toUpperCase(),
       html: premiumTemplate,
