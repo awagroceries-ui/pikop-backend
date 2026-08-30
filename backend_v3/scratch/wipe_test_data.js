@@ -29,13 +29,25 @@ async function wipe() {
     ];
 
     try {
-        // 1. Perform Truncate
-        console.log('🗑️  Truncating test data tables...');
-        const truncateQuery = `TRUNCATE ${tablesToClear.join(', ')} CASCADE`;
-        await db.query(truncateQuery);
-        console.log('✅ All test user data tables cleared successfully.');
+        // 1. Fetch Existing Tables (Safeguard)
+        const existingTablesRes = await db.query(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+        );
+        const existingTables = existingTablesRes.rows.map(r => r.table_name);
 
-        // 2. Re-seed TEST100 Coupon
+        const tablesToTruncate = tablesToClear.filter(t => existingTables.includes(t));
+
+        // 2. Perform Truncate
+        console.log('🗑️  Truncating available test data tables...');
+        if (tablesToTruncate.length > 0) {
+            const truncateQuery = `TRUNCATE ${tablesToTruncate.join(', ')} CASCADE`;
+            await db.query(truncateQuery);
+            console.log(`✅ ${tablesToTruncate.length} tables cleared successfully.`);
+        } else {
+            console.log('ℹ️  No matching tables found to clear.');
+        }
+
+        // 3. Re-seed TEST100 Coupon
         console.log('🎟️  Re-seeding TEST100 coupon...');
         try {
             const seedScriptPath = path.join(__dirname, 'v3_seed_test_coupon.js');

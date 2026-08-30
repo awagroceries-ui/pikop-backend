@@ -6,8 +6,7 @@ exports.up = (pgm) => {
     pickup_display_summary: { type: 'text' },
     delivery_display_summary: { type: 'text' },
     item_photo_url: { type: 'text' },
-    payment_method: { type: 'varchar(30)' },
-    parent_order_id: { type: 'integer', references: '"orders"', onDelete: 'set null' }
+    payment_method: { type: 'varchar(30)' }
   });
 };
 
@@ -19,7 +18,6 @@ exports.down = (pgm) => {
     'pickup_display_summary',
     'delivery_display_summary',
     'item_photo_url',
-    'payment_method',
-    'parent_order_id'
+    'payment_method'
   ]);
 };
