@@ -9,18 +9,58 @@ const CONTROLLER_PATH = path.join(__dirname, '../src/controllers/fulfillerContro
 const CONTROLLER_CONTENT = `const db = require('../config/db');
 const diditService = require('../services/diditService');
 const kycService = require('../services/kycService');
+const axios = require('axios');
 
 const startIdentityVerification = async (req, res) => {
   const userId = req.user.id;
   const { provider = process.env.PRIMARY_KYC_PROVIDER || 'prembly' } = req.body;
+  const normalizedProvider = provider.toLowerCase();
+
   try {
-    if (provider === 'didit') {
+    const userRes = await db.query("SELECT full_name, email FROM users WHERE id = \$1", [userId]);
+    if (userRes.rows.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+    const user = userRes.rows[0];
+
+    if (normalizedProvider === 'didit') {
         const session = await diditService.createSession(userId);
         await db.query("UPDATE fulfillers SET didit_session_id = \$1, didit_verification_status = 'pending' WHERE user_id = \$2", [session.session_id, userId]);
         return res.status(200).json({ success: true, data: { url: session.url, token: session.session_token, session_id: session.session_id } });
     }
-    res.status(200).json({ success: true, message: 'KYC initialized via abstraction layer', provider });
-  } catch (error) { res.status(502).json({ success: false, message: error.message }); }
+
+    if (normalizedProvider === 'prembly') {
+        const nameParts = (user.full_name || 'Pikop User').split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'User';
+
+        const payload = {
+            first_name: firstName,
+            last_name: lastName,
+            email: user.email,
+            widget_id: process.env.PREMBLY_CONFIG_ID || '2183d331-33bd-4568-a67f-c21ffab5e274',
+            widget_key: process.env.PREMBLY_WIDGET_ID || 'wdgt_02c17a8d92e54c659279db8cdf5839a2'
+        };
+
+        const response = await axios.post('https://backend.prembly.com/api/v1/checker-widget/sdk/sessions/initiate/', payload, {
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.PREMBLY_SECRET_KEY
+            },
+            timeout: 10000
+        });
+
+        if (response.data.status) {
+            const sessionId = response.data.data.session.session_id;
+            return res.status(200).json({
+                success: true,
+                data: { url: \`https://sdk-live.prembly.com/?session=\${sessionId}\`, session_id: sessionId }
+            });
+        }
+        return res.status(400).json({ success: false, message: response.data.message });
+    }
+
+    res.status(200).json({ success: true, message: 'KYC fallback active', provider });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 };
 
 const updateFulfillerProfile = async (req, res) => {
@@ -52,9 +92,6 @@ const verifyVehiclePlate = async (req, res) => {
     try {
         const { rows: fulfiller } = await db.query("SELECT id, primary_class FROM fulfillers WHERE user_id = \$1", [userId]);
         if (fulfiller.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller not found' });
-        if (fulfiller[0].primary_class !== 'DRIVER' && fulfiller[0].primary_class !== 'driver') {
-            return res.status(403).json({ success: false, message: 'Plate verification only required for Driver tier' });
-        }
         const result = await kycService.executeCheck('verifyVehiclePlate', plate_number);
         await db.query("UPDATE fulfillers SET registration_number = \$1, kyc_status = \$2 WHERE id = \$3", [plate_number, result.status === 'SUCCESS' ? 'VERIFIED' : 'FAILED', fulfiller[0].id]);
         res.status(200).json(result);
@@ -109,6 +146,29 @@ const getProfile = async (req, res) => {
   } catch (error) { res.status(500).send(error.message); }
 };
 
+const getFulfillerOrders = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const { rows: f } = await db.query("SELECT id FROM fulfillers WHERE user_id = \$1", [userId]);
+        if (f.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller not found' });
+        const { rows } = await db.query(
+            "SELECT o.*, ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng, ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng FROM orders o WHERE o.fulfiller_id = \$1 OR o.queued_for_fulfiller_id = \$1 ORDER BY o.created_at DESC",
+            [f[0].id]
+        );
+        res.status(200).json(rows);
+    } catch (error) { res.status(500).send(error.message); }
+};
+
+const uploadProfilePhoto = async (req, res) => {
+    const userId = req.user.id;
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+    const photoUrl = "/uploads/" + req.file.filename;
+    try {
+        await db.query("UPDATE fulfillers SET profile_photo_url = \$1 WHERE user_id = \$2", [photoUrl, userId]);
+        res.status(200).json({ success: true, url: photoUrl });
+    } catch (error) { res.status(500).send(error.message); }
+};
+
 module.exports = {
   startIdentityVerification,
   updateFulfillerProfile,
@@ -116,9 +176,11 @@ module.exports = {
   handleDiditWebhook,
   uploadDocument,
   updateStatus,
-  getProfile
+  getProfile,
+  getFulfillerOrders,
+  uploadProfilePhoto
 };
-`;
+\`;
 
 async function restore() {
     console.log('🚀 PIKOP VPS SUPER REPAIR INITIATED');
