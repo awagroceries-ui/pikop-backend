@@ -42,6 +42,7 @@ const initializePayment = async (req, res) => {
     const payload = {
       amount: koboAmount,
       email,
+      callback_url: 'https://api.pikop.com.ng/api/v1/payments/webhook',
       metadata: {
         quote_id,
         user_id: userId,
@@ -87,6 +88,7 @@ const initializeCoDPayment = async (req, res) => {
         const payload = {
             amount: Math.round(parseFloat(order.collect_on_delivery_amount) * 100),
             email: 'billing@pikop.ng', // Use a generic email for recipient collection
+            callback_url: 'https://api.pikop.com.ng/api/v1/payments/webhook',
             metadata: {
                 order_id: order.id,
                 collection_type: 'COD'

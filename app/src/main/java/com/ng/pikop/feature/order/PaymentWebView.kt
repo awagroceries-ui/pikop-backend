@@ -88,8 +88,10 @@ fun PaymentWebView(
                                         return true
                                     }
 
-                                    if (currentUrl.contains("callback") || currentUrl.contains("success")) {
+                                    // Intercept Webhook URL or Success keywords
+                                    if (currentUrl.contains("callback") || currentUrl.contains("success") || currentUrl.contains("payments/webhook")) {
                                         if (!isPaymentConfirmed) {
+                                            android.util.Log.d("PikopPayment", "SUCCESS: Callback/Webhook URL detected.")
                                             isPaymentConfirmed = true
                                             onSuccess("url_match") { /* Auto-close handled in main */ }
                                         }
