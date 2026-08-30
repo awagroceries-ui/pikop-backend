@@ -37,11 +37,11 @@ const startIdentityVerification = async (req, res) => {
             first_name: firstName,
             last_name: lastName,
             email: user.email,
-            widget_id: process.env.PREMBLY_WIDGET_KEY || 'wdgt_02c17a8d92e54c659279db8cdf5839a2',
-            widget_key: process.env.PREMBLY_PUBLIC_KEY || 'live_pk_1b88a3b62d2a401b9ae2b925636ed455'
+            widget_id: process.env.PREMBLY_CONFIG_ID || '2183d331-33bd-4568-a67f-c21ffab5e274',
+            widget_key: process.env.PREMBLY_WIDGET_ID || 'wdgt_02c17a8d92e54c659279db8cdf5839a2'
         };
 
-        console.log('[Prembly] Initiating session with CORRECTED mapping...');
+        console.log('[Prembly] Initiating session with DOCUMENTED mapping...');
         console.log(`[Prembly] Payload:`, JSON.stringify(payload));
 
         try {

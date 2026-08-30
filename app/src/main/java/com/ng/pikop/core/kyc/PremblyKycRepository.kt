@@ -141,9 +141,11 @@ class PremblyKycRepository @Inject constructor(
                         android.util.Log.w("PremblyKYC", "Switching to variant $currentUrlIndex...")
                         view?.loadUrl(urls[currentUrlIndex])
                     } else {
-                        android.util.Log.e("PremblyKYC", "All Prembly variants failed. Resorting to fallback.")
-                        onError("Prembly failed all attempts")
-                        dialog.dismiss()
+                        android.util.Log.e("PremblyKYC", "All Prembly attempts failed. Triggering Dojah fallback.")
+                        activity.runOnUiThread {
+                            if (dialog.isShowing) dialog.dismiss()
+                            onError("Prembly failed all attempts")
+                        }
                     }
                 }
 
