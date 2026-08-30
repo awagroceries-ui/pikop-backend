@@ -15,19 +15,19 @@ class PikopApp : Application() {
     override fun onCreate() {
         super.onCreate()
         
-        android.util.Log.d("PikopApp", "Application onCreate - Parallel Init Start")
+        android.util.Log.d("PikopApp", "Application onCreate - Start")
 
-        // Background Init (Non-blocking) to prevent launch timeout
+        // Immediate Init (Main Thread required for native SDKs)
+        try {
+            DojahSdk.with(this)
+            android.util.Log.d("PikopApp", "Dojah init complete")
+        } catch (e: Exception) {
+            android.util.Log.e("PikopApp", "Dojah init failed: ${e.message}")
+        }
+
+        // Background Init (Non-blocking) for remaining services
         @Suppress("OPT_IN_USAGE")
         GlobalScope.launch(Dispatchers.Default) {
-            // Initialize Dojah SDK Container (Moved to background for speed)
-            try {
-                DojahSdk.with(this@PikopApp)
-                android.util.Log.d("PikopApp", "Dojah init complete (background)")
-            } catch (e: Exception) {
-                android.util.Log.e("PikopApp", "Dojah init failed: ${e.message}")
-            }
-
             // Initialize Paystack
             try {
                 PaystackSdk.initialize(applicationContext)

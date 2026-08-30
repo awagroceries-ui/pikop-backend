@@ -61,23 +61,10 @@ class MainActivity : ComponentActivity() {
 
             setContent {
                 PikopTheme {
-                    var canLaunch by remember { mutableStateOf(false) }
                     SideEffect {
-                        android.util.Log.d("PikopLifecycle", "MainActivity - Theme Applied")
+                        android.util.Log.d("PikopLifecycle", "MainActivity - First Frame Rendered")
                     }
-                    LaunchedEffect(Unit) {
-                        delay(400) // Increased settle delay to ensure OS processes launch signal
-                        canLaunch = true
-                        android.util.Log.d("PikopLifecycle", "MainActivity - Ready to Launch Navigation")
-                    }
-                    if (canLaunch) {
-                        PikopAppNavigation(intentFlow = intentFlow)
-                    } else {
-                        // Very light placeholder to keep main thread free
-                        androidx.compose.foundation.layout.Box(
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    PikopAppNavigation(intentFlow = intentFlow)
                 }
             }
             android.util.Log.d("PikopLifecycle", "MainActivity onCreate - SUCCESS")

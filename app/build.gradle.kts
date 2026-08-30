@@ -31,6 +31,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+        }
         release {
             optimization {
                 enable = false
