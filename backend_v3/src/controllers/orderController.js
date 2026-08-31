@@ -25,10 +25,10 @@ const getQuote = async (req, res) => {
   const aiResult = await geminiService.classifyItemSize(item_description);
 
   // 3. Apply Dynamic Pricing Dynamics (v3.5.1 Settings-Linked)
-  // Standardized defaults for Nigeria market
-  let baseFees = { 'SMALL': 350, 'MEDIUM': 700, 'LARGE': 1200 };
-  let perKmRate = 120;
-  let roadWindingFactor = 1.3; // PostGIS is straight-line; road is ~30% longer
+  // Standardized defaults for Nigeria market (Calibrated v3.6)
+  let baseFees = { 'SMALL': 400, 'MEDIUM': 800, 'LARGE': 1500 };
+  let perKmRate = 110;
+  let roadWindingFactor = 1.15; // Realistic buffer for Lagos street navigation
 
   try {
     const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate')");

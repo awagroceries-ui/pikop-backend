@@ -63,6 +63,9 @@ class PremblyKycRepository @Inject constructor(
         onError: (String) -> Unit,
         onClose: () -> Unit
     ) {
+        // Enable Remote Debugging for troubleshooting
+        WebView.setWebContentsDebuggingEnabled(true)
+        
         val dialog = android.app.Dialog(activity, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         
         val webView = WebView(activity).apply {
@@ -137,10 +140,18 @@ class PremblyKycRepository @Inject constructor(
             <body>
                 <script src="https://js.prembly.com/v1/inline/widget.js"></script>
                 <script>
+                    // Timeout safety
+                    var loadTimeout = setTimeout(function() {
+                        if (typeof IdentityKYC === 'undefined') {
+                            AndroidBridge.onResult(JSON.stringify({ status: "failed", message: "Library load timeout" }));
+                        }
+                    }, 10000);
+
                     window.onload = function() {
+                        clearTimeout(loadTimeout);
                         try {
                             if (typeof IdentityKYC === 'undefined') {
-                                AndroidBridge.onResult(JSON.stringify({ status: "failed", message: "SDK failed to load" }));
+                                AndroidBridge.onResult(JSON.stringify({ status: "failed", message: "IdentityKYC not found" }));
                                 return;
                             }
                             IdentityKYC.verify({

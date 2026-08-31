@@ -55,7 +55,10 @@ fun OrderQuoteScreen(
     val pickupLatLng = if (pickupLat != 0.0) LatLng(pickupLat, pickupLng) else null
     val deliveryLatLng = if (deliveryLat != 0.0) LatLng(deliveryLat, deliveryLng) else null
     
-    // Result Observers using StateFlow
+    // Use IDs to track which result we've already consumed
+    var lastPickupResultId by rememberSaveable { mutableStateOf("") }
+    var lastDeliveryResultId by rememberSaveable { mutableStateOf("") }
+
     val pAddrRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<String?>("pickup_address", null)?.collectAsState() ?: remember { mutableStateOf(null) }
     val pLatRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Double?>("pickup_lat", null)?.collectAsState() ?: remember { mutableStateOf(null) }
     val pLngRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Double?>("pickup_lng", null)?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -66,25 +69,27 @@ fun OrderQuoteScreen(
 
     LaunchedEffect(pAddrRes, pLatRes, pLngRes) {
         if (pAddrRes != null && pLatRes != null && pLngRes != null) {
-            pickupAddress = pAddrRes!!
-            pickupLat = pLatRes!!
-            pickupLng = pLngRes!!
-            // Clear used values from handle to prevent loops
-            navController.currentBackStackEntry?.savedStateHandle?.remove<String>("pickup_address")
-            navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("pickup_lat")
-            navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("pickup_lng")
+            val resultId = "${pAddrRes}_${pLatRes}_${pLngRes}"
+            if (resultId != lastPickupResultId) {
+                pickupAddress = pAddrRes!!
+                pickupLat = pLatRes!!
+                pickupLng = pLngRes!!
+                lastPickupResultId = resultId
+                // We don't remove from handle immediately to avoid StateFlow race conditions
+                // instead we rely on lastPickupResultId to avoid duplicates.
+            }
         }
     }
 
     LaunchedEffect(dAddrRes, dLatRes, dLngRes) {
         if (dAddrRes != null && dLatRes != null && dLngRes != null) {
-            deliveryAddress = dAddrRes!!
-            deliveryLat = dLatRes!!
-            deliveryLng = dLngRes!!
-            // Clear used values from handle to prevent loops
-            navController.currentBackStackEntry?.savedStateHandle?.remove<String>("delivery_address")
-            navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("delivery_lat")
-            navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("delivery_lng")
+            val resultId = "${dAddrRes}_${dLatRes}_${dLngRes}"
+            if (resultId != lastDeliveryResultId) {
+                deliveryAddress = dAddrRes!!
+                deliveryLat = dLatRes!!
+                deliveryLng = dLngRes!!
+                lastDeliveryResultId = resultId
+            }
         }
     }
 

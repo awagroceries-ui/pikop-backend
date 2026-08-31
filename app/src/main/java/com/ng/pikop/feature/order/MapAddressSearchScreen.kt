@@ -7,6 +7,7 @@ import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -63,7 +64,7 @@ fun MapAddressSearchScreen(
     var hasResolvedInitialLocation by remember { mutableStateOf(false) }
 
     val cameraPositionState = rememberCameraPositionState {
-        // Nigeria-wide view until GPS resolves
+        // Fallback to Nigeria center initially
         position = CameraPosition.fromLatLngZoom(LatLng(9.0820, 8.6753), 6f)
     }
 
@@ -85,29 +86,33 @@ fun MapAddressSearchScreen(
 
         scope.launch {
             try {
-                // 1. Try last known location (instant)
+                // 1. Instant Jump: Try last known location first
                 val lastLoc = fusedLocationClient.lastLocation.await()
                 if (lastLoc != null) {
                     cameraPositionState.position = CameraPosition.fromLatLngZoom(LatLng(lastLoc.latitude, lastLoc.longitude), 17f)
+                    hasResolvedInitialLocation = true
                 }
 
-                // 2. Force fresh update if needed
-                val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L).setMaxUpdates(1).build()
+                // 2. Fresh Fix: Request high accuracy update
+                val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000L)
+                    .setMaxUpdates(1)
+                    .build()
+                
                 fusedLocationClient.requestLocationUpdates(request, object : LocationCallback() {
                     override fun onLocationResult(result: LocationResult) {
                         result.lastLocation?.let { loc ->
                             scope.launch {
                                 cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 17f))
+                                hasResolvedInitialLocation = true
                             }
                         }
                         fusedLocationClient.removeLocationUpdates(this)
                     }
                 }, Looper.getMainLooper())
                 
-                hasResolvedInitialLocation = true
             } catch (e: Exception) {
                 android.util.Log.e("PikopMap", "Location resolution failed: ${e.message}")
-                hasResolvedInitialLocation = true // prevent infinite geocoding attempts on fail
+                hasResolvedInitialLocation = true 
             }
         }
     }
@@ -120,24 +125,24 @@ fun MapAddressSearchScreen(
     }
 
     LaunchedEffect(Unit) {
-        // Load shortcuts
+        // Load shortcuts immediately
         try {
             val response = apiService.getSavedAddresses()
             savedAddresses = response.addresses
         } catch (_: Exception) {}
 
-        // Handle GPS
+        // Handle GPS flow
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             resolveAndCenterOnUserLocation()
         } else {
             permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
         
-        delay(800)
+        delay(600)
         focusRequester.requestFocus()
     }
 
-    // Draggable Pin Geocoding
+    // Draggable Pin Geocoding with reliable triggering
     LaunchedEffect(cameraPositionState.isMoving) {
         if (!cameraPositionState.isMoving && hasResolvedInitialLocation) {
             val center = cameraPositionState.position.target
@@ -150,7 +155,7 @@ fun MapAddressSearchScreen(
                     results?.firstOrNull()?.getAddressLine(0) ?: "Custom Location"
                 } catch (e: Exception) { 
                     android.util.Log.e("MapSearch", "Geocode error", e)
-                    "Error resolving address" 
+                    "Custom Pin Location" 
                 }
             }
             currentResolvedAddress = address
@@ -175,7 +180,7 @@ fun MapAddressSearchScreen(
             )
         )
 
-        // Center Pin
+        // Bolt-style fixed center pin
         Icon(
             imageVector = Icons.Default.Place,
             contentDescription = null,
@@ -187,7 +192,7 @@ fun MapAddressSearchScreen(
                 .zIndex(2f)
         )
 
-        // Search Bar Column
+        // Unified Search & Suggestion Container
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -212,7 +217,7 @@ fun MapAddressSearchScreen(
                             searchJob?.cancel()
                             if (it.length >= 2) {
                                 searchJob = scope.launch {
-                                    delay(250)
+                                    delay(200) // Lower delay for faster feedback
                                     isSearchingSuggestions = true
                                     searchError = null
                                     try {
@@ -221,8 +226,7 @@ fun MapAddressSearchScreen(
                                         if (res.success) {
                                             suggestions = res.predictions
                                         } else {
-                                            android.util.Log.e("AddressSearch", "Places API returned failure: ${res.error}")
-                                            searchError = res.error ?: "No results found"
+                                            searchError = res.error ?: "Service unavailable"
                                             suggestions = emptyList()
                                         }
                                     } catch (e: Exception) {
@@ -235,6 +239,7 @@ fun MapAddressSearchScreen(
                                 }
                             } else {
                                 suggestions = emptyList()
+                                isSearchingSuggestions = false
                             }
                         },
                         placeholder = { Text("Search for $title...", color = Color.Gray) },
@@ -250,7 +255,7 @@ fun MapAddressSearchScreen(
                         singleLine = true,
                         trailingIcon = {
                             if (query.isNotEmpty()) {
-                                IconButton(onClick = { query = ""; suggestions = emptyList() }) {
+                                IconButton(onClick = { query = ""; suggestions = emptyList(); isSearchingSuggestions = false }) {
                                     Icon(Icons.Default.Clear, null, tint = Color.Gray)
                                 }
                             }
@@ -271,12 +276,17 @@ fun MapAddressSearchScreen(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Column {
-                        if (isSearchingSuggestions && suggestions.isEmpty()) {
+                        if (isSearchingSuggestions) {
                             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         }
                         
                         if (searchError != null && query.isNotEmpty()) {
-                            Text(searchError!!, color = Color.Red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(16.dp))
+                            Text(
+                                text = searchError!!, 
+                                color = Color.Red, 
+                                style = MaterialTheme.typography.bodySmall, 
+                                modifier = Modifier.padding(16.dp)
+                            )
                         }
 
                         LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
@@ -335,7 +345,7 @@ fun MapAddressSearchScreen(
             }
         }
 
-        // Confirm Sheet
+        // Fixed bottom confirmation sheet
         Card(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -374,7 +384,7 @@ fun MapAddressSearchScreen(
             }
         }
 
-        // Locate FAB
+        // Persistent Locate FAB
         FloatingActionButton(
             onClick = { resolveAndCenterOnUserLocation() },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = 160.dp),
