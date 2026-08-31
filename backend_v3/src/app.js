@@ -121,10 +121,10 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🚀 PIKOP V3 API RESTORED`);
-    console.log(`📡 Endpoint: http://localhost:${PORT}`);
-    console.log(`🕒 Mode: ${process.env.NODE_ENV || 'development'}\n`);
+    console.log(`📡 Network: http://0.0.0.0:${PORT}`);
+    console.log(`🕒 Mode: ${process.env.NODE_ENV || 'production'}\n`);
 });
 
 module.exports = app;
