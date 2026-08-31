@@ -28,6 +28,15 @@ android {
                 props.getProperty("googleMapsApiKey") ?: ""
             } else ""
         }
+
+        val paystackKey = project.rootProject.file("local.properties").let {
+            if (it.exists()) {
+                val props = Properties()
+                props.load(it.inputStream())
+                props.getProperty("paystackPublicKey") ?: ""
+            } else ""
+        }
+        buildConfigField("String", "PAYSTACK_PUBLIC_KEY", "\"${paystackKey}\"")
     }
 
     buildTypes {

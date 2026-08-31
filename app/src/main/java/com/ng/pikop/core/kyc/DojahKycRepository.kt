@@ -27,6 +27,8 @@ class DojahKycRepository @Inject constructor(
 
     override fun startVerification(
         context: Context,
+        firstName: String,
+        lastName: String,
         email: String,
         referenceId: String,
         onSuccess: (String) -> Unit,
@@ -56,6 +58,8 @@ class DojahKycRepository @Inject constructor(
     override fun launchVerification(
         context: Context,
         launcher: ActivityResultLauncher<Intent>,
+        firstName: String,
+        lastName: String,
         email: String,
         referenceId: String
     ) {

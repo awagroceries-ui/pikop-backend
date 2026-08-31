@@ -9,8 +9,6 @@ import android.webkit.*
 import android.widget.FrameLayout
 import androidx.activity.result.ActivityResultLauncher
 import com.ng.pikop.core.network.ApiService
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -19,13 +17,15 @@ import javax.inject.Named
  * Uses the official Inline JS Widget for maximum reliability.
  */
 class PremblyKycRepository @Inject constructor(
-    private val apiService: ApiService,
+    @Suppress("unused") private val apiService: ApiService,
     @Named("premblyPublicKey") private val publicKey: String,
     @Named("premblyConfigId") private val configId: String
 ) : KycManager {
 
     override fun startVerification(
         context: Context,
+        firstName: String,
+        lastName: String,
         email: String,
         referenceId: String,
         onSuccess: (String) -> Unit,
@@ -34,24 +34,31 @@ class PremblyKycRepository @Inject constructor(
     ) {
         val activity = context.findActivity() ?: return
         activity.runOnUiThread {
-            showInlineWidget(activity, email, referenceId, onSuccess, onError, onClose)
+            showInlineWidget(activity, firstName, lastName, email, referenceId, onSuccess, onError, onClose)
         }
     }
 
     override fun launchVerification(
         context: Context,
         launcher: ActivityResultLauncher<Intent>,
+        firstName: String,
+        lastName: String,
         email: String,
         referenceId: String
     ) {
-        startVerification(context, email, referenceId, {}, {}, {})
+        // ActivityResultLauncher doesn't directly provide context, 
+        // we'll rely on startVerification being called for Inline Widget UI.
+        // For compatibility with the interface:
+        android.util.Log.e("PremblyKYC", "launchVerification called - use startVerification for Inline Widget")
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun showInlineWidget(
         activity: Activity,
+        firstName: String,
+        lastName: String,
         email: String,
-        referenceId: String,
+        @Suppress("UNUSED_PARAMETER") referenceId: String,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
         onClose: () -> Unit
@@ -66,47 +73,56 @@ class PremblyKycRepository @Inject constructor(
             
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            @Suppress("DEPRECATION")
             settings.databaseEnabled = true
+            settings.mediaPlaybackRequiresUserGesture = false
+
+            // Capture JS console output for diagnostics
+            webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                    android.util.Log.d("PremblyWidgetJS", "${message.message()} (${message.sourceId()}:${message.lineNumber()})")
+                    return true
+                }
+                override fun onPermissionRequest(request: PermissionRequest) {
+                    // Critical for liveness/selfie step
+                    request.grant(request.resources)
+                }
+            }
             
             addJavascriptInterface(object {
                 @JavascriptInterface
-                fun onSuccess(response: String) {
-                    android.util.Log.d("PremblyKYC", "Success: ${'$'}response")
-                    activity.runOnUiThread {
-                        onSuccess(response)
-                        dialog.dismiss()
-                    }
-                }
-                
-                @JavascriptInterface
-                fun onClose() {
-                    android.util.Log.d("PremblyKYC", "Closed")
-                    activity.runOnUiThread {
-                        onClose()
-                        dialog.dismiss()
-                    }
-                }
-
-                @JavascriptInterface
-                fun onError(error: String) {
-                    android.util.Log.e("PremblyKYC", "Error: ${'$'}error")
-                    activity.runOnUiThread {
-                        onError(error)
-                        dialog.dismiss()
+                fun onResult(response: String) {
+                    android.util.Log.d("PremblyKYC", "Result received: $response")
+                    try {
+                        val json = org.json.JSONObject(response)
+                        val status = json.optString("status", "failed")
+                        activity.runOnUiThread {
+                            when (status) {
+                                "success" -> onSuccess(response)
+                                "cancelled" -> onClose()
+                                else -> onError(json.optString("message", "Verification failed"))
+                            }
+                            dialog.dismiss()
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("PremblyKYC", "Error parsing result", e)
+                        activity.runOnUiThread { 
+                            onError("Data error") 
+                            dialog.dismiss()
+                        }
                     }
                 }
             }, "AndroidBridge")
 
             webViewClient = object : WebViewClient() {
-                override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
-                    if (request?.isForMainFrame == true) {
-                        android.util.Log.e("PremblyKYC", "WebView Error: ${'$'}{error?.description}")
-                    }
+                @Deprecated("Deprecated in Java")
+                override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                    android.util.Log.e("PremblyKYC", "WebView Error: $description")
                 }
             }
         }
 
-        // Inline Widget HTML Shell
+        // Inline Widget HTML Shell using VERIFIED API
         val html = """
             <!DOCTYPE html>
             <html>
@@ -115,34 +131,32 @@ class PremblyKycRepository @Inject constructor(
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
                 <title>Verification | Pikop</title>
                 <style>
-                    body { margin: 0; padding: 0; background-color: #ffffff; display: flex; flex-direction: column; height: 100vh; font-family: -apple-system, sans-serif; }
-                    #prembly-widget-container { flex: 1; width: 100%; height: 100%; }
+                    body { margin: 0; padding: 0; background-color: #ffffff; height: 100vh; font-family: -apple-system, sans-serif; }
                 </style>
             </head>
             <body>
-                <div id="prembly-widget-container"></div>
                 <script src="https://js.prembly.com/v1/inline/widget.js"></script>
                 <script>
-                    try {
-                        var widget = new PremblyWidget({
-                            publicKey: "$publicKey",
-                            configId: "$configId",
-                            userRef: "$referenceId",
-                            email: "$email",
-                            onSuccess: function(response) { 
-                                AndroidBridge.onSuccess(JSON.stringify(response)); 
-                            },
-                            onClose: function() { 
-                                AndroidBridge.onClose(); 
-                            },
-                            onError: function(err) {
-                                AndroidBridge.onError(err ? err.message || JSON.stringify(err) : "Unknown Error");
+                    window.onload = function() {
+                        try {
+                            if (typeof IdentityKYC === 'undefined') {
+                                AndroidBridge.onResult(JSON.stringify({ status: "failed", message: "SDK failed to load" }));
+                                return;
                             }
-                        });
-                        widget.launch();
-                    } catch (e) {
-                        AndroidBridge.onError(e.message);
-                    }
+                            IdentityKYC.verify({
+                                merchant_key: "$publicKey",
+                                config_id: "$configId",
+                                first_name: "$firstName",
+                                last_name: "$lastName",
+                                email: "$email",
+                                callback: function(response, data) {
+                                    AndroidBridge.onResult(JSON.stringify(response));
+                                }
+                            });
+                        } catch (e) {
+                            AndroidBridge.onResult(JSON.stringify({ status: "failed", message: e.message }));
+                        }
+                    };
                 </script>
             </body>
             </html>
@@ -151,7 +165,6 @@ class PremblyKycRepository @Inject constructor(
         dialog.setContentView(webView)
         dialog.show()
         
-        // Load the local HTML shell with the remote script base
         webView.loadDataWithBaseURL("https://js.prembly.com", html, "text/html", "UTF-8", null)
     }
 

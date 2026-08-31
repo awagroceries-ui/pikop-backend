@@ -47,8 +47,13 @@ class KycViewModel @Inject constructor(
     fun initiateVerification(context: Context, launcher: ActivityResultLauncher<Intent>, email: String) {
         viewModelScope.launch {
             val uid = tokenManager.userId.first() ?: System.currentTimeMillis().toString()
+            val fullName = tokenManager.userName.first() ?: "Pikop User"
+            val nameParts = fullName.trim().split(" ")
+            val firstName = nameParts.firstOrNull() ?: "Pikop"
+            val lastName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else "User"
+            
             val referenceId = "pikop_kyc_$uid"
-            kycManager.launchVerification(context, launcher, email, referenceId)
+            kycManager.launchVerification(context, launcher, firstName, lastName, email, referenceId)
         }
     }
 
@@ -57,10 +62,17 @@ class KycViewModel @Inject constructor(
             _isLaunching.value = true
             try {
                 val uid = tokenManager.userId.first() ?: System.currentTimeMillis().toString()
+                val fullName = tokenManager.userName.first() ?: "Pikop User"
+                val nameParts = fullName.trim().split(" ")
+                val firstName = nameParts.firstOrNull() ?: "Pikop"
+                val lastName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else "User"
+
                 val referenceId = "pikop_kyc_$uid"
                 
                 kycManager.startVerification(
                     context = context,
+                    firstName = firstName,
+                    lastName = lastName,
                     email = email,
                     referenceId = referenceId,
                     onSuccess = { result ->
@@ -69,7 +81,6 @@ class KycViewModel @Inject constructor(
                     },
                     onError = { error ->
                         _isLaunching.value = false
-                        // Handle error
                     },
                     onClose = {
                         _isLaunching.value = false

@@ -7,6 +7,8 @@ import androidx.activity.result.ActivityResultLauncher
 interface KycManager {
     fun startVerification(
         context: Context,
+        firstName: String,
+        lastName: String,
         email: String,
         referenceId: String,
         onSuccess: (String) -> Unit,
@@ -17,6 +19,8 @@ interface KycManager {
     fun launchVerification(
         context: Context,
         launcher: ActivityResultLauncher<Intent>,
+        firstName: String,
+        lastName: String,
         email: String,
         referenceId: String
     )

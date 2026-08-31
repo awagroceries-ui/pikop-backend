@@ -2,7 +2,6 @@ package com.ng.pikop
 
 import android.app.Application
 import com.google.android.libraries.places.api.Places
-import co.paystack.android.PaystackSdk
 import com.google.firebase.FirebaseApp
 import com.dojah.kyc_sdk_kotlin.DojahSdk
 import dagger.hilt.android.HiltAndroidApp
@@ -28,13 +27,7 @@ class PikopApp : Application() {
         // Background Init (Non-blocking) for remaining services
         @Suppress("OPT_IN_USAGE")
         GlobalScope.launch(Dispatchers.Default) {
-            // Initialize Paystack
-            try {
-                PaystackSdk.initialize(applicationContext)
-                PaystackSdk.setPublicKey("pk_live_346dba41298095981968ef0c243c8c9fc022311a")
-            } catch (e: Exception) {
-                android.util.Log.e("PikopApp", "Paystack init failed: ${e.message}")
-            }
+            // Paystack removed: Native SDK is Card-only. Using Hosted Checkout WebView instead.
             
             // Initialize Google Places
             try {

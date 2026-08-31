@@ -18,6 +18,8 @@ class ResilientKycManager @Inject constructor(
 
     override fun startVerification(
         context: Context,
+        firstName: String,
+        lastName: String,
         email: String,
         referenceId: String,
         onSuccess: (String) -> Unit,
@@ -27,12 +29,14 @@ class ResilientKycManager @Inject constructor(
         android.util.Log.d("ResilientKYC", "Attempting primary provider (Prembly)...")
         premblyRepo.startVerification(
             context = context,
+            firstName = firstName,
+            lastName = lastName,
             email = email,
             referenceId = referenceId,
             onSuccess = onSuccess,
             onError = { error ->
                 android.util.Log.w("ResilientKYC", "Primary failed ($error). Switching to Dojah.")
-                dojahRepo.startVerification(context, email, referenceId, onSuccess, onError, onClose)
+                dojahRepo.startVerification(context, firstName, lastName, email, referenceId, onSuccess, onError, onClose)
             },
             onClose = onClose
         )
@@ -41,20 +45,19 @@ class ResilientKycManager @Inject constructor(
     override fun launchVerification(
         context: Context,
         launcher: ActivityResultLauncher<Intent>,
+        firstName: String,
+        lastName: String,
         email: String,
         referenceId: String
     ) {
         android.util.Log.d("ResilientKYC", "Launching primary (Prembly) with SDK fallback...")
-        premblyRepo.startVerification(
+        premblyRepo.launchVerification(
             context = context,
+            launcher = launcher,
+            firstName = firstName,
+            lastName = lastName,
             email = email,
-            referenceId = referenceId,
-            onSuccess = { },
-            onError = { error ->
-                android.util.Log.w("ResilientKYC", "Prembly load failed ($error). Switching to Dojah SDK.")
-                dojahRepo.launchVerification(context, launcher, email, referenceId)
-            },
-            onClose = { }
+            referenceId = referenceId
         )
     }
 }

@@ -3,8 +3,10 @@ package com.ng.pikop.feature.order
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Geocoder
+import android.os.Looper
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,8 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
+import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -59,15 +60,18 @@ fun MapAddressSearchScreen(
     val apiService = remember { ApiService.create(tokenManager) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     
+    var hasResolvedInitialLocation by remember { mutableStateOf(false) }
+
     val cameraPositionState = rememberCameraPositionState {
-        // Default to Lagos, but we'll try to resolve immediately in LaunchedEffect
-        position = CameraPosition.fromLatLngZoom(LatLng(6.5244, 3.3792), 15f)
+        // Nigeria-wide view until GPS resolves
+        position = CameraPosition.fromLatLngZoom(LatLng(9.0820, 8.6753), 6f)
     }
 
     var query by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
     var savedAddresses by remember { mutableStateOf<List<SavedAddress>>(emptyList()) }
     var isSearchingSuggestions by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf<String?>(null) }
     var sessionToken by remember { mutableStateOf(UUID.randomUUID().toString()) }
     var searchJob by remember { mutableStateOf<Job?>(null) }
     
@@ -76,49 +80,78 @@ fun MapAddressSearchScreen(
     
     val focusRequester = remember { FocusRequester() }
 
-    fun updateCameraToUserLocation() {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            scope.launch {
-                try {
-                    // Try last known location first for instant response
-                    fusedLocationClient.lastLocation.await()?.let {
-                        cameraPositionState.position = CameraPosition.fromLatLngZoom(LatLng(it.latitude, it.longitude), 17f)
-                    }
-                    // Then get fresh high accuracy location
-                    val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                    location?.let {
-                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 17f))
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("PikopMap", "Location resolution failed: ${e.message}")
+    fun resolveAndCenterOnUserLocation() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+
+        scope.launch {
+            try {
+                // 1. Try last known location (instant)
+                val lastLoc = fusedLocationClient.lastLocation.await()
+                if (lastLoc != null) {
+                    cameraPositionState.position = CameraPosition.fromLatLngZoom(LatLng(lastLoc.latitude, lastLoc.longitude), 17f)
                 }
+
+                // 2. Force fresh update if needed
+                val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L).setMaxUpdates(1).build()
+                fusedLocationClient.requestLocationUpdates(request, object : LocationCallback() {
+                    override fun onLocationResult(result: LocationResult) {
+                        result.lastLocation?.let { loc ->
+                            scope.launch {
+                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 17f))
+                            }
+                        }
+                        fusedLocationClient.removeLocationUpdates(this)
+                    }
+                }, Looper.getMainLooper())
+                
+                hasResolvedInitialLocation = true
+            } catch (e: Exception) {
+                android.util.Log.e("PikopMap", "Location resolution failed: ${e.message}")
+                hasResolvedInitialLocation = true // prevent infinite geocoding attempts on fail
             }
         }
     }
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) resolveAndCenterOnUserLocation()
+        else hasResolvedInitialLocation = true 
+    }
+
     LaunchedEffect(Unit) {
-        // Fetch saved addresses for the "empty query" state
+        // Load shortcuts
         try {
             val response = apiService.getSavedAddresses()
             savedAddresses = response.addresses
         } catch (_: Exception) {}
 
-        updateCameraToUserLocation()
+        // Handle GPS
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            resolveAndCenterOnUserLocation()
+        } else {
+            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
         
-        delay(500)
+        delay(800)
         focusRequester.requestFocus()
     }
 
+    // Draggable Pin Geocoding
     LaunchedEffect(cameraPositionState.isMoving) {
-        if (!cameraPositionState.isMoving) {
+        if (!cameraPositionState.isMoving && hasResolvedInitialLocation) {
             val center = cameraPositionState.position.target
             isGeocoding = true
             val address = withContext(Dispatchers.IO) {
                 try {
                     val geocoder = Geocoder(context, Locale.getDefault())
+                    @Suppress("DEPRECATION")
                     val results = geocoder.getFromLocation(center.latitude, center.longitude, 1)
-                    results?.getOrNull(0)?.getAddressLine(0) ?: "Custom Location"
-                } catch (_: Exception) { "Error resolving address" }
+                    results?.firstOrNull()?.getAddressLine(0) ?: "Custom Location"
+                } catch (e: Exception) { 
+                    android.util.Log.e("MapSearch", "Geocode error", e)
+                    "Error resolving address" 
+                }
             }
             currentResolvedAddress = address
             isGeocoding = false
@@ -142,6 +175,7 @@ fun MapAddressSearchScreen(
             )
         )
 
+        // Center Pin
         Icon(
             imageVector = Icons.Default.Place,
             contentDescription = null,
@@ -153,6 +187,7 @@ fun MapAddressSearchScreen(
                 .zIndex(2f)
         )
 
+        // Search Bar Column
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -177,21 +212,16 @@ fun MapAddressSearchScreen(
                             searchJob?.cancel()
                             if (it.length >= 2) {
                                 searchJob = scope.launch {
-                                    delay(300)
+                                    delay(250)
                                     isSearchingSuggestions = true
+                                    searchError = null
                                     try {
                                         val center = cameraPositionState.position.target
-                                        android.util.Log.d("PikopSearch", "Querying suggestions for: $it at ${center.latitude}, ${center.longitude}")
-                                        val res = apiService.getAutocomplete(
-                                            query = it,
-                                            token = sessionToken,
-                                            lat = center.latitude,
-                                            lng = center.longitude
-                                        )
+                                        val res = apiService.getAutocomplete(it, sessionToken, center.latitude, center.longitude)
                                         suggestions = res.predictions
-                                        android.util.Log.d("PikopSearch", "Found ${res.predictions.size} suggestions")
                                     } catch (e: Exception) {
-                                        android.util.Log.e("PikopSearch", "Autocomplete failed: ${e.message}")
+                                        android.util.Log.e("AddressSearch", "Autocomplete failed", e)
+                                        searchError = "Check your connection"
                                         suggestions = emptyList()
                                     } finally {
                                         isSearchingSuggestions = false
@@ -224,7 +254,7 @@ fun MapAddressSearchScreen(
             }
 
             AnimatedVisibility(
-                visible = query.isEmpty() || suggestions.isNotEmpty() || isSearchingSuggestions,
+                visible = query.isEmpty() || suggestions.isNotEmpty() || isSearchingSuggestions || searchError != null,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -234,75 +264,72 @@ fun MapAddressSearchScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                    Column {
                         if (isSearchingSuggestions && suggestions.isEmpty()) {
-                            item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         }
                         
-                        if (query.isEmpty()) {
-                            // 1. Current Location
-                            item {
-                                ListItem(
-                                    headlineContent = { Text("Use my current location", fontWeight = FontWeight.Bold) },
-                                    leadingContent = { Icon(Icons.Default.MyLocation, null, tint = MaterialTheme.colorScheme.primary) },
-                                    modifier = Modifier.clickable {
-                                        scope.launch {
-                                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                                                val loc = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                                                loc?.let {
-                                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 17f))
-                                                    focusManager.clearFocus()
-                                                }
-                                            }
-                                        }
-                                    }
-                                )
-                                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
-                            }
-
-                            // 2. Saved Places
-                            items(savedAddresses) { addr ->
-                                ListItem(
-                                    headlineContent = { Text(addr.label ?: "Saved Place", fontWeight = FontWeight.Bold) },
-                                    supportingContent = { Text(addr.address_text ?: "", maxLines = 1) },
-                                    leadingContent = { Icon(if (addr.label == "Home") Icons.Default.Home else Icons.Default.Work, null, tint = MaterialTheme.colorScheme.primary) },
-                                    modifier = Modifier.clickable {
-                                        scope.launch {
-                                            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(addr.lat ?: 0.0, addr.lng ?: 0.0), 17f))
-                                            focusManager.clearFocus()
-                                        }
-                                    }
-                                )
-                                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
-                            }
+                        if (searchError != null && query.isNotEmpty()) {
+                            Text(searchError!!, color = Color.Red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(16.dp))
                         }
 
-                        items(suggestions) { p ->
-                            ListItem(
-                                headlineContent = { Text(p.main_text, fontWeight = FontWeight.Bold, color = Color.Black) },
-                                supportingContent = { Text(p.secondary_text, color = Color.DarkGray, maxLines = 1) },
-                                leadingContent = { Icon(Icons.Default.Place, null, tint = Color.Gray) },
-                                modifier = Modifier.clickable {
-                                    scope.launch {
-                                        focusManager.clearFocus()
-                                        query = ""
-                                        suggestions = emptyList()
-                                        try {
-                                            val details = apiService.getPlaceDetails(p.place_id, sessionToken)
-                                            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(details.lat, details.lng), 17f))
-                                            sessionToken = UUID.randomUUID().toString()
-                                        } catch (_: Exception) {}
-                                    }
-                                },
-                                colors = ListItemDefaults.colors(containerColor = Color.White)
-                            )
-                            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
+                        LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                            if (query.isEmpty()) {
+                                // Shortcuts
+                                item {
+                                    ListItem(
+                                        headlineContent = { Text("Use my current location", fontWeight = FontWeight.Bold) },
+                                        leadingContent = { Icon(Icons.Default.MyLocation, null, tint = MaterialTheme.colorScheme.primary) },
+                                        modifier = Modifier.clickable { resolveAndCenterOnUserLocation() },
+                                        colors = ListItemDefaults.colors(containerColor = Color.White)
+                                    )
+                                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
+                                }
+                                items(savedAddresses) { addr ->
+                                    ListItem(
+                                        headlineContent = { Text(addr.label ?: "Saved Place", fontWeight = FontWeight.Bold) },
+                                        supportingContent = { Text(addr.address_text ?: "", maxLines = 1) },
+                                        leadingContent = { Icon(if (addr.label == "Home") Icons.Default.Home else Icons.Default.Work, null, tint = MaterialTheme.colorScheme.primary) },
+                                        modifier = Modifier.clickable {
+                                            scope.launch {
+                                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(addr.lat ?: 0.0, addr.lng ?: 0.0), 17f))
+                                                focusManager.clearFocus()
+                                            }
+                                        },
+                                        colors = ListItemDefaults.colors(containerColor = Color.White)
+                                    )
+                                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
+                                }
+                            }
+
+                            items(suggestions) { p ->
+                                ListItem(
+                                    headlineContent = { Text(p.main_text, fontWeight = FontWeight.Bold, color = Color.Black) },
+                                    supportingContent = { Text(p.secondary_text, color = Color.DarkGray, maxLines = 1) },
+                                    leadingContent = { Icon(Icons.Default.Place, null, tint = Color.Gray) },
+                                    modifier = Modifier.clickable {
+                                        scope.launch {
+                                            focusManager.clearFocus()
+                                            query = ""
+                                            suggestions = emptyList()
+                                            try {
+                                                val details = apiService.getPlaceDetails(p.place_id, sessionToken)
+                                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(details.lat, details.lng), 17f))
+                                                sessionToken = UUID.randomUUID().toString()
+                                            } catch (_: Exception) {}
+                                        }
+                                    },
+                                    colors = ListItemDefaults.colors(containerColor = Color.White)
+                                )
+                                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
+                            }
                         }
                     }
                 }
             }
         }
 
+        // Confirm Sheet
         Card(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -341,15 +368,9 @@ fun MapAddressSearchScreen(
             }
         }
 
+        // Locate FAB
         FloatingActionButton(
-            onClick = {
-                if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                    scope.launch {
-                        val loc = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                        loc?.let { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 17f)) }
-                    }
-                }
-            },
+            onClick = { resolveAndCenterOnUserLocation() },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = 160.dp),
             containerColor = Color.White,
             contentColor = MaterialTheme.colorScheme.primary,
