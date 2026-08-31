@@ -45,9 +45,15 @@ fun OrderQuoteScreen(
     onNavigateToPayment: (url: String, quoteId: String, pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemUrl: String, pSum: String, dSum: String, rName: String, rPhone: String, notes: String?, promoId: String?) -> Unit
 ) {
     var pickupAddress by rememberSaveable { mutableStateOf("") }
-    var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
+    var pickupLat by rememberSaveable { mutableStateOf(0.0) }
+    var pickupLng by rememberSaveable { mutableStateOf(0.0) }
+    
     var deliveryAddress by rememberSaveable { mutableStateOf("") }
-    var deliveryLatLng by remember { mutableStateOf<LatLng?>(null) }
+    var deliveryLat by rememberSaveable { mutableStateOf(0.0) }
+    var deliveryLng by rememberSaveable { mutableStateOf(0.0) }
+
+    val pickupLatLng = if (pickupLat != 0.0) LatLng(pickupLat, pickupLng) else null
+    val deliveryLatLng = if (deliveryLat != 0.0) LatLng(deliveryLat, deliveryLng) else null
     
     // Result Observers using StateFlow
     val pAddrRes by navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<String?>("pickup_address", null)?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -61,7 +67,8 @@ fun OrderQuoteScreen(
     LaunchedEffect(pAddrRes, pLatRes, pLngRes) {
         if (pAddrRes != null && pLatRes != null && pLngRes != null) {
             pickupAddress = pAddrRes!!
-            pickupLatLng = LatLng(pLatRes!!, pLngRes!!)
+            pickupLat = pLatRes!!
+            pickupLng = pLngRes!!
             // Clear used values from handle to prevent loops
             navController.currentBackStackEntry?.savedStateHandle?.remove<String>("pickup_address")
             navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("pickup_lat")
@@ -72,7 +79,8 @@ fun OrderQuoteScreen(
     LaunchedEffect(dAddrRes, dLatRes, dLngRes) {
         if (dAddrRes != null && dLatRes != null && dLngRes != null) {
             deliveryAddress = dAddrRes!!
-            deliveryLatLng = LatLng(dLatRes!!, dLngRes!!)
+            deliveryLat = dLatRes!!
+            deliveryLng = dLngRes!!
             // Clear used values from handle to prevent loops
             navController.currentBackStackEntry?.savedStateHandle?.remove<String>("delivery_address")
             navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("delivery_lat")

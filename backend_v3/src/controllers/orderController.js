@@ -25,8 +25,10 @@ const getQuote = async (req, res) => {
   const aiResult = await geminiService.classifyItemSize(item_description);
 
   // 3. Apply Dynamic Pricing Dynamics (v3.5.1 Settings-Linked)
-  let baseFees = { 'SMALL': 500, 'MEDIUM': 1000, 'LARGE': 1500 };
-  let perKmRate = 150;
+  // Standardized defaults for Nigeria market
+  let baseFees = { 'SMALL': 350, 'MEDIUM': 700, 'LARGE': 1200 };
+  let perKmRate = 120;
+  let roadWindingFactor = 1.3; // PostGIS is straight-line; road is ~30% longer
 
   try {
     const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate')");
@@ -41,10 +43,11 @@ const getQuote = async (req, res) => {
   }
 
   const base_fare = baseFees[aiResult.size_tier] || baseFees['MEDIUM'];
-  const distance_fare = Math.ceil(distanceKm * perKmRate);
-  const total_fare = base_fare + distance_fare;
+  const effectiveDistance = distanceKm * roadWindingFactor;
+  const distance_fare = Math.ceil(effectiveDistance * perKmRate);
+  const total_fare = Math.round(base_fare + distance_fare);
 
-  console.log(`[Quote] User: ${userId} | Dist: ${distanceKm.toFixed(2)}km | Base: ${base_fare} | DistFare: ${distance_fare} | Total: ${total_fare}`);
+  console.log(`[Quote] User: ${userId} | RawDist: ${distanceKm.toFixed(2)}km | RoadDist: ${effectiveDistance.toFixed(2)}km | Base: ${base_fare} | DistFare: ${distance_fare} | Total: ${total_fare}`);
 
   // 4. Save Quote
   const quoteRes = await db.query(

@@ -60,6 +60,7 @@ fun MapAddressSearchScreen(
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     
     val cameraPositionState = rememberCameraPositionState {
+        // Default to Lagos, but we'll try to resolve immediately in LaunchedEffect
         position = CameraPosition.fromLatLngZoom(LatLng(6.5244, 3.3792), 15f)
     }
 
@@ -75,6 +76,26 @@ fun MapAddressSearchScreen(
     
     val focusRequester = remember { FocusRequester() }
 
+    fun updateCameraToUserLocation() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            scope.launch {
+                try {
+                    // Try last known location first for instant response
+                    fusedLocationClient.lastLocation.await()?.let {
+                        cameraPositionState.position = CameraPosition.fromLatLngZoom(LatLng(it.latitude, it.longitude), 17f)
+                    }
+                    // Then get fresh high accuracy location
+                    val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                    location?.let {
+                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 17f))
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("PikopMap", "Location resolution failed: ${e.message}")
+                }
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         // Fetch saved addresses for the "empty query" state
         try {
@@ -82,14 +103,8 @@ fun MapAddressSearchScreen(
             savedAddresses = response.addresses
         } catch (_: Exception) {}
 
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            try {
-                val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                location?.let {
-                    cameraPositionState.position = CameraPosition.fromLatLngZoom(LatLng(it.latitude, it.longitude), 17f)
-                }
-            } catch (_: Exception) {}
-        }
+        updateCameraToUserLocation()
+        
         delay(500)
         focusRequester.requestFocus()
     }
@@ -162,13 +177,25 @@ fun MapAddressSearchScreen(
                             searchJob?.cancel()
                             if (it.length >= 2) {
                                 searchJob = scope.launch {
-                                    delay(250)
+                                    delay(300)
                                     isSearchingSuggestions = true
                                     try {
-                                        val res = apiService.getAutocomplete(it, sessionToken)
+                                        val center = cameraPositionState.position.target
+                                        android.util.Log.d("PikopSearch", "Querying suggestions for: $it at ${center.latitude}, ${center.longitude}")
+                                        val res = apiService.getAutocomplete(
+                                            query = it,
+                                            token = sessionToken,
+                                            lat = center.latitude,
+                                            lng = center.longitude
+                                        )
                                         suggestions = res.predictions
-                                    } catch (_: Exception) { suggestions = emptyList() }
-                                    finally { isSearchingSuggestions = false }
+                                        android.util.Log.d("PikopSearch", "Found ${res.predictions.size} suggestions")
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("PikopSearch", "Autocomplete failed: ${e.message}")
+                                        suggestions = emptyList()
+                                    } finally {
+                                        isSearchingSuggestions = false
+                                    }
                                 }
                             } else {
                                 suggestions = emptyList()
