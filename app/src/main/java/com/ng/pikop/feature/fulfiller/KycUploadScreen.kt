@@ -186,7 +186,10 @@ fun KycUploadScreen(
                     isLaunching = isLaunching,
                     onVerifyClick = {
                         val email = if (userEmail.isNotBlank()) userEmail else "verify@pikop.ng"
-                        viewModel.initiateVerification(context, dojahLauncher, email)
+                        // Switch to startVerification for official Inline JS Widget (WebView Dialog)
+                        viewModel.startVerification(context, email) {
+                            viewModel.refreshProfile()
+                        }
                     },
                     onPermissionRequest = { 
                         permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) 

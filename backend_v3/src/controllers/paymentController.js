@@ -47,6 +47,7 @@ const initializePayment = async (req, res) => {
     const payload = {
       amount: koboAmount,
       email,
+      currency: 'NGN',
       callback_url: 'pikop://payment/success',
       metadata: {
         quote_id,

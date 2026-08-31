@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,8 +47,8 @@ class KycViewModel @Inject constructor(
 
     fun initiateVerification(context: Context, launcher: ActivityResultLauncher<Intent>, email: String) {
         viewModelScope.launch {
-            val uid = tokenManager.userId.first() ?: System.currentTimeMillis().toString()
-            val fullName = tokenManager.userName.first() ?: "Pikop User"
+            val uid = withTimeoutOrNull(2000) { tokenManager.userId.first() } ?: System.currentTimeMillis().toString()
+            val fullName = withTimeoutOrNull(2000) { tokenManager.userName.first() } ?: "Pikop User"
             val nameParts = fullName.trim().split(" ")
             val firstName = nameParts.firstOrNull() ?: "Pikop"
             val lastName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else "User"
@@ -61,8 +62,8 @@ class KycViewModel @Inject constructor(
         viewModelScope.launch {
             _isLaunching.value = true
             try {
-                val uid = tokenManager.userId.first() ?: System.currentTimeMillis().toString()
-                val fullName = tokenManager.userName.first() ?: "Pikop User"
+                val uid = withTimeoutOrNull(2000) { tokenManager.userId.first() } ?: System.currentTimeMillis().toString()
+                val fullName = withTimeoutOrNull(2000) { tokenManager.userName.first() } ?: "Pikop User"
                 val nameParts = fullName.trim().split(" ")
                 val firstName = nameParts.firstOrNull() ?: "Pikop"
                 val lastName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else "User"

@@ -389,7 +389,11 @@ fun OrderQuoteScreen(
                                 val result = quoteResult
                                 if (selectedCorporateAccount != null) {
                                     val success = finalizeOrderAfterPayment(apiService, qId, selectedCorporateAccount!!.id, activePromo?.promo_id, "CORPORATE", recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, pUrl, pickupAddress.take(50), deliveryAddress.take(50))
-                                    if (success) onOrderComplete("CORPORATE")
+                                    if (success) {
+                                        onOrderComplete("CORPORATE")
+                                    } else {
+                                        Toast.makeText(context, "Failed to finalize corporate order", Toast.LENGTH_SHORT).show()
+                                    }
                                 } else if (result != null) {
                                     val total = result.total_fare ?: 0.0
                                     val promo = activePromo
@@ -405,7 +409,11 @@ fun OrderQuoteScreen(
                                             deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, 
                                             pUrl, pickupAddress.take(50), deliveryAddress.take(50)
                                         )
-                                        if (success) onOrderComplete("FREE")
+                                        if (success) {
+                                            onOrderComplete("FREE")
+                                        } else {
+                                            Toast.makeText(context, "Failed to activate free mission", Toast.LENGTH_SHORT).show()
+                                        }
                                         isLoading = false
                                         return@launch
                                     }
@@ -445,7 +453,11 @@ fun OrderQuoteScreen(
                                         Toast.makeText(context, "Payment Error: $errorMessage", Toast.LENGTH_LONG).show()
                                     }
                                 }
-                            } catch (e: Exception) { errorMessage = ErrorUtils.parseError(e) } finally { isLoading = false }
+                            } catch (e: Exception) { 
+                                android.util.Log.e("PayDeploy", "Pay & Deploy failed", e)
+                                errorMessage = ErrorUtils.parseError(e)
+                                Toast.makeText(context, "Something went wrong: $errorMessage", Toast.LENGTH_SHORT).show()
+                            } finally { isLoading = false }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),

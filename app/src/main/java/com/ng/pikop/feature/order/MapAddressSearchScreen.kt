@@ -218,7 +218,13 @@ fun MapAddressSearchScreen(
                                     try {
                                         val center = cameraPositionState.position.target
                                         val res = apiService.getAutocomplete(it, sessionToken, center.latitude, center.longitude)
-                                        suggestions = res.predictions
+                                        if (res.success) {
+                                            suggestions = res.predictions
+                                        } else {
+                                            android.util.Log.e("AddressSearch", "Places API returned failure: ${res.error}")
+                                            searchError = res.error ?: "No results found"
+                                            suggestions = emptyList()
+                                        }
                                     } catch (e: Exception) {
                                         android.util.Log.e("AddressSearch", "Autocomplete failed", e)
                                         searchError = "Check your connection"

@@ -250,7 +250,8 @@ data class AutocompletePrediction(
 
 data class AutocompleteResponse(
     val success: Boolean,
-    val predictions: List<AutocompletePrediction>
+    val predictions: List<AutocompletePrediction>,
+    val error: String? = null
 )
 
 data class PlaceDetailsResponse(
