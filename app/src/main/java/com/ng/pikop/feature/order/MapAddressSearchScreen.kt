@@ -36,6 +36,7 @@ import com.google.maps.android.compose.*
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.AutocompletePrediction
+import com.ng.pikop.core.network.SavedAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -64,6 +65,7 @@ fun MapAddressSearchScreen(
 
     var query by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<AutocompletePrediction>>(emptyList()) }
+    var savedAddresses by remember { mutableStateOf<List<SavedAddress>>(emptyList()) }
     var isSearchingSuggestions by remember { mutableStateOf(false) }
     var sessionToken by remember { mutableStateOf(UUID.randomUUID().toString()) }
     var searchJob by remember { mutableStateOf<Job?>(null) }
@@ -74,6 +76,12 @@ fun MapAddressSearchScreen(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
+        // Fetch saved addresses for the "empty query" state
+        try {
+            val response = apiService.getSavedAddresses()
+            savedAddresses = response.addresses
+        } catch (_: Exception) {}
+
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             try {
                 val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
@@ -152,9 +160,9 @@ fun MapAddressSearchScreen(
                         onValueChange = {
                             query = it
                             searchJob?.cancel()
-                            if (it.length >= 3) {
+                            if (it.length >= 2) {
                                 searchJob = scope.launch {
-                                    delay(300)
+                                    delay(250)
                                     isSearchingSuggestions = true
                                     try {
                                         val res = apiService.getAutocomplete(it, sessionToken)
@@ -189,7 +197,7 @@ fun MapAddressSearchScreen(
             }
 
             AnimatedVisibility(
-                visible = query.isNotEmpty() || suggestions.isNotEmpty(),
+                visible = query.isEmpty() || suggestions.isNotEmpty() || isSearchingSuggestions,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -204,6 +212,44 @@ fun MapAddressSearchScreen(
                             item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
                         }
                         
+                        if (query.isEmpty()) {
+                            // 1. Current Location
+                            item {
+                                ListItem(
+                                    headlineContent = { Text("Use my current location", fontWeight = FontWeight.Bold) },
+                                    leadingContent = { Icon(Icons.Default.MyLocation, null, tint = MaterialTheme.colorScheme.primary) },
+                                    modifier = Modifier.clickable {
+                                        scope.launch {
+                                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                                                val loc = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                                                loc?.let {
+                                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 17f))
+                                                    focusManager.clearFocus()
+                                                }
+                                            }
+                                        }
+                                    }
+                                )
+                                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
+                            }
+
+                            // 2. Saved Places
+                            items(savedAddresses) { addr ->
+                                ListItem(
+                                    headlineContent = { Text(addr.label ?: "Saved Place", fontWeight = FontWeight.Bold) },
+                                    supportingContent = { Text(addr.address_text ?: "", maxLines = 1) },
+                                    leadingContent = { Icon(if (addr.label == "Home") Icons.Default.Home else Icons.Default.Work, null, tint = MaterialTheme.colorScheme.primary) },
+                                    modifier = Modifier.clickable {
+                                        scope.launch {
+                                            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(addr.lat ?: 0.0, addr.lng ?: 0.0), 17f))
+                                            focusManager.clearFocus()
+                                        }
+                                    }
+                                )
+                                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
+                            }
+                        }
+
                         items(suggestions) { p ->
                             ListItem(
                                 headlineContent = { Text(p.main_text, fontWeight = FontWeight.Bold, color = Color.Black) },

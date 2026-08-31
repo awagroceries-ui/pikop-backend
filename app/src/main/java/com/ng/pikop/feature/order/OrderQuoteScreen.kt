@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,9 +44,9 @@ fun OrderQuoteScreen(
     onOrderComplete: (String) -> Unit,
     onNavigateToPayment: (url: String, quoteId: String, pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemUrl: String, pSum: String, dSum: String, rName: String, rPhone: String, notes: String?, promoId: String?) -> Unit
 ) {
-    var pickupAddress by remember { mutableStateOf("") }
+    var pickupAddress by rememberSaveable { mutableStateOf("") }
     var pickupLatLng by remember { mutableStateOf<LatLng?>(null) }
-    var deliveryAddress by remember { mutableStateOf("") }
+    var deliveryAddress by rememberSaveable { mutableStateOf("") }
     var deliveryLatLng by remember { mutableStateOf<LatLng?>(null) }
     
     // Result Observers using StateFlow
@@ -61,7 +62,10 @@ fun OrderQuoteScreen(
         if (pAddrRes != null && pLatRes != null && pLngRes != null) {
             pickupAddress = pAddrRes!!
             pickupLatLng = LatLng(pLatRes!!, pLngRes!!)
-            navController.currentBackStackEntry?.savedStateHandle?.set("pickup_address", null)
+            // Clear used values from handle to prevent loops
+            navController.currentBackStackEntry?.savedStateHandle?.remove<String>("pickup_address")
+            navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("pickup_lat")
+            navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("pickup_lng")
         }
     }
 
@@ -69,7 +73,10 @@ fun OrderQuoteScreen(
         if (dAddrRes != null && dLatRes != null && dLngRes != null) {
             deliveryAddress = dAddrRes!!
             deliveryLatLng = LatLng(dLatRes!!, dLngRes!!)
-            navController.currentBackStackEntry?.savedStateHandle?.set("delivery_address", null)
+            // Clear used values from handle to prevent loops
+            navController.currentBackStackEntry?.savedStateHandle?.remove<String>("delivery_address")
+            navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("delivery_lat")
+            navController.currentBackStackEntry?.savedStateHandle?.remove<Double>("delivery_lng")
         }
     }
 
@@ -77,15 +84,15 @@ fun OrderQuoteScreen(
     var corporateAccounts by remember { mutableStateOf<List<CorporateAccount>>(emptyList()) }
     var selectedCorporateAccount by remember { mutableStateOf<CorporateAccount?>(null) }
     
-    var description by remember { mutableStateOf("") }
-    var itemPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var description by rememberSaveable { mutableStateOf("") }
+    var itemPhotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
-    var promoCode by remember { mutableStateOf("") }
+    var promoCode by rememberSaveable { mutableStateOf("") }
     var activePromo by remember { mutableStateOf<PromoValidationResponse?>(null) }
     
-    var recipientName by remember { mutableStateOf("") }
-    var recipientPhone by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var recipientName by rememberSaveable { mutableStateOf("") }
+    var recipientPhone by rememberSaveable { mutableStateOf("") }
+    var notes by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(userName, userPhone) {
         if (recipientName.isNullOrBlank()) {
