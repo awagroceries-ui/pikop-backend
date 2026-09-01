@@ -96,6 +96,7 @@ app.use('/api/v1/growth', require('./routes/growthRoutes'));
 app.use('/api/v1/promo-codes', require('./routes/growthRoutes')); // Legacy Compatibility
 app.use('/api/v1/places', require('./routes/placesRoutes'));
 app.use('/api/v1/addresses', require('./routes/addressRoutes'));
+app.use('/api/v1/settings', require('./routes/settingsRoutes'));
 app.use('/api/v1/webhooks', require('./routes/webhookRoutes')); // Added for Prembly
 app.use('/legal', require('./routes/legalRoutes'));
 

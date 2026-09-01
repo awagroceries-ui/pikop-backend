@@ -337,10 +337,10 @@ const uploadProfilePhoto = async (req, res) => {
     const photoUrl = `/uploads/${req.file.filename}`;
 
     try {
-        await db.query(
-            "UPDATE fulfillers SET profile_photo_url = $1 WHERE user_id = $2",
-            [photoUrl, userId]
-        );
+        // Update both tables to keep profile in sync across schemas
+        await db.query("UPDATE users SET profile_photo_url = $1 WHERE id = $2", [photoUrl, userId]);
+        await db.query("UPDATE fulfillers SET profile_photo_url = $1 WHERE user_id = $2", [photoUrl, userId]);
+
         res.status(200).json({ success: true, url: photoUrl });
     } catch (error) {
         throw error;
