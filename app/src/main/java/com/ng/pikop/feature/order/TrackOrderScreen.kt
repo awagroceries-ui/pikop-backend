@@ -260,8 +260,9 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                                             android.widget.Toast.makeText(context, "Mission Aborted", android.widget.Toast.LENGTH_SHORT).show()
                                             onRefresh() 
                                         } catch (e: Exception) {
-                                            android.util.Log.e("TrackOrder", "Cancel failed", e)
-                                            android.widget.Toast.makeText(context, "Failed to abort mission", android.widget.Toast.LENGTH_SHORT).show()
+                                            val errorMsg = com.ng.pikop.core.network.ErrorUtils.parseError(e)
+                                            android.util.Log.e("TrackOrder", "Cancel failed: $errorMsg", e)
+                                            android.widget.Toast.makeText(context, errorMsg, android.widget.Toast.LENGTH_LONG).show()
                                         } 
                                     }
                                     showCancelConfirm = false 
