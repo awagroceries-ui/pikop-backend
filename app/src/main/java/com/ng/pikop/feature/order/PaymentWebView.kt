@@ -114,38 +114,34 @@ fun PaymentWebView(
                                         
                                         // 1. Authoritative Success: Strict Scheme Matching
                                         if (currentUrl.startsWith("pikop://payment/success") || currentUrl.startsWith("intent://payment/success")) {
-                                            android.util.Log.d("PikopPayment", "SUCCESS: Scheme detected. Delaying for visibility.")
+                                            android.util.Log.d("PikopPayment", "SUCCESS: Scheme detected. Finalizing.")
                                             val uri = Uri.parse(currentUrl.replace("intent://", "pikop://"))
                                             val reference = uri.getQueryParameter("reference") ?: 
                                                            uri.getQueryParameter("trxref") ?: "detected_callback"
                                             
-                                            // Delay to allow user to see the success state
-                                            scope.launch {
-                                                delay(2500)
-                                                isPaymentConfirmed = true
-                                                onSuccess(reference) { }
-                                            }
+                                            isPaymentConfirmed = true
+                                            onSuccess(reference) { }
                                             return true
                                         }
 
                                         // 2. Targeted Webhook/Backend Redirect Interception
+                                        // Allow the backend's "Mission Activated" HTML to render for a moment
                                         if (currentUrl.contains("api.pikop.com.ng/api/v1/payments/webhook")) {
                                             if (!isPaymentConfirmed) {
-                                                android.util.Log.d("PikopPayment", "SUCCESS: Backend redirect matched.")
+                                                android.util.Log.d("PikopPayment", "SUCCESS: Backend redirect detected. Waiting for HTML render.")
                                                 val uri = Uri.parse(currentUrl)
                                                 val reference = uri.getQueryParameter("reference") ?: "detected_url"
                                                 
                                                 scope.launch {
-                                                    delay(2000)
+                                                    delay(3000) // 3s buffer for user to see the success page
                                                     isPaymentConfirmed = true
                                                     onSuccess(reference) { }
                                                 }
                                             }
-                                            return true
+                                            return false // Allow the WebView to actually load the page
                                         }
 
                                         // 3. DO NOT intercept standard paystack.com success URLs immediately
-                                        // This allows the "Payment Successful" screen to render.
                                         if (currentUrl.contains("cancel")) {
                                             onCancel()
                                             return true

@@ -49,16 +49,17 @@ const initializePayment = async (req, res) => {
       email,
       currency: 'NGN',
       callback_url: 'https://api.pikop.com.ng/api/v1/payments/webhook',
+      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
       metadata: {
         quote_id,
         user_id: userId,
         recipient_name: user?.full_name,
         recipient_phone: user?.phone
-      },
-      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
+      }
     };
 
     console.log(`[Paystack] Initializing for ${email}. Amount: ${payload.amount} kobo. Quote: ${quote_id}`);
+    console.log(`[Paystack] FULL PAYLOAD:`, JSON.stringify(payload));
 
     const response = await axios.post('https://api.paystack.co/transaction/initialize', payload, {
       headers: {
@@ -96,12 +97,15 @@ const initializeCoDPayment = async (req, res) => {
             email: 'billing@pikop.ng', // Use a generic email for recipient collection
             currency: 'NGN',
             callback_url: 'https://api.pikop.com.ng/api/v1/payments/webhook',
+            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
             metadata: {
                 order_id: order.id,
                 collection_type: 'COD'
-            },
-            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
+            }
         };
+
+        console.log(`[Paystack CoD] Initializing. Order: ${order.id}. Amount: ${payload.amount} kobo`);
+        console.log(`[Paystack CoD] FULL PAYLOAD:`, JSON.stringify(payload));
 
         const response = await axios.post('https://api.paystack.co/transaction/initialize', payload, {
             headers: { Authorization: `Bearer ${PAYSTACK_SECRET.trim()}` }
