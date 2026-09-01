@@ -224,20 +224,23 @@ const cancelOrder = async (req, res) => {
 
     try {
         const { rows } = await db.query(
-            "UPDATE orders SET status = 'CANCELLED', cancellation_reason = $1 WHERE id = $2 AND status NOT IN ('PICKED_UP', 'DELIVERED', 'CANCELLED') RETURNING id",
-            [reason || 'User cancelled', orderId]
+            "UPDATE orders SET status = 'CANCELLED', cancellation_reason = $1 WHERE id = $2 AND user_id = $3 AND status NOT IN ('PICKED_UP', 'DELIVERED', 'CANCELLED') RETURNING id",
+            [reason || 'User cancelled', orderId, userId]
         );
 
         if (rows.length === 0) {
-            return res.status(400).json({ success: false, message: 'Order cannot be cancelled in its current state' });
+            console.warn(`[Cancel] Unauthorized or invalid state for Order ${orderId} by User ${userId}`);
+            return res.status(400).json({ success: false, message: 'Order cannot be cancelled. It might be already in progress or completed.' });
         }
 
         // Notify participants
         const socketService = require('../services/socketService');
         socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: 'CANCELLED' });
 
+        console.log(`[Cancel] Mission ${orderId} successfully aborted by User ${userId}`);
         res.status(200).json({ success: true, message: 'Mission aborted' });
     } catch (error) {
+        console.error(`[Cancel] Error for Order ${orderId}:`, error.message);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -425,5 +428,6 @@ module.exports = {
   updateStatus,
   initiateReturn,
   getOrderMessages,
-  getUserOrders
+  getUserOrders,
+  cancelOrder
 };

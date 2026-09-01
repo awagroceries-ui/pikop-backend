@@ -221,6 +221,7 @@ fun TrackOrderScreen(
 
 @Composable
 fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>, profile: FulfillerPublicProfile?, tokenManager: TokenManager, onRefresh: () -> Unit) {
+    val context = LocalContext.current
     Surface(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.primary
@@ -246,7 +247,36 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                 var showCancelConfirm by remember { mutableStateOf(false) }
                 OutlinedButton(onClick = { showCancelConfirm = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)) { Text("Cancel Delivery") }
                 if (showCancelConfirm) {
-                    AlertDialog(onDismissRequest = { showCancelConfirm = false }, title = { Text("Abort Mission?") }, text = { Text("Are you sure you want to cancel this delivery request?") }, confirmButton = { Button(onClick = { scope.launch { try { apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation")); onRefresh() } catch (e: Exception) {} }; showCancelConfirm = false }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("Confirm Abort") } }, dismissButton = { TextButton(onClick = { showCancelConfirm = false }) { Text("Keep Order") } })
+                    AlertDialog(
+                        onDismissRequest = { showCancelConfirm = false }, 
+                        title = { Text("Abort Mission?") }, 
+                        text = { Text("Are you sure you want to cancel this delivery request?") }, 
+                        confirmButton = { 
+                            Button(
+                                onClick = { 
+                                    scope.launch { 
+                                        try { 
+                                            apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation"))
+                                            android.widget.Toast.makeText(context, "Mission Aborted", android.widget.Toast.LENGTH_SHORT).show()
+                                            onRefresh() 
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("TrackOrder", "Cancel failed", e)
+                                            android.widget.Toast.makeText(context, "Failed to abort mission", android.widget.Toast.LENGTH_SHORT).show()
+                                        } 
+                                    }
+                                    showCancelConfirm = false 
+                                }, 
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                            ) { 
+                                Text("Confirm Abort") 
+                            } 
+                        }, 
+                        dismissButton = { 
+                            TextButton(onClick = { showCancelConfirm = false }) { 
+                                Text("Keep Order") 
+                            } 
+                        }
+                    )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
