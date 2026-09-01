@@ -7,10 +7,12 @@ const prembly = require('../services/kyc/PremblyProvider');
 const handlePremblyWebhook = async (req, res) => {
     const signature = req.headers['x-identitypass-signature'];
     const payload = req.body;
+    const rawBody = req.rawBody;
 
-    // 1. Verify Authenticity
-    if (!prembly.verifyWebhook(payload, signature)) {
+    // 1. Verify Authenticity (using rawBody to ensure HMAC matches)
+    if (!prembly.verifyWebhook(rawBody, signature)) {
         console.error('[Webhook] Prembly: Invalid signature received.');
+        // Optionally log rawBody for debugging if trusted
         return res.status(401).send('Unauthorized');
     }
 

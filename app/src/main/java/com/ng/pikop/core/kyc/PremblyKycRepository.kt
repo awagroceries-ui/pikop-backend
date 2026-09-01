@@ -118,6 +118,22 @@ class PremblyKycRepository @Inject constructor(
             }, "AndroidBridge")
 
             webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                    val url = request?.url?.toString() ?: ""
+                    android.util.Log.d("PremblyKYC", "Navigating to: $url")
+                    
+                    // Handle Redirect URL (Success Fallback)
+                    if (url.contains("webhooks/redirect")) {
+                        android.util.Log.d("PremblyKYC", "Redirect detected. Triggering success callback.")
+                        activity.runOnUiThread {
+                            onSuccess("{\"status\":\"success\",\"message\":\"Redirect captured\"}")
+                            dialog.dismiss()
+                        }
+                        return true
+                    }
+                    return false
+                }
+
                 @Deprecated("Deprecated in Java")
                 override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
                     android.util.Log.e("PremblyKYC", "WebView Error: $description")

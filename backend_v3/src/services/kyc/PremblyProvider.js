@@ -70,10 +70,16 @@ class PremblyProvider extends IdentityVerificationProvider {
     /**
      * Verifies Prembly Webhook authenticity using HMAC-SHA512.
      */
-    verifyWebhook(payload, signature) {
+    verifyWebhook(rawBody, signature) {
+        if (!rawBody || !signature) return false;
         const crypto = require('crypto');
-        const expected = crypto.createHmac('sha512', this.apiKey).update(JSON.stringify(payload)).digest('hex');
-        return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+        const expected = crypto.createHmac('sha512', this.apiKey).update(rawBody).digest('hex');
+
+        try {
+            return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+        } catch (e) {
+            return false;
+        }
     }
 
     async _post(endpoint, data) {
