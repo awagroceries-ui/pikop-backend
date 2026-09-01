@@ -50,7 +50,9 @@ fun FulfillerDashboardScreen(
     // Initial Fetch
     LaunchedEffect(Unit) {
         try {
-            val profile = apiService.getFulfillerProfile()
+            val response = apiService.getFulfillerProfile()
+            val profile = response.data ?: response
+            
             kycStatus = profile.kyc_status ?: "PENDING"
             isOnline = profile.online_status == "ONLINE"
             history = apiService.getFulfillerOrders()

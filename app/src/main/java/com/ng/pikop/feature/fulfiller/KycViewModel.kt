@@ -38,7 +38,9 @@ class KycViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val res = apiService.getFulfillerProfile()
-                _profile.value = res
+                // Unwrap if nested in 'data'
+                val profileData = res.data ?: res
+                _profile.value = profileData
             } catch (e: Exception) {
                 android.util.Log.e("KycViewModel", "Profile refresh failed", e)
             }

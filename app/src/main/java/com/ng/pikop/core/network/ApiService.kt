@@ -145,7 +145,8 @@ data class FulfillerProfileResponse(
     val make: String? = null,
     val model: String? = null,
     val color: String? = null,
-    val rating_avg: Double? = null
+    val rating_avg: Double? = null,
+    @SerializedName("data") val data: FulfillerProfileResponse? = null
 )
 
 data class KycSessionResponse(
