@@ -7,7 +7,10 @@ const getProfile = async (req, res) => {
     const userId = req.user.id;
     try {
         const { rows } = await db.query(
-            "SELECT id, full_name, email, phone, role, profile_photo_url, created_at FROM users WHERE id = $1",
+            `SELECT u.id, u.full_name, u.email, u.phone, u.role, u.profile_photo_url, u.created_at, f.kyc_status
+             FROM users u
+             LEFT JOIN fulfillers f ON f.user_id = u.id
+             WHERE u.id = $1`,
             [userId]
         );
         if (rows.length === 0) return res.status(404).json({ success: false, message: 'User not found' });

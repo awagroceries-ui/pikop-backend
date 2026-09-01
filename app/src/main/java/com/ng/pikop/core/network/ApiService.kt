@@ -110,7 +110,8 @@ data class FulfillerPublicProfile(
     val profile_photo_url: String? = null,
     val tier: String? = null,
     val vehicle_registration_number: String? = null,
-    val rating_avg: Double? = null
+    val rating_avg: Double? = null,
+    val kyc_status: String? = null
 )
 
 data class OrderDetailsResponse(
@@ -184,7 +185,8 @@ data class ProfileUpdateRequest(
 data class UserProfileResponse(
     val full_name: String? = null,
     val email: String? = null,
-    val phone: String? = null
+    val phone: String? = null,
+    val kyc_status: String? = null
 )
 
 data class FulfillerStatusRequest(

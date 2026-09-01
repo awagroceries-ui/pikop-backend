@@ -27,6 +27,7 @@ fun AccountScreen(
     userName: String,
     userRole: String,
     referralCode: String,
+    kycStatus: String? = null,
     onNavigateToSupport: () -> Unit,
     onNavigateToAddresses: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -63,12 +64,22 @@ fun AccountScreen(
                 modifier = Modifier.size(100.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = userName.ifBlank { "User" }, 
-                style = MaterialTheme.typography.headlineSmall, 
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = userName.ifBlank { "User" }, 
+                    style = MaterialTheme.typography.headlineSmall, 
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                if (kycStatus == "VERIFIED") {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Image(
+                        painter = painterResource(id = R.drawable.pikop_badge),
+                        contentDescription = "Verified",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
             Text(
                 text = userEmail, 
                 style = MaterialTheme.typography.bodyMedium, 

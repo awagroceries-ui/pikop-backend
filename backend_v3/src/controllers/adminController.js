@@ -126,7 +126,7 @@ const trackOrder = async (req, res) => {
             ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
             ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng,
             u.full_name as customer_name, u.phone as customer_phone,
-            f.full_name as agent_name, f.phone as agent_phone,
+            f.full_name as agent_name, f.phone as agent_phone, f.kyc_status,
             ST_Y(f.current_location::geometry) as agent_lat, ST_X(f.current_location::geometry) as agent_lng
             FROM orders o
             JOIN users u ON u.id = o.user_id

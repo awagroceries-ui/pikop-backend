@@ -103,6 +103,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
     val userRole by tokenManager.userRole.collectAsState(initial = null)
     val isVerified by tokenManager.isVerified.collectAsState(initial = false)
     val referralCode by tokenManager.referralCode.collectAsState(initial = null)
+    val kycStatus by tokenManager.kycStatus.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
 
     // Global Session Monitor
@@ -219,7 +220,8 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                         name = profile.full_name,
                         phone = profile.phone,
                         isVerified = isVerified,
-                        referralCode = referralCode
+                        referralCode = referralCode,
+                        kycStatus = profile.kyc_status
                     )
                     android.util.Log.d("PikopSync", "Profile background sync complete")
                 } catch (e: Exception) {
@@ -337,6 +339,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 userPhone = userPhone ?: "",
                 userRole = userRole ?: "CUSTOMER",
                 referralCode = referralCode ?: "",
+                kycStatus = kycStatus,
                 tokenManager = tokenManager
             )
         }
@@ -535,6 +538,7 @@ fun MainAppScaffold(
     userPhone: String,
     userRole: String,
     referralCode: String,
+    kycStatus: String? = null,
     tokenManager: TokenManager
 ) {
     val nestedNavController = rememberNavController()
@@ -648,6 +652,7 @@ fun MainAppScaffold(
                     userName = userName,
                     userRole = userRole,
                     referralCode = referralCode,
+                    kycStatus = kycStatus,
                     onNavigateToSupport = { navController.navigate("support_hub") },
                     onNavigateToAddresses = { 
                         // Implementation for addresses flow

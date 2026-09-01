@@ -38,6 +38,7 @@ class TokenManager(private val context: Context) {
         private val USER_ROLE_KEY = stringPreferencesKey("user_role")
         private val IS_VERIFIED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("is_verified")
         private val REFERRAL_CODE_KEY = stringPreferencesKey("referral_code")
+        private val KYC_STATUS_KEY = stringPreferencesKey("kyc_status")
     }
 
     val accessToken: Flow<String?> = context.dataStore.data.map { it[ACCESS_TOKEN_KEY] }
@@ -49,6 +50,7 @@ class TokenManager(private val context: Context) {
     val userRole: Flow<String?> = context.dataStore.data.map { it[USER_ROLE_KEY] }
     val isVerified: Flow<Boolean> = context.dataStore.data.map { it[IS_VERIFIED_KEY] ?: false }
     val referralCode: Flow<String?> = context.dataStore.data.map { it[REFERRAL_CODE_KEY] }
+    val kycStatus: Flow<String?> = context.dataStore.data.map { it[KYC_STATUS_KEY] }
 
     /**
      * Synchronous access for Network Interceptors to avoid DataStore async race conditions.
@@ -65,7 +67,8 @@ class TokenManager(private val context: Context) {
         name: String? = null,
         phone: String? = null,
         isVerified: Boolean = false,
-        referralCode: String? = null
+        referralCode: String? = null,
+        kycStatus: String? = null
     ) {
         // Parallel Sync save to SharedPrefs
         sharedPrefs.edit().apply {
@@ -84,6 +87,7 @@ class TokenManager(private val context: Context) {
             if (name != null) preferences[USER_NAME_KEY] = name
             if (phone != null) preferences[USER_PHONE_KEY] = phone
             if (referralCode != null) preferences[REFERRAL_CODE_KEY] = referralCode
+            if (kycStatus != null) preferences[KYC_STATUS_KEY] = kycStatus
         }
     }
 

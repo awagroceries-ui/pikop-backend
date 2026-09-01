@@ -1,6 +1,7 @@
 package com.ng.pikop.feature.order
 
 import android.content.Intent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -292,6 +294,7 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
 
 @Composable
 fun FulfillerCard(profile: FulfillerPublicProfile) {
+    val context = LocalContext.current
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(modifier = Modifier.size(48.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
@@ -299,7 +302,17 @@ fun FulfillerCard(profile: FulfillerPublicProfile) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = profile.full_name ?: "Agent", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = profile.full_name ?: "Agent", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    if (profile.kyc_status == "VERIFIED") {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Image(
+                            painter = painterResource(id = com.ng.pikop.R.drawable.pikop_badge),
+                            contentDescription = "Verified",
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val tierColor = when(profile.tier) { "gold" -> Color(0xFFFFD700); "silver" -> Color(0xFFC0C0C0); else -> Color(0xFFCD7F32) }
                     Icon(Icons.Default.Stars, contentDescription = null, modifier = Modifier.size(14.dp), tint = tierColor)

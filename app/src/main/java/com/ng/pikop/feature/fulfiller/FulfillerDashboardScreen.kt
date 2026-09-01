@@ -72,7 +72,19 @@ fun FulfillerDashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pikop Fulfiller") },
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Pikop Fulfiller")
+                        if (kycStatus == "VERIFIED") {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Image(
+                                painter = painterResource(id = R.drawable.pikop_badge),
+                                contentDescription = "Verified",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                },
                 actions = {
                     IconButton(onClick = { /* Refresh */ }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
