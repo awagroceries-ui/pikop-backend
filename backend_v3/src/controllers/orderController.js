@@ -366,6 +366,8 @@ const createOrder = async (req, res) => {
         }
 
         // 4. Create Order (DEFINITIVE ALIGNMENT WITH WEBHOOK)
+        console.log(`[ManualOrder] PRE-FLIGHT: Quote: ${q.id} | User: ${userId} | Fare: ${finalFare} | Ref: ${payment_reference} | Coupon: ${couponId}`);
+
         const orderRes = await client.query(
             `INSERT INTO orders (
                 order_type, user_id, quote_id, status,

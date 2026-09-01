@@ -417,7 +417,7 @@ fun OrderQuoteScreen(
                                         if (success) {
                                             onOrderComplete("FREE")
                                         } else {
-                                            val detail = "Check server logs for activation block"
+                                            val detail = "Database rejected activation. Check VPS logs."
                                             Toast.makeText(context, "Failed to activate free mission: $detail", Toast.LENGTH_LONG).show()
                                         }
                                         isLoading = false
