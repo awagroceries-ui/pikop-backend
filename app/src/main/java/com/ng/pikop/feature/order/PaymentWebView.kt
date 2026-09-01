@@ -110,24 +110,24 @@ fun PaymentWebView(
                                     private fun handleRedirection(currentUrl: String): Boolean {
                                         android.util.Log.d("PikopPayment", "Navigating to: $currentUrl")
                                         
-                                        // 1. Strict Scheme Matching (pikop://payment/success)
+                                        // 1. Authoritative Success: Strict Scheme Matching
                                         if (currentUrl.startsWith("pikop://payment/success") || currentUrl.startsWith("intent://payment/success")) {
                                             android.util.Log.d("PikopPayment", "SUCCESS: Scheme detected.")
-                                            
-                                            // Extract reference from query params
                                             val uri = Uri.parse(currentUrl.replace("intent://", "pikop://"))
                                             val reference = uri.getQueryParameter("reference") ?: 
                                                            uri.getQueryParameter("trxref") ?: "detected_callback"
                                             
                                             isPaymentConfirmed = true
-                                            onSuccess(reference) { /* Done */ }
+                                            onSuccess(reference) { }
                                             return true
                                         }
 
-                                        // 2. Keyword fallback for resilient interception
-                                        if (currentUrl.contains("payments/webhook") || (currentUrl.contains("success") && currentUrl.contains("reference="))) {
+                                        // 2. Targeted Webhook/Success Interception
+                                        // We avoid simple .contains("success") to prevent breaking bank-transfer flows
+                                        if (currentUrl.contains("api.pikop.com.ng/api/v1/payments/webhook") || 
+                                           (currentUrl.contains("paystack.com") && currentUrl.contains("/success") && currentUrl.contains("reference="))) {
                                             if (!isPaymentConfirmed) {
-                                                android.util.Log.d("PikopPayment", "SUCCESS: Success URL pattern matched.")
+                                                android.util.Log.d("PikopPayment", "SUCCESS: Targeted URL pattern matched.")
                                                 val uri = Uri.parse(currentUrl)
                                                 val reference = uri.getQueryParameter("reference") ?: "detected_url"
                                                 
@@ -141,6 +141,8 @@ fun PaymentWebView(
                                             onCancel()
                                             return true
                                         }
+
+                                        // 3. Fallback: Do NOT intercept other URLs (Allow Bank Transfer, USSD, etc. to load)
                                         return false
                                     }
                                 }

@@ -54,8 +54,8 @@ const initializePayment = async (req, res) => {
         user_id: userId,
         recipient_name: user?.full_name,
         recipient_phone: user?.phone
-      },
-      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
+      }
+      // channels removed to use Dashboard Preferences (Bank Transfer, USSD, etc.)
     };
 
     console.log(`[Paystack] Initializing for ${email}. Amount: ${payload.amount} kobo. Quote: ${quote_id}`);
@@ -94,12 +94,13 @@ const initializeCoDPayment = async (req, res) => {
         const payload = {
             amount: Math.round(parseFloat(order.collect_on_delivery_amount) * 100),
             email: 'billing@pikop.ng', // Use a generic email for recipient collection
+            currency: 'NGN',
             callback_url: 'pikop://payment/success',
             metadata: {
                 order_id: order.id,
                 collection_type: 'COD'
-            },
-            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
+            }
+            // channels removed to use Dashboard Preferences
         };
 
         const response = await axios.post('https://api.paystack.co/transaction/initialize', payload, {
