@@ -50,6 +50,9 @@ fun TrackOrderScreen(
     var fulfillerProfile by remember { mutableStateOf<FulfillerPublicProfile?>(null) }
     var trackingUrl by remember { mutableStateOf<String?>(null) }
     
+    var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val coroutineScope = rememberCoroutineScope()
@@ -62,7 +65,12 @@ fun TrackOrderScreen(
     val fetchHistory: () -> Unit = {
         coroutineScope.launch {
             try {
+                isLoading = true
+                error = null
+                android.util.Log.d("TrackOrder", "Fetching details for mission: $orderId")
                 val details = apiService.getOrderDetails(orderId)
+                android.util.Log.d("TrackOrder", "Raw Data Received: $details")
+                
                 fulfillerProfile = details.fulfiller_profile
                 trackingUrl = details.tracking_url
                 
@@ -85,8 +93,15 @@ fun TrackOrderScreen(
                         isCompleted = true
                     )
                 } ?: emptyList()
+
+                if (pickupLoc == null || deliveryLoc == null) {
+                    error = "Mission coordinates are missing. Please ensure VPS is updated."
+                }
             } catch (e: Exception) {
-                android.util.Log.e("TrackOrder", "Fetch failed: ${e.message}")
+                android.util.Log.e("TrackOrder", "Fetch failed", e)
+                error = "Failed to load mission details: ${e.message}"
+            } finally {
+                isLoading = false
             }
         }
     }
@@ -100,13 +115,15 @@ fun TrackOrderScreen(
         SocketManager.emit("join_order", JSONObject().put("orderId", orderId))
         
         SocketManager.on("location_changed") { data ->
-            val lat = data.getDouble("lat")
-            val lng = data.getDouble("lng")
-            val newLoc = LatLng(lat, lng)
-            fulfillerLocation = newLoc
-            deliveryLoc?.let { dest ->
-                val distanceKm = calculateDistance(newLoc, dest)
-                etaMinutes = ((distanceKm / 30.0) * 60).roundToInt().coerceAtLeast(1)
+            val lat = data.optDouble("lat", 0.0)
+            val lng = data.optDouble("lng", 0.0)
+            if (lat != 0.0 && lng != 0.0) {
+                val newLoc = LatLng(lat, lng)
+                fulfillerLocation = newLoc
+                deliveryLoc?.let { dest ->
+                    val distanceKm = calculateDistance(newLoc, dest)
+                    etaMinutes = ((distanceKm / 30.0) * 60).roundToInt().coerceAtLeast(1)
+                }
             }
         }
 
@@ -160,9 +177,21 @@ fun TrackOrderScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
             color = MaterialTheme.colorScheme.background
         ) {
-            if (pickupLoc == null || deliveryLoc == null) {
+            if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
+                }
+            } else if (error != null) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.ErrorOutline, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(error!!, textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(onClick = fetchHistory) { Text("Retry") }
                 }
             } else {
                 Box {

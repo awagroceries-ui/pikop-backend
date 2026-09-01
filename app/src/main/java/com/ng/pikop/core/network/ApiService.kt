@@ -112,23 +112,23 @@ data class FulfillerPublicProfile(
 )
 
 data class OrderDetailsResponse(
-    val id: String? = null,
-    val status: String? = null,
-    val total_fare: Double? = null,
-    val pickup_address: String? = null,
-    val delivery_address: String? = null,
-    val pickup_lat: Double? = null,
-    val pickup_lng: Double? = null,
-    val delivery_lat: Double? = null,
-    val delivery_lng: Double? = null,
-    val fulfiller_lat: Double? = null,
-    val fulfiller_lng: Double? = null,
-    val item_photo_url: String? = null,
-    val tracking_url: String? = null,
-    val recipient_name: String? = null,
-    val recipient_phone: String? = null,
-    val fulfiller_profile: FulfillerPublicProfile? = null,
-    val history: List<StatusHistoryItem>? = null
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("total_fare") val total_fare: Double? = null,
+    @SerializedName("pickup_address") val pickup_address: String? = null,
+    @SerializedName("delivery_address") val delivery_address: String? = null,
+    @SerializedName("pickup_lat") val pickup_lat: Double? = null,
+    @SerializedName("pickup_lng") val pickup_lng: Double? = null,
+    @SerializedName("delivery_lat") val delivery_lat: Double? = null,
+    @SerializedName("delivery_lng") val delivery_lng: Double? = null,
+    @SerializedName("fulfiller_lat") val fulfiller_lat: Double? = null,
+    @SerializedName("fulfiller_lng") val fulfiller_lng: Double? = null,
+    @SerializedName("item_photo_url") val item_photo_url: String? = null,
+    @SerializedName("tracking_url") val tracking_url: String? = null,
+    @SerializedName("recipient_name") val recipient_name: String? = null,
+    @SerializedName("recipient_phone") val recipient_phone: String? = null,
+    @SerializedName("fulfiller_profile") val fulfiller_profile: FulfillerPublicProfile? = null,
+    @SerializedName("history") val history: List<StatusHistoryItem>? = null
 )
 
 data class FulfillerProfileResponse(
