@@ -18,7 +18,7 @@ import javax.inject.Named
  */
 class PremblyKycRepository @Inject constructor(
     @Suppress("unused") private val apiService: ApiService,
-    @Named("premblyPublicKey") private val publicKey: String,
+    @Named("premblyConfigId") private val configId: String,
     @Named("premblyWidgetId") private val widgetId: String
 ) : KycManager {
 
@@ -64,7 +64,7 @@ class PremblyKycRepository @Inject constructor(
         onClose: () -> Unit
     ) {
         // Diagnostic Logging
-        android.util.Log.d("PremblyKYC", "Injected widget_id: $widgetId, widget_key: $publicKey")
+        android.util.Log.d("PremblyKYC", "Injected widget_id: $configId, widget_key: $widgetId")
 
         // Enable Remote Debugging for troubleshooting
         WebView.setWebContentsDebuggingEnabled(true)
@@ -174,8 +174,8 @@ class PremblyKycRepository @Inject constructor(
                                 return;
                             }
                             IdentityKYC.verify({
-                                widget_id: "$widgetId",
-                                widget_key: "$publicKey",
+                                widget_id: "$configId",
+                                widget_key: "$widgetId",
                                 first_name: "$firstName",
                                 last_name: "$lastName",
                                 email: "$email",
