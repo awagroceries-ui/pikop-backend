@@ -352,7 +352,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
         composable("track_order/{orderId}") { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
-            TrackOrderScreen(orderId = orderId, pickup = LatLng(6.5244, 3.3792), delivery = LatLng(6.4281, 3.4219))
+            TrackOrderScreen(orderId = orderId)
         }
         composable("order_quote") {
             OrderQuoteScreen(

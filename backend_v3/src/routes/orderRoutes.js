@@ -23,6 +23,7 @@ router.get('/by-quote/:quoteId', authenticateToken, orderController.getOrderByQu
 router.get('/', authenticateToken, orderController.getUserOrders);
 router.post('/', authenticateToken, orderController.createOrder);
 router.get('/:orderId', authenticateToken, orderController.getOrderDetails);
+router.post('/:orderId/cancel', authenticateToken, orderController.cancelOrder);
 router.patch('/:orderId/status', authenticateToken, orderController.updateStatus);
 router.post('/:orderId/accept', authenticateToken, orderController.acceptOrder);
 router.post('/:orderId/return', authenticateToken, orderController.initiateReturn);

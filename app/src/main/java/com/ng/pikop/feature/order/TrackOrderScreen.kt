@@ -37,7 +37,13 @@ data class OrderStatusStep(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
+fun TrackOrderScreen(
+    orderId: String, 
+    pickup: LatLng? = null, 
+    delivery: LatLng? = null
+) {
+    var pickupLoc by remember { mutableStateOf(pickup) }
+    var deliveryLoc by remember { mutableStateOf(delivery) }
     var fulfillerLocation by remember { mutableStateOf<LatLng?>(null) }
     var etaMinutes by remember { mutableStateOf<Int?>(null) }
     var history by remember { mutableStateOf<List<OrderStatusStep>>(emptyList()) }
@@ -50,7 +56,7 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
     val apiService = remember { ApiService.create(tokenManager) }
     val scaffoldState = rememberBottomSheetScaffoldState()
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(pickup, 14f)
+        position = CameraPosition.fromLatLngZoom(pickupLoc ?: LatLng(6.5244, 3.3792), 14f)
     }
 
     val fetchHistory: () -> Unit = {
@@ -59,6 +65,18 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
                 val details = apiService.getOrderDetails(orderId)
                 fulfillerProfile = details.fulfiller_profile
                 trackingUrl = details.tracking_url
+                
+                if (details.pickup_lat != null && details.pickup_lng != null) {
+                    pickupLoc = LatLng(details.pickup_lat, details.pickup_lng)
+                }
+                if (details.delivery_lat != null && details.delivery_lng != null) {
+                    deliveryLoc = LatLng(details.delivery_lat, details.delivery_lng)
+                }
+                
+                if (details.fulfiller_lat != null && details.fulfiller_lng != null) {
+                    fulfillerLocation = LatLng(details.fulfiller_lat, details.fulfiller_lng)
+                }
+
                 history = details.history?.map { item ->
                     OrderStatusStep(
                         status = item.status ?: "UNKNOWN",
@@ -67,7 +85,9 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
                         isCompleted = true
                     )
                 } ?: emptyList()
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.e("TrackOrder", "Fetch failed: ${e.message}")
+            }
         }
     }
 
@@ -84,8 +104,10 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
             val lng = data.getDouble("lng")
             val newLoc = LatLng(lat, lng)
             fulfillerLocation = newLoc
-            val distanceKm = calculateDistance(newLoc, delivery)
-            etaMinutes = ((distanceKm / 30.0) * 60).roundToInt().coerceAtLeast(1)
+            deliveryLoc?.let { dest ->
+                val distanceKm = calculateDistance(newLoc, dest)
+                etaMinutes = ((distanceKm / 30.0) * 60).roundToInt().coerceAtLeast(1)
+            }
         }
 
         SocketManager.on("status_updated") { _ -> fetchHistory() }
@@ -97,10 +119,13 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
         }
     }
 
-    LaunchedEffect(fulfillerLocation) {
-        fulfillerLocation?.let { fulfiller ->
-            val bounds = LatLngBounds.builder().include(pickup).include(delivery).include(fulfiller).build()
-            cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, 150))
+    LaunchedEffect(pickupLoc, deliveryLoc, fulfillerLocation) {
+        val p = pickupLoc
+        val d = deliveryLoc
+        if (p != null && d != null) {
+            val builder = LatLngBounds.builder().include(p).include(d)
+            fulfillerLocation?.let { builder.include(it) }
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(builder.build(), 150))
         }
     }
 
@@ -135,16 +160,25 @@ fun TrackOrderScreen(orderId: String, pickup: LatLng, delivery: LatLng) {
             modifier = Modifier.fillMaxSize().padding(padding),
             color = MaterialTheme.colorScheme.background
         ) {
-            Box {
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState,
-                    uiSettings = MapUiSettings(zoomControlsEnabled = false)
-                ) {
-                    Marker(state = MarkerState(position = pickup), title = "Pickup", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
-                    Marker(state = MarkerState(position = delivery), title = "Delivery", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-                    fulfillerLocation?.let { Marker(state = MarkerState(position = it), title = "Agent", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)) }
-                    Polyline(points = listOf(pickup, delivery), color = Color.Gray, width = 5f, pattern = listOf(Dash(20f), Gap(10f)))
+            if (pickupLoc == null || deliveryLoc == null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                Box {
+                    GoogleMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraPositionState = cameraPositionState,
+                        uiSettings = MapUiSettings(zoomControlsEnabled = false)
+                    ) {
+                        pickupLoc?.let { Marker(state = MarkerState(position = it), title = "Pickup", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)) }
+                        deliveryLoc?.let { Marker(state = MarkerState(position = it), title = "Delivery", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)) }
+                        fulfillerLocation?.let { Marker(state = MarkerState(position = it), title = "Agent", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)) }
+                        
+                        if (pickupLoc != null && deliveryLoc != null) {
+                            Polyline(points = listOf(pickupLoc!!, deliveryLoc!!), color = Color.Gray, width = 5f, pattern = listOf(Dash(20f), Gap(10f)))
+                        }
+                    }
                 }
             }
         }

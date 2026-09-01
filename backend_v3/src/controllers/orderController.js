@@ -161,7 +161,7 @@ const getOrderDetails = async (req, res) => {
       [orderId]
     );
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Mission not found' });
-    res.status(200).json({ success: true, data: rows[0] });
+    res.status(200).json(rows[0]);
   } catch (error) {
     throw error;
   }
@@ -212,6 +212,34 @@ const updateStatus = async (req, res) => {
   } catch (error) {
     throw error;
   }
+};
+
+/**
+ * Cancels an order.
+ */
+const cancelOrder = async (req, res) => {
+    const { orderId } = req.params;
+    const { reason } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query(
+            "UPDATE orders SET status = 'CANCELLED', cancellation_reason = $1 WHERE id = $2 AND status NOT IN ('PICKED_UP', 'DELIVERED', 'CANCELLED') RETURNING id",
+            [reason || 'User cancelled', orderId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(400).json({ success: false, message: 'Order cannot be cancelled in its current state' });
+        }
+
+        // Notify participants
+        const socketService = require('../services/socketService');
+        socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: 'CANCELLED' });
+
+        res.status(200).json({ success: true, message: 'Mission aborted' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 /**

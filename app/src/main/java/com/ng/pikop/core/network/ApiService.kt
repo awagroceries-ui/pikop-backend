@@ -121,6 +121,8 @@ data class OrderDetailsResponse(
     val pickup_lng: Double? = null,
     val delivery_lat: Double? = null,
     val delivery_lng: Double? = null,
+    val fulfiller_lat: Double? = null,
+    val fulfiller_lng: Double? = null,
     val item_photo_url: String? = null,
     val tracking_url: String? = null,
     val recipient_name: String? = null,
