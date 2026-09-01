@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +32,7 @@ fun PaymentWebView(
     var isLoading by remember { mutableStateOf(true) }
     var isPaymentConfirmed by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("Secure Payment") }
+    val scope = rememberCoroutineScope()
     
     // Timeout Handling
     var timeoutTicks by remember { mutableIntStateOf(0) }
@@ -112,31 +114,38 @@ fun PaymentWebView(
                                         
                                         // 1. Authoritative Success: Strict Scheme Matching
                                         if (currentUrl.startsWith("pikop://payment/success") || currentUrl.startsWith("intent://payment/success")) {
-                                            android.util.Log.d("PikopPayment", "SUCCESS: Scheme detected.")
+                                            android.util.Log.d("PikopPayment", "SUCCESS: Scheme detected. Delaying for visibility.")
                                             val uri = Uri.parse(currentUrl.replace("intent://", "pikop://"))
                                             val reference = uri.getQueryParameter("reference") ?: 
                                                            uri.getQueryParameter("trxref") ?: "detected_callback"
                                             
-                                            isPaymentConfirmed = true
-                                            onSuccess(reference) { }
-                                            return true
-                                        }
-
-                                        // 2. Targeted Webhook/Success Interception
-                                        // We avoid simple .contains("success") to prevent breaking bank-transfer flows
-                                        if (currentUrl.contains("api.pikop.com.ng/api/v1/payments/webhook") || 
-                                           (currentUrl.contains("paystack.com") && currentUrl.contains("/success") && currentUrl.contains("reference="))) {
-                                            if (!isPaymentConfirmed) {
-                                                android.util.Log.d("PikopPayment", "SUCCESS: Targeted URL pattern matched.")
-                                                val uri = Uri.parse(currentUrl)
-                                                val reference = uri.getQueryParameter("reference") ?: "detected_url"
-                                                
+                                            // Delay to allow user to see the success state
+                                            scope.launch {
+                                                delay(2500)
                                                 isPaymentConfirmed = true
                                                 onSuccess(reference) { }
                                             }
                                             return true
                                         }
 
+                                        // 2. Targeted Webhook/Backend Redirect Interception
+                                        if (currentUrl.contains("api.pikop.com.ng/api/v1/payments/webhook")) {
+                                            if (!isPaymentConfirmed) {
+                                                android.util.Log.d("PikopPayment", "SUCCESS: Backend redirect matched.")
+                                                val uri = Uri.parse(currentUrl)
+                                                val reference = uri.getQueryParameter("reference") ?: "detected_url"
+                                                
+                                                scope.launch {
+                                                    delay(2000)
+                                                    isPaymentConfirmed = true
+                                                    onSuccess(reference) { }
+                                                }
+                                            }
+                                            return true
+                                        }
+
+                                        // 3. DO NOT intercept standard paystack.com success URLs immediately
+                                        // This allows the "Payment Successful" screen to render.
                                         if (currentUrl.contains("cancel")) {
                                             onCancel()
                                             return true

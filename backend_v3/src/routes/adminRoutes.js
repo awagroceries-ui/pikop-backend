@@ -38,6 +38,8 @@ router.get('/orders/:id/track', adminController.trackOrder);
 
 // Fleet & KYC
 router.get('/kyc', adminController.getKYCQueue);
+router.get('/kyc/:id', adminController.getKYCReview);
+router.post('/kyc/:id/status', adminController.updateKYCStatus);
 
 // Partners
 router.get('/vendors', adminController.getVendors);

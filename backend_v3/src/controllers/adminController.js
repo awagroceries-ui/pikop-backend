@@ -246,6 +246,50 @@ const getKYCQueue = async (req, res) => {
     }
 };
 
+const getKYCReview = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const fRes = await db.query(`
+            SELECT f.*, u.full_name, u.email, u.phone as user_phone
+            FROM fulfillers f
+            JOIN users u ON u.id = f.user_id
+            WHERE f.id = $1`, [id]);
+
+        if (fRes.rows.length === 0) return res.status(404).send('Fulfiller not found');
+
+        const docs = await db.query("SELECT * FROM kyc_documents WHERE fulfiller_id = $1", [id]);
+
+        res.render('kyc_review', {
+            f: fRes.rows[0],
+            docs: docs.rows
+        });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const updateKYCStatus = async (req, res) => {
+    const { id } = req.params;
+    const { status, note } = req.body; // status: VERIFIED, REJECTED
+    try {
+        const newStatus = status === 'VERIFIED' ? 'active' : 'suspended';
+        await db.query(
+            "UPDATE fulfillers SET kyc_status = $1, status = $2, approved_at = CASE WHEN $1 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $3",
+            [status, newStatus, id]
+        );
+
+        // Audit log
+        await db.query(
+            "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+            [req.session.adminId, 'UPDATE_KYC', 'fulfiller', id, JSON.stringify({ status, note })]
+        );
+
+        res.redirect('/admin/kyc');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
 /**
  * Business Entity Management
  */
@@ -366,6 +410,8 @@ module.exports = {
   getSupportInbox,
   getConversationDetails,
   getKYCQueue,
+  getKYCReview,
+  updateKYCStatus,
   getVendors,
   getKitchens,
   getAdminUsers,

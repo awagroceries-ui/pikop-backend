@@ -1,0 +1,94 @@
+<div class="mb-5">
+    <a href="/admin/kyc" class="btn btn-sm btn-outline-secondary mb-3">← Back to Queue</a>
+    <h4 class="fw-bold mb-1 text-black">Review Fulfiller: <%= f.full_name %></h4>
+    <p class="text-muted small mb-0">Verify identity and operational documents for activation.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card-pikop p-4 mb-4">
+            <h6 class="fw-bold mb-3 border-bottom pb-2">Individual Identity (Didit/Prembly)</h6>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="text-muted smaller fw-bold uppercase d-block">Session ID</label>
+                    <div class="text-black small"><%= f.didit_session_id || 'N/A' %></div>
+                </div>
+                <div class="col-md-4">
+                    <label class="text-muted smaller fw-bold uppercase d-block">Verification Status</label>
+                    <span class="badge <%= f.didit_verification_status === 'approved' ? 'bg-success' : 'bg-warning' %>">
+                        <%= f.didit_verification_status.toUpperCase() %>
+                    </span>
+                </div>
+                <div class="col-md-4 text-end">
+                    <% if (f.profile_photo_url) { %>
+                        <img src="<%= f.profile_photo_url %>" class="rounded border" style="width: 80px; height: 80px; object-fit: cover;">
+                    <% } else { %>
+                        <div class="bg-light rounded border d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                            <span class="text-muted smaller">No Photo</span>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-pikop p-4">
+            <h6 class="fw-bold mb-3 border-bottom pb-2">Operational Documents</h6>
+            <% if (docs.length === 0) { %>
+                <p class="text-muted small italic">No additional documents uploaded.</p>
+            <% } else { %>
+                <div class="row g-3">
+                    <% docs.forEach(doc => { %>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light">
+                                <label class="text-muted smaller fw-bold uppercase d-block mb-2"><%= doc.doc_type.replace('_', ' ') %></label>
+                                <a href="<%= doc.file_url %>" target="_blank" class="btn btn-sm btn-pikop-outline w-100 mb-2">VIEW DOCUMENT</a>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-secondary smaller"><%= doc.status %></span>
+                                    <span class="smaller text-muted">Expires: <%= doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString() : 'N/A' %></span>
+                                </div>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card-pikop p-4 sticky-top" style="top: 100px;">
+            <h6 class="fw-bold mb-3">System Action</h6>
+
+            <div class="mb-4">
+                <label class="text-muted smaller fw-bold uppercase d-block mb-1">Email</label>
+                <div class="text-black fw-bold"><%= f.email %></div>
+            </div>
+
+            <div class="mb-4">
+                <label class="text-muted smaller fw-bold uppercase d-block mb-1">Phone</label>
+                <div class="text-black fw-bold"><%= f.user_phone %></div>
+            </div>
+
+            <div class="mb-4">
+                <label class="text-muted smaller fw-bold uppercase d-block mb-1">Fulfiller Class</label>
+                <div class="text-black fw-bold uppercase"><%= f.primary_class %></div>
+            </div>
+
+            <form action="/admin/kyc/<%= f.id %>/status" method="POST">
+                <div class="mb-3">
+                    <label class="small fw-bold mb-1">Internal Note (Optional)</label>
+                    <textarea name="note" class="form-control form-control-sm" rows="3" placeholder="Reason for rejection or special approval note..."></textarea>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" name="status" value="VERIFIED" class="btn-pikop-primary">APPROVE APPLICATION</button>
+                    <button type="submit" name="status" value="REJECTED" class="btn btn-outline-danger fw-bold border-2">REJECT APPLICATION</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .smaller { font-size: 11px; }
+    .btn-pikop-outline { font-size: 11px; }
+</style>
