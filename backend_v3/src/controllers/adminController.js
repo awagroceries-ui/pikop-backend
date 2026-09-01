@@ -273,9 +273,11 @@ const updateKYCStatus = async (req, res) => {
     const { status, note } = req.body; // status: VERIFIED, REJECTED
     try {
         const newStatus = status === 'VERIFIED' ? 'active' : 'suspended';
+
+        // Use explicit parameter indices to avoid type deduction ambiguity in Postgres
         await db.query(
-            "UPDATE fulfillers SET kyc_status = $1, status = $2, approved_at = CASE WHEN $1 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $3",
-            [status, newStatus, id]
+            "UPDATE fulfillers SET kyc_status = $1, status = $2, approved_at = CASE WHEN $3 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $4",
+            [status, newStatus, status, id]
         );
 
         // Audit log
