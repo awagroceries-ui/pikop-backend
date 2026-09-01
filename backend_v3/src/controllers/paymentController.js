@@ -54,8 +54,8 @@ const initializePayment = async (req, res) => {
         user_id: userId,
         recipient_name: user?.full_name,
         recipient_phone: user?.phone
-      }
-      // channels removed to use Dashboard Preferences (Bank Transfer, USSD, etc.)
+      },
+      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
     };
 
     console.log(`[Paystack] Initializing for ${email}. Amount: ${payload.amount} kobo. Quote: ${quote_id}`);
@@ -99,8 +99,8 @@ const initializeCoDPayment = async (req, res) => {
             metadata: {
                 order_id: order.id,
                 collection_type: 'COD'
-            }
-            // channels removed to use Dashboard Preferences
+            },
+            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer']
         };
 
         const response = await axios.post('https://api.paystack.co/transaction/initialize', payload, {
