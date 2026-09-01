@@ -157,12 +157,19 @@ fun FulfillerDashboardScreen(
                         Switch(
                             checked = isOnline,
                             onCheckedChange = { checked ->
+                                val targetStatus = if (checked) "ONLINE" else "OFFLINE"
                                 coroutineScope.launch {
                                     isLoading = true
                                     try {
-                                        apiService.updateStatus(FulfillerStatusRequest(if (checked) "ONLINE" else "OFFLINE"))
+                                        android.util.Log.d("FleetStatus", "Updating status to: $targetStatus")
+                                        apiService.updateStatus(FulfillerStatusRequest(targetStatus))
+                                        
                                         isOnline = checked
+                                        android.widget.Toast.makeText(context, "Status updated: $targetStatus", android.widget.Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
+                                        val errorMsg = com.ng.pikop.core.network.ErrorUtils.parseError(e)
+                                        android.util.Log.e("FleetStatus", "Update failed: $errorMsg", e)
+                                        android.widget.Toast.makeText(context, "Failed to update status: $errorMsg", android.widget.Toast.LENGTH_LONG).show()
                                     } finally {
                                         isLoading = false
                                     }

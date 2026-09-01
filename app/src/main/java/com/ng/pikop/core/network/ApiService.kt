@@ -33,7 +33,9 @@ data class AuthResponse(
     val full_name: String? = null,
     val phone: String? = null,
     val role: String? = null,
-    val referral_code: String? = null
+    val referral_code: String? = null,
+    val status: String? = null,
+    @SerializedName("data") val data: AuthResponse? = null
 )
 
 data class LoginRequest(
