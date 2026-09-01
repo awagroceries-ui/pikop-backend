@@ -28,11 +28,12 @@ const autocomplete = async (req, res) => {
         const response = await axios.get('https://maps.googleapis.com/maps/api/place/autocomplete/json', { params });
 
         if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
+            console.error('[Places] Google API Full Response:', JSON.stringify(response.data, null, 2));
             console.error('[Places] Google API Error:', response.data.status, 'Message:', response.data.error_message || 'No detail provided');
             return res.status(200).json({
                 success: false,
                 predictions: [],
-                error: `Google API Error: ${response.data.status}. Check VPS logs for details.`
+                error: `Google API Error: ${response.data.status}. Check VPS logs for full JSON.`
             });
         }
 

@@ -408,7 +408,7 @@ fun OrderQuoteScreen(
                                     // 100% DISCOUNT BYPASS
                                     if (amountToCharge <= 0) {
                                         val success = finalizeOrderAfterPayment(
-                                            apiService, qId, null, activePromo?.promo_id, "FREE_TEST", 
+                                            apiService, qId, null, activePromo?.promo_id, "FREE_$qId", 
                                             recipientName, recipientPhone, notes, 
                                             pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, 
                                             deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, 

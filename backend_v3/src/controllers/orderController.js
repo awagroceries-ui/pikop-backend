@@ -405,7 +405,14 @@ const createOrder = async (req, res) => {
         res.status(201).json({ success: true, order_id: orderRes.rows[0].id, status: 'SEARCHING' });
     } catch (e) {
         await client.query('ROLLBACK');
-        console.error('[ManualOrder] Activation failed:', e.message);
+        console.error('[ManualOrder] Activation failed. Detailed Error:', {
+            message: e.message,
+            code: e.code,
+            detail: e.detail,
+            hint: e.hint,
+            table: e.table,
+            constraint: e.constraint
+        });
         res.status(500).json({ success: false, message: e.message });
     } finally {
         client.release();
