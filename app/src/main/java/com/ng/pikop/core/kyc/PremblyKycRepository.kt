@@ -63,6 +63,9 @@ class PremblyKycRepository @Inject constructor(
         onError: (String) -> Unit,
         onClose: () -> Unit
     ) {
+        // Diagnostic Logging
+        android.util.Log.d("PremblyKYC", "Injected widget_id: $widgetId, widget_key: $publicKey")
+
         // Enable Remote Debugging for troubleshooting
         WebView.setWebContentsDebuggingEnabled(true)
         
@@ -141,7 +144,7 @@ class PremblyKycRepository @Inject constructor(
             }
         }
 
-        // Inline Widget HTML Shell using VERIFIED API
+        // Inline Widget HTML Shell using V3 API
         val html = """
             <!DOCTYPE html>
             <html>
@@ -154,7 +157,7 @@ class PremblyKycRepository @Inject constructor(
                 </style>
             </head>
             <body>
-                <script src="https://js.prembly.com/v1/inline/widget.js"></script>
+                <script src="https://js.prembly.com/v1/inline/widget-v3.js"></script>
                 <script>
                     // Timeout safety
                     var loadTimeout = setTimeout(function() {
@@ -171,8 +174,8 @@ class PremblyKycRepository @Inject constructor(
                                 return;
                             }
                             IdentityKYC.verify({
-                                widget_key: "$publicKey",
                                 widget_id: "$widgetId",
+                                widget_key: "$publicKey",
                                 first_name: "$firstName",
                                 last_name: "$lastName",
                                 email: "$email",
