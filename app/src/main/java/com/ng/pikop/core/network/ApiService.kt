@@ -128,7 +128,8 @@ data class OrderDetailsResponse(
     @SerializedName("recipient_name") val recipient_name: String? = null,
     @SerializedName("recipient_phone") val recipient_phone: String? = null,
     @SerializedName("fulfiller_profile") val fulfiller_profile: FulfillerPublicProfile? = null,
-    @SerializedName("history") val history: List<StatusHistoryItem>? = null
+    @SerializedName("history") val history: List<StatusHistoryItem>? = null,
+    @SerializedName("data") val data: OrderDetailsResponse? = null
 )
 
 data class FulfillerProfileResponse(

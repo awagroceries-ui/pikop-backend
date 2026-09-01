@@ -68,8 +68,12 @@ fun TrackOrderScreen(
                 isLoading = true
                 error = null
                 android.util.Log.d("TrackOrder", "Fetching details for mission: $orderId")
-                val details = apiService.getOrderDetails(orderId)
-                android.util.Log.d("TrackOrder", "Raw Data Received: $details")
+                val response = apiService.getOrderDetails(orderId)
+                
+                // DUAL-COMPATIBILITY: Support both {id: ...} and {data: {id: ...}}
+                val details = response.data ?: response
+                
+                android.util.Log.d("TrackOrder", "Effective Data: $details")
                 
                 fulfillerProfile = details.fulfiller_profile
                 trackingUrl = details.tracking_url
@@ -95,7 +99,8 @@ fun TrackOrderScreen(
                 } ?: emptyList()
 
                 if (pickupLoc == null || deliveryLoc == null) {
-                    error = "Mission coordinates are missing. Please ensure VPS is updated."
+                    android.util.Log.e("TrackOrder", "Coordinates missing in object: $details")
+                    error = "Mission coordinates are missing from server response."
                 }
             } catch (e: Exception) {
                 android.util.Log.e("TrackOrder", "Fetch failed", e)
