@@ -417,7 +417,8 @@ fun OrderQuoteScreen(
                                         if (success) {
                                             onOrderComplete("FREE")
                                         } else {
-                                            Toast.makeText(context, "Failed to activate free mission", Toast.LENGTH_SHORT).show()
+                                            val detail = "Check server logs for activation block"
+                                            Toast.makeText(context, "Failed to activate free mission: $detail", Toast.LENGTH_LONG).show()
                                         }
                                         isLoading = false
                                         return@launch
@@ -551,7 +552,23 @@ suspend fun finalizeOrderAfterPayment(
         }
 
         // 2. Fallback: Manually trigger activation if Webhook is delayed
-        val request = CreateOrderRequest(quote_id = quoteId, corporate_account_id = corporateAccountId, promo_id = promoId, payment_method = "card", recipient_name = recipientName, recipient_phone = recipientPhone, notes = notes, pickup_lat = pLat, pickup_lng = pLng, delivery_lat = dLat, delivery_lng = dLng, item_photo_url = itemPhotoUrl, pickup_display_summary = pSummary, delivery_display_summary = dSummary)
+        val request = CreateOrderRequest(
+            quote_id = quoteId, 
+            corporate_account_id = corporateAccountId, 
+            promo_id = promoId, 
+            payment_method = "card", 
+            recipient_name = recipientName, 
+            recipient_phone = recipientPhone, 
+            notes = notes, 
+            pickup_lat = pLat, 
+            pickup_lng = pLng, 
+            delivery_lat = dLat, 
+            delivery_lng = dLng, 
+            item_photo_url = itemPhotoUrl, 
+            pickup_display_summary = pSummary, 
+            delivery_display_summary = dSummary,
+            payment_reference = paymentReference
+        )
         val response = apiService.createOrder(request)
         response.status == "SEARCHING" || response.status == "MATCHED"
     } catch (e: Exception) { 

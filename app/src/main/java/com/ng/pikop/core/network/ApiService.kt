@@ -89,7 +89,8 @@ data class CreateOrderRequest(
     val delivery_lng: Double,
     val item_photo_url: String,
     val pickup_display_summary: String,
-    val delivery_display_summary: String
+    val delivery_display_summary: String,
+    val payment_reference: String? = null
 )
 
 data class OrderResponse(

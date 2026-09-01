@@ -331,7 +331,7 @@ const getOrderByQuote = async (req, res) => {
  * Fallback for delayed webhooks.
  */
 const createOrder = async (req, res) => {
-    const { quote_id, payment_method, recipient_name, recipient_phone, notes, pickup_display_summary, delivery_display_summary, item_photo_url } = req.body;
+    const { quote_id, payment_method, recipient_name, recipient_phone, notes, pickup_display_summary, delivery_display_summary, item_photo_url, promo_id, payment_reference } = req.body;
     const userId = req.user.id;
 
     const client = await db.pool.connect();
@@ -350,42 +350,58 @@ const createOrder = async (req, res) => {
         if (quoteRes.rows.length === 0) throw new Error('Quote not found');
         const q = quoteRes.rows[0];
 
-        // 3. Create Order (DEFINITIVE ALIGNMENT WITH WEBHOOK)
+        // 3. Handle Promo/Coupon Server-Side Verification
+        let finalFare = parseFloat(q.total_fare);
+        let couponId = null;
+
+        if (promo_id) {
+            const couponRes = await client.query("SELECT * FROM coupons WHERE id = $1 AND is_active = true", [promo_id]);
+            if (couponRes.rows.length > 0) {
+                const c = couponRes.rows[0];
+                couponId = c.id;
+                const discount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : finalFare * (parseFloat(c.discount_value) / 100);
+                finalFare = Math.max(0, finalFare - discount);
+                console.log(`[Order] Applied Promo: ${c.code}. Discount: ${discount}. New Fare: ${finalFare}`);
+            }
+        }
+
+        // 4. Create Order (DEFINITIVE ALIGNMENT WITH WEBHOOK)
         const orderRes = await client.query(
             `INSERT INTO orders (
                 order_type, user_id, quote_id, status,
                 item_description, size_tier,
                 pickup_address, delivery_address,
                 pickup_location, delivery_location,
-                total_fare, payment_status, payment_method,
+                total_fare, payment_status, payment_method, payment_reference,
                 recipient_name, recipient_phone, notes,
                 pickup_display_summary, delivery_display_summary, item_photo_url,
-                pickup_code_hash, delivery_code_hash
+                pickup_code_hash, delivery_code_hash, coupon_id
             ) VALUES (
                 'pickup_delivery', $1, $2, 'SEARCHING',
                 $3, $4,
                 $5, $6,
                 $7, $8,
-                $9, 'PAID', $10,
-                $11, $12, $13, $14, $15, $16,
-                'v3_pending', 'v3_pending'
+                $9, 'PAID', $10, $11,
+                $12, $13, $14, $15, $16, $17,
+                'v3_pending', 'v3_pending', $18
             ) RETURNING id`,
             [
                 userId, q.id, q.item_description, q.size_tier,
                 q.pickup_address, q.delivery_address,
                 q.pickup_location, q.delivery_location,
-                q.total_fare, payment_method || 'card',
+                finalFare, payment_method || 'card', payment_reference,
                 recipient_name || 'Recipient',
                 recipient_phone || '000',
                 notes,
                 pickup_display_summary || q.pickup_address.substring(0, 50),
                 delivery_display_summary || q.delivery_address.substring(0, 50),
-                item_photo_url
+                item_photo_url,
+                couponId
             ]
         );
 
         await client.query('COMMIT');
-        console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId}`);
+        console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId} | Fare: ${finalFare}`);
         res.status(201).json({ success: true, order_id: orderRes.rows[0].id, status: 'SEARCHING' });
     } catch (e) {
         await client.query('ROLLBACK');
