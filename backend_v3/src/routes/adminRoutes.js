@@ -34,6 +34,7 @@ router.use((req, res, next) => {
 
 router.get('/dashboard', adminController.getDashboard);
 router.get('/orders', adminController.getOrders);
+router.get('/orders/:id/track', adminController.trackOrder);
 
 // Fleet & KYC
 router.get('/kyc', adminController.getKYCQueue);

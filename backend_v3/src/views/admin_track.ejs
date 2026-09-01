@@ -1,0 +1,108 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="row g-0 h-100" style="margin: -3rem;">
+    <!-- Sidebar Details -->
+    <div class="col-md-3 bg-white border-end p-4 shadow-sm" style="z-index: 1000; height: calc(100vh - 70px); overflow-y: auto;">
+        <a href="/admin/orders" class="btn btn-sm btn-outline-secondary mb-4">← Back to Board</a>
+
+        <h4 class="fw-bold mb-1">Mission #<%= order.id.toString().slice(-8).toUpperCase() %></h4>
+        <span class="badge bg-success mb-4"><%= order.status %></span>
+
+        <div class="mb-4">
+            <label class="text-muted smaller fw-bold uppercase d-block mb-1">Customer</label>
+            <div class="fw-bold"><%= order.customer_name %></div>
+            <div class="small text-muted"><%= order.customer_phone %></div>
+        </div>
+
+        <div class="mb-4 border-top pt-3">
+            <label class="text-muted smaller fw-bold uppercase d-block mb-1">Active Agent</label>
+            <% if (order.agent_name) { %>
+                <div class="fw-bold text-primary"><%= order.agent_name %></div>
+                <div class="small text-muted"><%= order.agent_phone %></div>
+                <div id="eta-box" class="mt-2 small fw-bold text-success">Tracking live agent...</div>
+            <% } else { %>
+                <div class="text-warning small italic">Waiting for agent acceptance...</div>
+            <% } %>
+        </div>
+
+        <div class="mb-4 border-top pt-3">
+            <label class="text-muted smaller fw-bold uppercase d-block mb-1">Items</label>
+            <div class="small"><%= order.item_description %></div>
+            <div class="smaller text-muted mt-1">Tier: <%= order.size_tier %></div>
+        </div>
+
+        <div class="border-top pt-3">
+            <label class="text-muted smaller fw-bold uppercase d-block mb-1">Route</label>
+            <div class="small mb-2"><strong>Pick:</strong> <%= order.pickup_address %></div>
+            <div class="small"><strong>Drop:</strong> <%= order.delivery_address %></div>
+        </div>
+    </div>
+
+    <!-- Map View -->
+    <div class="col-md-9 h-100">
+        <div id="map" style="height: calc(100vh - 70px); width: 100%;"></div>
+    </div>
+</div>
+
+<script>
+    const pickup = [<%= order.pickup_lat %>, <%= order.pickup_lng %>];
+    const delivery = [<%= order.delivery_lat %>, <%= order.delivery_lng %>];
+    const initialAgent = <%= order.agent_lat ? `[${order.agent_lat}, ${order.agent_lng}]` : 'null' %>;
+
+    // Initialize Map
+    const map = L.map('map').setView(pickup, 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; Pikop Logistics'
+    }).addTo(map);
+
+    // Custom Icons
+    const pickIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
+    const dropIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
+    const agentIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [30, 48], iconAnchor: [15, 48] });
+
+    // Add Static Markers
+    L.marker(pickup, { icon: pickIcon }).addTo(map).bindPopup("<b>Pickup Point</b>");
+    L.marker(delivery, { icon: dropIcon }).addTo(map).bindPopup("<b>Delivery Destination</b>");
+
+    // Live Agent Marker
+    let agentMarker = null;
+    if (initialAgent) {
+        agentMarker = L.marker(initialAgent, { icon: agentIcon }).addTo(map).bindPopup("<b>Active Agent</b>");
+    }
+
+    // Fitting map bounds
+    const group = new L.featureGroup([
+        L.marker(pickup),
+        L.marker(delivery)
+    ]);
+    map.fitBounds(group.getBounds().pad(0.2));
+
+    // Live Socket Updates
+    socket.emit('join_order', { orderId: "<%= order.id %>" });
+
+    socket.on('location_changed', (data) => {
+        console.log('[Live] Agent location update:', data);
+        const newPos = [data.lat, data.lng];
+
+        if (!agentMarker) {
+            agentMarker = L.marker(newPos, { icon: agentIcon }).addTo(map).bindPopup("<b>Active Agent</b>");
+        } else {
+            agentMarker.setLatLng(newPos);
+        }
+
+        document.getElementById('eta-box').innerText = "Signal Strong - Moving Live";
+    });
+
+    socket.on('status_updated', (data) => {
+        if (data.status === 'DELIVERED' || data.status === 'CANCELLED') {
+            window.location.reload();
+        }
+    });
+</script>
+
+<style>
+    .smaller { font-size: 11px; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+</style>

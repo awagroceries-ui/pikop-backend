@@ -34,7 +34,7 @@
                             <div class="text-green fw-bold mono">₦<%= parseFloat(order.total_fare).toLocaleString() %></div>
                         </div>
                         <div class="col-md-3 text-end">
-                            <button class="btn-pikop-outline py-1 px-3" style="font-size: 11px;">TRACK MISSION</button>
+                            <a href="/admin/orders/<%= order.id %>/track" class="btn-pikop-outline py-1 px-3" style="font-size: 11px; text-decoration: none;">TRACK MISSION</a>
                         </div>
                     </div>
                 </div>

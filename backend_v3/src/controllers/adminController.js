@@ -116,6 +116,32 @@ const getOrders = async (req, res) => {
 };
 
 /**
+ * Live Mission Tracking for Admin.
+ */
+const trackOrder = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const { rows } = await db.query(`
+            SELECT o.*,
+            ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
+            ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng,
+            u.full_name as customer_name, u.phone as customer_phone,
+            f.full_name as agent_name, f.phone as agent_phone,
+            ST_Y(f.current_location::geometry) as agent_lat, ST_X(f.current_location::geometry) as agent_lng
+            FROM orders o
+            JOIN users u ON u.id = o.user_id
+            LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
+            WHERE o.id = $1`, [id]);
+
+        if (rows.length === 0) return res.status(404).render('error', { message: 'Mission not found' });
+
+        res.render('admin_track', { order: rows[0] });
+    } catch (error) {
+        res.status(500).render('error', { message: error.message });
+    }
+};
+
+/**
  * Platform Settings (Master Brief Milestone 23)
  */
 const getSettings = async (req, res) => {
@@ -334,6 +360,7 @@ module.exports = {
   postSignup,
   getDashboard,
   getOrders,
+  trackOrder,
   getSettings,
   updateSettings,
   getSupportInbox,
