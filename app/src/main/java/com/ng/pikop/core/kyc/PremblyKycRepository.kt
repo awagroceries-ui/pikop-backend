@@ -19,7 +19,7 @@ import javax.inject.Named
 class PremblyKycRepository @Inject constructor(
     @Suppress("unused") private val apiService: ApiService,
     @Named("premblyPublicKey") private val publicKey: String,
-    @Named("premblyConfigId") private val configId: String
+    @Named("premblyWidgetId") private val widgetId: String
 ) : KycManager {
 
     override fun startVerification(
@@ -58,7 +58,7 @@ class PremblyKycRepository @Inject constructor(
         firstName: String,
         lastName: String,
         email: String,
-        @Suppress("UNUSED_PARAMETER") referenceId: String,
+        referenceId: String,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
         onClose: () -> Unit
@@ -171,11 +171,12 @@ class PremblyKycRepository @Inject constructor(
                                 return;
                             }
                             IdentityKYC.verify({
-                                merchant_key: "$publicKey",
-                                config_id: "$configId",
+                                widget_key: "$publicKey",
+                                widget_id: "$widgetId",
                                 first_name: "$firstName",
                                 last_name: "$lastName",
                                 email: "$email",
+                                user_ref: "$referenceId",
                                 callback: function(response, data) {
                                     AndroidBridge.onResult(JSON.stringify(response));
                                 }

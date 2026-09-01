@@ -53,7 +53,7 @@ class KycViewModel @Inject constructor(
             val firstName = nameParts.firstOrNull() ?: "Pikop"
             val lastName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else "User"
             
-            val referenceId = "pikop_kyc_$uid"
+            val referenceId = "pikop_kyc_${uid}_${System.currentTimeMillis()}"
             kycManager.launchVerification(context, launcher, firstName, lastName, email, referenceId)
         }
     }
@@ -68,7 +68,7 @@ class KycViewModel @Inject constructor(
                 val firstName = nameParts.firstOrNull() ?: "Pikop"
                 val lastName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else "User"
 
-                val referenceId = "pikop_kyc_$uid"
+                val referenceId = "pikop_kyc_${uid}_${System.currentTimeMillis()}"
                 
                 kycManager.startVerification(
                     context = context,
