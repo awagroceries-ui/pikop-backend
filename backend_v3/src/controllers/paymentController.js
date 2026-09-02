@@ -48,8 +48,7 @@ const initializePayment = async (req, res) => {
       amount: koboAmount,
       email,
       currency: 'NGN',
-      callback_url: 'https://api.pikop.com.ng/api/v1/payments/webhook',
-      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+      callback_url: 'pikop://payment/success',
       metadata: {
         quote_id,
         user_id: userId,
@@ -96,8 +95,7 @@ const initializeCoDPayment = async (req, res) => {
             amount: Math.round(parseFloat(order.collect_on_delivery_amount) * 100),
             email: 'billing@pikop.ng', // Use a generic email for recipient collection
             currency: 'NGN',
-            callback_url: 'https://api.pikop.com.ng/api/v1/payments/webhook',
-            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+            callback_url: 'pikop://payment/success',
             metadata: {
                 order_id: order.id,
                 collection_type: 'COD'
