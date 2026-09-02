@@ -545,8 +545,18 @@ suspend fun finalizeOrderAfterPayment(
 ): Boolean {
     return try {
         // 1. Check if Webhook already created the mission (Preferred v3 Flow)
-        val check = apiService.getOrderByQuote(quoteId)
-        if (check["success"] == true) {
+        var isAlreadyActive = false
+        try {
+            val check = apiService.getOrderByQuote(quoteId)
+            if (check["success"] == true) {
+                isAlreadyActive = true
+            }
+        } catch (e: Exception) {
+            // HTTP 404 is EXPECTED if webhook has not run or for free missions. Continue to step 2.
+            android.util.Log.d("PikopPayment", "by-quote check: order not active yet (${e.message})")
+        }
+
+        if (isAlreadyActive) {
             android.util.Log.d("PikopPayment", "Order already active via Webhook. Advancing.")
             return true
         }
@@ -570,9 +580,9 @@ suspend fun finalizeOrderAfterPayment(
             payment_reference = paymentReference
         )
         val response = apiService.createOrder(request)
-        response.status == "SEARCHING" || response.status == "MATCHED"
+        response.status == "SEARCHING" || response.status == "MATCHED" || response.status == "QUEUED"
     } catch (e: Exception) { 
-        android.util.Log.e("PikopPayment", "Finalization error: ${e.message}")
+        android.util.Log.e("PikopPayment", "Finalization error: ${e.message}", e)
         false 
     }
 }
