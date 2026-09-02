@@ -112,4 +112,113 @@ const sendMail = async (to, subject, html) => {
   }
 };
 
-module.exports = { sendMail };
+/**
+ * Sends Welcome & Onboarding Email upon registration/verification.
+ */
+const sendWelcomeEmail = async (to, name, role) => {
+    const isFulfiller = role === 'FULFILLER';
+    const title = isFulfiller ? 'Welcome to the Pikop Fleet!' : 'Welcome to Pikop Logistics!';
+    const html = `
+        <h1 class="greeting">${title}</h1>
+        <p class="text">Hello <strong>${name || 'Valued User'}</strong>,</p>
+        <p class="text">Thank you for joining Pikop! Your account email has been successfully verified.</p>
+        ${isFulfiller ? `
+            <p class="text">As a Pikop Fulfiller, you are part of our elite delivery network in Nigeria. Please complete your identity and vehicle verification in the app to start accepting mission offers.</p>
+            <div style="background: #F0FDF4; padding: 20px; border-radius: 16px; border-left: 4px solid #008751; margin-bottom: 25px;">
+                <strong style="color: #008751;">Next Steps:</strong>
+                <ol style="margin-top: 10px; padding-left: 20px; color: #374151;">
+                    <li>Open Pikop App -> Go to Account Activation</li>
+                    <li>Capture your live profile photo</li>
+                    <li>Complete Identity Check & Vehicle Details</li>
+                    <li>Submit for Admin Approval & Go Online!</li>
+                </ol>
+            </div>
+        ` : `
+            <p class="text">You can now send packages, track deliveries in real-time, and manage your logistics effortlessly across Lagos and beyond.</p>
+        `}
+        <p class="text">If you ever need assistance, our support team is available 24/7 in the app Help Center.</p>
+    `;
+    return await sendMail(to, title, html);
+};
+
+/**
+ * Sends KYC Approval or Rejection Email to Fulfillers.
+ */
+const sendKycStatusEmail = async (to, name, status, note) => {
+    const isApproved = status === 'VERIFIED';
+    const subject = isApproved ? 'Your Pikop Fulfiller Account is Approved!' : 'Pikop Verification Status Update';
+
+    const html = isApproved ? `
+        <h1 class="greeting" style="color: #008751;">Congratulations! You are Approved! 🎉</h1>
+        <p class="text">Hello <strong>${name || 'Agent'}</strong>,</p>
+        <p class="text">Your KYC verification and document review have been successfully approved by our administration team. Your account is now fully active.</p>
+
+        <div style="background: #F0FDF4; padding: 24px; border-radius: 20px; border: 1px solid #BBF7D0; margin: 30px 0;">
+            <h3 style="margin-top: 0; color: #008751;">🚀 Fulfiller Operating Guidelines:</h3>
+            <ul style="color: #374151; line-height: 1.8; margin-bottom: 0;">
+                <li><strong>Go Online:</strong> Toggle your status switch on the dashboard when ready to receive nearby delivery offers.</li>
+                <li><strong>Pickup Protocol:</strong> Verify package details and confirm code with the sender before moving.</li>
+                <li><strong>Safe Transport:</strong> Keep items secure and deliver within estimated windows.</li>
+                <li><strong>Delivery Verification:</strong> Confirm delivery code with recipient to complete mission & unlock earnings.</li>
+            </ul>
+        </div>
+
+        <p class="text">Open your Pikop app now, go online, and start earning!</p>
+    ` : `
+        <h1 class="greeting" style="color: #DC2626;">Verification Action Required</h1>
+        <p class="text">Hello <strong>${name || 'Applicant'}</strong>,</p>
+        <p class="text">We reviewed your submitted verification documents for your Pikop Fulfiller application.</p>
+        <p class="text"><strong>Reason / Note:</strong> ${note || 'Document details were unclear or unverified.'}</p>
+        <p class="text">Please log back into the Pikop app, re-upload clear photos of your documents or vehicle details, and resubmit for approval.</p>
+    `;
+
+    return await sendMail(to, subject, html);
+};
+
+/**
+ * Sends Payment Confirmation / Receipt Email.
+ */
+const sendPaymentReceiptEmail = async (to, name, orderId, amount, itemDesc) => {
+    const subject = `Payment Confirmation - Mission #${orderId}`;
+    const html = `
+        <h1 class="greeting">Payment Received!</h1>
+        <p class="text">Hello <strong>${name || 'Customer'}</strong>,</p>
+        <p class="text">We've confirmed your payment for delivery mission <strong>#${orderId}</strong>.</p>
+
+        <div style="background: #F9FAFB; padding: 24px; border-radius: 20px; border: 1px solid #E5E7EB; margin: 30px 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; color: #6B7280;">Mission ID:</td><td style="text-align: right; font-weight: 700; color: #111827;">#${orderId}</td></tr>
+                <tr><td style="padding: 8px 0; color: #6B7280;">Item Description:</td><td style="text-align: right; font-weight: 600; color: #111827;">${itemDesc || 'Package'}</td></tr>
+                <tr><td style="padding: 8px 0; color: #6B7280; font-weight: 700;">Total Paid:</td><td style="text-align: right; font-weight: 800; color: #008751; font-size: 18px;">₦${parseFloat(amount || 0).toLocaleString()}</td></tr>
+            </table>
+        </div>
+
+        <p class="text">Our dispatch system is searching for the nearest available fulfiller. You can track your mission live in the Pikop app!</p>
+    `;
+
+    return await sendMail(to, subject, html);
+};
+
+/**
+ * Sends Order Completion Notice Email.
+ */
+const sendOrderCompletionEmail = async (to, name, orderId, totalFare) => {
+    const subject = `Mission #${orderId} Delivered!`;
+    const html = `
+        <h1 class="greeting" style="color: #008751;">Mission Completed!</h1>
+        <p class="text">Hello <strong>${name || 'Customer'}</strong>,</p>
+        <p class="text">Your delivery mission <strong>#${orderId}</strong> has been successfully completed and delivered.</p>
+
+        <p class="text">Thank you for choosing Pikop Logistics! Please rate your agent's service in the app to help us maintain top quality.</p>
+    `;
+
+    return await sendMail(to, subject, html);
+};
+
+module.exports = {
+  sendMail,
+  sendWelcomeEmail,
+  sendKycStatusEmail,
+  sendPaymentReceiptEmail,
+  sendOrderCompletionEmail
+};

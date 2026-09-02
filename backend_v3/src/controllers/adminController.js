@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
+const emailService = require('../services/emailService');
 
 /**
  * Handles admin login.
@@ -76,6 +77,11 @@ const getDashboard = async (req, res) => {
     const onlineFulfillersRes = await db.query("SELECT COUNT(*) FROM fulfillers WHERE online_status = 'ONLINE'");
     const revenueRes = await db.query("SELECT SUM(total_fare) FROM orders WHERE payment_status = 'PAID'");
 
+    // Total Users Breakdown
+    const totalUsersRes = await db.query("SELECT COUNT(*) FROM users");
+    const customerUsersRes = await db.query("SELECT COUNT(*) FROM users WHERE role = 'CUSTOMER'");
+    const fulfillerUsersRes = await db.query("SELECT COUNT(*) FROM users WHERE role = 'FULFILLER'");
+
     // Alert counts
     const pendingKYC = await db.query("SELECT COUNT(*) FROM fulfillers WHERE kyc_status = 'PENDING_REVIEW'");
     const supportConv = await db.query("SELECT COUNT(*) FROM conversations WHERE status = 'OPEN'");
@@ -85,8 +91,17 @@ const getDashboard = async (req, res) => {
         activeOrders: activeOrdersRes.rows[0].count || 0,
         onlineFulfillers: onlineFulfillersRes.rows[0].count || 0,
         totalRevenue: parseFloat(revenueRes.rows[0].sum || 0),
+        totalUsers: parseInt(totalUsersRes.rows[0].count || 0),
+        customerUsers: parseInt(customerUsersRes.rows[0].count || 0),
+        fulfillerUsers: parseInt(fulfillerUsersRes.rows[0].count || 0),
         notifications: {
           kyc: pendingKYC.rows[0].count || 0,
+          support: supportConv.rows[0].count || 0,
+          disputes: 0
+        }
+      }
+    });
+  } catch (error) {
           support: supportConv.rows[0].count || 0,
           disputes: 0
         }
@@ -285,6 +300,18 @@ const updateKYCStatus = async (req, res) => {
             "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
             [req.session.adminId, 'UPDATE_KYC', 'fulfiller', id, JSON.stringify({ status, note })]
         );
+
+        // Fetch user email to send KYC status notification
+        try {
+            const { rows: fUser } = await db.query(
+                "SELECT u.email, u.full_name FROM fulfillers f JOIN users u ON u.id = f.user_id WHERE f.id = $1",
+                [id]
+            );
+            if (fUser.length > 0) {
+                emailService.sendKycStatusEmail(fUser[0].email, fUser[0].full_name, status, note)
+                    .catch(e => console.error('[KycEmail] Error:', e.message));
+            }
+        } catch (e) {}
 
         res.redirect('/admin/kyc');
     } catch (error) {

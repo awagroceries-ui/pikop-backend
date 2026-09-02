@@ -5,6 +5,7 @@ const db = require('../config/db');
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
 const walletService = require('../services/walletService');
+const emailService = require('../services/emailService');
 
 /**
  * Initializes a Paystack transaction.
@@ -49,6 +50,7 @@ const initializePayment = async (req, res) => {
       email,
       currency: 'NGN',
       callback_url: 'pikop://payment/success',
+      channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],
       metadata: {
         quote_id,
         user_id: userId,
@@ -227,6 +229,15 @@ const handleWebhook = async (req, res) => {
                 ]
             );
             console.log(`[Webhook] SUCCESS. Mission ${orderInsertRes.rows[0].id} is now active.`);
+
+            // Trigger Branded Payment Receipt Email
+            try {
+                const { rows: uRes } = await client.query("SELECT email, full_name FROM users WHERE id = $1", [metadata.user_id]);
+                if (uRes.length > 0) {
+                    emailService.sendPaymentReceiptEmail(uRes[0].email, uRes[0].full_name, orderInsertRes.rows[0].id, q.total_fare, q.item_description)
+                        .catch(e => console.error('[WebhookReceipt] Email error:', e.message));
+                }
+            } catch (e) {}
         } catch (dbError) {
             console.error('[Webhook] DB INSERT ERROR:', dbError.message);
             throw dbError; // Trigger rollback
@@ -354,6 +365,14 @@ const verifyPayment = async (req, res) => {
                             ]
                         );
                         console.log(`[Verify] Mission activated via client-triggered verification: ${reference}`);
+
+                        try {
+                            const { rows: uRes } = await client.query("SELECT email, full_name FROM users WHERE id = $1", [user_id]);
+                            if (uRes.length > 0) {
+                                emailService.sendPaymentReceiptEmail(uRes[0].email, uRes[0].full_name, q.id, q.total_fare, q.item_description)
+                                    .catch(e => console.error('[VerifyReceipt] Email error:', e.message));
+                            }
+                        } catch (e) {}
                     }
                 }
                 await client.query('COMMIT');

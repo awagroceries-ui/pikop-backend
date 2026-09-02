@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const geminiService = require('../services/geminiService');
 const walletService = require('../services/walletService');
+const emailService = require('../services/emailService');
 
 /**
  * Generates a dynamic, distance-based quote.
@@ -200,6 +201,16 @@ const updateStatus = async (req, res) => {
     // 2. Trigger Settlement on Delivery (v3)
     if (status === 'DELIVERED') {
         await walletService.processMissionSettlement(orderId);
+        try {
+            const { rows: oUser } = await db.query(
+                "SELECT u.email, u.full_name, o.total_fare FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id = $1",
+                [orderId]
+            );
+            if (oUser.length > 0) {
+                emailService.sendOrderCompletionEmail(oUser[0].email, oUser[0].full_name, orderId, oUser[0].total_fare)
+                    .catch(e => console.error('[CompletionEmail] Error:', e.message));
+            }
+        } catch (e) {}
     }
 
     // 3. No-Refund Policy for Recipient Absence (v3.8.1)
@@ -417,6 +428,16 @@ const createOrder = async (req, res) => {
 
         await client.query('COMMIT');
         console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId} | Fare: ${finalFare}`);
+
+        // Send Payment Receipt Email
+        try {
+            const { rows: uRes } = await client.query("SELECT email, full_name FROM users WHERE id = $1", [userId]);
+            if (uRes.length > 0) {
+                emailService.sendPaymentReceiptEmail(uRes[0].email, uRes[0].full_name, orderRes.rows[0].id, finalFare, q.item_description)
+                    .catch(e => console.error('[ReceiptEmail] Error:', e.message));
+            }
+        } catch (e) {}
+
         res.status(201).json({ success: true, order_id: orderRes.rows[0].id, status: 'SEARCHING' });
     } catch (e) {
         await client.query('ROLLBACK');

@@ -202,10 +202,14 @@ fun KycUploadScreen(
                     status = profile?.kyc_status ?: "NOT_SUBMITTED",
                     onComplete = {
                         viewModel.submitApplication(
-                            onSuccess = { Toast.makeText(context, "Application submitted!", Toast.LENGTH_SHORT).show() },
+                            onSuccess = { 
+                                Toast.makeText(context, "Application submitted for review!", Toast.LENGTH_SHORT).show()
+                                viewModel.refreshProfile()
+                            },
                             onError = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
                         )
-                    }
+                    },
+                    onReturnHome = onBack
                 )
             }
 
@@ -359,15 +363,52 @@ fun VehicleStep(tokenManager: TokenManager, onComplete: () -> Unit) {
 }
 
 @Composable
-fun SubmissionStep(isLoading: Boolean, status: String, onComplete: () -> Unit) {
+fun SubmissionStep(isLoading: Boolean, status: String, onComplete: () -> Unit, onReturnHome: () -> Unit) {
+    val isSubmitted = status == "PENDING_REVIEW" || status == "VERIFIED"
     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Icon(Icons.Default.LibraryAddCheck, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
-        Text("Final Review", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text("Your profile is complete. Tap below to submit for activation.", textAlign = TextAlign.Center, color = Color.Gray)
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onComplete, modifier = Modifier.fillMaxWidth().height(56.dp), enabled = !isLoading && status != "PENDING_REVIEW") {
-            if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-            else Text(if (status == "PENDING_REVIEW") "Application Pending" else "SUBMIT APPLICATION", fontWeight = FontWeight.Bold)
+        if (isSubmitted) {
+            Icon(Icons.Default.HourglassTop, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+            Text("Verification Submitted!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Awaiting Admin Approval", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Your documents and identity checks have been submitted successfully. Our compliance team is reviewing your profile.",
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.DarkGray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "You will receive an email notification as soon as your account is activated.",
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onReturnHome,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
+                Icon(Icons.Default.Home, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("RETURN TO HOME", fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Icon(Icons.Default.LibraryAddCheck, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+            Text("Final Review", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Your profile is complete. Tap below to submit for activation.", textAlign = TextAlign.Center, color = Color.Gray)
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(onClick = onComplete, modifier = Modifier.fillMaxWidth().height(56.dp), enabled = !isLoading) {
+                if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                else Text("SUBMIT APPLICATION", fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

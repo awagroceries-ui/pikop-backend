@@ -382,7 +382,11 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 userEmail = userEmail ?: "",
                 userName = userName ?: "",
                 userPhone = userPhone ?: "",
-                onOrderComplete = { navController.popBackStack() },
+                onOrderComplete = {
+                    navController.navigate("main") {
+                        popUpTo("main") { inclusive = true }
+                    }
+                },
                 onNavigateToPayment = { url, qId, pLat, pLng, dLat, dLng, itemUrl, pSum, dSum, rName, rPhone, notes, promoId ->
                     CheckoutHelper.activeQuote = CheckoutHelper.CheckoutData(
                         url = url,

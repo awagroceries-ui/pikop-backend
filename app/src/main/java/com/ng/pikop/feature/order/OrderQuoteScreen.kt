@@ -415,9 +415,10 @@ fun OrderQuoteScreen(
                                             pUrl, pickupAddress.take(50), deliveryAddress.take(50)
                                         )
                                         if (success) {
+                                            Toast.makeText(context, "Mission Activated Successfully!", Toast.LENGTH_LONG).show()
                                             onOrderComplete("FREE")
                                         } else {
-                                            val detail = "Database rejected activation. Check VPS logs."
+                                            val detail = "Activation declined by server. Check connection."
                                             Toast.makeText(context, "Failed to activate free mission: $detail", Toast.LENGTH_LONG).show()
                                         }
                                         isLoading = false

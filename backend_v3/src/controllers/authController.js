@@ -104,6 +104,9 @@ const verifyEmail = async (req, res) => {
     await db.query("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
     await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [user.id]);
 
+    // Send Branded Welcome Email
+    emailService.sendWelcomeEmail(user.email, user.full_name, user.role).catch(e => console.error('[WelcomeEmail] Error:', e.message));
+
     const tokens = authService.generateTokens(user);
 
     // Register Session
