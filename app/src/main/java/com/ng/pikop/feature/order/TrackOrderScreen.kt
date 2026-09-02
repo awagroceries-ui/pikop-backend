@@ -119,9 +119,9 @@ fun TrackOrderScreen(
 
     DisposableEffect(orderId) {
         SocketManager.connect()
-        SocketManager.emit("join_order", JSONObject().put("orderId", orderId))
+        SocketManager.emit("join_order", orderId)
         
-        SocketManager.on("location_changed") { data ->
+        val handleLocationUpdate: (JSONObject) -> Unit = { data ->
             val lat = data.optDouble("lat", 0.0)
             val lng = data.optDouble("lng", 0.0)
             if (lat != 0.0 && lng != 0.0) {
@@ -134,9 +134,12 @@ fun TrackOrderScreen(
             }
         }
 
+        SocketManager.on("location_updated", handleLocationUpdate)
+        SocketManager.on("location_changed", handleLocationUpdate)
         SocketManager.on("status_updated") { _ -> fetchHistory() }
 
         onDispose {
+            SocketManager.off("location_updated")
             SocketManager.off("location_changed")
             SocketManager.off("status_updated")
             SocketManager.disconnect()

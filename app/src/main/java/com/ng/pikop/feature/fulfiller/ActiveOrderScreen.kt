@@ -57,7 +57,6 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
     
     var pickupCode by remember { mutableStateOf("") }
     var deliveryCode by remember { mutableStateOf("") }
-    var deliveryPhotoUri by remember { mutableStateOf<Uri?>(null) }
     
     var isLoading by remember { mutableStateOf(false) }
     var showRatingDialog by remember { mutableStateOf(false) }
@@ -72,7 +71,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
     val userId by tokenManager.userId.collectAsState(initial = null)
     val cameraPositionState = rememberCameraPositionState()
 
-    // Secure Photo Storage for POD
+    // Secure Photo Storage for POD with process death persistence
     val podFile = remember { File(context.cacheDir, "pod_${orderId}.jpg") }
     val podUri by remember {
         derivedStateOf {
@@ -84,10 +83,28 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
         }
     }
 
+    var deliveryPhotoUriString by androidx.compose.runtime.saveable.rememberSaveable {
+        mutableStateOf(if (podFile.exists()) podUri?.toString() else null)
+    }
+    val deliveryPhotoUri = remember(deliveryPhotoUriString) {
+        deliveryPhotoUriString?.let { Uri.parse(it) }
+    }
+
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success) deliveryPhotoUri = podUri
+        if (success) deliveryPhotoUriString = podUri?.toString()
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            podUri?.let { cameraLauncher.launch(it) }
+                ?: Toast.makeText(context, "Storage error: Cannot launch camera", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Camera permission is required for Proof of Delivery", Toast.LENGTH_LONG).show()
+        }
     }
 
     // Fetch Order Details on Init
@@ -340,8 +357,17 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                         if (normalizedStatus == "ARRIVED_AT_DELIVERY") {
                             Card(
                                 onClick = { 
-                                    podUri?.let { cameraLauncher.launch(it) }
-                                        ?: Toast.makeText(context, "Storage error: Cannot launch camera", Toast.LENGTH_SHORT).show()
+                                    val hasCameraPerm = androidx.core.content.ContextCompat.checkSelfPermission(
+                                        context, 
+                                        android.Manifest.permission.CAMERA
+                                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                    
+                                    if (hasCameraPerm) {
+                                        podUri?.let { cameraLauncher.launch(it) }
+                                            ?: Toast.makeText(context, "Storage error: Cannot launch camera", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                    }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = if (deliveryPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
