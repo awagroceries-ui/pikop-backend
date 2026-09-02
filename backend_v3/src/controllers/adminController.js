@@ -102,12 +102,6 @@ const getDashboard = async (req, res) => {
       }
     });
   } catch (error) {
-          support: supportConv.rows[0].count || 0,
-          disputes: 0
-        }
-      }
-    });
-  } catch (error) {
     res.status(500).render('error', { message: error.message });
   }
 };
