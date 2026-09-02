@@ -121,11 +121,12 @@ fun PaymentWebView(
                                             val reference = uri.getQueryParameter("reference") ?: 
                                                            uri.getQueryParameter("trxref") ?: "detected_callback"
                                             
+                                            // Intercept immediately to prevent "Page not found" or "Blank" screens
                                             if (!isPaymentConfirmed) {
                                                 isPaymentConfirmed = true
                                                 onSuccess(reference) { }
                                             }
-                                            return true // CRITICAL: Return true immediately to stop WebView
+                                            return true 
                                         }
 
                                         // 2. Targeted Webhook/Backend Redirect Interception

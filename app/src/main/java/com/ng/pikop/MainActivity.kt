@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
@@ -111,14 +112,14 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
     var isSessionLoaded by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         // Wait for first non-null emission or timeout
-        kotlinx.coroutines.withTimeoutOrNull(1000) {
+        kotlinx.coroutines.withTimeoutOrNull(2000) {
             tokenManager.accessToken.first()
         }
         isSessionLoaded = true
     }
 
     if (!isSessionLoaded) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return

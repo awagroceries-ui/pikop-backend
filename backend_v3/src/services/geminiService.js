@@ -1,9 +1,9 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const API_KEY = process.env.GEMINI_API_KEY;
-// For stability in Node.js, we explicitly set the API version at the model level
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: "v1" });
+// Using latest stable model name to ensure account compatibility
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
 /**
  * Classifies an item into a size tier using v3 stable AI.
