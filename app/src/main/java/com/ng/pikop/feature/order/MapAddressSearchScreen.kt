@@ -64,8 +64,8 @@ fun MapAddressSearchScreen(
     var hasResolvedInitialLocation by remember { mutableStateOf(false) }
 
     val cameraPositionState = rememberCameraPositionState {
-        // Fallback to Nigeria center initially
-        position = CameraPosition.fromLatLngZoom(LatLng(9.0820, 8.6753), 6f)
+        // Default to Lagos, Nigeria
+        position = CameraPosition.fromLatLngZoom(LatLng(6.5244, 3.3792), 12f)
     }
 
     var query by remember { mutableStateOf("") }

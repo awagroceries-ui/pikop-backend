@@ -30,6 +30,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.*
@@ -69,7 +70,10 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     
     val userId by tokenManager.userId.collectAsState(initial = null)
-    val cameraPositionState = rememberCameraPositionState()
+    val defaultLagos = remember { LatLng(6.5244, 3.3792) }
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(defaultLagos, 12f)
+    }
 
     // Secure Photo Storage for POD with process death persistence
     val podFile = remember { File(context.cacheDir, "pod_${orderId}.jpg") }
@@ -158,21 +162,38 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
         }
     }
 
-    // Auto-zoom map
+    // Auto-zoom map safely without 0,0 ocean bounds
     LaunchedEffect(fulfillerLocation, orderStatus, orderDetails) {
-        if (fulfillerLocation != null && orderDetails != null) {
+        val fLoc = fulfillerLocation
+        val details = orderDetails
+
+        if (details != null) {
             val normStatus = orderStatus.uppercase()
-            val target = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) {
-                LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0) 
-            } else {
-                LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
-            }
+            val targetLat = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) details.pickup_lat ?: 0.0 else details.delivery_lat ?: 0.0
+            val targetLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) details.pickup_lng ?: 0.0 else details.delivery_lng ?: 0.0
             
-            val bounds = LatLngBounds.builder()
-                .include(fulfillerLocation!!)
-                .include(target)
-                .build()
-            cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, 200))
+            val validTarget = if (targetLat != 0.0 && targetLng != 0.0) LatLng(targetLat, targetLng) else null
+            val validFulfiller = if (fLoc != null && fLoc.latitude != 0.0) fLoc else null
+
+            try {
+                if (validTarget != null && validFulfiller != null) {
+                    val bounds = LatLngBounds.builder()
+                        .include(validFulfiller)
+                        .include(validTarget)
+                        .build()
+                    cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, 180))
+                } else if (validTarget != null) {
+                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(validTarget, 15f))
+                } else if (validFulfiller != null) {
+                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(validFulfiller, 15f))
+                } else {
+                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(defaultLagos, 12f))
+                }
+            } catch (e: Exception) {
+                cameraPositionState.position = CameraPosition.fromLatLngZoom(validTarget ?: validFulfiller ?: defaultLagos, 14f)
+            }
+        } else if (fLoc != null && fLoc.latitude != 0.0) {
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(fLoc, 15f))
         }
     }
 

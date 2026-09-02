@@ -149,10 +149,31 @@ fun TrackOrderScreen(
     LaunchedEffect(pickupLoc, deliveryLoc, fulfillerLocation) {
         val p = pickupLoc
         val d = deliveryLoc
-        if (p != null && d != null) {
-            val builder = LatLngBounds.builder().include(p).include(d)
-            fulfillerLocation?.let { builder.include(it) }
-            cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(builder.build(), 150))
+        val f = fulfillerLocation
+        val defaultLagos = LatLng(6.5244, 3.3792)
+
+        val validP = if (p != null && p.latitude != 0.0) p else null
+        val validD = if (d != null && d.latitude != 0.0) d else null
+        val validF = if (f != null && f.latitude != 0.0) f else null
+
+        try {
+            val builder = LatLngBounds.builder()
+            var count = 0
+            validP?.let { builder.include(it); count++ }
+            validD?.let { builder.include(it); count++ }
+            validF?.let { builder.include(it); count++ }
+
+            if (count >= 2) {
+                cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(builder.build(), 150))
+            } else if (count == 1) {
+                val singlePoint = validP ?: validD ?: validF ?: defaultLagos
+                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(singlePoint, 15f))
+            } else {
+                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(defaultLagos, 12f))
+            }
+        } catch (e: Exception) {
+            val fallbackPoint = validP ?: validD ?: validF ?: defaultLagos
+            cameraPositionState.position = CameraPosition.fromLatLngZoom(fallbackPoint, 14f)
         }
     }
 
