@@ -26,6 +26,8 @@ router.get('/:orderId', authenticateToken, orderController.getOrderDetails);
 router.post('/:orderId/cancel', authenticateToken, orderController.cancelOrder);
 router.patch('/:orderId/status', authenticateToken, orderController.updateStatus);
 router.post('/:orderId/accept', authenticateToken, orderController.acceptOrder);
+router.post('/:orderId/pickup', authenticateToken, orderController.verifyPickup);
+router.post('/:orderId/deliver', authenticateToken, orderController.verifyDelivery);
 router.post('/:orderId/return', authenticateToken, orderController.initiateReturn);
 router.get('/:orderId/messages', authenticateToken, orderController.getOrderMessages);
 router.post('/upload', authenticateToken, upload.single('file'), (req, res) => {
