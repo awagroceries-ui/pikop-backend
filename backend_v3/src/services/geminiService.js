@@ -10,6 +10,14 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersi
  * Enhanced for weight and bulky item detection.
  */
 const classifyItemSize = async (description) => {
+  // 0. KEYWORD FALLBACK (Pikop Priority Shield)
+  // Ensures common Nigerian bulky items are caught even if AI fails or throttles.
+  const desc = (description || '').toLowerCase();
+  if (desc.includes('generator') || desc.includes('engine') || desc.includes('fridge') || desc.includes('freezer') || desc.includes('table') || desc.includes('chair') || desc.includes('bulk') || desc.includes('sack')) {
+      console.log('[Gemini] Fallback Triggered: LARGE item detected via keywords.');
+      return { size_tier: 'LARGE', confidence: 1.0 };
+  }
+
   if (!API_KEY) return { size_tier: 'MEDIUM', confidence: 0.5 };
 
   const prompt = `

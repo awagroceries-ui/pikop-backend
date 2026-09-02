@@ -366,7 +366,8 @@ const createOrder = async (req, res) => {
         }
 
         // 4. Create Order (DEFINITIVE ALIGNMENT WITH WEBHOOK)
-        console.log(`[ManualOrder] PRE-FLIGHT: Quote: ${q.id} | User: ${userId} | Fare: ${finalFare} | Ref: ${payment_reference} | Coupon: ${couponId}`);
+        const refToSave = payment_reference || `FREE_${q.id.substring(0,8)}_${Date.now()}`;
+        console.log(`[ManualOrder] PRE-FLIGHT: Quote: ${q.id} | User: ${userId} | Fare: ${finalFare} | Ref: ${refToSave} | Coupon: ${couponId}`);
 
         const orderRes = await client.query(
             `INSERT INTO orders (
@@ -391,7 +392,7 @@ const createOrder = async (req, res) => {
                 userId, q.id, q.item_description, q.size_tier,
                 q.pickup_address, q.delivery_address,
                 q.pickup_location, q.delivery_location,
-                finalFare, payment_method || 'card', payment_reference,
+                finalFare, payment_method || 'card', refToSave,
                 recipient_name || 'Recipient',
                 recipient_phone || '000',
                 notes,
