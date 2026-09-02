@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -105,6 +106,23 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
     val referralCode by tokenManager.referralCode.collectAsState(initial = null)
     val kycStatus by tokenManager.kycStatus.collectAsState(initial = null)
     val accessToken by tokenManager.accessToken.collectAsState(initial = null)
+
+    // SESSION GUARD: Prevent flickering until storage is read
+    var isSessionLoaded by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        // Wait for first non-null emission or timeout
+        kotlinx.coroutines.withTimeoutOrNull(1000) {
+            tokenManager.accessToken.first()
+        }
+        isSessionLoaded = true
+    }
+
+    if (!isSessionLoaded) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
     // Global Session Monitor
     LaunchedEffect(Unit) {

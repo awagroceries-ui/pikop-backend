@@ -10,6 +10,10 @@ const autocomplete = async (req, res) => {
 
     if (!query) return res.status(400).json({ success: false, message: 'Query is required' });
 
+    // One-time log for diagnostic verification
+    const keySuffix = (GOOGLE_API_KEY || '').slice(-4);
+    console.log(`[Places] Diagnostic: Autocomplete request. Key suffix: ...${keySuffix}`);
+
     try {
         const params = {
             input: query,

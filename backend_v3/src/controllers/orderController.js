@@ -383,7 +383,7 @@ const createOrder = async (req, res) => {
                 'pickup_delivery', $1, $2, 'SEARCHING',
                 $3, $4,
                 $5, $6,
-                $7, $8,
+                $7::geography, $8::geography,
                 $9, 'PAID', $10, $11,
                 $12, $13, $14, $15, $16, $17,
                 'v3_pending', 'v3_pending', $18

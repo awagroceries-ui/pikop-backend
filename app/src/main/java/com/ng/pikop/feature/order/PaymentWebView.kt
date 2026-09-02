@@ -116,14 +116,16 @@ fun PaymentWebView(
                                         
                                         // 1. Authoritative Success: Strict Scheme Matching
                                         if (currentUrl.startsWith("pikop://payment/success") || currentUrl.startsWith("intent://payment/success")) {
-                                            android.util.Log.d("PikopPayment", "SUCCESS: Scheme detected. Finalizing.")
+                                            android.util.Log.d("PikopPayment", "SUCCESS: Scheme detected. Force Returning.")
                                             val uri = Uri.parse(currentUrl.replace("intent://", "pikop://"))
                                             val reference = uri.getQueryParameter("reference") ?: 
                                                            uri.getQueryParameter("trxref") ?: "detected_callback"
                                             
-                                            isPaymentConfirmed = true
-                                            onSuccess(reference) { }
-                                            return true
+                                            if (!isPaymentConfirmed) {
+                                                isPaymentConfirmed = true
+                                                onSuccess(reference) { }
+                                            }
+                                            return true // CRITICAL: Return true immediately to stop WebView
                                         }
 
                                         // 2. Targeted Webhook/Backend Redirect Interception
