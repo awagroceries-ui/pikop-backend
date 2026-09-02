@@ -14,7 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.google.android.gms.location.LocationServices
@@ -42,24 +43,21 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.io.File
-import java.io.FileOutputStream
 import com.ng.pikop.core.ui.SignaturePad
 import android.graphics.Bitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
-import java.io.ByteArrayOutputStream
 
 @Composable
 fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateToChat: (String) -> Unit) {
     var orderDetails by remember { mutableStateOf<OrderDetailsResponse?>(null) }
     var orderStatus by remember { mutableStateOf("MATCHED") }
     var fulfillerLocation by remember { mutableStateOf<LatLng?>(null) }
+    var isFetchingDetails by remember { mutableStateOf(true) }
     
     var queueCandidates by remember { mutableStateOf<List<OfferResponse>>(emptyList()) }
     
     var pickupCode by remember { mutableStateOf("") }
     var deliveryCode by remember { mutableStateOf("") }
     var deliveryPhotoUri by remember { mutableStateOf<Uri?>(null) }
-    var signatureBitmap by remember { mutableStateOf<Bitmap?>(null) }
     
     var isLoading by remember { mutableStateOf(false) }
     var showRatingDialog by remember { mutableStateOf(false) }
@@ -94,16 +92,19 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
 
     // Fetch Order Details on Init
     LaunchedEffect(orderId) {
+        isFetchingDetails = true
         try {
             val response = apiService.getOrderDetails(orderId)
             orderDetails = response
-            orderStatus = response.status ?: "MATCHED"
+            orderStatus = (response.status ?: "MATCHED").uppercase()
             
-            if (response.status == "PICKED_UP") {
+            if (orderStatus == "PICKED_UP") {
                 queueCandidates = apiService.getQueueCandidates()
             }
         } catch (e: Exception) {
             Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
+        } finally {
+            isFetchingDetails = false
         }
     }
 
@@ -116,7 +117,8 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
     }
 
     LaunchedEffect(orderStatus) {
-        if (orderStatus == "MATCHED" || orderStatus == "PICKED_UP") {
+        val normStatus = orderStatus.uppercase()
+        if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PICKED_UP", "IN_TRANSIT")) {
             while (true) {
                 try {
                     fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
@@ -142,7 +144,8 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
     // Auto-zoom map
     LaunchedEffect(fulfillerLocation, orderStatus, orderDetails) {
         if (fulfillerLocation != null && orderDetails != null) {
-            val target = if (orderStatus == "MATCHED") {
+            val normStatus = orderStatus.uppercase()
+            val target = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) {
                 LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0) 
             } else {
                 LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
@@ -179,7 +182,8 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                     }
                     
                     if (orderDetails != null) {
-                        val targetLatLng = if (orderStatus == "MATCHED") {
+                        val normStatus = orderStatus.uppercase()
+                        val targetLatLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) {
                             LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0)
                         } else {
                             LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
@@ -187,9 +191,9 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                         
                         Marker(
                             state = MarkerState(position = targetLatLng),
-                            title = if (orderStatus == "MATCHED") "Pickup" else "Delivery",
+                            title = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) "Pickup" else "Delivery",
                             icon = BitmapDescriptorFactory.defaultMarker(
-                                if (orderStatus == "MATCHED") BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
+                                if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
                             )
                         )
                     }
@@ -203,7 +207,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                     Icon(Icons.Default.ReportProblem, contentDescription = "Report Incident", tint = MaterialTheme.colorScheme.error)
                 }
 
-                // Chat Button (Prompt 1)
+                // Chat Button
                 IconButton(
                     onClick = { onNavigateToChat(orderId) },
                     modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
@@ -225,129 +229,46 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                 Text(text = "Active Mission", style = MaterialTheme.typography.headlineMedium)
                 Text(text = "Order ID: #$orderId", style = MaterialTheme.typography.bodySmall)
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                if (orderStatus == "MATCHED") {
-                    PhaseCard(
-                        title = "Phase 1: Pickup",
-                        address = orderDetails?.pickup_address ?: "Loading...",
-                        buttonText = "Navigate to Pickup",
-                        onNavigate = { 
-                            navigateToLocation(
-                                context, 
-                                orderDetails?.pickup_address ?: "",
-                                orderDetails?.pickup_lat,
-                                orderDetails?.pickup_lng
-                            ) 
-                        }
-                    )
+                if (isFetchingDetails) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Loading mission details...", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                } else {
+                    val normalizedStatus = orderStatus.uppercase()
+                    
+                    val isPickupPhase = normalizedStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PENDING", "PAID")
+                    val isDeliveryPhase = normalizedStatus in listOf("PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY")
+                    val isQueued = normalizedStatus == "QUEUED"
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = pickupCode,
-                        onValueChange = { pickupCode = it },
-                        label = { Text("Enter 4-digit Pickup Code") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                isLoading = true
-                                try {
-                                    apiService.verifyPickup(orderId, VerifyCodeRequest(pickupCode))
-                                    orderStatus = "PICKED_UP"
-                                    Toast.makeText(context, "Pickup Verified!", Toast.LENGTH_SHORT).show()
-                                    queueCandidates = apiService.getQueueCandidates()
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
-                                } finally {
-                                    isLoading = false
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isLoading && pickupCode.length == 4
-                    ) {
-                        Text("Verify Pickup")
-                    }
-                }
-
-                if (orderStatus == "PICKED_UP" || orderStatus == "ARRIVED_AT_DELIVERY") {
-                    PhaseCard(
-                        title = "Phase 2: Delivery",
-                        address = orderDetails?.delivery_address ?: "Loading...",
-                        recipientPhone = orderDetails?.recipient_phone,
-                        buttonText = "Navigate to Delivery",
-                        onNavigate = { 
-                            navigateToLocation(
-                                context, 
-                                orderDetails?.delivery_address ?: "",
-                                orderDetails?.delivery_lat,
-                                orderDetails?.delivery_lng
-                            ) 
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (orderStatus == "PICKED_UP") {
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    isLoading = true
-                                    try {
-                                        apiService.updateOrderStatus(orderId, mapOf("status" to "ARRIVED_AT_DELIVERY"))
-                                        orderStatus = "ARRIVED_AT_DELIVERY"
-                                        Toast.makeText(context, "Delivery Protocol Initiated", Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
-                                    } finally { isLoading = false }
-                                }
+                    if (isPickupPhase) {
+                        PhaseCard(
+                            title = "Phase 1: Pickup",
+                            address = orderDetails?.pickup_address ?: "Address unavailable",
+                            recipientName = orderDetails?.recipient_name,
+                            recipientPhone = orderDetails?.recipient_phone,
+                            buttonText = "Navigate to Pickup",
+                            onNavigate = { 
+                                navigateToLocation(
+                                    context, 
+                                    orderDetails?.pickup_address ?: "",
+                                    orderDetails?.pickup_lat,
+                                    orderDetails?.pickup_lng
+                                ) 
                             },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Confirm Arrival at Destination")
-                        }
-                    }
-
-                    if (orderStatus == "ARRIVED_AT_DELIVERY") {
-                        Card(
-                            onClick = { 
-                                podUri?.let { cameraLauncher.launch(it) }
-                                    ?: Toast.makeText(context, "Storage error: Cannot launch camera", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = if (deliveryPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                        ) {
-                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.AddAPhoto, contentDescription = null)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(if (deliveryPhotoUri != null) "Photo Captured ✅" else "Capture Proof of Delivery")
+                            onCallRecipient = {
+                                orderDetails?.recipient_phone?.let { phone -> callPhone(context, phone) }
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text("Recipient Signature", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.Start))
-                        SignaturePad(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .height(150.dp)
-                                .background(Color.White, shape = MaterialTheme.shapes.small),
-                            onSignatureCaptured = { /* We will capture on complete */ }
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         OutlinedTextField(
-                            value = deliveryCode,
-                            onValueChange = { deliveryCode = it },
-                            label = { Text("Enter 4-digit Delivery Code") },
+                            value = pickupCode,
+                            onValueChange = { pickupCode = it },
+                            label = { Text("Enter 4-digit Pickup Code") },
                             modifier = Modifier.fillMaxWidth()
                         )
 
@@ -358,46 +279,159 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                 coroutineScope.launch {
                                     isLoading = true
                                     try {
-                                        val location = try {
-                                            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                                        } catch (e: SecurityException) { null }
-                                        
-                                        if (podFile.exists()) {
-                                            val compressedFile = ImageUtils.compressFile(context, podFile)
-                                            val requestFile = compressedFile.asRequestBody("image/*".toMediaTypeOrNull())
-                                            val body = MultipartBody.Part.createFormData("document", compressedFile.name, requestFile)
-                                            val uploadRes = apiService.uploadOrderPhoto(body)
-                                            val photoUrl = uploadRes["url"] ?: ""
-
-                                            // Note: In a real implementation, we would capture the signature bitmap here
-                                            // and upload it similarly. For this MVP expansion, we'll focus on the UI integration.
-
-                                            apiService.verifyDelivery(
-                                                orderId, 
-                                                VerifyCodeRequest(
-                                                    code = deliveryCode, 
-                                                    delivery_photo_url = photoUrl,
-                                                    lat = location?.latitude,
-                                                    lng = location?.longitude,
-                                                    device_timestamp = System.currentTimeMillis()
-                                                )
-                                            )
-                                            orderStatus = "DELIVERED"
-                                            showRatingDialog = true
-                                        } else {
-                                            Toast.makeText(context, "Please capture a proof photo first.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Throwable) {
-                                        Toast.makeText(context, "Process Failure: ${e.localizedMessage ?: "Unknown error"}", Toast.LENGTH_SHORT).show()
+                                        apiService.verifyPickup(orderId, VerifyCodeRequest(pickupCode))
+                                        orderStatus = "PICKED_UP"
+                                        Toast.makeText(context, "Pickup Verified!", Toast.LENGTH_SHORT).show()
+                                        queueCandidates = apiService.getQueueCandidates()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
                                     } finally {
                                         isLoading = false
                                     }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !isLoading && deliveryCode.length == 4 && deliveryPhotoUri != null
+                            enabled = !isLoading && pickupCode.length == 4
                         ) {
-                            Text("Complete Mission")
+                            Text("Verify Pickup")
+                        }
+                    } else if (isDeliveryPhase) {
+                        PhaseCard(
+                            title = "Phase 2: Delivery",
+                            address = orderDetails?.delivery_address ?: "Address unavailable",
+                            recipientName = orderDetails?.recipient_name,
+                            recipientPhone = orderDetails?.recipient_phone,
+                            buttonText = "Navigate to Delivery",
+                            onNavigate = { 
+                                navigateToLocation(
+                                    context, 
+                                    orderDetails?.delivery_address ?: "",
+                                    orderDetails?.delivery_lat,
+                                    orderDetails?.delivery_lng
+                                ) 
+                            },
+                            onCallRecipient = {
+                                orderDetails?.recipient_phone?.let { phone -> callPhone(context, phone) }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (normalizedStatus != "ARRIVED_AT_DELIVERY") {
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        isLoading = true
+                                        try {
+                                            apiService.updateOrderStatus(orderId, mapOf("status" to "ARRIVED_AT_DELIVERY"))
+                                            orderStatus = "ARRIVED_AT_DELIVERY"
+                                            Toast.makeText(context, "Delivery Protocol Initiated", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
+                                        } finally { isLoading = false }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Confirm Arrival at Destination")
+                            }
+                        }
+
+                        if (normalizedStatus == "ARRIVED_AT_DELIVERY") {
+                            Card(
+                                onClick = { 
+                                    podUri?.let { cameraLauncher.launch(it) }
+                                        ?: Toast.makeText(context, "Storage error: Cannot launch camera", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = if (deliveryPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.AddAPhoto, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(if (deliveryPhotoUri != null) "Photo Captured ✅" else "Capture Proof of Delivery")
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text("Recipient Signature", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.Start))
+                            SignaturePad(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                                    .height(150.dp)
+                                    .background(Color.White, shape = MaterialTheme.shapes.small),
+                                onSignatureCaptured = { /* We will capture on complete */ }
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = deliveryCode,
+                                onValueChange = { deliveryCode = it },
+                                label = { Text("Enter 4-digit Delivery Code") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        isLoading = true
+                                        try {
+                                            val location = try {
+                                                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                                            } catch (e: SecurityException) { null }
+                                            
+                                            if (podFile.exists()) {
+                                                val compressedFile = ImageUtils.compressFile(context, podFile)
+                                                val requestFile = compressedFile.asRequestBody("image/*".toMediaTypeOrNull())
+                                                val body = MultipartBody.Part.createFormData("document", compressedFile.name, requestFile)
+                                                val uploadRes = apiService.uploadOrderPhoto(body)
+                                                val photoUrl = uploadRes["url"] ?: ""
+
+                                                apiService.verifyDelivery(
+                                                    orderId, 
+                                                    VerifyCodeRequest(
+                                                        code = deliveryCode, 
+                                                        delivery_photo_url = photoUrl,
+                                                        lat = location?.latitude,
+                                                        lng = location?.longitude,
+                                                        device_timestamp = System.currentTimeMillis()
+                                                    )
+                                                )
+                                                orderStatus = "DELIVERED"
+                                                showRatingDialog = true
+                                            } else {
+                                                Toast.makeText(context, "Please capture a proof photo first.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Throwable) {
+                                            Toast.makeText(context, "Process Failure: ${e.localizedMessage ?: "Unknown error"}", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isLoading = false
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isLoading && deliveryCode.length == 4 && deliveryPhotoUri != null
+                            ) {
+                                Text("Complete Mission")
+                            }
+                        }
+                    } else if (isQueued) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.AssignmentTurnedIn, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Mission Queued", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("You have another active mission in progress. This mission will begin as soon as your current mission is completed.", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     }
                 }
@@ -483,9 +517,11 @@ fun IncidentReportDialog(onDismiss: () -> Unit, onReport: (String, String, Strin
 fun PhaseCard(
     title: String,
     address: String,
+    recipientName: String? = null,
     recipientPhone: String? = null,
     buttonText: String,
-    onNavigate: () -> Unit
+    onNavigate: () -> Unit,
+    onCallRecipient: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -509,14 +545,43 @@ fun PhaseCard(
                 color = MaterialTheme.colorScheme.onSurface
             )
             
-            if (recipientPhone != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Recipient: $recipientPhone", 
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
+            if (!recipientName.isNullOrBlank() || !recipientPhone.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (!recipientName.isNullOrBlank()) {
+                            Text(
+                                text = "Recipient: $recipientName", 
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        if (!recipientPhone.isNullOrBlank()) {
+                            Text(
+                                text = recipientPhone, 
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                    if (onCallRecipient != null && !recipientPhone.isNullOrBlank()) {
+                        IconButton(
+                            onClick = onCallRecipient,
+                            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Phone,
+                                contentDescription = "Call Recipient",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -532,6 +597,15 @@ fun PhaseCard(
                 Text(buttonText, fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
+
+fun callPhone(context: Context, phoneNumber: String) {
+    try {
+        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${phoneNumber.trim()}"))
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        Toast.makeText(context, "Cannot launch phone dialer", Toast.LENGTH_SHORT).show()
     }
 }
 
