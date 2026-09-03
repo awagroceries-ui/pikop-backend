@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -98,6 +99,27 @@ fun FulfillerDashboardScreen(
             color = MaterialTheme.colorScheme.background
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                // Resume Active Mission Banner
+                val activeMissions = history.filter { 
+                    it.status != "DELIVERED" && it.status != "CANCELLED" && it.status != "RECIPIENT_ABSENT"
+                }
+                if (activeMissions.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+                        onClick = { onAcceptOffer(activeMissions.first().id.toString()) }
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(androidx.compose.material.icons.Icons.Default.AssignmentTurnedIn, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Resume Active Mission", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("You have a mission in progress. Tap to return.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f))
+                            }
+                        }
+                    }
+                }
+
                 // KYC Warning
                 if (kycStatus != "VERIFIED") {
                     Card(

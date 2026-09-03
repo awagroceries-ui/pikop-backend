@@ -32,7 +32,7 @@ class PikopApp : Application() {
             // Initialize Google Places
             try {
                 if (!Places.isInitialized()) {
-                    Places.initialize(applicationContext, "AIzaSyDEsNglOB5t0J-D_yfMciy3Yrzj4B5ZzoQ")
+                    Places.initialize(applicationContext, BuildConfig.GOOGLE_MAPS_API_KEY)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("PikopApp", "Places init failed: ${e.message}")

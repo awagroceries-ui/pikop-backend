@@ -388,6 +388,27 @@ const uploadProfilePhoto = async (req, res) => {
     }
 };
 
+/**
+ * Submits the application for final admin review.
+ */
+const submitApplication = async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query(
+            "UPDATE fulfillers SET kyc_status = 'PENDING_REVIEW' WHERE user_id = $1 RETURNING id, kyc_status",
+            [userId]
+        );
+
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Profile not found' });
+
+        res.status(200).json({ success: true, message: 'Application submitted successfully', data: rows[0] });
+    } catch (error) {
+        console.error('[KYC Submit] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   startIdentityVerification,
   updateFulfillerProfile,
@@ -398,5 +419,6 @@ module.exports = {
   getProfile,
   getFulfillerOrders,
   uploadProfilePhoto,
-  getAvailableOffers
+  getAvailableOffers,
+  submitApplication
 };

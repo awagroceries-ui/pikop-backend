@@ -21,13 +21,15 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        manifestPlaceholders["googleMapsApiKey"] = project.rootProject.file("local.properties").let {
+        val mapsKey = project.rootProject.file("local.properties").let {
             if (it.exists()) {
                 val props = Properties()
                 props.load(it.inputStream())
                 props.getProperty("googleMapsApiKey") ?: ""
             } else ""
         }
+        manifestPlaceholders["googleMapsApiKey"] = mapsKey
+        buildConfigField("String", "GOOGLE_MAPS_API_KEY", "\"${mapsKey}\"")
 
         val paystackKey = project.rootProject.file("local.properties").let {
             if (it.exists()) {

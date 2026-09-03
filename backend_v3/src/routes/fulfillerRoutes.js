@@ -33,5 +33,6 @@ router.post('/profile-photo', authenticateToken, upload.single('photo'), fulfill
 router.patch('/status', authenticateToken, fulfillerController.updateStatus);
 router.get('/orders', authenticateToken, fulfillerController.getFulfillerOrders);
 router.get('/offers', authenticateToken, fulfillerController.getAvailableOffers);
+router.post('/submit-application', authenticateToken, fulfillerController.submitApplication);
 
 module.exports = router;
