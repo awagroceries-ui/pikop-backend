@@ -180,7 +180,25 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         // 1. Handle Scheme-based Deep Links (e.g. pikop://payment/success)
         if (dataUri != null && dataUri.scheme == "pikop") {
             if (dataUri.host == "payment" && dataUri.path == "/success") {
-                android.util.Log.d("PikopIntent", "Success deep-link detected. Clearing checkout state.")
+                val reference = dataUri.getQueryParameter("reference") ?: dataUri.getQueryParameter("trxref")
+                android.util.Log.d("PikopIntent", "Success deep-link detected with ref: $reference. Verifying payment...")
+                
+                if (reference != null) {
+                    scope.launch {
+                        try {
+                            val api = ApiService.create(tokenManager)
+                            val verifyRes = api.verifyPayment(reference)
+                            if (verifyRes["success"] == true) {
+                                android.util.Log.d("PikopPayment", "VERIFY SUCCESS via deep-link.")
+                            } else {
+                                android.util.Log.w("PikopPayment", "VERIFY REJECTED: Status=${verifyRes["status"]}")
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("PikopPayment", "Deep-link verify failed: ${e.message}")
+                        }
+                    }
+                }
+                
                 CheckoutHelper.activeQuote = null
                 navController.navigate("main") {
                     popUpTo(0) { inclusive = true }
@@ -403,7 +421,8 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                         notes = notes,
                         promoId = promoId
                     )
-                    navController.navigate("payment_webview")
+                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    context.startActivity(intent)
                 }
             )
         }
@@ -492,64 +511,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             )
         }
 
-        composable("payment_webview") {
-            val data = CheckoutHelper.activeQuote
-            if (data == null) {
-                navController.popBackStack()
-                return@composable
-            }
-
-            var isConfirming by remember { mutableStateOf(false) }
-            val api = remember { ApiService.create(tokenManager) }
-
-            // AUTO-RECOVERY & POLLING: Decoupled Source of Truth
-            LaunchedEffect(data.quoteId) {
-                while (true) {
-                    delay(3000) // Poll every 3 seconds
-                    try {
-                        val res = api.getOrderByQuote(data.quoteId)
-                        if (res["success"] == true) {
-                            android.util.Log.d("PikopPayment", "POLLING SUCCESS: Order activated.")
-                            CheckoutHelper.activeQuote = null
-                            navController.navigate("main") {
-                                popUpTo("order_quote") { inclusive = true }
-                            }
-                            break
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.w("PikopPayment", "Polling check skipped: ${e.message}")
-                    }
-                }
-            }
-
-            PaymentWebView(
-                url = data.url,
-                onSuccess = { reference: String, onResult: (Boolean) -> Unit ->
-                    isConfirming = true
-                    scope.launch {
-                        try {
-                            android.util.Log.d("PikopPayment", "CLIENT VERIFY: Triggering for $reference")
-                            val verifyRes = api.verifyPayment(reference)
-                            if (verifyRes["success"] == true) {
-                                android.util.Log.d("PikopPayment", "VERIFY SUCCESS: Proceeding to main.")
-                                CheckoutHelper.activeQuote = null
-                                navController.navigate("main") {
-                                    popUpTo("order_quote") { inclusive = true }
-                                }
-                            } else {
-                                android.util.Log.w("PikopPayment", "VERIFY REJECTED: Status=${verifyRes["status"]}")
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("PikopPayment", "Verify API call failed: ${e.message}")
-                        } finally {
-                            onResult(true)
-                        }
-                    }
-                },
-                onCancel = { navController.popBackStack() },
-                onBack = { navController.popBackStack() }
-            )
-        }
+        // Removed internal payment_webview in favor of external intent
     }
 }
 

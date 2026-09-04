@@ -39,6 +39,15 @@ import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.AutocompletePrediction
 import com.ng.pikop.core.network.SavedAddress
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.AutocompleteSessionToken
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.FetchPlaceRequest
+import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
+import com.google.android.libraries.places.api.model.RectangularBounds
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -60,6 +69,7 @@ fun MapAddressSearchScreen(
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val placesClient = remember { Places.createClient(context) }
     
     var hasResolvedInitialLocation by remember { mutableStateOf(false) }
 
@@ -73,7 +83,7 @@ fun MapAddressSearchScreen(
     var savedAddresses by remember { mutableStateOf<List<SavedAddress>>(emptyList()) }
     var isSearchingSuggestions by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf<String?>(null) }
-    var sessionToken by remember { mutableStateOf(UUID.randomUUID().toString()) }
+    var sessionToken by remember { mutableStateOf(AutocompleteSessionToken.newInstance()) }
     var searchJob by remember { mutableStateOf<Job?>(null) }
     
     var currentResolvedAddress by remember { mutableStateOf("Locating...") }
@@ -222,15 +232,46 @@ fun MapAddressSearchScreen(
                                     searchError = null
                                     try {
                                         val center = cameraPositionState.position.target
-                                        val res = apiService.getAutocomplete(it, sessionToken, center.latitude, center.longitude)
-                                        if (res.success) {
-                                            suggestions = res.predictions
+                                        
+                                        // Use Native Google Places SDK directly
+                                        val bounds = RectangularBounds.newInstance(
+                                            LatLng(center.latitude - 0.5, center.longitude - 0.5),
+                                            LatLng(center.latitude + 0.5, center.longitude + 0.5)
+                                        )
+                                        val request = FindAutocompletePredictionsRequest.builder()
+                                            .setLocationRestriction(bounds)
+                                            .setCountries("NG")
+                                            .setSessionToken(sessionToken)
+                                            .setQuery(it)
+                                            .build()
+
+                                        val res = suspendCancellableCoroutine<List<AutocompletePrediction>> { cont ->
+                                            placesClient.findAutocompletePredictions(request)
+                                                .addOnSuccessListener { response ->
+                                                    val mapped = response.autocompletePredictions.map { pred ->
+                                                        AutocompletePrediction(
+                                                            place_id = pred.placeId,
+                                                            description = pred.getFullText(null).toString(),
+                                                            main_text = pred.getPrimaryText(null).toString(),
+                                                            secondary_text = pred.getSecondaryText(null).toString()
+                                                        )
+                                                    }
+                                                    if (cont.isActive) cont.resume(mapped)
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    android.util.Log.e("PlacesNative", "Autocomplete failed", e)
+                                                    if (cont.isActive) cont.resume(emptyList())
+                                                }
+                                        }
+
+                                        if (res.isNotEmpty()) {
+                                            suggestions = res
                                         } else {
-                                            searchError = res.error ?: "Service unavailable"
+                                            searchError = "No results found"
                                             suggestions = emptyList()
                                         }
                                     } catch (e: Exception) {
-                                        android.util.Log.e("AddressSearch", "Autocomplete failed", e)
+                                        android.util.Log.e("AddressSearch", "Autocomplete error", e)
                                         searchError = "Check your connection"
                                         suggestions = emptyList()
                                     } finally {
@@ -329,10 +370,18 @@ fun MapAddressSearchScreen(
                                             query = ""
                                             suggestions = emptyList()
                                             try {
-                                                val details = apiService.getPlaceDetails(p.place_id, sessionToken)
-                                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(LatLng(details.lat, details.lng), 17f))
-                                                sessionToken = UUID.randomUUID().toString()
-                                            } catch (_: Exception) {}
+                                                val request = FetchPlaceRequest.builder(p.place_id, listOf(Place.Field.LAT_LNG))
+                                                    .setSessionToken(sessionToken)
+                                                    .build()
+                                                
+                                                val response = placesClient.fetchPlace(request).await()
+                                                response.place.latLng?.let { latLng ->
+                                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 17f))
+                                                }
+                                                sessionToken = AutocompleteSessionToken.newInstance()
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("PlacesNative", "Place details fetch failed", e)
+                                            }
                                         }
                                     },
                                     colors = ListItemDefaults.colors(containerColor = Color.White)
