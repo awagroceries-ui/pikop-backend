@@ -109,7 +109,7 @@ fun AccountScreen(
                     IconButton(onClick = {
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, "Join me on Pikop! Use my code $referralCode to get NGN 300 off your first delivery. Download at: https://pikop.ng")
+                            putExtra(Intent.EXTRA_TEXT, "Join me on Pikop! Use my code $referralCode to get NGN 250 off your first delivery. Download at: https://pikop.ng")
                         }
                         context.startActivity(Intent.createChooser(shareIntent, "Share Referral Code"))
                     }) {

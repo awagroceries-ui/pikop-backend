@@ -83,6 +83,32 @@ const sendNotification = async (userId, title, body, data = {}) => {
   }
 };
 
+/**
+ * Sends reminder for Secure Pay confirmation.
+ */
+const sendSecurePayReminder = async (userId, orderId) => {
+    return sendNotification(
+        userId,
+        "Confirm your Delivery",
+        "Your item has been delivered! Tap to confirm receipt and release payment.",
+        { type: "ORDER_UPDATE", order_id: orderId.toString() }
+    );
+};
+
+/**
+ * Sends alert for successful payout.
+ */
+const sendPayoutAlert = async (userId, amount) => {
+    return sendNotification(
+        userId,
+        "Payout Successful",
+        `Your withdrawal of ₦${parseFloat(amount).toLocaleString()} has been processed and sent to your bank.`,
+        { type: "WALLET_UPDATE" }
+    );
+};
+
 module.exports = {
-  sendNotification
+  sendNotification,
+  sendSecurePayReminder,
+  sendPayoutAlert
 };

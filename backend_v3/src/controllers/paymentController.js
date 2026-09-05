@@ -6,6 +6,7 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
 const walletService = require('../services/walletService');
 const emailService = require('../services/emailService');
+const fcmService = require('../services/fcmService');
 
 /**
  * Initializes a Paystack transaction.
@@ -155,10 +156,19 @@ const handleWebhook = async (req, res) => {
   // --- TRANSFER EVENTS (Automated Payouts) ---
   if (event.event === 'transfer.success') {
       const { transfer_code } = event.data;
-      await db.query(
-          "UPDATE withdrawals SET status = 'SUCCESSFUL', processed_at = CURRENT_TIMESTAMP WHERE paystack_transfer_code = $1",
+      const { rows } = await db.query(
+          "UPDATE withdrawals SET status = 'SUCCESSFUL', processed_at = CURRENT_TIMESTAMP WHERE paystack_transfer_code = $1 RETURNING fulfiller_id, amount",
           [transfer_code]
       );
+
+      if (rows.length > 0) {
+          const { fulfiller_id, amount: wAmount } = rows[0];
+          const uRes = await db.query("SELECT user_id FROM fulfillers WHERE id = $1", [fulfiller_id]);
+          if (uRes.rows.length > 0) {
+              fcmService.sendPayoutAlert(uRes.rows[0].user_id, wAmount).catch(e => {});
+          }
+      }
+
       console.log(`[Webhook] Transfer SUCCESS for code: ${transfer_code}`);
       return res.sendStatus(200);
   }

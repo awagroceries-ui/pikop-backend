@@ -57,7 +57,13 @@ data class QuoteRequest(
     val delivery_lat: Double,
     val delivery_lng: Double,
     val item_price: Double? = 0.0,
-    val initiator_role: String? = "PAYER"
+    val initiator_role: String? = "PAYER",
+    val recipient_phone: String? = null
+)
+
+data class PayerInfo(
+    val type: String, // GUEST, APP_USER
+    val user_id: Int? = null
 )
 
 data class QuoteResponse(
@@ -70,6 +76,7 @@ data class QuoteResponse(
     val platform_fee_amount: Double? = null,
     val fee_payer: String? = null,
     val total_fare: Double? = null,
+    val payer_info: PayerInfo? = null,
     val expires_at: String? = null
 )
 

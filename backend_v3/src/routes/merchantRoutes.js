@@ -10,5 +10,6 @@ router.post('/register', authenticateToken, merchantController.registerMerchant)
 // Programmatic Bulk Operations (API Key)
 router.post('/orders/bulk', authenticateMerchantKey, merchantController.createBulkOrders);
 router.get('/batches', authenticateMerchantKey, merchantController.getBatches);
+router.get('/batches/:batchId', authenticateMerchantKey, merchantController.getBatchStatus);
 
 module.exports = router;

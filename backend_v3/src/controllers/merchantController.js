@@ -126,8 +126,44 @@ const getBatches = async (req, res) => {
     }
 };
 
+/**
+ * Returns detailed status of a bulk batch.
+ */
+const getBatchStatus = async (req, res) => {
+    const { batchId } = req.params;
+    const merchantId = req.merchant.id;
+
+    try {
+        const { rows } = await db.query(
+            "SELECT * FROM order_batches WHERE id = $1 AND merchant_account_id = $2",
+            [batchId, merchantId]
+        );
+
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Batch not found' });
+
+        const batch = rows[0];
+
+        // Fetch order summaries in this batch
+        const orders = await db.query(
+            "SELECT id, status, total_fare FROM orders WHERE batch_id = $1",
+            [batchId]
+        );
+
+        res.status(200).json({
+            success: true,
+            data: {
+                ...batch,
+                orders: orders.rows
+            }
+        });
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
   registerMerchant,
   createBulkOrders,
-  getBatches
+  getBatches,
+  getBatchStatus
 };

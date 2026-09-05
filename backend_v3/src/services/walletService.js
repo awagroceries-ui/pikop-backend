@@ -86,6 +86,18 @@ const processMissionSettlement = async (orderId) => {
 
     await client.query('COMMIT');
     console.log(`[Wallet] Settled Mission #${order.id}: Fulfiller +${fulfillerShare}, Platform +${platformShare}`);
+
+    // 6. Trigger Growth Logic (Non-blocking but awaited before release)
+    try {
+        await awardLoyaltyPoints(client, order.user_id, settlableAmount);
+
+        const orderCountRes = await client.query("SELECT COUNT(*) FROM orders WHERE user_id = $1 AND status IN ('DELIVERED', 'RELEASED')", [order.user_id]);
+        if (parseInt(orderCountRes.rows[0].count) === 1) {
+            await processReferralReward(client, order.user_id);
+        }
+    } catch (gErr) {
+        console.error('[Growth] Trigger Error:', gErr.message);
+    }
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('[Wallet] Settlement Failed:', error.message);
@@ -233,11 +245,83 @@ const refundEscrow = async (orderId) => {
     }
 };
 
+/**
+ * Awards referral rewards to both referrer and referred user.
+ */
+const processReferralReward = async (client, userId) => {
+    try {
+        // 1. Check if user was referred and hasn't been rewarded yet
+        const { rows } = await client.query(
+            "SELECT referred_by_user_id FROM users WHERE id = $1 AND email_verified_at IS NOT NULL",
+            [userId]
+        );
+
+        const referrerId = rows[0]?.referred_by_user_id;
+        if (!referrerId) return;
+
+        // 2. Check if already rewarded (idempotency)
+        const check = await client.query(
+            "SELECT id FROM referrals WHERE referred_id = $1 AND status = 'completed'",
+            [userId]
+        );
+        if (check.rows.length > 0) return;
+
+        const REWARD_AMOUNT = 250;
+
+        // 3. Reward Referrer
+        const referrerWalletId = await ensureWalletExists(client, 'USER', referrerId);
+        await recordEntry(
+            client, referrerWalletId, 'CREDIT', REWARD_AMOUNT,
+            'REFERRAL_BONUS', `Bonus for referring user #${userId}`,
+            null, 'available'
+        );
+
+        // 4. Reward Referred User
+        const userWalletId = await ensureWalletExists(client, 'USER', userId);
+        await recordEntry(
+            client, userWalletId, 'CREDIT', REWARD_AMOUNT,
+            'REFERRAL_WELCOME', `Welcome bonus for using referral code`,
+            null, 'available'
+        );
+
+        // 5. Mark referral as completed
+        await client.query(
+            "INSERT INTO referrals (referrer_id, referred_id, status, rewarded_at) VALUES ($1, $2, 'completed', CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING",
+            [referrerId, userId]
+        );
+
+        console.log(`[Growth] Referral rewards processed for User #${userId} (Referrer: #${referrerId})`);
+    } catch (error) {
+        console.error('[Growth] Referral Error:', error.message);
+    }
+};
+
+/**
+ * Awards loyalty points based on spent amount.
+ */
+const awardLoyaltyPoints = async (client, userId, amount) => {
+    try {
+        const points = Math.floor(parseFloat(amount) / 100);
+        if (points <= 0) return;
+
+        await client.query(
+            "INSERT INTO loyalty_ledger (user_id, points, entry_type, description) VALUES ($1, $2, 'EARN', $3)",
+            [userId, points, `Earned from mission spending`]
+        );
+
+        console.log(`[Growth] Awarded ${points} loyalty points to User #${userId}`);
+    } catch (error) {
+        console.error('[Growth] Loyalty Error:', error.message);
+    }
+};
+
 module.exports = {
   ensureWalletExists,
   recordEntry,
   processMissionSettlement,
   processCoDRemittance,
   releaseEscrow,
-  refundEscrow
+  refundEscrow,
+  processReferralReward,
+  awardLoyaltyPoints
 };

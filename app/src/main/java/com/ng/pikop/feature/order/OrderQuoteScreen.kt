@@ -413,6 +413,19 @@ fun OrderQuoteScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Platform fee (₦${result.platform_fee_amount}) will be deducted from Seller's payout.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                         }
+
+                        if (isSecurePay && result.payer_info?.type == "GUEST") {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
+                            ) {
+                                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Recipient is not a Pikop user. They will receive an SMS link to pay.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -440,7 +453,8 @@ fun OrderQuoteScreen(
                                         delivery_lat = deliveryLatLng?.latitude ?: 0.0, 
                                         delivery_lng = deliveryLatLng?.longitude ?: 0.0,
                                         item_price = if (isSecurePay) itemPrice.toDoubleOrNull() ?: 0.0 else 0.0,
-                                        initiator_role = if (isSecurePay) initiatorRole else "PAYER"
+                                        initiator_role = if (isSecurePay) initiatorRole else "PAYER",
+                                        recipient_phone = if (isSecurePay) recipientPhone else null
                                     )
                                 )
                                 if (response.success && response.quote_id != null) {

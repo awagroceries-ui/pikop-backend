@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const authService = require('../services/authService');
 const emailService = require('../services/emailService');
+const { normalizePhone } = require('../utils/phone');
 const crypto = require('crypto');
 
 /**
@@ -9,6 +10,7 @@ const crypto = require('crypto');
 const signup = async (req, res) => {
   const { full_name, email, phone, password, role, referral_code } = req.body;
   const userRole = (role || 'CUSTOMER').toUpperCase();
+  const normalizedPhone = normalizePhone(phone);
 
   const client = await db.pool.connect();
   try {
@@ -24,7 +26,7 @@ const signup = async (req, res) => {
     const userRes = await client.query(
       `INSERT INTO users (full_name, email, phone, password_hash, role, referral_code)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, role`,
-      [full_name, email, phone, passwordHash, userRole, userReferralCode]
+      [full_name, email, normalizedPhone, passwordHash, userRole, userReferralCode]
     );
     const user = userRes.rows[0];
 

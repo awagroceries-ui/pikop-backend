@@ -2,7 +2,9 @@ const db = require('../config/db');
 const geminiService = require('../services/geminiService');
 const walletService = require('../services/walletService');
 const emailService = require('../services/emailService');
+const fcmService = require('../services/fcmService');
 const PlatformConfig = require('../config/platform');
+const { normalizePhone } = require('../utils/phone');
 
 /**
  * Generates a dynamic, distance-based quote.
@@ -11,7 +13,7 @@ const getQuote = async (req, res) => {
   const {
     pickup_address, delivery_address, item_description,
     pickup_lat, pickup_lng, delivery_lat, delivery_lng,
-    item_price = 0, initiator_role = 'PAYER'
+    item_price = 0, initiator_role = 'PAYER', recipient_phone
   } = req.body;
   const userId = req.user?.id;
 
@@ -58,7 +60,19 @@ const getQuote = async (req, res) => {
   // total_payable for checkout: item + delivery + (fee if payer is paying)
   const total_payable = parseFloat(item_price) + delivery_fee + (fee_payer === 'PAYER' ? platform_fee_amount : 0);
 
-  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Deliv: ${delivery_fee} | Fee: ${platform_fee_amount} (${fee_payer}) | Total: ${total_payable}`);
+  // 4.1 Reliable Account Lookup (In-App vs Guest)
+  let payer_type = 'GUEST';
+  let payer_id = null;
+  if (recipient_phone) {
+      const normalized = normalizePhone(recipient_phone);
+      const userMatch = await db.query("SELECT id FROM users WHERE phone = $1", [normalized]);
+      if (userMatch.rows.length > 0) {
+          payer_type = 'APP_USER';
+          payer_id = userMatch.rows[0].id;
+      }
+  }
+
+  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Total: ${total_payable} | Payer: ${payer_type}`);
 
   // 5. Save Quote
   const quoteRes = await db.query(
@@ -77,7 +91,11 @@ const getQuote = async (req, res) => {
     delivery_fee,
     platform_fee_amount,
     fee_payer,
-    total_fare: total_payable, // Consolidated total
+    total_fare: total_payable,
+    payer_info: {
+        type: payer_type,
+        user_id: payer_id
+    },
     expires_at: quoteRes.rows[0].expires_at
   });
 };
@@ -616,6 +634,9 @@ const verifyDelivery = async (req, res) => {
                 "UPDATE orders SET grace_period_expires_at = CURRENT_TIMESTAMP + interval '$1 hours' WHERE id = $2",
                 [graceHours, id]
             );
+
+            // Notify Buyer to Confirm (FCM)
+            fcmService.sendSecurePayReminder(order.user_id, id).catch(e => {});
         }
 
         // Trigger Settlement for Delivery Fee portion
