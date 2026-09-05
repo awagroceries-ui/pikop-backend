@@ -145,6 +145,8 @@ fun KycUploadScreen(
             if (2 > currentStep) currentStep = 2
         } else if (res.primary_class?.lowercase() == "driver" && res.registration_number == null) {
             if (3 > currentStep) currentStep = 3
+        } else if (res.account_number == null) {
+            if (4 > currentStep) currentStep = 4
         } else {
             currentStep = 5
         }
@@ -196,7 +198,8 @@ fun KycUploadScreen(
                     },
                     onRefresh = { viewModel.refreshProfile() }
                 )
-                3 -> VehicleStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 5 })
+                3 -> VehicleStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 4 })
+                4 -> BankStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 5 })
                 5 -> SubmissionStep(
                     isLoading = isLoading,
                     status = profile?.kyc_status ?: "NOT_SUBMITTED",
@@ -241,8 +244,8 @@ fun KycUploadScreen(
                                     }
                                     2 -> {
                                         if (profile?.kyc_verification_status == "approved") {
-                                            if (profile?.primary_class?.lowercase() == "agent") currentStep = 5
-                                            else currentStep = 3
+                                            if (profile?.primary_class?.lowercase() == "driver") currentStep = 3
+                                            else currentStep = 4
                                         } else {
                                             viewModel.refreshProfile()
                                         }
@@ -327,6 +330,157 @@ fun IdentityStep(status: String, role: String, isLaunching: Boolean, onVerifyCli
                 }
                 IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, null) }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BankStep(tokenManager: TokenManager, onComplete: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val api = remember { ApiService.create(tokenManager) }
+    
+    var banks by remember { mutableStateOf<List<Bank>>(emptyList()) }
+    var selectedBank by remember { mutableStateOf<Bank?>(null) }
+    var accountNumber by remember { mutableStateOf("") }
+    var accountName by remember { mutableStateOf("") }
+    
+    var isVerifying by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
+    var isBankListLoading by remember { mutableStateOf(true) }
+    var expanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val response = api.getBanks()
+            banks = response.data
+        } catch (e: Exception) {
+            Toast.makeText(context, "Failed to load banks", Toast.LENGTH_SHORT).show()
+        } finally {
+            isBankListLoading = false
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Payout Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Where should we send your earnings?", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+
+        if (isBankListLoading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        } else {
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = selectedBank?.name ?: "Select Bank",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Bank Name") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable, true),
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    banks.forEach { bank ->
+                        DropdownMenuItem(
+                            text = { Text(bank.name) },
+                            onClick = {
+                                selectedBank = bank
+                                expanded = false
+                                accountName = "" // Reset verified name
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = accountNumber,
+            onValueChange = { 
+                if (it.length <= 10 && it.all { c -> c.isDigit() }) {
+                    accountNumber = it
+                    accountName = "" // Reset verified name
+                }
+            },
+            label = { Text("Account Number") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+        )
+
+        if (accountName.isNotBlank()) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Verified, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("Verified Name", style = MaterialTheme.typography.labelSmall)
+                        Text(accountName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        if (accountNumber.length == 10 && selectedBank != null && accountName.isBlank()) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        isVerifying = true
+                        try {
+                            val res = api.resolveAccount(mapOf(
+                                "account_number" to accountNumber,
+                                "bank_code" to selectedBank!!.code
+                            ))
+                            if (res.status && res.data != null) {
+                                accountName = res.data.account_name
+                            } else {
+                                Toast.makeText(context, "Could not verify account", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Verification failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        } finally { isVerifying = false }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isVerifying
+            ) {
+                if (isVerifying) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                else Text("Verify Account")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                scope.launch {
+                    isSaving = true
+                    try {
+                        api.updateFulfillerProfile(ProfileUpdateRequest(
+                            bank_name = selectedBank?.name,
+                            account_number = accountNumber,
+                            bank_code = selectedBank?.code,
+                            account_name = accountName
+                        ))
+                        onComplete()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Save failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    } finally { isSaving = false }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            enabled = !isSaving && accountName.isNotBlank()
+        ) {
+            if (isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+            else Text("SAVE & CONTINUE")
         }
     }
 }

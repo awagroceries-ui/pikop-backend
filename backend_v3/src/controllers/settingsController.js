@@ -7,7 +7,8 @@ const getProfile = async (req, res) => {
     const userId = req.user.id;
     try {
         const { rows } = await db.query(
-            `SELECT u.id, u.full_name, u.email, u.phone, u.role, u.profile_photo_url, u.created_at, f.kyc_status
+            `SELECT u.id, u.full_name, u.email, u.phone, u.role, u.profile_photo_url, u.created_at,
+                    f.kyc_status, f.bank_name, f.account_number, f.bank_code, f.account_name
              FROM users u
              LEFT JOIN fulfillers f ON f.user_id = u.id
              WHERE u.id = $1`,

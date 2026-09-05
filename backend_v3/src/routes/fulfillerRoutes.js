@@ -35,4 +35,7 @@ router.get('/orders', authenticateToken, fulfillerController.getFulfillerOrders)
 router.get('/offers', authenticateToken, fulfillerController.getAvailableOffers);
 router.post('/submit-application', authenticateToken, fulfillerController.submitApplication);
 
+router.get('/banks', authenticateToken, fulfillerController.getBanks);
+router.post('/resolve-account', authenticateToken, fulfillerController.resolveAccount);
+
 module.exports = router;

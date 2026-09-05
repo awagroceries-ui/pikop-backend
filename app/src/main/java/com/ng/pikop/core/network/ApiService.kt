@@ -156,6 +156,10 @@ data class FulfillerProfileResponse(
     val model: String? = null,
     val color: String? = null,
     val rating_avg: Double? = null,
+    val bank_name: String? = null,
+    val account_number: String? = null,
+    val bank_code: String? = null,
+    val account_name: String? = null,
     @SerializedName("data") val data: FulfillerProfileResponse? = null
 )
 
@@ -186,14 +190,22 @@ data class ProfileUpdateRequest(
     val phone: String? = null,
     val mobility_type: String? = null,
     val primary_class: String? = null,
-    val vehicle_details: VehicleDetails? = null
+    val vehicle_details: VehicleDetails? = null,
+    val bank_name: String? = null,
+    val account_number: String? = null,
+    val bank_code: String? = null,
+    val account_name: String? = null
 )
 
 data class UserProfileResponse(
     val full_name: String? = null,
     val email: String? = null,
     val phone: String? = null,
-    val kyc_status: String? = null
+    val kyc_status: String? = null,
+    val bank_name: String? = null,
+    val account_number: String? = null,
+    val bank_code: String? = null,
+    val account_name: String? = null
 )
 
 data class FulfillerStatusRequest(
@@ -379,6 +391,30 @@ data class CorporateStaff(
     val created_at: String? = null
 )
 
+data class Bank(
+    val name: String,
+    val code: String,
+    val slug: String? = null
+)
+
+data class BankResponse(
+    val status: Boolean,
+    val message: String? = null,
+    val data: List<Bank>
+)
+
+data class AccountResolutionResponse(
+    val status: Boolean,
+    val message: String? = null,
+    val data: AccountDetails? = null
+)
+
+data class AccountDetails(
+    val account_number: String,
+    val account_name: String,
+    val bank_id: Int? = null
+)
+
 data class PromoValidationResponse(
     val promo_id: String? = null,
     val discount_type: String? = null, // flat, percentage
@@ -462,6 +498,12 @@ interface ApiService {
 
     @GET("api/v1/fulfillers/offers")
     suspend fun getOffers(): List<OfferResponse>
+
+    @GET("api/v1/fulfillers/banks")
+    suspend fun getBanks(): BankResponse
+
+    @POST("api/v1/fulfillers/resolve-account")
+    suspend fun resolveAccount(@Body request: Map<String, String>): AccountResolutionResponse
 
     @GET("api/v1/fulfillers/orders")
     suspend fun getFulfillerOrders(): List<FulfillerOrderResponse>

@@ -33,6 +33,7 @@
                             <td>
                                 <div class="small fw-bold"><%= w.bank_name %></div>
                                 <div class="mono smaller"><%= w.account_number %></div>
+                                <div class="smaller text-muted"><%= w.account_name %></div>
                                 <% if (w.paystack_recipient_code) { %>
                                     <span class="badge bg-light text-muted border" style="font-size: 8px;">VERIFIED: <%= w.paystack_recipient_code %></span>
                                 <% } %>

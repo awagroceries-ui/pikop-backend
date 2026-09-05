@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const diditService = require('../services/diditService');
 const kycService = require('../services/kycService');
+const paystackService = require('../services/paystackService');
 
 const axios = require('axios');
 
@@ -103,7 +104,11 @@ const startIdentityVerification = async (req, res) => {
  */
 const updateFulfillerProfile = async (req, res) => {
     const userId = req.user.id;
-    const { primary_class, mobility_type, vehicle_details, full_name, phone } = req.body;
+    const {
+        primary_class, mobility_type, vehicle_details,
+        full_name, phone,
+        bank_name, account_number, bank_code, account_name
+    } = req.body;
 
     const client = await db.pool.connect();
     try {
@@ -125,8 +130,12 @@ const updateFulfillerProfile = async (req, res) => {
                  registration_number = COALESCE($3, registration_number),
                  make = COALESCE($4, make),
                  model = COALESCE($5, model),
-                 color = COALESCE($6, color)
-             WHERE user_id = $7
+                 color = COALESCE($6, color),
+                 bank_name = COALESCE($7, bank_name),
+                 account_number = COALESCE($8, account_number),
+                 bank_code = COALESCE($9, bank_code),
+                 account_name = COALESCE($10, account_name)
+             WHERE user_id = $11
              RETURNING id`,
             [
                 primary_class,
@@ -135,6 +144,10 @@ const updateFulfillerProfile = async (req, res) => {
                 vehicle_details?.make,
                 vehicle_details?.model,
                 vehicle_details?.color,
+                bank_name,
+                account_number,
+                bank_code,
+                account_name,
                 userId
             ]
         );
@@ -416,6 +429,31 @@ const submitApplication = async (req, res) => {
     }
 };
 
+/**
+ * Returns a list of Nigerian banks.
+ */
+const getBanks = async (req, res) => {
+    try {
+        const banks = await paystackService.getBanks();
+        res.status(200).json(banks);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Resolves account number.
+ */
+const resolveAccount = async (req, res) => {
+    const { account_number, bank_code } = req.body;
+    try {
+        const result = await paystackService.resolveAccount(account_number, bank_code);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   startIdentityVerification,
   updateFulfillerProfile,
@@ -427,5 +465,7 @@ module.exports = {
   getFulfillerOrders,
   uploadProfilePhoto,
   getAvailableOffers,
-  submitApplication
+  submitApplication,
+  getBanks,
+  resolveAccount
 };

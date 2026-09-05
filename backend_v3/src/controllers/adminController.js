@@ -519,7 +519,10 @@ const approveWithdrawal = async (req, res) => {
 
         // 1. Lock withdrawal record
         const { rows } = await client.query(
-            "SELECT w.*, f.full_name, f.account_number, f.bank_code, f.paystack_recipient_code FROM withdrawals w JOIN fulfillers f ON f.id = w.fulfiller_id WHERE w.id = $1 FOR UPDATE",
+            `SELECT w.*, f.full_name, f.account_number, f.bank_code, f.paystack_recipient_code, f.account_name
+             FROM withdrawals w
+             JOIN fulfillers f ON f.id = w.fulfiller_id
+             WHERE w.id = $1 FOR UPDATE`,
             [id]
         );
 
@@ -533,7 +536,9 @@ const approveWithdrawal = async (req, res) => {
         if (!recipientCode) {
             if (!w.account_number || !w.bank_code) throw new Error('Fulfiller bank details missing');
 
-            const recipientRes = await paystackService.createTransferRecipient(w.full_name, w.account_number, w.bank_code);
+            // Use Account Name from DB if available, fallback to full_name
+            const recipientName = w.account_name || w.full_name;
+            const recipientRes = await paystackService.createTransferRecipient(recipientName, w.account_number, w.bank_code);
             recipientCode = recipientRes.data.recipient_code;
 
             await client.query("UPDATE fulfillers SET paystack_recipient_code = $1 WHERE id = $2", [recipientCode, w.fulfiller_id]);
