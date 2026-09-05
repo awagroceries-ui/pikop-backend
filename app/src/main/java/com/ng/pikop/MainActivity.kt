@@ -205,6 +205,15 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 }
                 return@LaunchedEffect
             }
+
+            if (dataUri.host == "wallet" && dataUri.path == "/topup/success") {
+                android.util.Log.d("PikopIntent", "Wallet top-up success deep-link detected.")
+                android.widget.Toast.makeText(context, "Wallet Top-up Successful!", android.widget.Toast.LENGTH_LONG).show()
+                navController.navigate("main") {
+                    popUpTo(0) { inclusive = true }
+                }
+                return@LaunchedEffect
+            }
         }
         
         if (accessToken != null && navigateTo != null) {

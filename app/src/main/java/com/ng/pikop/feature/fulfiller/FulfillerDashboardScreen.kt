@@ -41,6 +41,7 @@ fun FulfillerDashboardScreen(
     var offers by remember { mutableStateOf<List<OfferResponse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf<List<FulfillerOrderResponse>>(emptyList()) }
+    var walletBalance by remember { mutableStateOf(0.0) }
     var kycStatus by remember { mutableStateOf("PENDING") }
     
     val context = LocalContext.current
@@ -57,6 +58,9 @@ fun FulfillerDashboardScreen(
             kycStatus = profile.kyc_status ?: "PENDING"
             isOnline = profile.online_status == "ONLINE"
             history = apiService.getFulfillerOrders()
+
+            val wallet = apiService.getWalletInfo()
+            walletBalance = wallet.balance ?: 0.0
         } catch (e: Exception) {}
     }
 
@@ -145,7 +149,6 @@ fun FulfillerDashboardScreen(
                     }
                 }
 
-                // Earnings Card
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     onClick = onGoToWallet,
@@ -153,9 +156,8 @@ fun FulfillerDashboardScreen(
                 ) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Total Earnings", style = MaterialTheme.typography.labelSmall)
-                            val total = history.sumOf { it.earnings ?: 0.0 }
-                            Text("₦${"%,.2f".format(total)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text("Withdrawable Balance", style = MaterialTheme.typography.labelSmall)
+                            Text("₦${"%,.2f".format(walletBalance)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         }
                         Row {
                             TextButton(onClick = onGoToInsights) {
@@ -167,7 +169,7 @@ fun FulfillerDashboardScreen(
                         }
                     }
                 }
-
+                
                 // Online/Offline Toggle
                 Card(
                     modifier = Modifier.fillMaxWidth(),
