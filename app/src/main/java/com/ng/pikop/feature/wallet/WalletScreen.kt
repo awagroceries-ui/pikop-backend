@@ -1,5 +1,7 @@
 package com.ng.pikop.feature.wallet
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -35,6 +37,7 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
     var transactions by remember { mutableStateOf<List<WalletTransaction>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var showWithdrawDialog by remember { mutableStateOf(false) }
+    var showTopupDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -95,12 +98,23 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
                                 }
                             }
 
-                            if (isFulfiller && balance > 0) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(onClick = { showWithdrawDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
-                                    Icon(Icons.Default.AccountBalanceWallet, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Request Payout")
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = { showTopupDialog = true },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                ) {
+                                    Text("Top up")
+                                }
+                                if (isFulfiller && balance > 0) {
+                                    Button(
+                                        onClick = { showWithdrawDialog = true },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                    ) {
+                                        Text("Payout")
+                                    }
                                 }
                             }
                         }
@@ -120,6 +134,52 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
     if (showWithdrawDialog) {
         WithdrawalDialog(onDismiss = { showWithdrawDialog = false }, onConfirm = { amount, type -> scope.launch { try { apiService.requestWithdrawal(WithdrawalRequest(amount, type)); showWithdrawDialog = false; fetchWallet() } catch (e: Exception) {} } }, maxAmount = balance)
     }
+
+    if (showTopupDialog) {
+        TopupDialog(
+            onDismiss = { showTopupDialog = false },
+            onConfirm = { amount ->
+                scope.launch {
+                    try {
+                        val response = apiService.initializeTopup(mapOf("amount" to amount))
+                        response.authorization_url?.let { url ->
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            context.startActivity(intent)
+                        }
+                        showTopupDialog = false
+                    } catch (e: Exception) {}
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun TopupDialog(onDismiss: () -> Unit, onConfirm: (Double) -> Unit) {
+    var amount by remember { mutableStateOf("1000") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Top up Wallet") },
+        text = {
+            Column {
+                Text("Enter amount to add to your balance via Paystack.", style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { if (it.all { c -> c.isDigit() }) amount = it },
+                    label = { Text("Amount (₦)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(amount.toDoubleOrNull() ?: 0.0) }) { Text("Proceed to Pay") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

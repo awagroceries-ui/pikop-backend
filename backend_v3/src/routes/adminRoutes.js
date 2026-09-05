@@ -65,6 +65,10 @@ router.get('/support/:id', adminController.getConversationDetails);
 router.get('/disputes', adminController.getDisputes);
 router.post('/disputes/:id/resolve', adminController.resolveDispute);
 
+// Withdrawals
+router.get('/withdrawals', adminController.getWithdrawals);
+router.post('/withdrawals/:id/approve', adminController.approveWithdrawal);
+
 // Settings
 router.get('/settings', hasRole(['super_admin']), adminController.getSettings);
 router.post('/settings', hasRole(['super_admin']), adminController.updateSettings);

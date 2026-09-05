@@ -568,6 +568,9 @@ interface ApiService {
     @GET("api/v1/wallets/me")
     suspend fun getWalletInfo(): WalletResponse
 
+    @POST("api/v1/wallets/topup")
+    suspend fun initializeTopup(@Body request: Map<String, Double>): PaymentInitializationResponse
+
     @POST("api/v1/withdrawals")
     suspend fun requestWithdrawal(@Body request: WithdrawalRequest): AuthResponse
 

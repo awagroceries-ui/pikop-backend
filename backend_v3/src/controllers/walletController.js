@@ -1,6 +1,10 @@
 const db = require('../config/db');
 const walletService = require('../services/walletService');
 
+const paystackService = require('../services/paystackService');
+const axios = require('axios');
+const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
+
 /**
  * Fetches user wallet balance and history.
  */
@@ -98,7 +102,42 @@ const requestWithdrawal = async (req, res) => {
     }
 };
 
+/**
+ * Initializes a Paystack transaction for Wallet Top-up.
+ */
+const initializeTopup = async (req, res) => {
+    const { amount } = req.body;
+    const userId = req.user.id;
+    const email = req.user.email;
+
+    try {
+        const koboAmount = Math.round(parseFloat(amount) * 100);
+        if (koboAmount < 100) return res.status(400).json({ success: false, message: 'Minimum top-up is ₦1.00' });
+
+        const payload = {
+            amount: koboAmount,
+            email,
+            currency: 'NGN',
+            callback_url: 'pikop://wallet/topup/success',
+            metadata: {
+                user_id: userId,
+                type: 'TOPUP'
+            }
+        };
+
+        const response = await axios.post('https://api.paystack.co/transaction/initialize', payload, {
+            headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` }
+        });
+
+        res.status(200).json(response.data.data);
+    } catch (error) {
+        console.error('[Wallet] Top-up Init Error:', error.message);
+        res.status(400).json({ success: false, message: 'Failed to initialize top-up' });
+    }
+};
+
 module.exports = {
   getMyWallet,
-  requestWithdrawal
+  requestWithdrawal,
+  initializeTopup
 };

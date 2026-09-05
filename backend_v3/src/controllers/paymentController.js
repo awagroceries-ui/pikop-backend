@@ -152,6 +152,49 @@ const handleWebhook = async (req, res) => {
   const event = req.body;
   console.log(`[Webhook] Event: ${event.event} | Ref: ${event.data?.reference}`);
 
+  // --- TRANSFER EVENTS (Automated Payouts) ---
+  if (event.event === 'transfer.success') {
+      const { transfer_code } = event.data;
+      await db.query(
+          "UPDATE withdrawals SET status = 'SUCCESSFUL', processed_at = CURRENT_TIMESTAMP WHERE paystack_transfer_code = $1",
+          [transfer_code]
+      );
+      console.log(`[Webhook] Transfer SUCCESS for code: ${transfer_code}`);
+      return res.sendStatus(200);
+  }
+
+  if (event.event === 'transfer.failed' || event.event === 'transfer.reversed') {
+      const { transfer_code } = event.data;
+      const client = await db.pool.connect();
+      try {
+          await client.query('BEGIN');
+
+          // 1. Mark Withdrawal as FAILED/REVERSED
+          const wRes = await client.query(
+              "UPDATE withdrawals SET status = 'REVERSED', processed_at = CURRENT_TIMESTAMP WHERE paystack_transfer_code = $1 RETURNING wallet_id, amount",
+              [transfer_code]
+          );
+
+          if (wRes.rows.length > 0) {
+              const { wallet_id, amount: wAmount } = wRes.rows[0];
+              // 2. Re-credit the Fulfiller's wallet
+              await walletService.recordEntry(
+                  client, wallet_id, 'CREDIT', wAmount,
+                  'WITHDRAWAL_REVERSAL', `Payout failed/reversed: ${transfer_code}`
+              );
+          }
+
+          await client.query('COMMIT');
+          console.log(`[Webhook] Transfer FAILED/REVERSED. Funds returned to wallet for code: ${transfer_code}`);
+      } catch (e) {
+          await client.query('ROLLBACK');
+          console.error('[Webhook] Transfer Reversal Error:', e.message);
+      } finally {
+          client.release();
+      }
+      return res.sendStatus(200);
+  }
+
   if (event.event === 'charge.success') {
     const { reference, metadata, channel } = event.data;
 
@@ -185,6 +228,33 @@ const handleWebhook = async (req, res) => {
         } catch (e) {
             console.error('[Webhook] CoD Update Error:', e.message);
             return res.sendStatus(500);
+        }
+    }
+
+    // Handle Wallet Top-up Webhook
+    if (metadata.type === 'TOPUP') {
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const walletId = await walletService.ensureWalletExists(client, 'USER', metadata.user_id);
+            const amount = event.data.amount / 100; // Convert Kobo to Naira
+
+            await walletService.recordEntry(
+                client, walletId, 'CREDIT', amount,
+                'WALLET_TOPUP', `Top-up via ${channel}`,
+                null, 'available', { reference }
+            );
+
+            await client.query('COMMIT');
+            console.log(`[Webhook] Wallet TOPUP SUCCESS for User ${metadata.user_id}: ₦${amount}`);
+            return res.sendStatus(200);
+        } catch (e) {
+            await client.query('ROLLBACK');
+            console.error('[Webhook] Top-up Error:', e.message);
+            return res.sendStatus(500);
+        } finally {
+            client.release();
         }
     }
 

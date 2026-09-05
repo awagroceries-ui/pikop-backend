@@ -2,6 +2,9 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const emailService = require('../services/emailService');
 
+const walletService = require('../services/walletService');
+const paystackService = require('../services/paystackService');
+
 /**
  * Handles admin login.
  */
@@ -485,6 +488,85 @@ const resolveDispute = async (req, res) => {
     }
 };
 
+/**
+ * Lists all pending withdrawals.
+ */
+const getWithdrawals = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT w.*, f.full_name as fulfiller_name, f.bank_name, f.account_number, f.paystack_recipient_code
+            FROM withdrawals w
+            JOIN fulfillers f ON f.id = w.fulfiller_id
+            WHERE w.status = 'PENDING'
+            ORDER BY w.requested_at DESC
+        `);
+        res.render('withdrawals', { withdrawals: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Approves a withdrawal and initiates Paystack Transfer.
+ */
+const approveWithdrawal = async (req, res) => {
+    const { id } = req.params;
+    const adminId = req.session.adminId;
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Lock withdrawal record
+        const { rows } = await client.query(
+            "SELECT w.*, f.full_name, f.account_number, f.bank_code, f.paystack_recipient_code FROM withdrawals w JOIN fulfillers f ON f.id = w.fulfiller_id WHERE w.id = $1 FOR UPDATE",
+            [id]
+        );
+
+        if (rows.length === 0) throw new Error('Withdrawal not found');
+        const w = rows[0];
+
+        if (w.status !== 'PENDING') throw new Error('Withdrawal already processed');
+
+        // 2. Ensure Paystack Recipient exists
+        let recipientCode = w.paystack_recipient_code;
+        if (!recipientCode) {
+            if (!w.account_number || !w.bank_code) throw new Error('Fulfiller bank details missing');
+
+            const recipientRes = await paystackService.createTransferRecipient(w.full_name, w.account_number, w.bank_code);
+            recipientCode = recipientRes.data.recipient_code;
+
+            await client.query("UPDATE fulfillers SET paystack_recipient_code = $1 WHERE id = $2", [recipientCode, w.fulfiller_id]);
+        }
+
+        // 3. Initiate Transfer
+        const transferRef = `WDL_${id}_${Date.now()}`;
+        const transferRes = await paystackService.initiateTransfer(w.amount, recipientCode, transferRef);
+
+        // 4. Update Status to PROCESSING
+        await client.query(
+            "UPDATE withdrawals SET status = 'PROCESSING', paystack_transfer_code = $1 WHERE id = $2",
+            [transferRes.data.transfer_code, id]
+        );
+
+        // Audit Log
+        await client.query(
+            "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+            [adminId, 'APPROVE_WITHDRAWAL', 'withdrawal', id, JSON.stringify({ transfer_code: transferRes.data.transfer_code })]
+        );
+
+        await client.query('COMMIT');
+        res.redirect('/admin/withdrawals');
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[Admin] Withdrawal Approval Failed:', error.message);
+        res.status(500).send(`Approval Error: ${error.message}`);
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -509,5 +591,7 @@ module.exports = {
   createCoupon,
   deleteCoupon,
   getDisputes,
-  resolveDispute
+  resolveDispute,
+  getWithdrawals,
+  approveWithdrawal
 };
