@@ -439,23 +439,33 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                                 val uploadRes = apiService.uploadOrderPhoto(body)
                                                 val photoUrl = uploadRes["url"] ?: ""
 
-                                                apiService.verifyDelivery(
-                                                    orderId, 
-                                                    VerifyCodeRequest(
-                                                        code = deliveryCode, 
-                                                        delivery_photo_url = photoUrl,
-                                                        lat = location?.latitude,
-                                                        lng = location?.longitude,
-                                                        device_timestamp = System.currentTimeMillis()
+                                                try {
+                                                    apiService.verifyDelivery(
+                                                        orderId, 
+                                                        VerifyCodeRequest(
+                                                            code = deliveryCode, 
+                                                            delivery_photo_url = photoUrl,
+                                                            lat = location?.latitude,
+                                                            lng = location?.longitude,
+                                                            device_timestamp = System.currentTimeMillis()
+                                                        )
                                                     )
-                                                )
+                                                } catch (e: Throwable) {
+                                                    // Robust Fallback: Check if backend already marked as delivered (avoids 500/timeout confusion)
+                                                    val checkRes = apiService.getOrderDetails(orderId)
+                                                    if (checkRes.status?.uppercase() != "DELIVERED") {
+                                                        throw e
+                                                    }
+                                                }
+                                                
                                                 orderStatus = "DELIVERED"
                                                 showRatingDialog = true
                                             } else {
                                                 Toast.makeText(context, "Please capture a proof photo first.", Toast.LENGTH_SHORT).show()
                                             }
                                         } catch (e: Throwable) {
-                                            Toast.makeText(context, "Process Failure: ${e.localizedMessage ?: "Unknown error"}", Toast.LENGTH_SHORT).show()
+                                            android.util.Log.e("ActiveOrder", "Complete Mission Failed", e)
+                                            Toast.makeText(context, "Process Failure: ${e.localizedMessage ?: "Check connection"}", Toast.LENGTH_SHORT).show()
                                         } finally {
                                             isLoading = false
                                         }

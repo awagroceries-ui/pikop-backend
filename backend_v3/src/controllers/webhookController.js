@@ -29,11 +29,12 @@ const handlePremblyWebhook = async (req, res) => {
         // 4. Update Database Idempotently
         await db.query(
             `UPDATE fulfillers
-             SET kyc_verification_status = $1,
+             SET didit_verification_status = $1,
                  kyc_verified_at = CURRENT_TIMESTAMP,
-                 kyc_provider_ref = $2
-             WHERE user_id = $3`,
-            [verifiedStatus, payload.reference || 'prembly_webhook', userId]
+                 kyc_provider_ref = $2,
+                 kyc_details = $3
+             WHERE user_id = $4`,
+            [verifiedStatus, payload.reference || 'prembly_webhook', JSON.stringify(payload), userId]
         );
 
         // 5. Notify Socket (if active)

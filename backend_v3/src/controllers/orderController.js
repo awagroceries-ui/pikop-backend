@@ -200,7 +200,13 @@ const updateStatus = async (req, res) => {
 
     // 2. Trigger Settlement on Delivery (v3)
     if (status === 'DELIVERED') {
-        await walletService.processMissionSettlement(orderId);
+        try {
+            await walletService.processMissionSettlement(orderId);
+        } catch (e) {
+            console.error('[UpdateStatus] Settlement Error:', e.message);
+            // We don't throw here to ensure the status update succeeds even if settlement has issues
+        }
+
         try {
             const { rows: oUser } = await db.query(
                 "SELECT u.email, u.full_name, o.total_fare FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id = $1",
