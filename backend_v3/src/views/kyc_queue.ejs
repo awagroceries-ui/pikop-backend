@@ -50,6 +50,9 @@
                             </td>
                             <td class="text-center">
                                 <span class="text-black fw-bold small"><%= f.kyc_status %></span>
+                                <% if (f.kyc_details) { %>
+                                    <div class="mt-1"><span class="badge bg-info text-white" style="font-size: 8px;">REPORT ATTACHED</span></div>
+                                <% } %>
                             </td>
                             <td class="text-end">
                                 <a href="/admin/kyc/<%= f.id %>" class="btn-pikop-primary py-1 px-3" style="font-size: 11px; text-decoration: none;">REVIEW</a>

@@ -41,6 +41,7 @@ const startIdentityVerification = async (req, res) => {
             first_name: firstName,
             last_name: lastName,
             email: user.email,
+            customer_reference: `pikop_kyc_${userId}`,
             widget_id: process.env.PREMBLY_CONFIG_ID || '2183d331-33bd-4568-a67f-c21ffab5e274',
             widget_key: process.env.PREMBLY_WIDGET_ID || 'wdgt_02c17a8d92e54c659279db8cdf5839a2'
         };
@@ -61,6 +62,12 @@ const startIdentityVerification = async (req, res) => {
             if (response.data.status) {
                 const sessionId = response.data.data.session.session_id;
                 const verificationUrl = `https://sdk-live.prembly.com/?session=${sessionId}`;
+
+                // Store session for tracking (idempotent)
+                await db.query(
+                    "UPDATE fulfillers SET didit_session_id = $1, didit_verification_status = 'pending' WHERE user_id = $2",
+                    [sessionId, userId]
+                );
 
                 return res.status(200).json({
                     success: true,

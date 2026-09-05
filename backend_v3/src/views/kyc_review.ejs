@@ -16,7 +16,7 @@
                 <div class="col-md-4">
                     <label class="text-muted smaller fw-bold uppercase d-block">Verification Status</label>
                     <span class="badge <%= f.didit_verification_status === 'approved' ? 'bg-success' : 'bg-warning' %>">
-                        <%= f.didit_verification_status.toUpperCase() %>
+                        <%= (f.didit_verification_status || 'PENDING').toUpperCase() %>
                     </span>
                 </div>
                 <div class="col-md-4 text-end">
@@ -29,6 +29,37 @@
                     <% } %>
                 </div>
             </div>
+
+            <% if (f.kyc_details) { %>
+                <div class="mt-4 p-3 border rounded bg-light">
+                    <h6 class="smaller fw-bold text-muted uppercase mb-2">Automated Verification Report</h6>
+                    <div class="row g-2">
+                        <% if (typeof f.kyc_details === 'object') { %>
+                            <% if (f.kyc_details.verification_type) { %>
+                                <div class="col-6"><span class="text-muted smaller">Type:</span> <span class="small fw-bold"><%= f.kyc_details.verification_type %></span></div>
+                            <% } %>
+                            <% if (f.kyc_details.status) { %>
+                                <div class="col-6"><span class="text-muted smaller">Status:</span> <span class="small fw-bold"><%= f.kyc_details.status %></span></div>
+                            <% } %>
+                            <% if (f.kyc_details.confidence) { %>
+                                <div class="col-6"><span class="text-muted smaller">Confidence:</span> <span class="small fw-bold"><%= f.kyc_details.confidence %>%</span></div>
+                            <% } %>
+
+                            <!-- Detailed Breakdown Toggle -->
+                            <div class="col-12 mt-2">
+                                <button class="btn btn-link btn-sm p-0 smaller text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#kycRaw">
+                                    View Full JSON Payload ↓
+                                </button>
+                                <div class="collapse mt-2" id="kycRaw">
+                                    <pre class="bg-dark text-success p-3 rounded smaller" style="max-height: 300px; overflow-y: auto;"><code><%= JSON.stringify(f.kyc_details, null, 2) %></code></pre>
+                                </div>
+                            </div>
+                        <% } else { %>
+                            <div class="col-12 small text-muted"><%= f.kyc_details %></div>
+                        <% } %>
+                    </div>
+                </div>
+            <% } %>
         </div>
 
         <div class="card-pikop p-4">
