@@ -54,28 +54,35 @@ const processMissionSettlement = async (orderId) => {
 
     // 1. Fetch order details
     const orderRes = await client.query(
-        "SELECT id, fulfiller_id, total_fare FROM orders WHERE id = $1",
+        "SELECT id, fulfiller_id, total_fare, delivery_fee, item_price FROM orders WHERE id = $1",
         [orderId]
     );
     const order = orderRes.rows[0];
     if (!order || !order.fulfiller_id) throw new Error('Order not eligible for settlement');
 
-    const totalFare = parseFloat(order.total_fare);
+    // Consolidated Checkout Fix: Only split the delivery fee portion.
+    // If delivery_fee is 0 (old data), fallback to total_fare.
+    const settlableAmount = (parseFloat(order.delivery_fee) > 0) ? parseFloat(order.delivery_fee) : parseFloat(order.total_fare);
 
     // 2. Fetch Split Config from Settings (Master Brief v3)
     const settingsRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
     const commissionRate = parseFloat(settingsRes.rows[0]?.value || '0.25');
 
-    const platformShare = totalFare * commissionRate;
-    const fulfillerShare = totalFare - platformShare;
+    const platformShare = settlableAmount * commissionRate;
+    const fulfillerShare = settlableAmount - platformShare;
 
     // 3. Fulfiller Credit
     const fWalletId = await ensureWalletExists(client, 'FULFILLER', order.fulfiller_id);
     await recordEntry(client, fWalletId, 'CREDIT', fulfillerShare, 'SETTLEMENT', `Earnings for Mission #${order.id}`, order.id);
 
-    // 4. Platform Credit
+    // 4. Platform Credit (Delivery Share)
     const pWalletId = await ensureWalletExists(client, 'PLATFORM', 'SYSTEM');
     await recordEntry(client, pWalletId, 'CREDIT', platformShare, 'COMMISSION', `Commission for Mission #${order.id}`, order.id);
+
+    // 5. Consolidated Platform Fee (Secure Pay - if paid by PAYER)
+    if (order.fee_payer === 'PAYER' && parseFloat(order.platform_fee_amount) > 0) {
+        await recordEntry(client, pWalletId, 'CREDIT', order.platform_fee_amount, 'SECURE_PAY_FEE', `Escrow service fee for Order #${order.id}`, order.id);
+    }
 
     await client.query('COMMIT');
     console.log(`[Wallet] Settled Mission #${order.id}: Fulfiller +${fulfillerShare}, Platform +${platformShare}`);
@@ -161,7 +168,13 @@ const releaseEscrow = async (orderId) => {
       fee_payer: order.fee_payer
     });
 
-    // 4. Update Order Status
+    // 4. Platform Credit (if fee paid by SELLER, it's captured now)
+    if (order.fee_payer === 'SELLER' && fee > 0) {
+        const pWalletId = await ensureWalletExists(client, 'PLATFORM', 'SYSTEM');
+        await recordEntry(client, pWalletId, 'CREDIT', fee, 'SECURE_PAY_FEE', `Escrow service fee from Seller for Order #${order.id}`, order.id);
+    }
+
+    // 5. Update Order Status
     await client.query(
       "UPDATE orders SET escrow_status = 'released', status = 'RELEASED' WHERE id = $1",
       [orderId]
@@ -178,10 +191,53 @@ const releaseEscrow = async (orderId) => {
   }
 };
 
+/**
+ * Refunds an escrow payment to the buyer.
+ * Note: Real implementation would call Paystack Refund API.
+ */
+const refundEscrow = async (orderId) => {
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const { rows } = await client.query(
+            "SELECT id, fulfiller_id, item_price, escrow_status FROM orders WHERE id = $1 FOR UPDATE",
+            [orderId]
+        );
+        const order = rows[0];
+
+        if (!order || order.escrow_status !== 'held') {
+            throw new Error('Order not eligible for refund');
+        }
+
+        const itemPrice = parseFloat(order.item_price);
+        const sellerWalletId = await ensureWalletExists(client, 'FULFILLER', order.fulfiller_id);
+
+        // Debit Seller's Pending (zeros out the hold)
+        await recordEntry(client, sellerWalletId, 'DEBIT', itemPrice, 'ESCROW_REFUND', `Refunding escrow for Order #${order.id}`, order.id, 'pending');
+
+        // Update Order Status
+        await client.query(
+            "UPDATE orders SET escrow_status = 'refunded', status = 'REFUNDED' WHERE id = $1",
+            [orderId]
+        );
+
+        await client.query('COMMIT');
+        console.log(`[Wallet] Escrow Refunded for Order #${orderId}. Amount: ${itemPrice}`);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[Wallet] Escrow Refund Failed:', error.message);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   ensureWalletExists,
   recordEntry,
   processMissionSettlement,
   processCoDRemittance,
-  releaseEscrow
+  releaseEscrow,
+  refundEscrow
 };

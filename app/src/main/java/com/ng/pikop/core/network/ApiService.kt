@@ -316,6 +316,7 @@ data class WalletTransaction(
 
 data class WalletResponse(
     val balance: Double? = null,
+    val pending_balance: Double? = null,
     val currency: String? = null,
     val transactions: List<WalletTransaction>? = null
 )

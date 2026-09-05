@@ -212,11 +212,15 @@ const updateStatus = async (req, res) => {
 
     // 2. Trigger Settlement on Delivery (v3)
     if (status === 'DELIVERED') {
-        try {
-            await walletService.processMissionSettlement(orderId);
-        } catch (e) {
-            console.error('[UpdateStatus] Settlement Error:', e.message);
-            // We don't throw here to ensure the status update succeeds even if settlement has issues
+        const { rows: orderData } = await db.query("SELECT item_price, escrow_status FROM orders WHERE id = $1", [orderId]);
+        const isEscrow = orderData[0]?.item_price > 0 && orderData[0]?.escrow_status === 'held';
+
+        if (!isEscrow) {
+            try {
+                await walletService.processMissionSettlement(orderId);
+            } catch (e) {
+                console.error('[UpdateStatus] Settlement Error:', e.message);
+            }
         }
 
         try {
@@ -614,14 +618,13 @@ const verifyDelivery = async (req, res) => {
             );
         }
 
-        // Trigger Settlement only if NOT escrow (Non-escrow orders settle immediately)
-        if (!isEscrow) {
-            try {
-                const walletService = require('../services/walletService');
-                await walletService.processMissionSettlement(id);
-            } catch (e) {
-                console.error('[VerifyDelivery] Wallet Settlement Warning:', e.message);
-            }
+        // Trigger Settlement for Delivery Fee portion
+        // Consolidated logic in walletService handles this correctly (only splits delivery_fee)
+        try {
+            const walletService = require('../services/walletService');
+            await walletService.processMissionSettlement(id);
+        } catch (e) {
+            console.error('[VerifyDelivery] Wallet Settlement Warning:', e.message);
         }
 
         // Trigger Order Completion Email

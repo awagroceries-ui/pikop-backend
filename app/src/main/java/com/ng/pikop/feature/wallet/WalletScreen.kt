@@ -31,6 +31,7 @@ import java.util.Locale
 @Composable
 fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
     var balance by remember { mutableStateOf(0.0) }
+    var pendingBalance by remember { mutableStateOf(0.0) }
     var transactions by remember { mutableStateOf<List<WalletTransaction>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var showWithdrawDialog by remember { mutableStateOf(false) }
@@ -45,6 +46,7 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
         try {
             val response = apiService.getWalletInfo()
             balance = response.balance ?: 0.0
+            pendingBalance = response.pending_balance ?: 0.0
             transactions = response.transactions ?: emptyList()
         } catch (e: Exception) {}
         isLoading = false
@@ -80,6 +82,19 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Current Balance", style = MaterialTheme.typography.labelMedium)
                             Text("₦${"%,.2f".format(balance)}", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            
+                            if (pendingBalance > 0) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.2f))
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Pending (Secure Pay)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+                                        Text("₦${"%,.2f".format(pendingBalance)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    }
+                                }
+                            }
+
                             if (isFulfiller && balance > 0) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(onClick = { showWithdrawDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {

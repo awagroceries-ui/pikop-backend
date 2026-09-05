@@ -421,6 +421,70 @@ const deleteCoupon = async (req, res) => {
     }
 };
 
+/**
+ * Lists all active disputes.
+ */
+const getDisputes = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT d.*, o.item_description, o.item_price, o.total_fare,
+                   u.full_name as reporter_name, f.full_name as fulfiller_name
+            FROM disputes d
+            JOIN orders o ON o.id = d.order_id
+            JOIN users u ON u.id = d.reporter_id
+            LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
+            WHERE d.status IN ('OPEN', 'INVESTIGATING')
+            ORDER BY d.created_at DESC
+        `);
+        res.render('disputes', { disputes: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Resolves a dispute with either 'REFUND' or 'RELEASE'.
+ */
+const resolveDispute = async (req, res) => {
+    const { id } = req.params;
+    const { action, resolution_notes } = req.body;
+    const adminId = req.session.adminId;
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const { rows } = await client.query("SELECT * FROM disputes WHERE id = $1 FOR UPDATE", [id]);
+        if (rows.length === 0) throw new Error('Dispute not found');
+        const dispute = rows[0];
+
+        if (action === 'REFUND') {
+            await walletService.refundEscrow(dispute.order_id);
+        } else if (action === 'RELEASE') {
+            await walletService.releaseEscrow(dispute.order_id);
+        }
+
+        await client.query(
+            "UPDATE disputes SET status = 'RESOLVED', resolution_notes = $1 WHERE id = $2",
+            [resolution_notes, id]
+        );
+
+        // Audit Log
+        await client.query(
+            "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+            [adminId, `RESOLVE_DISPUTE_${action}`, 'dispute', id, JSON.stringify({ resolution_notes })]
+        );
+
+        await client.query('COMMIT');
+        res.redirect('/admin/disputes');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        res.status(500).send(`Resolution failed: ${error.message}`);
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -443,5 +507,7 @@ module.exports = {
   getProfile,
   getCoupons,
   createCoupon,
-  deleteCoupon
+  deleteCoupon,
+  getDisputes,
+  resolveDispute
 };

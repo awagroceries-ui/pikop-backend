@@ -23,12 +23,12 @@ const getMyWallet = async (req, res) => {
 
     // 2. Fetch Wallet
     const { rows: wallets } = await db.query(
-        "SELECT id, balance, currency FROM wallets WHERE owner_type = $1 AND owner_id = $2",
+        "SELECT id, balance, pending_balance, currency FROM wallets WHERE owner_type = $1 AND owner_id = $2",
         [ownerType, ownerId.toString()]
     );
 
     if (wallets.length === 0) {
-        return res.status(200).json({ success: true, data: { balance: 0, currency: 'NGN', transactions: [] } });
+        return res.status(200).json({ success: true, data: { balance: 0, pending_balance: 0, currency: 'NGN', transactions: [] } });
     }
 
     const wallet = wallets[0];
@@ -43,6 +43,7 @@ const getMyWallet = async (req, res) => {
         success: true,
         data: {
             balance: parseFloat(wallet.balance),
+            pending_balance: parseFloat(wallet.pending_balance || 0),
             currency: wallet.currency,
             transactions: history
         }

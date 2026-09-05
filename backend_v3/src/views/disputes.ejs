@@ -1,0 +1,71 @@
+<div class="mb-5">
+    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Arbitration Board</h3>
+    <p class="text-muted small">Resolve disputes and manage escrow releases for Protected Deliveries.</p>
+</div>
+
+<div class="row g-4">
+    <% if (disputes.length === 0) { %>
+        <div class="col-12">
+            <div class="card-pikop p-5 text-center">
+                <p class="text-muted mb-0">No active disputes requiring arbitration.</p>
+            </div>
+        </div>
+    <% } else { %>
+        <% disputes.forEach(d => { %>
+            <div class="col-md-12">
+                <div class="card-pikop p-4 mb-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-2">
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Mission ID</span>
+                            <div class="text-black small mono fw-bold">#<%= d.order_id %></div>
+                            <div class="smaller text-muted mt-1"><%= new Date(d.created_at).toLocaleString() %></div>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Reporter (Buyer)</span>
+                            <div class="text-black small fw-bold"><%= d.reporter_name %></div>
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block mt-2" style="font-size: 10px; letter-spacing: 1px;">Agent (Seller)</span>
+                            <div class="text-black small"><%= d.fulfiller_name || 'N/A' %></div>
+                        </div>
+                        <div class="col-md-4">
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Reason</span>
+                            <div class="text-black small bg-light p-2 rounded border" style="max-height: 80px; overflow-y: auto;">
+                                <%= d.reason %>
+                            </div>
+                            <div class="mt-2">
+                                <span class="text-muted smaller fw-bold">Escrow Hold:</span>
+                                <span class="text-green fw-bold">₦<%= parseFloat(d.item_price).toLocaleString() %></span>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <button class="btn btn-sm btn-outline-primary mb-2 w-100" type="button" data-bs-toggle="collapse" data-bs-target="#resolve-<%= d.id %>">
+                                ARBITRATE
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="collapse mt-3 border-top pt-3" id="resolve-<%= d.id %>">
+                        <form action="/admin/disputes/<%= d.id %>/resolve" method="POST">
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label class="smaller fw-bold text-muted uppercase">Arbitration Notes</label>
+                                    <textarea name="resolution_notes" class="form-control form-control-sm" rows="2" placeholder="Detail the reason for this decision..." required></textarea>
+                                </div>
+                                <div class="col-md-4 d-flex flex-column justify-content-end">
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" name="action" value="RELEASE" class="btn btn-sm btn-success fw-bold">RELEASE TO SELLER</button>
+                                        <button type="submit" name="action" value="REFUND" class="btn btn-sm btn-danger fw-bold">REFUND BUYER</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    <% } %>
+</div>
+
+<style>
+    .text-green { color: var(--green) !important; }
+    .smaller { font-size: 11px; }
+</style>

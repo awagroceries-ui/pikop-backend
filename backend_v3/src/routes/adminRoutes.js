@@ -61,6 +61,10 @@ router.get('/profile', adminController.getProfile);
 router.get('/support', adminController.getSupportInbox);
 router.get('/support/:id', adminController.getConversationDetails);
 
+// Disputes & Arbitration
+router.get('/disputes', adminController.getDisputes);
+router.post('/disputes/:id/resolve', adminController.resolveDispute);
+
 // Settings
 router.get('/settings', hasRole(['super_admin']), adminController.getSettings);
 router.post('/settings', hasRole(['super_admin']), adminController.updateSettings);
