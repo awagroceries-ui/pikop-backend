@@ -253,6 +253,7 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
     
     var orderDetails by remember { mutableStateOf<OrderDetailsResponse?>(null) }
     var isConfirming by remember { mutableStateOf(false) }
+    var showDisputeDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(orderId) {
         try {
@@ -271,7 +272,6 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
             
             // Status & Secure Pay Banner
             val currentStatus = orderDetails?.status?.uppercase() ?: ""
-            val isEscrowHeld = orderDetails?.escrow_status == "held"
             val isPendingConfirmation = currentStatus == "DELIVERED_PENDING_CONFIRMATION"
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -321,7 +321,7 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                                 Text("Confirm Receipt")
                             }
                             OutlinedButton(
-                                onClick = { /* Navigate to Dispute */ },
+                                onClick = { showDisputeDialog = true },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
@@ -334,6 +334,24 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             profile?.let { FulfillerCard(it); Spacer(modifier = Modifier.height(16.dp)) }
+            
+            if (showDisputeDialog) {
+                SecurePayDisputeDialog(
+                    onDismiss = { showDisputeDialog = false },
+                    onConfirm = { reason, notes ->
+                        coroutineScope.launch {
+                            try {
+                                apiService.reportProblem(orderId, mapOf("reason" to reason, "notes" to notes))
+                                android.widget.Toast.makeText(context, "Issue Reported. Support will investigate.", android.widget.Toast.LENGTH_LONG).show()
+                                showDisputeDialog = false
+                                onRefresh()
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Report failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                )
+            }
             val canCancel = history.none { it.status == "PICKED_UP" || it.status == "DELIVERED" || it.status == "CANCELLED" }
             if (canCancel) {
                 val scope = rememberCoroutineScope()
@@ -382,6 +400,44 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+fun SecurePayDisputeDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
+    var reason by remember { mutableStateOf("Item Damaged") }
+    var notes by remember { mutableStateOf("") }
+    val reasons = listOf("Item Damaged", "Wrong Item", "Not as Described", "Other")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Report a Problem") },
+        text = {
+            Column {
+                Text("Select reason:", style = MaterialTheme.typography.labelSmall)
+                reasons.forEach { r ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = reason == r, onClick = { reason = r })
+                        Text(r, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Additional Notes") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(reason, notes) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                Text("Submit Report")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

@@ -195,7 +195,7 @@ const updateStatus = async (req, res) => {
         if (o[0].collect_on_delivery_amount && o[0].collection_status !== 'collected') {
             return res.status(400).json({
                 success: false,
-                message: 'Collection required. This order has a mandatory CoD amount that must be paid via app before delivery closure.'
+                message: 'Collection required. This order has a mandatory Secure Pay amount that must be paid via app before delivery closure.'
             });
         }
     }
