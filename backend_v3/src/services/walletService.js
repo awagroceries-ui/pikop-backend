@@ -20,26 +20,28 @@ const ensureWalletExists = async (client, ownerType, ownerId) => {
 
 /**
  * Records an immutable ledger entry and updates wallet balance.
+ * Target can be 'available' (default) or 'pending'.
  */
-const recordEntry = async (client, walletId, type, amount, purpose, description, orderId = null) => {
+const recordEntry = async (client, walletId, type, amount, purpose, description, orderId = null, target = 'available', metadata = null) => {
   const numericAmount = parseFloat(amount);
+  const balanceColumn = target === 'pending' ? 'pending_balance' : 'balance';
 
-  // 1. Lock and update balance
+  // 1. Lock and update specified balance
   const walletRes = await client.query(
-    "UPDATE wallets SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING balance",
+    `UPDATE wallets SET ${balanceColumn} = ${balanceColumn} + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING balance, pending_balance`,
     [type === 'CREDIT' ? numericAmount : -numericAmount, walletId]
   );
 
-  const newBalance = walletRes.rows[0].balance;
+  const resultingBalance = target === 'pending' ? walletRes.rows[0].pending_balance : walletRes.rows[0].balance;
 
   // 2. Record ledger
   await client.query(
-    `INSERT INTO wallet_ledger_entries (wallet_id, order_id, entry_type, amount, balance_after, purpose, description)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [walletId, orderId, type, numericAmount, newBalance, purpose, description]
+    `INSERT INTO wallet_ledger_entries (wallet_id, order_id, entry_type, amount, balance_after, purpose, description, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [walletId, orderId, type, numericAmount, resultingBalance, purpose, description, metadata ? JSON.stringify(metadata) : null]
   );
 
-  return newBalance;
+  return resultingBalance;
 };
 
 /**
@@ -114,9 +116,72 @@ const processCoDRemittance = async (orderId) => {
     }
 };
 
+/**
+ * Moves funds from pending_balance to available_balance for the seller.
+ * Deducts the platform fee during this transition.
+ */
+const releaseEscrow = async (orderId) => {
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Fetch order details with fee info
+    const orderRes = await client.query(
+      `SELECT o.id, o.fulfiller_id, o.item_price, o.platform_fee_amount, o.fee_payer, o.user_id,
+              o.escrow_status, u.role as seller_role
+       FROM orders o
+       JOIN users u ON u.id = o.user_id
+       WHERE o.id = $1 FOR UPDATE`,
+      [orderId]
+    );
+    const order = orderRes.rows[0];
+
+    if (!order || order.escrow_status !== 'held') {
+      throw new Error('Order not eligible for escrow release');
+    }
+
+    const itemPrice = parseFloat(order.item_price);
+    const fee = parseFloat(order.platform_fee_amount);
+
+    // 2. Determine Seller Payout
+    // If fee_payer was SELLER, they get itemPrice - fee.
+    // If fee_payer was PAYER, they get full itemPrice (because payer paid fee extra).
+    const sellerPayout = order.fee_payer === 'SELLER' ? (itemPrice - fee) : itemPrice;
+
+    // 3. Update Seller Wallet
+    const sellerWalletId = await ensureWalletExists(client, 'FULFILLER', order.fulfiller_id); // Assuming fulfiller is the seller for now, or use user_id
+
+    // Debit Pending
+    await recordEntry(client, sellerWalletId, 'DEBIT', itemPrice, 'ESCROW_RELEASE', `Releasing escrow for Order #${order.id}`, order.id, 'pending');
+
+    // Credit Available
+    await recordEntry(client, sellerWalletId, 'CREDIT', sellerPayout, 'SETTLEMENT', `Earnings for Order #${order.id} (minus fees)`, order.id, 'available', {
+      item_price: itemPrice,
+      fee: fee,
+      fee_payer: order.fee_payer
+    });
+
+    // 4. Update Order Status
+    await client.query(
+      "UPDATE orders SET escrow_status = 'released', status = 'RELEASED' WHERE id = $1",
+      [orderId]
+    );
+
+    await client.query('COMMIT');
+    console.log(`[Wallet] Escrow Released for Order #${orderId}. Seller Payout: ${sellerPayout}`);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[Wallet] Escrow Release Failed:', error.message);
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   ensureWalletExists,
   recordEntry,
   processMissionSettlement,
-  processCoDRemittance
+  processCoDRemittance,
+  releaseEscrow
 };

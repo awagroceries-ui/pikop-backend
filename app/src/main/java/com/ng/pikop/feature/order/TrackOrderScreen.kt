@@ -248,6 +248,19 @@ fun TrackOrderScreen(
 @Composable
 fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>, profile: FulfillerPublicProfile?, tokenManager: TokenManager, onRefresh: () -> Unit) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val apiService = remember { ApiService.create(tokenManager) }
+    
+    var orderDetails by remember { mutableStateOf<OrderDetailsResponse?>(null) }
+    var isConfirming by remember { mutableStateOf(false) }
+
+    LaunchedEffect(orderId) {
+        try {
+            val res = apiService.getOrderDetails(orderId)
+            orderDetails = res.data ?: res
+        } catch (e: Exception) {}
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.primary
@@ -255,15 +268,70 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
             Box(modifier = Modifier.width(40.dp).height(4.dp).background(Color.LightGray, CircleShape).align(Alignment.CenterHorizontally))
             Spacer(modifier = Modifier.height(16.dp))
+            
+            // Status & Secure Pay Banner
+            val currentStatus = orderDetails?.status?.uppercase() ?: ""
+            val isEscrowHeld = orderDetails?.escrow_status == "held"
+            val isPendingConfirmation = currentStatus == "DELIVERED_PENDING_CONFIRMATION"
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text(text = if (eta != null) "Arriving in $eta mins" else "Status: ${history.lastOrNull()?.status ?: "Processing"}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(text = if (eta != null) "Arriving in $eta mins" else "Status: ${currentStatus.replace('_', ' ')}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Text(text = "Order #$orderId", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                 }
                 Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) {
                     Icon(imageVector = Icons.AutoMirrored.Filled.DirectionsBike, contentDescription = null, modifier = Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
+
+            if (isPendingConfirmation) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Action Required", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Your item has been delivered. Please confirm receipt to release payment to the seller.", style = MaterialTheme.typography.bodySmall)
+                        
+                        orderDetails?.grace_period_expires_at?.let { expiry ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Auto-confirms in: ${formatCountdown(expiry)}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        isConfirming = true
+                                        try {
+                                            apiService.confirmReceipt(orderId)
+                                            android.widget.Toast.makeText(context, "Payment Released!", android.widget.Toast.LENGTH_SHORT).show()
+                                            onRefresh()
+                                        } catch (e: Exception) {
+                                            android.widget.Toast.makeText(context, "Failed to confirm: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                        } finally { isConfirming = false }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isConfirming,
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Text("Confirm Receipt")
+                            }
+                            OutlinedButton(
+                                onClick = { /* Navigate to Dispute */ },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Report Issue")
+                            }
+                        }
+                    }
+                }
+            }
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             profile?.let { FulfillerCard(it); Spacer(modifier = Modifier.height(16.dp)) }
             val canCancel = history.none { it.status == "PICKED_UP" || it.status == "DELIVERED" || it.status == "CANCELLED" }
@@ -383,4 +451,19 @@ fun formatTime(isoTimestamp: String?): String {
         val date = parser.parse(isoTimestamp!!)
         java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date!!)
     } catch (e: Exception) { "" }
+}
+
+fun formatCountdown(isoTimestamp: String?): String {
+    if (isoTimestamp.isNullOrBlank()) return "--:--"
+    return try {
+        val parser = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
+        parser.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val target = parser.parse(isoTimestamp!!)?.time ?: return "--:--"
+        val diff = target - System.currentTimeMillis()
+        if (diff <= 0) return "Releasing now..."
+        
+        val hours = diff / (1000 * 60 * 60)
+        val minutes = (diff / (1000 * 60)) % 60
+        "${hours}h ${minutes}m"
+    } catch (e: Exception) { "--:--" }
 }

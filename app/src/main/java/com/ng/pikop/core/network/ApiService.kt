@@ -55,13 +55,9 @@ data class QuoteRequest(
     val pickup_lat: Double,
     val pickup_lng: Double,
     val delivery_lat: Double,
-    val delivery_lng: Double
-)
-
-data class FareBreakdown(
-    val total_fare: Double? = null,
-    val size_tier: String? = null,
-    val fare_locked_until: String? = null
+    val delivery_lng: Double,
+    val item_price: Double? = 0.0,
+    val initiator_role: String? = "PAYER"
 )
 
 data class QuoteResponse(
@@ -69,8 +65,10 @@ data class QuoteResponse(
     val quote_id: String? = null,
     val size_tier: String? = null,
     val distance_km: String? = null,
-    val base_fare: Double? = null,
-    val distance_fare: Double? = null,
+    val item_price: Double? = null,
+    val delivery_fee: Double? = null,
+    val platform_fee_amount: Double? = null,
+    val fee_payer: String? = null,
     val total_fare: Double? = null,
     val expires_at: String? = null
 )
@@ -90,7 +88,9 @@ data class CreateOrderRequest(
     val item_photo_url: String,
     val pickup_display_summary: String,
     val delivery_display_summary: String,
-    val payment_reference: String? = null
+    val payment_reference: String? = null,
+    val item_price: Double? = null,
+    val seller_phone: String? = null
 )
 
 data class OrderResponse(
@@ -131,6 +131,12 @@ data class OrderDetailsResponse(
     @SerializedName("tracking_url") val tracking_url: String? = null,
     @SerializedName("recipient_name") val recipient_name: String? = null,
     @SerializedName("recipient_phone") val recipient_phone: String? = null,
+    @SerializedName("item_price") val item_price: Double? = null,
+    @SerializedName("delivery_fee") val delivery_fee: Double? = null,
+    @SerializedName("platform_fee_amount") val platform_fee_amount: Double? = null,
+    @SerializedName("fee_payer") val fee_payer: String? = null,
+    @SerializedName("escrow_status") val escrow_status: String? = null,
+    @SerializedName("grace_period_expires_at") val grace_period_expires_at: String? = null,
     @SerializedName("fulfiller_profile") val fulfiller_profile: FulfillerPublicProfile? = null,
     @SerializedName("history") val history: List<StatusHistoryItem>? = null,
     @SerializedName("data") val data: OrderDetailsResponse? = null
@@ -383,6 +389,11 @@ data class PaymentInitializationRequest(
     val amount: Double, // in Naira
     val email: String,
     val quote_id: String? = null,
+    val item_price: Double? = null,
+    val delivery_fee: Double? = null,
+    val platform_fee_amount: Double? = null,
+    val fee_payer: String? = null,
+    val seller_phone: String? = null,
     val metadata: Map<String, String>? = null
 )
 
@@ -475,6 +486,12 @@ interface ApiService {
 
     @POST("api/v1/orders/{id}/deliver")
     suspend fun verifyDelivery(@retrofit2.http.Path("id") id: String, @Body request: VerifyCodeRequest): OrderResponse
+
+    @POST("api/v1/orders/{id}/confirm-receipt")
+    suspend fun confirmReceipt(@retrofit2.http.Path("id") id: String): Map<String, Any>
+
+    @POST("api/v1/orders/{id}/dispute")
+    suspend fun reportProblem(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): Map<String, Any>
 
     @GET("api/v1/orders/{orderId}/messages")
     suspend fun getOrderMessages(@retrofit2.http.Path("orderId") orderId: String): List<ChatMessage>

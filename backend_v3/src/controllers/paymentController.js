@@ -25,17 +25,19 @@ const initializePayment = async (req, res) => {
   }
 
   try {
-    let koboAmount;
-    const rawAmount = parseFloat(amount || 0);
+    const {
+        quote_id, amount, email,
+        item_price, delivery_fee, platform_fee_amount,
+        fee_payer, seller_phone
+    } = req.body;
+    const userId = req.user.id;
 
-    // INTELLIGENT KOBO DETECTION: If amount > 50,000, it's likely already in Kobo format.
-    // Standard Naira quotes are usually 500 - 15,000.
-    if (rawAmount > 50000) {
-        koboAmount = Math.round(rawAmount);
-        console.log(`[Paystack] High-value detected (${rawAmount}). Assuming Kobo format.`);
-    } else {
-        koboAmount = Math.round(rawAmount * 100);
+    if (!quote_id) {
+        console.error('[Paystack] ERROR: Missing quote_id in request body');
+        return res.status(400).json({ success: false, message: 'quote_id is required for activation' });
     }
+
+    let koboAmount = Math.round(parseFloat(amount) * 100);
 
     if (koboAmount < 100) {
         return res.status(400).json({ success: false, message: 'Invalid amount: Minimum is ₦1.00' });
@@ -54,6 +56,12 @@ const initializePayment = async (req, res) => {
       metadata: {
         quote_id,
         user_id: userId,
+        item_price: item_price || 0,
+        delivery_fee: delivery_fee || 0,
+        platform_fee_amount: platform_fee_amount || 0,
+        fee_payer: fee_payer || 'PAYER',
+        initiator_role: fee_payer || 'PAYER',
+        seller_phone: seller_phone || null,
         recipient_name: user?.full_name,
         recipient_phone: user?.phone
       }
@@ -206,15 +214,19 @@ const handleWebhook = async (req, res) => {
                     total_fare, payment_reference, payment_status, payment_channel,
                     pickup_code_hash, delivery_code_hash,
                     recipient_name, recipient_phone,
-                    pickup_display_summary, delivery_display_summary
+                    pickup_display_summary, delivery_display_summary,
+                    item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
+                    escrow_status, seller_phone
                 ) VALUES (
-                    'pickup_delivery', $1, $2, 'SEARCHING',
+                    'pickup_delivery', $1, $2, 'PAYMENT_CAPTURED',
                     $3, $4,
                     $5, $6,
                     $7, $8,
                     $9, $10, 'PAID', $11,
                     'v3_pending', 'v3_pending',
-                    $12, $13, $14, $15
+                    $12, $13, $14, $15,
+                    $16, $17, $18, $19, $20,
+                    $21, $22
                 ) RETURNING id`,
                 [
                     metadata.user_id, q.id,
@@ -225,10 +237,48 @@ const handleWebhook = async (req, res) => {
                     metadata.recipient_name || 'Recipient',
                     metadata.recipient_phone || '000',
                     q.pickup_address.substring(0, 50),
-                    q.delivery_address.substring(0, 50)
+                    q.delivery_address.substring(0, 50),
+                    metadata.item_price || 0,
+                    metadata.delivery_fee || 0,
+                    metadata.platform_fee_amount || 0,
+                    metadata.fee_payer || 'PAYER',
+                    metadata.initiator_role || 'PAYER',
+                    (metadata.item_price > 0) ? 'held' : 'not_applicable',
+                    metadata.seller_phone || null
                 ]
             );
-            console.log(`[Webhook] SUCCESS. Mission ${orderInsertRes.rows[0].id} is now active.`);
+            const orderId = orderInsertRes.rows[0].id;
+            console.log(`[Webhook] SUCCESS. Mission ${orderId} is now active.`);
+
+            // 3. Escrow Hold Ledger & Pending Balance (if item price exists)
+            if (metadata.item_price > 0) {
+                try {
+                    let sellerUserId = null;
+                    if (metadata.seller_phone) {
+                        const sRes = await client.query("SELECT id FROM users WHERE phone = $1", [metadata.seller_phone]);
+                        if (sRes.rows.length > 0) sellerUserId = sRes.rows[0].id;
+                    }
+
+                    if (sellerUserId) {
+                        await client.query("UPDATE orders SET seller_id = $1 WHERE id = $2", [sellerUserId, orderId]);
+
+                        const sellerWalletId = await walletService.ensureWalletExists(client, 'USER', sellerUserId);
+                        await walletService.recordEntry(
+                            client, sellerWalletId, 'CREDIT', metadata.item_price,
+                            'ESCROW_HOLD', `Escrow held for Order #${orderId}`,
+                            orderId, 'pending',
+                            {
+                                item_price: metadata.item_price,
+                                delivery_fee: metadata.delivery_fee,
+                                fee: metadata.platform_fee_amount,
+                                fee_payer: metadata.fee_payer
+                            }
+                        );
+                    }
+                } catch (escrowErr) {
+                    console.error('[Webhook] Escrow Ledger Error:', escrowErr.message);
+                }
+            }
 
             // Trigger Branded Payment Receipt Email
             try {

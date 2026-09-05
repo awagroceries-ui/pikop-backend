@@ -2,12 +2,17 @@ const db = require('../config/db');
 const geminiService = require('../services/geminiService');
 const walletService = require('../services/walletService');
 const emailService = require('../services/emailService');
+const PlatformConfig = require('../config/platform');
 
 /**
  * Generates a dynamic, distance-based quote.
  */
 const getQuote = async (req, res) => {
-  const { pickup_address, delivery_address, item_description, pickup_lat, pickup_lng, delivery_lat, delivery_lng } = req.body;
+  const {
+    pickup_address, delivery_address, item_description,
+    pickup_lat, pickup_lng, delivery_lat, delivery_lng,
+    item_price = 0, initiator_role = 'PAYER'
+  } = req.body;
   const userId = req.user?.id;
 
   // 1. Calculate Distance using PostGIS Geography (Superior precision for V3)
@@ -26,10 +31,9 @@ const getQuote = async (req, res) => {
   const aiResult = await geminiService.classifyItemSize(item_description);
 
   // 3. Apply Dynamic Pricing Dynamics (v3.5.1 Settings-Linked)
-  // Standardized defaults for Nigeria market (Calibrated v3.6)
   let baseFees = { 'SMALL': 400, 'MEDIUM': 800, 'LARGE': 1500 };
   let perKmRate = 110;
-  let roadWindingFactor = 1.15; // Realistic buffer for Lagos street navigation
+  let roadWindingFactor = 1.15;
 
   try {
     const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate')");
@@ -45,17 +49,23 @@ const getQuote = async (req, res) => {
 
   const base_fare = baseFees[aiResult.size_tier] || baseFees['MEDIUM'];
   const effectiveDistance = distanceKm * roadWindingFactor;
-  const distance_fare = Math.ceil(effectiveDistance * perKmRate);
-  const total_fare = Math.round(base_fare + distance_fare);
+  const delivery_fee = Math.ceil(base_fare + (effectiveDistance * perKmRate));
 
-  console.log(`[Quote] User: ${userId} | RawDist: ${distanceKm.toFixed(2)}km | RoadDist: ${effectiveDistance.toFixed(2)}km | Base: ${base_fare} | DistFare: ${distance_fare} | Total: ${total_fare}`);
+  // 4. Secure Pay / Escrow Fee Logic
+  const platform_fee_amount = PlatformConfig.roundFee(item_price * PlatformConfig.ESCROW.FEE_PERCENTAGE);
+  const fee_payer = initiator_role; // Rule: initiator bears the fee
 
-  // 4. Save Quote
+  // total_payable for checkout: item + delivery + (fee if payer is paying)
+  const total_payable = parseFloat(item_price) + delivery_fee + (fee_payer === 'PAYER' ? platform_fee_amount : 0);
+
+  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Deliv: ${delivery_fee} | Fee: ${platform_fee_amount} (${fee_payer}) | Total: ${total_payable}`);
+
+  // 5. Save Quote
   const quoteRes = await db.query(
     `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare)
      VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10)
      RETURNING id, expires_at`,
-    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, aiResult.size_tier, total_fare]
+    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, aiResult.size_tier, total_payable]
   );
 
   res.status(200).json({
@@ -63,9 +73,11 @@ const getQuote = async (req, res) => {
     quote_id: quoteRes.rows[0].id,
     size_tier: aiResult.size_tier,
     distance_km: distanceKm.toFixed(2),
-    base_fare,
-    distance_fare,
-    total_fare,
+    item_price,
+    delivery_fee,
+    platform_fee_amount,
+    fee_payer,
+    total_fare: total_payable, // Consolidated total
     expires_at: quoteRes.rows[0].expires_at
   });
 };
@@ -568,6 +580,7 @@ const verifyDelivery = async (req, res) => {
         }
 
         const order = rows[0];
+        const isEscrow = order.item_price > 0 && order.escrow_status === 'held';
 
         // Universal Test Code Check
         const isMaster = universalCodes.includes((code || '').toString().trim());
@@ -584,18 +597,31 @@ const verifyDelivery = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid 4-digit delivery code' });
         }
 
-        // Update status to DELIVERED & record POD photo
+        // Update status. If escrow, it's pending buyer confirmation.
+        const nextStatus = isEscrow ? 'DELIVERED_PENDING_CONFIRMATION' : 'DELIVERED';
+
         await db.query(
-            "UPDATE orders SET status = 'DELIVERED', delivered_at = CURRENT_TIMESTAMP, pod_photo_url = $1 WHERE id = $2",
-            [delivery_photo_url || null, id]
+            "UPDATE orders SET status = $1, delivered_at = CURRENT_TIMESTAMP, pod_photo_url = $2 WHERE id = $3",
+            [nextStatus, delivery_photo_url || null, id]
         );
 
-        // Trigger Settlement
-        try {
-            const walletService = require('../services/walletService');
-            await walletService.processMissionSettlement(id);
-        } catch (e) {
-            console.error('[VerifyDelivery] Wallet Settlement Warning:', e.message);
+        // Set grace period if escrow
+        if (isEscrow) {
+            const graceHours = PlatformConfig.ESCROW.GRACE_PERIOD_HOURS || 48;
+            await db.query(
+                "UPDATE orders SET grace_period_expires_at = CURRENT_TIMESTAMP + interval '$1 hours' WHERE id = $2",
+                [graceHours, id]
+            );
+        }
+
+        // Trigger Settlement only if NOT escrow (Non-escrow orders settle immediately)
+        if (!isEscrow) {
+            try {
+                const walletService = require('../services/walletService');
+                await walletService.processMissionSettlement(id);
+            } catch (e) {
+                console.error('[VerifyDelivery] Wallet Settlement Warning:', e.message);
+            }
         }
 
         // Trigger Order Completion Email
@@ -631,6 +657,72 @@ const verifyDelivery = async (req, res) => {
     }
 };
 
+/**
+ * Buyer confirms receipt of item, releasing escrow to seller.
+ */
+const confirmReceipt = async (req, res) => {
+    const { orderId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query(
+            "SELECT id, status, user_id FROM orders WHERE id = $1",
+            [orderId]
+        );
+
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Order not found' });
+        const order = rows[0];
+
+        if (order.user_id !== userId) return res.status(403).json({ success: false, message: 'Unauthorized' });
+        if (order.status !== 'DELIVERED_PENDING_CONFIRMATION') {
+            return res.status(400).json({ success: false, message: 'Order is not in a state that can be confirmed' });
+        }
+
+        // Release Escrow
+        await walletService.releaseEscrow(orderId);
+
+        // Notify participants
+        const socketService = require('../services/socketService');
+        socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: 'RELEASED' });
+
+        res.status(200).json({ success: true, message: 'Payment released to seller' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Buyer reports a problem, moving order to DISPUTED status and blocking auto-release.
+ */
+const reportProblem = async (req, res) => {
+    const { orderId } = req.params;
+    const { reason, notes } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query(
+            "UPDATE orders SET status = 'DISPUTED', escrow_status = 'disputed' WHERE id = $1 AND user_id = $2 AND status = 'DELIVERED_PENDING_CONFIRMATION' RETURNING id",
+            [orderId, userId]
+        );
+
+        if (rows.length === 0) return res.status(400).json({ success: false, message: 'Could not dispute order' });
+
+        // Record Dispute
+        await db.query(
+            "INSERT INTO disputes (order_id, reporter_id, reason, status) VALUES ($1, $2, $3, 'OPEN')",
+            [orderId, userId, `${reason}: ${notes}`]
+        );
+
+        // Notify participants
+        const socketService = require('../services/socketService');
+        socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: 'DISPUTED' });
+
+        res.status(200).json({ success: true, message: 'Dispute filed. Admin will review.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -643,5 +735,7 @@ module.exports = {
   getUserOrders,
   cancelOrder,
   verifyPickup,
-  verifyDelivery
+  verifyDelivery,
+  confirmReceipt,
+  reportProblem
 };

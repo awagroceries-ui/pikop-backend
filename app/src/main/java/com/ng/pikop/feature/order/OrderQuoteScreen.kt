@@ -100,6 +100,11 @@ fun OrderQuoteScreen(
     var description by rememberSaveable { mutableStateOf("") }
     var itemPhotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
 
+    var isSecurePay by rememberSaveable { mutableStateOf(false) }
+    var itemPrice by rememberSaveable { mutableStateOf("") }
+    var initiatorRole by rememberSaveable { mutableStateOf("PAYER") }
+    var sellerPhone by rememberSaveable { mutableStateOf("") }
+
     var promoCode by rememberSaveable { mutableStateOf("") }
     var activePromo by remember { mutableStateOf<PromoValidationResponse?>(null) }
     
@@ -200,6 +205,58 @@ fun OrderQuoteScreen(
                     Icon(imageVector = if (itemPhotoUri != null) Icons.Default.CheckCircle else Icons.Default.AddAPhoto, contentDescription = null, tint = if (itemPhotoUri != null) MaterialTheme.colorScheme.primary else Color.Gray)
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(text = if (itemPhotoUri != null) "Photo Attached" else "Take Photo of Item", style = MaterialTheme.typography.titleSmall, color = if (itemPhotoUri != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            // Secure Pay Section
+            Spacer(modifier = Modifier.height(24.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isSecurePay) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) 
+                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Secure Pay Protection", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Escrow-protected payment for your item.", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(checked = isSecurePay, onCheckedChange = { isSecurePay = it })
+                    }
+
+                    if (isSecurePay) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Are you the Buyer or the Seller?", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(selected = initiatorRole == "PAYER", onClick = { initiatorRole = "PAYER" }, label = { Text("I am the Buyer") })
+                            FilterChip(selected = initiatorRole == "SELLER", onClick = { initiatorRole = "SELLER" }, label = { Text("I am the Seller") })
+                        }
+
+                        OutlinedTextField(
+                            value = itemPrice,
+                            onValueChange = { if (it.all { char -> char.isDigit() }) itemPrice = it },
+                            label = { Text("Item Price (₦)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                        )
+
+                        if (initiatorRole == "PAYER") {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = sellerPhone,
+                                onValueChange = { sellerPhone = it },
+                                label = { Text("Seller's Phone Number") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -321,19 +378,41 @@ fun OrderQuoteScreen(
             if (quoteResult != null) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                    val total = quoteResult!!.total_fare ?: 0.0
-                    val size = quoteResult!!.size_tier ?: "MEDIUM"
+                    val result = quoteResult!!
+                    val total = result.total_fare ?: 0.0
+                    val size = result.size_tier ?: "MEDIUM"
                     val promo = activePromo
                     val discount = if (promo == null) 0.0 else if (promo.discount_type == "flat") promo.value ?: 0.0 else total * ((promo.value ?: 0.0) / 100)
+                    
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Total Fare", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
-                            Badge(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
-                                Text(size, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                        Text("Order Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        if (isSecurePay) {
+                            SummaryLine("Item Price", "₦${result.item_price ?: 0.0}")
+                            SummaryLine("Delivery Fee", "₦${result.delivery_fee ?: 0.0}")
+                            if (result.platform_fee_amount != null && result.platform_fee_amount!! > 0 && result.fee_payer == "PAYER") {
+                                SummaryLine("Secure Pay Fee (Initiator)", "₦${result.platform_fee_amount}")
                             }
+                        } else {
+                            SummaryLine("Delivery Fee", "₦$total")
                         }
-                        Text("₦${total - discount}", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
-                        if (discount > 0) Text("Original: ₦$total | Discount: -₦$discount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+
+                        if (discount > 0) {
+                            SummaryLine("Discount", "-₦$discount", color = MaterialTheme.colorScheme.primary)
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
+                        
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Total Payable", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                            Text("₦${total - discount}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                        }
+
+                        if (isSecurePay && result.fee_payer == "SELLER") {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Platform fee (₦${result.platform_fee_amount}) will be deducted from Seller's payout.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        }
                     }
                 }
             }
@@ -351,7 +430,19 @@ fun OrderQuoteScreen(
                         coroutineScope.launch {
                             isLoading = true; errorMessage = null
                             try {
-                                val response = apiService.getQuote(QuoteRequest(pickup_address = pickupAddress, delivery_address = deliveryAddress, item_description = description, pickup_lat = pickupLatLng?.latitude ?: 0.0, pickup_lng = pickupLatLng?.longitude ?: 0.0, delivery_lat = deliveryLatLng?.latitude ?: 0.0, delivery_lng = deliveryLatLng?.longitude ?: 0.0))
+                                val response = apiService.getQuote(
+                                    QuoteRequest(
+                                        pickup_address = pickupAddress, 
+                                        delivery_address = deliveryAddress, 
+                                        item_description = description, 
+                                        pickup_lat = pickupLatLng?.latitude ?: 0.0, 
+                                        pickup_lng = pickupLatLng?.longitude ?: 0.0, 
+                                        delivery_lat = deliveryLatLng?.latitude ?: 0.0, 
+                                        delivery_lng = deliveryLatLng?.longitude ?: 0.0,
+                                        item_price = if (isSecurePay) itemPrice.toDoubleOrNull() ?: 0.0 else 0.0,
+                                        initiator_role = if (isSecurePay) initiatorRole else "PAYER"
+                                    )
+                                )
                                 if (response.success && response.quote_id != null) {
                                     quoteId = response.quote_id
                                     quoteResult = response
@@ -431,7 +522,12 @@ fun OrderQuoteScreen(
                                             PaymentInitializationRequest(
                                                 amount = amountToCharge, 
                                                 email = userEmail,
-                                                quote_id = qId
+                                                quote_id = qId,
+                                                item_price = if (isSecurePay) itemPrice.toDoubleOrNull() ?: 0.0 else 0.0,
+                                                delivery_fee = result.delivery_fee,
+                                                platform_fee_amount = result.platform_fee_amount,
+                                                fee_payer = result.fee_payer,
+                                                seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null
                                             )
                                         )
                                         val authUrl = paymentInit.authorization_url
@@ -488,6 +584,14 @@ fun OrderQuoteScreen(
             
             Spacer(modifier = Modifier.height(40.dp))
         }
+    }
+}
+
+@Composable
+fun SummaryLine(label: String, value: String, color: Color = Color.Unspecified) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = color)
     }
 }
 

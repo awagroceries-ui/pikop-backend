@@ -29,6 +29,10 @@ app.set('trust proxy', 1);
 const socketService = require('./services/socketService');
 socketService.init(server);
 
+// Start Background Jobs
+const escrowWorker = require('./jobs/escrowWorker');
+escrowWorker.startEscrowWorker(15); // Run every 15 mins
+
 // 1. Basic Middleware
 app.use(compression()); // Optimize payload size
 app.use(helmet({ contentSecurityPolicy: false }));
