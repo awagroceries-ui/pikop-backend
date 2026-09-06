@@ -7,6 +7,7 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 const walletService = require('../services/walletService');
 const emailService = require('../services/emailService');
 const fcmService = require('../services/fcmService');
+const smsService = require('../services/smsService');
 
 /**
  * Initializes a Paystack transaction.
@@ -29,7 +30,7 @@ const initializePayment = async (req, res) => {
     const {
         quote_id, amount, email,
         item_price, delivery_fee, platform_fee_amount,
-        fee_payer, seller_phone
+        fee_payer, seller_phone, payer_id
     } = req.body;
     const userId = req.user.id;
 
@@ -63,6 +64,7 @@ const initializePayment = async (req, res) => {
         fee_payer: fee_payer || 'PAYER',
         initiator_role: fee_payer || 'PAYER',
         seller_phone: seller_phone || null,
+        payer_id: payer_id || null,
         recipient_name: user?.full_name,
         recipient_phone: user?.phone
       }
@@ -324,7 +326,8 @@ const handleWebhook = async (req, res) => {
                     metadata.fee_payer || 'PAYER',
                     metadata.initiator_role || 'PAYER',
                     (metadata.item_price > 0) ? 'held' : 'not_applicable',
-                    metadata.seller_phone || null
+                    metadata.seller_phone || null,
+                    metadata.payer_id || null
                 ]
             );
             const orderId = orderInsertRes.rows[0].id;
@@ -357,6 +360,13 @@ const handleWebhook = async (req, res) => {
                     }
                 } catch (escrowErr) {
                     console.error('[Webhook] Escrow Ledger Error:', escrowErr.message);
+                }
+
+                // 4. Outreach (Push vs SMS)
+                if (metadata.payer_id) {
+                    fcmService.sendNotification(metadata.payer_id, "Secure Pay Request", `A Secure Pay request for ₦${metadata.item_price} is waiting for your payment.`, { type: "SECURE_PAY_REQUEST", order_id: orderId.toString() });
+                } else {
+                    smsService.sendSecurePaySms(metadata.recipient_phone, metadata.item_price, orderId).catch(e => {});
                 }
             }
 

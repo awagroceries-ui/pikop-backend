@@ -498,7 +498,25 @@ fun OrderQuoteScreen(
                                 val qId = quoteId ?: ""
                                 val result = quoteResult
                                 if (selectedCorporateAccount != null) {
-                                    val success = finalizeOrderAfterPayment(apiService, qId, selectedCorporateAccount!!.id, activePromo?.promo_id, "CORPORATE", recipientName, recipientPhone, notes, pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, pUrl, pickupAddress.take(50), deliveryAddress.take(50))
+                                    val success = finalizeOrderAfterPayment(
+                                        apiService = apiService, 
+                                        quoteId = qId, 
+                                        corporateAccountId = selectedCorporateAccount!!.id, 
+                                        promoId = activePromo?.promo_id, 
+                                        paymentReference = "CORPORATE", 
+                                        recipientName = recipientName, 
+                                        recipientPhone = recipientPhone, 
+                                        notes = notes, 
+                                        pLat = pickupLatLng?.latitude ?: 0.0, 
+                                        pLng = pickupLatLng?.longitude ?: 0.0, 
+                                        dLat = deliveryLatLng?.latitude ?: 0.0, 
+                                        dLng = deliveryLatLng?.longitude ?: 0.0, 
+                                        itemPhotoUrl = pUrl, 
+                                        pSummary = pickupAddress.take(50), 
+                                        dSummary = deliveryAddress.take(50),
+                                        quoteResult = result,
+                                        sellerPhone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null
+                                    )
                                     if (success) {
                                         onOrderComplete("CORPORATE")
                                     } else {
@@ -518,7 +536,9 @@ fun OrderQuoteScreen(
                                             recipientName, recipientPhone, notes, 
                                             pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, 
                                             deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, 
-                                            pUrl, pickupAddress.take(50), deliveryAddress.take(50)
+                                            pUrl, pickupAddress.take(50), deliveryAddress.take(50),
+                                            quoteResult = result,
+                                            sellerPhone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null
                                         )
                                         if (success) {
                                             Toast.makeText(context, "Mission Activated Successfully!", Toast.LENGTH_LONG).show()
@@ -661,7 +681,11 @@ private fun getFileFromUri(context: android.content.Context, uri: Uri): File {
 }
 
 suspend fun finalizeOrderAfterPayment(
-    apiService: ApiService, quoteId: String, corporateAccountId: String?, promoId: String?, paymentReference: String, recipientName: String, recipientPhone: String, notes: String?, pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemPhotoUrl: String, pSummary: String, dSummary: String
+    apiService: ApiService, quoteId: String, corporateAccountId: String?, promoId: String?, 
+    paymentReference: String, recipientName: String, recipientPhone: String, notes: String?, 
+    pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemPhotoUrl: String, 
+    pSummary: String, dSummary: String, quoteResult: QuoteResponse? = null,
+    sellerPhone: String? = null
 ): Boolean {
     return try {
         // 1. Check if Webhook already created the mission (Preferred v3 Flow)
@@ -697,10 +721,12 @@ suspend fun finalizeOrderAfterPayment(
             item_photo_url = itemPhotoUrl, 
             pickup_display_summary = pSummary, 
             delivery_display_summary = dSummary,
-            payment_reference = paymentReference
+            payment_reference = paymentReference,
+            item_price = quoteResult?.item_price,
+            seller_phone = sellerPhone
         )
         val response = apiService.createOrder(request)
-        response.status == "SEARCHING" || response.status == "MATCHED" || response.status == "QUEUED"
+        response.status == "SEARCHING" || response.status == "MATCHED" || response.status == "QUEUED" || response.status == "PAYMENT_CAPTURED"
     } catch (e: Exception) { 
         android.util.Log.e("PikopPayment", "Finalization error: ${e.message}", e)
         false 

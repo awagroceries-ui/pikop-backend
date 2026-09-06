@@ -30,9 +30,10 @@ async function testMerchant() {
             );
 
             // 2. Create a dummy batch
+            const batchId = require('uuid').v4();
             await client.query(
                 "INSERT INTO order_batches (id, merchant_account_id, name, total_orders, processed_orders, status) VALUES ($1, $2, $3, 10, 5, 'processing')",
-                ['test_batch_id', merchantId, 'Sample Batch']
+                [batchId, merchantId, 'Sample Batch']
             );
 
             // 3. Simulate the controller logic for getMyBatches

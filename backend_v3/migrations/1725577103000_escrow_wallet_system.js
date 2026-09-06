@@ -19,6 +19,7 @@ exports.up = (pgm) => {
     },
     seller_id: { type: 'integer', references: '"users"', onDelete: 'set null' },
     seller_phone: { type: 'varchar(20)' },
+    payer_id: { type: 'integer', references: '"users"', onDelete: 'set null' },
     escrow_status: {
       type: 'varchar(30)',
       notNull: true,

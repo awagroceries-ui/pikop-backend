@@ -3,6 +3,7 @@ const geminiService = require('../services/geminiService');
 const walletService = require('../services/walletService');
 const emailService = require('../services/emailService');
 const fcmService = require('../services/fcmService');
+const smsService = require('../services/smsService');
 const PlatformConfig = require('../config/platform');
 const { normalizePhone } = require('../utils/phone');
 
@@ -382,12 +383,14 @@ const getOrderByQuote = async (req, res) => {
  * Fallback for delayed webhooks.
  */
 const createOrder = async (req, res) => {
-    const {
-        quote_id, payment_method, recipient_name, recipient_phone, notes,
-        pickup_display_summary, delivery_display_summary, item_photo_url,
-        promo_id, payment_reference,
-        pickup_lat, pickup_lng, delivery_lat, delivery_lng
-    } = req.body;
+        const {
+            quote_id, payment_method, recipient_name, recipient_phone, notes,
+            pickup_display_summary, delivery_display_summary, item_photo_url,
+            promo_id, payment_reference,
+            pickup_lat, pickup_lng, delivery_lat, delivery_lng,
+            item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
+            payer_id
+        } = req.body;
     const userId = req.user.id;
 
     const client = await db.pool.connect();
@@ -440,7 +443,9 @@ const createOrder = async (req, res) => {
                 total_fare, payment_status, payment_method, payment_reference,
                 recipient_name, recipient_phone, notes,
                 pickup_display_summary, delivery_display_summary, item_photo_url,
-                pickup_code_hash, delivery_code_hash, coupon_id
+                pickup_code_hash, delivery_code_hash, coupon_id,
+                item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
+                escrow_status, payer_id
             ) VALUES (
                 'pickup_delivery', $1, $2, 'SEARCHING',
                 $3, $4,
@@ -449,7 +454,9 @@ const createOrder = async (req, res) => {
                 ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography,
                 $11, 'PAID', $12, $13,
                 $14, $15, $16, $17, $18, $19,
-                'v3_pending', 'v3_pending', $20
+                'v3_pending', 'v3_pending', $20,
+                $21, $22, $23, $24, $25,
+                $26, $27
             ) RETURNING id`,
             [
                 userId, q.id, q.item_description, q.size_tier,
@@ -462,12 +469,28 @@ const createOrder = async (req, res) => {
                 pickup_display_summary || q.pickup_address.substring(0, 50),
                 delivery_display_summary || q.delivery_address.substring(0, 50),
                 item_photo_url,
-                couponId
+                couponId,
+                item_price || 0,
+                delivery_fee || 0,
+                platform_fee_amount || 0,
+                fee_payer || 'PAYER',
+                initiator_role || 'PAYER',
+                (item_price > 0) ? 'held' : 'not_applicable',
+                payer_id || null
             ]
         );
 
         await client.query('COMMIT');
         console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId} | Fare: ${finalFare}`);
+
+        // Outreach for Secure Pay
+        if (item_price > 0) {
+            if (payer_id) {
+                fcmService.sendNotification(payer_id, "Secure Pay Request", `A Secure Pay request for ₦${item_price} is waiting for your payment.`, { type: "SECURE_PAY_REQUEST", order_id: orderRes.rows[0].id.toString() });
+            } else {
+                smsService.sendSecurePaySms(recipient_phone, item_price, orderRes.rows[0].id).catch(e => {});
+            }
+        }
 
         // Send Payment Receipt Email
         try {
