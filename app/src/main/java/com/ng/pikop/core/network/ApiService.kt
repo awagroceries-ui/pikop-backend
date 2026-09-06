@@ -429,6 +429,46 @@ data class PromoValidationResponse(
     val message: String? = null
 )
 
+data class GrowthStats(
+    val referral_code: String? = null,
+    val total_points: Int = 0,
+    val referral_count: Int = 0
+)
+
+data class GrowthStatsResponse(
+    val success: Boolean,
+    val data: GrowthStats
+)
+
+data class MerchantBatch(
+    val id: String,
+    val name: String? = null,
+    val status: String,
+    val total_orders: Int = 0,
+    val processed_orders: Int = 0,
+    val created_at: String
+)
+
+data class MerchantBatchesResponse(
+    val success: Boolean,
+    val data: List<MerchantBatch>
+)
+
+data class BatchDetails(
+    val id: String,
+    val name: String? = null,
+    val status: String,
+    val total_orders: Int = 0,
+    val processed_orders: Int = 0,
+    val created_at: String,
+    val orders: List<OrderDetailsResponse>
+)
+
+data class BatchDetailsResponse(
+    val success: Boolean,
+    val data: BatchDetails
+)
+
 data class PaymentInitializationRequest(
     val amount: Double, // in Naira
     val email: String,
@@ -643,6 +683,15 @@ interface ApiService {
 
     @POST("api/v1/auth/refresh")
     suspend fun refresh(@Body request: Map<String, String>): AuthResponse
+
+    @GET("api/v1/growth/stats")
+    suspend fun getGrowthStats(): GrowthStatsResponse
+
+    @GET("api/v1/merchants/my-batches")
+    suspend fun getMerchantBatches(): MerchantBatchesResponse
+
+    @GET("api/v1/merchants/my-batches/{id}")
+    suspend fun getBatchDetails(@retrofit2.http.Path("id") id: String): BatchDetailsResponse
 
     @GET("api/v1/settings/profile")
     suspend fun getUserProfile(): UserProfileResponse

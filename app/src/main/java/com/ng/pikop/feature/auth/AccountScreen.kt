@@ -35,6 +35,8 @@ fun AccountScreen(
     onNavigateToRecipients: () -> Unit,
     onNavigateToSessions: () -> Unit,
     onNavigateToCorporate: () -> Unit,
+    onNavigateToGrowth: () -> Unit,
+    onNavigateToMerchant: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -124,6 +126,19 @@ fun AccountScreen(
                     label = "Edit Profile",
                     icon = Icons.Default.Edit,
                     onClick = onNavigateToProfile
+                )
+
+                AccountOption(
+                    label = "Rewards & Referrals",
+                    icon = Icons.Default.Stars,
+                    onClick = onNavigateToGrowth
+                )
+
+                // Only show Merchant Portal if applicable (simplifying for now, always shown for testing or can be gated)
+                AccountOption(
+                    label = "Merchant Portal",
+                    icon = Icons.Default.Inventory,
+                    onClick = onNavigateToMerchant
                 )
 
                 if (userRole == "CUSTOMER") {

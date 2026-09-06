@@ -38,6 +38,8 @@ import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.chat.*
 import com.ng.pikop.feature.fulfiller.*
 import com.ng.pikop.feature.order.*
+import com.ng.pikop.feature.growth.GrowthRewardsScreen
+import com.ng.pikop.feature.merchant.MerchantPortalScreen
 import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.ui.theme.PikopTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -462,6 +464,8 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             TermsScreen(onAccept = { navController.popBackStack() }, isViewer = true, showFulfillerTerms = showFulfillerTerms)
         }
         composable("profile_edit") { ProfileEditScreen(onBack = { navController.popBackStack() }) }
+        composable("growth_rewards") { GrowthRewardsScreen(onBack = { navController.popBackStack() }) }
+        composable("merchant_portal") { MerchantPortalScreen(onBack = { navController.popBackStack() }) }
         composable("notifications_settings") { NotificationSettingsScreen(onBack = { navController.popBackStack() }) }
         composable("recipients_mgmt") { RecipientManagementScreen(onBack = { navController.popBackStack() }) }
         composable("session_mgmt") { SessionManagementScreen(onBack = { navController.popBackStack() }) }
@@ -656,6 +660,8 @@ fun MainAppScaffold(
                     onNavigateToRecipients = { navController.navigate("recipients_mgmt") },
                     onNavigateToSessions = { navController.navigate("session_mgmt") },
                     onNavigateToCorporate = { navController.navigate("corporate_dashboard") },
+                    onNavigateToGrowth = { navController.navigate("growth_rewards") },
+                    onNavigateToMerchant = { navController.navigate("merchant_portal") },
                     onLogout = {
                         scope.launch {
                             tokenManager.clearTokens()

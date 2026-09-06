@@ -161,9 +161,30 @@ const getBatchStatus = async (req, res) => {
     }
 };
 
+/**
+ * Returns batches owned by the authenticated user.
+ */
+const getMyBatches = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const { rows } = await db.query(`
+            SELECT b.*
+            FROM order_batches b
+            JOIN merchant_accounts ma ON ma.id = b.merchant_account_id
+            JOIN merchant_sub_accounts msa ON msa.merchant_account_id = ma.id
+            WHERE msa.user_id = $1
+            ORDER BY b.created_at DESC
+        `, [userId]);
+        res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
   registerMerchant,
   createBulkOrders,
   getBatches,
-  getBatchStatus
+  getBatchStatus,
+  getMyBatches
 };
