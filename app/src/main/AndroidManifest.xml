@@ -13,7 +13,8 @@
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
-        android:name=".PikopApp"
+        android:name="com.ng.pikop.PikopApp"
+        android:extractNativeLibs="false"
         android:allowBackup="true"
         tools:ignore="UnusedAttribute"
         android:dataExtractionRules="@xml/data_extraction_rules"

@@ -40,16 +40,20 @@
 
         <div class="border-top pt-3 mt-4">
             <label class="text-muted smaller fw-bold uppercase d-block mb-2">Manual Order Override</label>
-            <form action="/admin/orders/<%= order.id %>/update" method="POST" class="d-grid gap-2">
+            <div class="d-grid gap-2">
                 <% if (order.status !== 'DELIVERED') { %>
-                    <input type="hidden" name="status" value="DELIVERED">
-                    <button type="submit" class="btn btn-sm btn-success fw-bold">Force Mark as Delivered</button>
+                    <form action="/admin/orders/<%= order.id %>/update" method="POST">
+                        <input type="hidden" name="status" value="DELIVERED">
+                        <button type="submit" class="btn btn-sm btn-success fw-bold w-100">Force Mark as Delivered</button>
+                    </form>
                 <% } %>
                 <% if (order.status !== 'CANCELLED') { %>
-                    <input type="hidden" name="status" value="CANCELLED">
-                    <button type="submit" class="btn btn-sm btn-outline-danger fw-bold">Cancel Mission</button>
+                    <form action="/admin/orders/<%= order.id %>/update" method="POST">
+                        <input type="hidden" name="status" value="CANCELLED">
+                        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold w-100">Cancel Mission</button>
+                    </form>
                 <% } %>
-            </form>
+            </div>
         </div>
     </div>
 

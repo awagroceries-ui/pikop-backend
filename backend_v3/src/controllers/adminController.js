@@ -594,7 +594,11 @@ const getFulfillers = async (req, res) => {
  */
 const updateFulfillerStatus = async (req, res) => {
     const { id } = req.params;
-    const { status } = req.body; // active, suspended, terminated
+    let { status } = req.body; // active, suspended, terminated
+
+    // Safety: Handle array submission from UI (prevents constraint violation)
+    if (Array.isArray(status)) status = status[0];
+
     try {
         await db.query("UPDATE fulfillers SET status = $1 WHERE id = $2", [status, id]);
         await db.query(
@@ -612,7 +616,11 @@ const updateFulfillerStatus = async (req, res) => {
  */
 const updateOrderStatus = async (req, res) => {
     const { id } = req.params;
-    const { status } = req.body; // e.g. DELIVERED, CANCELLED
+    let { status } = req.body; // e.g. DELIVERED, CANCELLED
+
+    // Safety: Handle array submission from UI (prevents constraint violation)
+    if (Array.isArray(status)) status = status[0];
+
     const client = await db.pool.connect();
     try {
         await client.query('BEGIN');
