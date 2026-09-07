@@ -521,27 +521,20 @@ fun SubmissionStep(isLoading: Boolean, status: String, onComplete: () -> Unit, o
     val isSubmitted = status == "PENDING_REVIEW" || status == "VERIFIED"
     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (isSubmitted) {
-            Icon(Icons.Default.HourglassTop, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
-            Text("Verification Submitted!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+            Text("Verification Completed!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Card(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Awaiting Admin Approval", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Please Return to Home Screen", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Your documents and identity checks have been submitted successfully. Our compliance team is reviewing your profile.",
+                        "Your identity verification and profile details have been successfully completed. Please return to the home screen and wait for final admin approval.",
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.DarkGray
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "You will receive an email notification as soon as your account is activated.",
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
                     )
                 }
             }

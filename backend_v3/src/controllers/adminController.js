@@ -572,6 +572,76 @@ const approveWithdrawal = async (req, res) => {
     }
 };
 
+/**
+ * Fleet Management: List all fulfillers.
+ */
+const getFulfillers = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT f.*, u.full_name, u.email, u.phone as user_phone
+            FROM fulfillers f
+            JOIN users u ON u.id = f.user_id
+            ORDER BY f.created_at DESC
+        `);
+        res.render('fulfillers', { fulfillers: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Fleet Management: Update fulfiller status (suspend, reactivate, terminate).
+ */
+const updateFulfillerStatus = async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body; // active, suspended, terminated
+    try {
+        await db.query("UPDATE fulfillers SET status = $1 WHERE id = $2", [status, id]);
+        await db.query(
+            "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+            [req.session.adminId, 'UPDATE_FULFILLER_STATUS', 'fulfiller', id, JSON.stringify({ status })]
+        );
+        res.redirect('/admin/fulfillers');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Manual Order Management: Update order status or force complete stuck orders.
+ */
+const updateOrderStatus = async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body; // e.g. DELIVERED, CANCELLED
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query("UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [status, id]);
+
+        if (status === 'DELIVERED') {
+            await client.query("UPDATE orders SET payment_status = 'PAID' WHERE id = $1", [id]);
+            try {
+                await walletService.releaseEscrow(id);
+            } catch (e) {
+                console.error('[Admin] Escrow release on force complete failed:', e.message);
+            }
+        }
+
+        await client.query(
+            "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+            [req.session.adminId, 'MANUAL_ORDER_UPDATE', 'order', id, JSON.stringify({ status })]
+        );
+
+        await client.query('COMMIT');
+        res.redirect(`/admin/orders/${id}/track`);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        res.status(500).send(`Order update failed: ${error.message}`);
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -598,5 +668,8 @@ module.exports = {
   getDisputes,
   resolveDispute,
   getWithdrawals,
-  approveWithdrawal
+  approveWithdrawal,
+  getFulfillers,
+  updateFulfillerStatus,
+  updateOrderStatus
 };

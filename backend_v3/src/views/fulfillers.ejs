@@ -1,0 +1,72 @@
+<div class="mb-5">
+    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Fleet Management</h3>
+    <p class="text-muted small">Manage delivery fulfillers, approval status, suspension, and account termination.</p>
+</div>
+
+<div class="row g-4">
+    <% if (fulfillers.length === 0) { %>
+        <div class="col-12">
+            <div class="card-pikop p-5 text-center">
+                <p class="text-muted mb-0">No fulfillers registered in the network.</p>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="col-12">
+            <div class="card-pikop p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th class="smaller uppercase text-muted">Fulfiller</th>
+                                <th class="smaller uppercase text-muted">Role</th>
+                                <th class="smaller uppercase text-muted">KYC Status</th>
+                                <th class="smaller uppercase text-muted">Account Status</th>
+                                <th class="smaller uppercase text-muted text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% fulfillers.forEach(f => { %>
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-black"><%= f.full_name %></div>
+                                        <div class="small text-muted"><%= f.email %> | <%= f.user_phone %></div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary"><%= f.primary_class || 'AGENT' %></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge <%= f.kyc_status === 'VERIFIED' ? 'bg-success' : 'bg-warning text-dark' %>">
+                                            <%= f.kyc_status %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge <%= f.status === 'active' ? 'bg-success' : f.status === 'suspended' ? 'bg-warning text-dark' : 'bg-danger' %>">
+                                            <%= f.status %>
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <form action="/admin/fulfillers/<%= f.id %>/status" method="POST" class="d-inline-flex gap-2">
+                                            <% if (f.status !== 'active') { %>
+                                                <input type="hidden" name="status" value="active">
+                                                <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 11px;">Reactivate</button>
+                                            <% } %>
+                                            <% if (f.status !== 'suspended') { %>
+                                                <input type="hidden" name="status" value="suspended">
+                                                <button type="submit" class="btn btn-sm btn-outline-warning py-0 px-2" style="font-size: 11px;">Suspend</button>
+                                            <% } %>
+                                            <% if (f.status !== 'terminated') { %>
+                                                <input type="hidden" name="status" value="terminated">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 11px;">Terminate</button>
+                                            <% } %>
+                                        </form>
+                                        <a href="/admin/kyc/<%= f.id %>" class="btn btn-sm btn-outline-primary py-0 px-2 ms-2" style="font-size: 11px;">View KYC</a>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    <% } %>
+</div>

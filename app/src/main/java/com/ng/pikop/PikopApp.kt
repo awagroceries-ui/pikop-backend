@@ -11,32 +11,27 @@ import kotlinx.coroutines.Dispatchers
 
 @HiltAndroidApp
 class PikopApp : Application() {
+    init {
+        android.util.Log.e("PikopApp", "!!! PIKOP APP CLASS LOADED !!!")
+    }
     override fun onCreate() {
         super.onCreate()
         
-        android.util.Log.d("PikopApp", "Application onCreate - Start")
+        android.util.Log.e("PikopApp", "!!! PIKOP APP ONCREATE START !!!")
 
-        // Immediate Init (Main Thread required for native SDKs)
+        // Immediate Init (Main Thread required for native SDKs & Places)
         try {
-            DojahSdk.with(this)
-            android.util.Log.d("PikopApp", "Dojah init complete")
+            if (!Places.isInitialized()) {
+                Places.initialize(applicationContext, BuildConfig.GOOGLE_MAPS_API_KEY)
+            }
         } catch (e: Exception) {
-            android.util.Log.e("PikopApp", "Dojah init failed: ${e.message}")
+            android.util.Log.e("PikopApp", "Places init failed: ${e.message}")
         }
 
         // Background Init (Non-blocking) for remaining services
         @Suppress("OPT_IN_USAGE")
         GlobalScope.launch(Dispatchers.Default) {
             // Paystack removed: Native SDK is Card-only. Using Hosted Checkout WebView instead.
-            
-            // Initialize Google Places
-            try {
-                if (!Places.isInitialized()) {
-                    Places.initialize(applicationContext, BuildConfig.GOOGLE_MAPS_API_KEY)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("PikopApp", "Places init failed: ${e.message}")
-            }
 
             // Initialize Firebase safely
             try {

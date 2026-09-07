@@ -69,6 +69,15 @@ fun MapAddressSearchScreen(
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    
+    // Ensure Places is initialized
+    try {
+        if (!Places.isInitialized()) {
+            Places.initialize(context.applicationContext, com.ng.pikop.BuildConfig.GOOGLE_MAPS_API_KEY)
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("MapAddressSearchScreen", "Places init failed: ${e.message}")
+    }
     val placesClient = remember { Places.createClient(context) }
     
     var hasResolvedInitialLocation by remember { mutableStateOf(false) }
@@ -267,8 +276,17 @@ fun MapAddressSearchScreen(
                                         if (res.isNotEmpty()) {
                                             suggestions = res
                                         } else {
-                                            searchError = "No results found"
-                                            suggestions = emptyList()
+                                            try {
+                                                val backendRes = apiService.getAutocomplete(it, sessionToken.toString())
+                                                suggestions = backendRes.predictions
+                                                if (suggestions.isEmpty()) {
+                                                    searchError = "No results found"
+                                                }
+                                            } catch (fallbackEx: Exception) {
+                                                android.util.Log.e("PlacesFallback", "Backend autocomplete fallback failed", fallbackEx)
+                                                searchError = "No results found"
+                                                suggestions = emptyList()
+                                            }
                                         }
                                     } catch (e: Exception) {
                                         android.util.Log.e("AddressSearch", "Autocomplete error", e)

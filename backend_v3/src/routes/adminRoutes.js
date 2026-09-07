@@ -35,8 +35,11 @@ router.use((req, res, next) => {
 router.get('/dashboard', adminController.getDashboard);
 router.get('/orders', adminController.getOrders);
 router.get('/orders/:id/track', adminController.trackOrder);
+router.post('/orders/:id/update', adminController.updateOrderStatus);
 
 // Fleet & KYC
+router.get('/fulfillers', adminController.getFulfillers);
+router.post('/fulfillers/:id/status', adminController.updateFulfillerStatus);
 router.get('/kyc', adminController.getKYCQueue);
 router.get('/kyc/:id', adminController.getKYCReview);
 router.post('/kyc/:id/status', adminController.updateKYCStatus);
