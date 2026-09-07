@@ -13,19 +13,6 @@ const smsService = require('../services/smsService');
  * Initializes a Paystack transaction.
  */
 const initializePayment = async (req, res) => {
-  const { quote_id, amount, email } = req.body;
-  const userId = req.user.id;
-
-  if (!quote_id) {
-      console.error('[Paystack] ERROR: Missing quote_id in request body');
-      return res.status(400).json({ success: false, message: 'quote_id is required for activation' });
-  }
-
-  if (!PAYSTACK_SECRET || PAYSTACK_SECRET.includes('your_')) {
-      console.error('[Paystack] ERROR: Missing or invalid secret key in .env');
-      return res.status(500).json({ success: false, message: 'Payment gateway not configured' });
-  }
-
   try {
     const {
         quote_id, amount, email,
@@ -37,6 +24,11 @@ const initializePayment = async (req, res) => {
     if (!quote_id) {
         console.error('[Paystack] ERROR: Missing quote_id in request body');
         return res.status(400).json({ success: false, message: 'quote_id is required for activation' });
+    }
+
+    if (!PAYSTACK_SECRET || PAYSTACK_SECRET.includes('your_')) {
+        console.error('[Paystack] ERROR: Missing or invalid secret key in .env');
+        return res.status(500).json({ success: false, message: 'Payment gateway not configured' });
     }
 
     let koboAmount = Math.round(parseFloat(amount) * 100);
@@ -54,7 +46,7 @@ const initializePayment = async (req, res) => {
       email,
       currency: 'NGN',
       callback_url: 'pikop://payment/success',
-      channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],
+      // channels removed to allow Paystack dashboard configuration to take precedence
       metadata: {
         quote_id,
         user_id: userId,
