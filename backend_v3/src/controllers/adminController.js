@@ -616,14 +616,19 @@ const updateOrderStatus = async (req, res) => {
     const client = await db.pool.connect();
     try {
         await client.query('BEGIN');
+        const { rows } = await client.query("SELECT escrow_status FROM orders WHERE id = $1 FOR UPDATE", [id]);
+        const order = rows[0];
+
         await client.query("UPDATE orders SET status = $1 WHERE id = $2", [status, id]);
 
         if (status === 'DELIVERED') {
             await client.query("UPDATE orders SET payment_status = 'PAID' WHERE id = $1", [id]);
-            try {
-                await walletService.releaseEscrow(id);
-            } catch (e) {
-                console.error('[Admin] Escrow release on force complete failed:', e.message);
+            if (order && order.escrow_status === 'held') {
+                try {
+                    await walletService.releaseEscrow(id);
+                } catch (e) {
+                    console.error('[Admin] Escrow release on force complete failed:', e.message);
+                }
             }
         }
 
