@@ -616,7 +616,7 @@ const updateOrderStatus = async (req, res) => {
     const client = await db.pool.connect();
     try {
         await client.query('BEGIN');
-        await client.query("UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [status, id]);
+        await client.query("UPDATE orders SET status = $1 WHERE id = $2", [status, id]);
 
         if (status === 'DELIVERED') {
             await client.query("UPDATE orders SET payment_status = 'PAID' WHERE id = $1", [id]);
