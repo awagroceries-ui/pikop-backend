@@ -14,7 +14,7 @@
 
     <application
         android:name="com.ng.pikop.PikopApp"
-        android:extractNativeLibs="false"
+        android:extractNativeLibs="true"
         android:allowBackup="true"
         tools:ignore="UnusedAttribute"
         android:dataExtractionRules="@xml/data_extraction_rules"

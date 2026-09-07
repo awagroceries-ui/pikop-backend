@@ -72,8 +72,10 @@ fun MapAddressSearchScreen(
     
     // Ensure Places is initialized
     try {
+        val key = com.ng.pikop.BuildConfig.GOOGLE_MAPS_API_KEY
+        android.util.Log.d("MapAddressSearchScreen", "Ensuring Places Init. Key Prefix: ${key.take(8)}...")
         if (!Places.isInitialized()) {
-            Places.initialize(context.applicationContext, com.ng.pikop.BuildConfig.GOOGLE_MAPS_API_KEY)
+            Places.initialize(context.applicationContext, key)
         }
     } catch (e: Exception) {
         android.util.Log.e("MapAddressSearchScreen", "Places init failed: ${e.message}")
@@ -275,16 +277,21 @@ fun MapAddressSearchScreen(
 
                                         if (res.isNotEmpty()) {
                                             suggestions = res
+                                            android.util.Log.d("PlacesNative", "Native suggestions found: ${res.size}")
                                         } else {
+                                            android.util.Log.w("PlacesNative", "Native suggestions empty. Attempting backend fallback...")
                                             try {
                                                 val backendRes = apiService.getAutocomplete(it, sessionToken.toString())
                                                 suggestions = backendRes.predictions
                                                 if (suggestions.isEmpty()) {
+                                                    android.util.Log.e("PlacesFallback", "Backend returned zero results for query: $it")
                                                     searchError = "No results found"
+                                                } else {
+                                                    android.util.Log.d("PlacesFallback", "Backend suggestions found: ${suggestions.size}")
                                                 }
                                             } catch (fallbackEx: Exception) {
                                                 android.util.Log.e("PlacesFallback", "Backend autocomplete fallback failed", fallbackEx)
-                                                searchError = "No results found"
+                                                searchError = "Search service unavailable"
                                                 suggestions = emptyList()
                                             }
                                         }

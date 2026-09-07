@@ -21,8 +21,10 @@ class PikopApp : Application() {
 
         // Immediate Init (Main Thread required for native SDKs & Places)
         try {
+            val key = BuildConfig.GOOGLE_MAPS_API_KEY
+            android.util.Log.e("PikopApp", "Initializing Places with Key Prefix: ${key.take(8)}...")
             if (!Places.isInitialized()) {
-                Places.initialize(applicationContext, BuildConfig.GOOGLE_MAPS_API_KEY)
+                Places.initialize(applicationContext, key)
             }
         } catch (e: Exception) {
             android.util.Log.e("PikopApp", "Places init failed: ${e.message}")
