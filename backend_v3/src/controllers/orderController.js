@@ -234,7 +234,7 @@ const updateStatus = async (req, res) => {
         const { rows: orderData } = await db.query("SELECT item_price, escrow_status FROM orders WHERE id = $1", [orderId]);
         const isEscrow = orderData[0]?.item_price > 0 && orderData[0]?.escrow_status === 'held';
 
-        if (!isEscrow) {
+        if (!isEscrow && orderData[0]) {
             try {
                 await walletService.processMissionSettlement(orderId);
             } catch (e) {
@@ -616,7 +616,7 @@ const verifyDelivery = async (req, res) => {
 
     try {
         const { rows } = await db.query(
-            "SELECT id, status, delivery_code_hash FROM orders WHERE id = $1",
+            "SELECT id, status, delivery_code_hash, user_id, item_price, escrow_status FROM orders WHERE id = $1",
             [id]
         );
 
@@ -654,7 +654,7 @@ const verifyDelivery = async (req, res) => {
         if (isEscrow) {
             const graceHours = PlatformConfig.ESCROW.GRACE_PERIOD_HOURS || 48;
             await db.query(
-                "UPDATE orders SET grace_period_expires_at = CURRENT_TIMESTAMP + interval '$1 hours' WHERE id = $2",
+                "UPDATE orders SET grace_period_expires_at = CURRENT_TIMESTAMP + ($1 || ' hours')::interval WHERE id = $2",
                 [graceHours, id]
             );
 

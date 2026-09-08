@@ -101,6 +101,7 @@ const initializeCoDPayment = async (req, res) => {
             email: 'billing@pikop.ng', // Use a generic email for recipient collection
             currency: 'NGN',
             callback_url: 'pikop://payment/success',
+            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
             metadata: {
                 order_id: order.id,
                 collection_type: 'COD'

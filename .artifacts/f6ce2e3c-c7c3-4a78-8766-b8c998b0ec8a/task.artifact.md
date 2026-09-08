@@ -1,8 +1,9 @@
-# Task List - Fix Address Autocomplete, Payment Channels & Promo Code Bug
+# Task List - Fix Mission Completion, Map visibility & Payment Options
 
-- [x] Backend: Make Places API public (remove `authenticateToken`)
-- [x] Backend: Enable all Paystack channels (add `channels` array)
-- [x] Android: Fix Promo Code discount calculation (all `flat` -> `fixed` occurrences)
-- [x] Backend/Core: Update discount type comments to `fixed`
-- [x] Verification: Build Android app via terminal
-- [x] Verification: Git automation (Commit and Push)
+- [ ] Backend: Fix `verifyDelivery` query and interval syntax
+- [ ] Backend: Fix `updateStatus` settlement safety check
+- [ ] Backend: Add `channels` to CoD and Wallet Top-up checkout
+- [ ] Backend: Add diagnostic logs to Places autocomplete
+- [ ] Android: Add Maps API Key build-time verification
+- [ ] Verification: Build Android app
+- [ ] Verification: Git automation (Commit and Push)

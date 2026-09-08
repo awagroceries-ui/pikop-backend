@@ -31,6 +31,10 @@ const autocomplete = async (req, res) => {
 
         const response = await axios.get('https://maps.googleapis.com/maps/api/place/autocomplete/json', { params });
 
+        if (response.data.status === 'ZERO_RESULTS') {
+            console.warn(`[Places] Google returned ZERO_RESULTS for query: "${query}" with params:`, JSON.stringify(params));
+        }
+
         if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
             console.error('[Places] Google API Full Response:', JSON.stringify(response.data, null, 2));
             console.error('[Places] Google API Error Status:', response.data.status);

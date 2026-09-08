@@ -26,7 +26,9 @@ android {
             if (it.exists()) {
                 val props = Properties()
                 props.load(it.inputStream())
-                props.getProperty("googleMapsApiKey") ?: ""
+                val key = props.getProperty("googleMapsApiKey") ?: ""
+                println(">>> Pikop Build: Using Google Maps API Key: ${key.take(8)}...")
+                key
             } else ""
         }
         manifestPlaceholders["googleMapsApiKey"] = mapsKey
