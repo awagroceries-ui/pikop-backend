@@ -47,7 +47,8 @@ const initializePayment = async (req, res) => {
       currency: 'NGN',
       callback_url: 'pikop://payment/success',
       // Explicitly include all channels to ensure "Bank Transfer" is available
-      channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],
+      // Using 'bank_transfer' as per Paystack docs, adding 'transfer' as fallback
+      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer', 'transfer'],
       metadata: {
         quote_id,
         user_id: userId,

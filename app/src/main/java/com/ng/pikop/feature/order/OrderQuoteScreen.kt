@@ -531,20 +531,35 @@ fun OrderQuoteScreen(
                                     // 100% DISCOUNT BYPASS
                                     if (amountToCharge <= 0) {
                                         val freePaymentRef = "FREE_${java.util.UUID.randomUUID()}"
-                                        val success = finalizeOrderAfterPayment(
-                                            apiService, qId, null, activePromo?.promo_id, freePaymentRef, 
-                                            recipientName, recipientPhone, notes, 
-                                            pickupLatLng?.latitude ?: 0.0, pickupLatLng?.longitude ?: 0.0, 
-                                            deliveryLatLng?.latitude ?: 0.0, deliveryLatLng?.longitude ?: 0.0, 
-                                            pUrl, pickupAddress.take(50), deliveryAddress.take(50),
-                                            quoteResult = result,
-                                            sellerPhone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null
-                                        )
-                                        if (success) {
-                                            Toast.makeText(context, "Mission Activated Successfully!", Toast.LENGTH_LONG).show()
-                                            onOrderComplete("FREE")
-                                        } else {
-                                            val detail = "Activation declined by server. Check connection."
+                                        try {
+                                            val request = CreateOrderRequest(
+                                                quote_id = qId, 
+                                                corporate_account_id = null, 
+                                                promo_id = activePromo?.promo_id, 
+                                                payment_method = "promo", 
+                                                recipient_name = recipientName, 
+                                                recipient_phone = recipientPhone, 
+                                                notes = notes, 
+                                                pickup_lat = pickupLatLng?.latitude ?: 0.0, 
+                                                pickup_lng = pickupLatLng?.longitude ?: 0.0, 
+                                                delivery_lat = deliveryLatLng?.latitude ?: 0.0, 
+                                                delivery_lng = deliveryLatLng?.longitude ?: 0.0, 
+                                                item_photo_url = pUrl, 
+                                                pickup_display_summary = pickupAddress.take(50), 
+                                                delivery_display_summary = deliveryAddress.take(50),
+                                                payment_reference = freePaymentRef,
+                                                item_price = result.item_price,
+                                                seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null
+                                            )
+                                            val response = apiService.createOrder(request)
+                                            if (response.status == "SEARCHING" || response.status == "MATCHED" || response.status == "QUEUED" || response.status == "PAYMENT_CAPTURED") {
+                                                Toast.makeText(context, "Mission Activated Successfully!", Toast.LENGTH_LONG).show()
+                                                onOrderComplete("FREE")
+                                            } else {
+                                                Toast.makeText(context, "Server Error: Could not activate free mission", Toast.LENGTH_LONG).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            val detail = ErrorUtils.parseError(e)
                                             Toast.makeText(context, "Failed to activate free mission: $detail", Toast.LENGTH_LONG).show()
                                         }
                                         isLoading = false
