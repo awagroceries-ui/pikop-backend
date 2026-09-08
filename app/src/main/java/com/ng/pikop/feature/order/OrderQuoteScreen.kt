@@ -525,7 +525,7 @@ fun OrderQuoteScreen(
                                 } else if (result != null) {
                                     val total = result.total_fare ?: 0.0
                                     val promo = activePromo
-                                    val discount = if (promo == null) 0.0 else if (promo.discount_type == "flat") promo.value ?: 0.0 else total * ((promo.value ?: 0.0)/100)
+                                    val discount = if (promo == null) 0.0 else if (promo.discount_type == "fixed") promo.value ?: 0.0 else total * ((promo.value ?: 0.0)/100)
                                     val amountToCharge = total - discount 
 
                                     // 100% DISCOUNT BYPASS

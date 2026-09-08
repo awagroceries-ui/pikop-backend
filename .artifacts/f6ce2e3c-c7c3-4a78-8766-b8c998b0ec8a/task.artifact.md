@@ -1,7 +1,7 @@
-# Task List - Resolve Android 16 Launch Crash & Hilt/KSP
+# Task List - Fix Address Autocomplete, Payment Channels & Promo Code Bug
 
-- [/] Verify Hilt Gradle plugin order and KSP configuration in app `build.gradle.kts` and root `build.gradle.kts`
-- [ ] Perform clean build with `--no-daemon` to check for `ClassNotFoundException: com.ng.pikop.PikopApp`
-- [ ] Inspect APK / build output for DEX inclusion and native library alignment (Android 16 compatibility)
-- [ ] Test app launch on device/emulator
-- [ ] Create walkthrough artifact summarizing fixes and verification results
+- [x] Backend: Make Places API public (remove `authenticateToken`)
+- [x] Backend: Enable all Paystack channels (add `channels` array)
+- [x] Android: Fix Promo Code discount calculation (`flat` -> `fixed`)
+- [x] Verification: Build Android app via terminal
+- [x] Verification: Git automation (Commit and Push)
