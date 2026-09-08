@@ -40,7 +40,7 @@ const validateCoupon = async (req, res) => {
         // UNIFIED RESPONSE: Matches Android App's PromoValidationResponse
         res.status(200).json({
             promo_id: coupon.id, // Return UUID instead of code
-            discount_type: coupon.discount_type.toLowerCase(), // 'flat' or 'percentage'
+            discount_type: coupon.discount_type.toLowerCase(), // 'fixed' or 'percentage'
             value: parseFloat(coupon.discount_value),
             message: `Coupon ${coupon.code} applied successfully.`
         });

@@ -424,7 +424,7 @@ data class AccountDetails(
 
 data class PromoValidationResponse(
     val promo_id: String? = null,
-    val discount_type: String? = null, // flat, percentage
+    val discount_type: String? = null, // fixed, percentage
     val value: Double? = null,
     val message: String? = null
 )

@@ -307,7 +307,7 @@ fun OrderQuoteScreen(
                 }
             }
             activePromo?.let { 
-                Text("Discount: ${if(it.discount_type == "flat") "₦${it.value ?: 0.0}" else "${it.value ?: 0.0}%"}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                Text("Discount: ${if(it.discount_type == "fixed") "₦${it.value ?: 0.0}" else "${it.value ?: 0.0}%"}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
             }
 
             // Billing Method
@@ -382,7 +382,7 @@ fun OrderQuoteScreen(
                     val total = result.total_fare ?: 0.0
                     val size = result.size_tier ?: "MEDIUM"
                     val promo = activePromo
-                    val discount = if (promo == null) 0.0 else if (promo.discount_type == "flat") promo.value ?: 0.0 else total * ((promo.value ?: 0.0) / 100)
+                    val discount = if (promo == null) 0.0 else if (promo.discount_type == "fixed") promo.value ?: 0.0 else total * ((promo.value ?: 0.0) / 100)
                     
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Order Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
