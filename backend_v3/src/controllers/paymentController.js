@@ -46,9 +46,6 @@ const initializePayment = async (req, res) => {
       email,
       currency: 'NGN',
       callback_url: 'pikop://payment/success',
-      // Explicitly include all channels to ensure "Bank Transfer" is available
-      // Using 'bank_transfer' as per Paystack docs, adding 'transfer' as fallback
-      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer', 'transfer'],
       metadata: {
         quote_id,
         user_id: userId,
@@ -455,7 +452,38 @@ const verifyPayment = async (req, res) => {
 
         const tx = response.data.data;
         if (tx.status === 'success') {
-            const { quote_id, user_id, recipient_name, recipient_phone } = tx.metadata;
+            const metadata = tx.metadata || {};
+
+            // Handle Top-Up Verification
+            if (metadata.type === 'TOPUP') {
+                const client = await db.pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    const existingLedger = await client.query(
+                        "SELECT id FROM wallet_ledger_entries WHERE metadata->>'reference' = $1",
+                        [reference]
+                    );
+                    if (existingLedger.rows.length === 0) {
+                        const walletId = await walletService.ensureWalletExists(client, 'USER', metadata.user_id);
+                        const amount = tx.amount / 100; // Convert Kobo to Naira
+                        await walletService.recordEntry(
+                            client, walletId, 'CREDIT', amount,
+                            'WALLET_TOPUP', `Top-up via ${tx.channel} (verified)`,
+                            null, 'available', { reference }
+                        );
+                        console.log(`[Verify] Wallet TOPUP SUCCESS for User ${metadata.user_id}: ₦${amount}`);
+                    }
+                    await client.query('COMMIT');
+                } catch (e) {
+                    await client.query('ROLLBACK');
+                    console.error('[Verify] Top-up Credit Error:', e.message);
+                } finally {
+                    client.release();
+                }
+                return res.status(200).json({ success: true, status: 'PAID' });
+            }
+
+            const { quote_id, user_id, recipient_name, recipient_phone } = metadata;
 
             // Trigger activation logic (mirroring Webhook for robustness)
             const client = await db.pool.connect();

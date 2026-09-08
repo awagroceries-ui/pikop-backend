@@ -209,7 +209,18 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             }
 
             if (dataUri.host == "wallet" && dataUri.path == "/topup/success") {
-                android.util.Log.d("PikopIntent", "Wallet top-up success deep-link detected.")
+                val reference = dataUri.getQueryParameter("reference") ?: dataUri.getQueryParameter("trxref")
+                android.util.Log.d("PikopIntent", "Wallet top-up success deep-link detected with ref: $reference. Verifying top-up...")
+                if (reference != null) {
+                    scope.launch {
+                        try {
+                            val api = ApiService.create(tokenManager)
+                            api.verifyPayment(reference)
+                        } catch (e: Exception) {
+                            android.util.Log.e("PikopTopup", "Topup verify failed: ${e.message}")
+                        }
+                    }
+                }
                 android.widget.Toast.makeText(context, "Wallet Top-up Successful!", android.widget.Toast.LENGTH_LONG).show()
                 navController.navigate("main") {
                     popUpTo(0) { inclusive = true }

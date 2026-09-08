@@ -655,6 +655,84 @@ const updateOrderStatus = async (req, res) => {
     }
 };
 
+/**
+ * Transaction Audit Ledger: List all platform ledger entries and financial activity.
+ */
+const getTransactions = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT l.*, w.owner_type, w.owner_id
+            FROM wallet_ledger_entries l
+            JOIN wallets w ON w.id = l.wallet_id
+            ORDER BY l.created_at DESC LIMIT 200
+        `);
+        res.render('transactions', { transactions: rows });
+    } catch (error) {
+        res.render('transactions', { transactions: [] });
+    }
+};
+
+/**
+ * Customer Management: List all customers.
+ */
+const getCustomers = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT u.*, w.balance, w.pending_balance
+            FROM users u
+            LEFT JOIN wallets w ON w.owner_type = 'USER' AND w.owner_id = u.id::text
+            WHERE u.role = 'CUSTOMER'
+            ORDER BY u.created_at DESC
+        `);
+        res.render('customers', { customers: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Customer Management: View individual customer details and activity.
+ */
+const getCustomerDetail = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const userRes = await db.query("SELECT * FROM users WHERE id = $1", [id]);
+        if (userRes.rows.length === 0) return res.status(404).send('Customer not found');
+
+        const ordersRes = await db.query("SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50", [id]);
+        const walletRes = await db.query("SELECT * FROM wallets WHERE owner_type = 'USER' AND owner_id = $1", [id.toString()]);
+
+        let ledger = [];
+        if (walletRes.rows.length > 0) {
+            const ledgerRes = await db.query("SELECT * FROM wallet_ledger_entries WHERE wallet_id = $1 ORDER BY created_at DESC LIMIT 50", [walletRes.rows[0].id]);
+            ledger = ledgerRes.rows;
+        }
+
+        res.render('customer_detail', {
+            customer: userRes.rows[0],
+            orders: ordersRes.rows,
+            wallet: walletRes.rows[0] || { balance: 0, pending_balance: 0 },
+            ledger
+        });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Customer Management: Update customer status (suspend/activate).
+ */
+const updateCustomerStatus = async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    try {
+        await db.query("UPDATE users SET status = $1 WHERE id = $2", [status, id]).catch(() => {});
+        res.redirect(`/admin/customers/${id}`);
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -684,5 +762,9 @@ module.exports = {
   approveWithdrawal,
   getFulfillers,
   updateFulfillerStatus,
-  updateOrderStatus
+  updateOrderStatus,
+  getTransactions,
+  getCustomers,
+  getCustomerDetail,
+  updateCustomerStatus
 };

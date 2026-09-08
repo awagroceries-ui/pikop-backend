@@ -40,6 +40,15 @@ router.post('/orders/:id/update', adminController.updateOrderStatus);
 // Fleet & KYC
 router.get('/fulfillers', adminController.getFulfillers);
 router.post('/fulfillers/:id/status', adminController.updateFulfillerStatus);
+
+// Customer Management
+router.get('/customers', adminController.getCustomers);
+router.get('/customers/:id', adminController.getCustomerDetail);
+router.post('/customers/:id/status', adminController.updateCustomerStatus);
+
+// Transactions & Ledger Audit
+router.get('/transactions', adminController.getTransactions);
+
 router.get('/kyc', adminController.getKYCQueue);
 router.get('/kyc/:id', adminController.getKYCReview);
 router.post('/kyc/:id/status', adminController.updateKYCStatus);

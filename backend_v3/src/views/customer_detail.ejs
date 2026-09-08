@@ -1,0 +1,79 @@
+<div class="mb-5">
+    <a href="/admin/customers" class="btn btn-sm btn-outline-secondary mb-3">← Back to Customers</a>
+    <h3 class="fw-bold mb-1 text-black">Customer Profile: <%= customer.full_name %></h3>
+    <p class="text-muted small">Account details, wallet summary, and mission history.</p>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card-pikop p-4">
+            <h6 class="text-black fw-bold uppercase mb-3" style="font-size: 11px; letter-spacing: 1px;">Account Info</h6>
+            <div class="mb-3">
+                <span class="text-muted smaller d-block">Email</span>
+                <span class="fw-bold"><%= customer.email %></span>
+            </div>
+            <div class="mb-3">
+                <span class="text-muted smaller d-block">Phone</span>
+                <span class="fw-bold"><%= customer.phone || 'N/A' %></span>
+            </div>
+            <div class="mb-3">
+                <span class="text-muted smaller d-block">Joined</span>
+                <span class="small"><%= new Date(customer.created_at).toLocaleString() %></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card-pikop p-4">
+            <h6 class="text-black fw-bold uppercase mb-3" style="font-size: 11px; letter-spacing: 1px;">Wallet Summary</h6>
+            <div class="row">
+                <div class="col-6">
+                    <span class="text-muted smaller d-block">Available Balance</span>
+                    <h3 class="fw-bold text-green mono">₦<%= parseFloat(wallet.balance || 0).toLocaleString() %></h3>
+                </div>
+                <div class="col-6">
+                    <span class="text-muted smaller d-block">Pending Balance</span>
+                    <h3 class="fw-bold text-orange mono">₦<%= parseFloat(wallet.pending_balance || 0).toLocaleString() %></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card-pikop p-4">
+            <h6 class="text-black fw-bold uppercase mb-4" style="font-size: 11px; letter-spacing: 1px;">Recent Wallet Ledger</h6>
+            <% if (ledger.length === 0) { %>
+                <p class="text-muted small">No ledger entries found.</p>
+            <% } else { %>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th class="smaller uppercase text-muted">Type</th>
+                                <th class="smaller uppercase text-muted">Purpose</th>
+                                <th class="smaller uppercase text-muted">Amount</th>
+                                <th class="smaller uppercase text-muted">Description</th>
+                                <th class="smaller uppercase text-muted text-end">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% ledger.forEach(l => { %>
+                                <tr>
+                                    <td>
+                                        <span class="badge <%= l.entry_type === 'CREDIT' ? 'bg-success' : 'bg-danger' %>"><%= l.entry_type %></span>
+                                    </td>
+                                    <td><span class="fw-bold small"><%= l.purpose %></span></td>
+                                    <td><span class="fw-bold <%= l.entry_type === 'CREDIT' ? 'text-success' : 'text-danger' %> mono"><%= l.entry_type === 'CREDIT' ? '+' : '-' %>₦<%= parseFloat(l.amount).toLocaleString() %></span></td>
+                                    <td><span class="small text-muted"><%= l.description %></span></td>
+                                    <td class="text-end smaller text-muted"><%= new Date(l.created_at).toLocaleString() %></td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>

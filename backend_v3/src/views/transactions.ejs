@@ -1,0 +1,62 @@
+<div class="mb-5">
+    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Transaction Audit Ledger</h3>
+    <p class="text-muted small">Complete ledger of wallet top-ups, settlements, escrow holds, releases, and payouts.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card-pikop p-4">
+            <% if (transactions.length === 0) { %>
+                <div class="p-5 text-center text-muted">No transaction records found.</div>
+            <% } else { %>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th class="smaller uppercase text-muted">ID / Ref</th>
+                                <th class="smaller uppercase text-muted">Wallet Owner</th>
+                                <th class="smaller uppercase text-muted">Type</th>
+                                <th class="smaller uppercase text-muted">Purpose</th>
+                                <th class="smaller uppercase text-muted">Amount</th>
+                                <th class="smaller uppercase text-muted">Description</th>
+                                <th class="smaller uppercase text-muted text-end">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% transactions.forEach(tx => { %>
+                                <tr>
+                                    <td>
+                                        <div class="small fw-bold text-black mono">#<%= tx.id %></div>
+                                        <div class="smaller text-muted mono"><%= tx.metadata?.reference || tx.order_id ? 'Ref: ' + (tx.metadata?.reference || tx.order_id) : '' %></div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary"><%= tx.owner_type %> #<%= tx.owner_id %></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge <%= tx.entry_type === 'CREDIT' ? 'bg-success' : 'bg-danger' %>">
+                                            <%= tx.entry_type %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold small"><%= tx.purpose %></span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold <%= tx.entry_type === 'CREDIT' ? 'text-success' : 'text-danger' %> mono">
+                                            <%= tx.entry_type === 'CREDIT' ? '+' : '-' %>₦<%= parseFloat(tx.amount).toLocaleString() %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="small text-muted"><%= tx.description %></div>
+                                    </td>
+                                    <td class="text-end smaller text-muted">
+                                        <%= new Date(tx.created_at).toLocaleString() %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
