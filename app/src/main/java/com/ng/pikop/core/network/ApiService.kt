@@ -144,6 +144,7 @@ data class OrderDetailsResponse(
     @SerializedName("fee_payer") val fee_payer: String? = null,
     @SerializedName("escrow_status") val escrow_status: String? = null,
     @SerializedName("grace_period_expires_at") val grace_period_expires_at: String? = null,
+    @SerializedName("customer_rating") val customer_rating: Int? = null,
     @SerializedName("fulfiller_profile") val fulfiller_profile: FulfillerPublicProfile? = null,
     @SerializedName("history") val history: List<StatusHistoryItem>? = null,
     @SerializedName("data") val data: OrderDetailsResponse? = null
@@ -600,6 +601,9 @@ interface ApiService {
 
     @POST("api/v1/orders/{id}/rate")
     suspend fun rateCustomer(@retrofit2.http.Path("id") id: String, @Body request: RatingRequest): OrderResponse
+
+    @POST("api/v1/orders/{id}/rate-fulfiller")
+    suspend fun rateFulfiller(@retrofit2.http.Path("id") id: String, @Body request: RatingRequest): Map<String, Any>
 
     @GET("api/v1/addresses")
     suspend fun getSavedAddresses(): SavedAddressesResponse

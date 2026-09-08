@@ -1,28 +1,37 @@
-# Implementation Plan - Emergency Fix for 500 Error & Final Search/Map Diagnostics
+# Implementation Plan - Fix Fulfiller History, Customer Rating & Payment Options
 
-This plan fixes the verified "Unexpected field" error causing mission completion failures and adds critical debugging for the map/search issues.
+This plan addresses the missing fulfiller history, adds customer-to-fulfiller ratings, and provides a final attempt at forcing Bank Transfer in Paystack.
 
 ## Proposed Changes
 
-### Android App
+### Backend (`backend_v3`)
 
-#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
-- Fix the `MultipartBody` field name from `"document"` to `"file"` to match the backend's Multer configuration.
-- This will resolve the `MulterError: Unexpected field` and the resulting HTTP 500.
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- **`getFulfillerOrders`**: Add logging to debug why the history appears empty for some fulfillers.
+- **`rateFulfiller` [NEW]**: Implement an endpoint to allow customers to rate their fulfillers.
+- **`verifyDelivery`**: Double-check the 500 error persistence. Ensure `parseFloat` is used for all item price logic.
 
-#### [MODIFY] [MapAddressSearchScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/MapAddressSearchScreen.kt)
-- Add explicit logging before calling `apiService.getAutocomplete`.
-- Print the exact URL being constructed to ensure the `BASE_URL` is correct.
+#### [MODIFY] [orderRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/orderRoutes.js)
+- Register `POST /:orderId/rate-fulfiller`.
+
+#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
+- Experiment with `channels` order: `['card', 'ussd', 'bank', 'bank_transfer', 'qr', 'mobile_money']`.
+- Some Paystack accounts require `bank` and `bank_transfer` to be listed together.
 
 ---
 
-### Backend (`backend_v3`)
+### Android App
 
-#### [MODIFY] [orderRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/orderRoutes.js)
-- Add a safety check/fallback for the Multer field name just in case.
+#### [MODIFY] [FulfillerOrdersScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerOrdersScreen.kt)
+- Add a **"RESUME MISSION"** button to the `FulfillerOrderCard`.
+- This button will appear for missions with statuses like `MATCHED` or `PICKED_UP`, allowing fulfillers to return to a "stuck" mission.
 
-#### [MODIFY] [geminiService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/geminiService.js)
-- Update model names and versions to prevent the 404 errors seen in logs.
+#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt)
+- Add a `RatingDialog` specifically for the customer to rate the fulfiller.
+- The dialog should appear automatically (or via a button) once the mission status is `DELIVERED` or `RELEASED`.
+
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Add `rateFulfiller(orderId: String, request: RatingRequest)` to the interface.
 
 ---
 
@@ -32,6 +41,7 @@ This plan fixes the verified "Unexpected field" error causing mission completion
 - Build Android app: `./gradlew assembleDebug`.
 
 ### Manual Verification
-1. **Complete Mission:** Attempt to complete a mission. It should now proceed to the rating dialog without a 500 error.
-2. **Search bar:** Open Logcat and filter for `AddressSearch`. Verify that `getAutocomplete` is being triggered when typing.
-3. **Paystack:** **IMPORTANT:** Please verify in your **Paystack Dashboard -> Settings -> Preferences** that "Bank Transfer" is checked under "Payment Channels". If it is checked and still not appearing, we may need to contact Paystack support as the backend is correctly requesting it.
+1. **Fulfiller History:** Fulfiller should see their completed missions. If empty, check VPS logs for `[FulfillerOrders] Query for ID: ... yielded X results`.
+2. **Resume Mission:** Fulfiller should be able to click "RESUME" on an active mission from their history tab.
+3. **Rating:** Customer should see a rating option after confirming receipt of their item.
+4. **Paystack:** Verify if "Bank Transfer" finally appears.

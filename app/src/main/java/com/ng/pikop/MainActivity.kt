@@ -647,7 +647,10 @@ fun MainAppScaffold(
             }
             composable("history") {
                 if (userRole == "FULFILLER") {
-                    FulfillerOrdersScreen(onBack = { nestedNavController.popBackStack() })
+                    FulfillerOrdersScreen(
+                        onBack = { nestedNavController.popBackStack() },
+                        onNavigateToActiveOrder = { id -> navController.navigate("active_order/$id") }
+                    )
                 } else {
                     OrdersDashboardScreen(userEmail, {}, { id -> navController.navigate("track_order/$id") }, {}, {}, {}, {})
                 }

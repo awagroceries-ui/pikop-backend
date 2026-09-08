@@ -331,6 +331,7 @@ const getFulfillerOrders = async (req, res) => {
         const { rows: fulfiller } = await db.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
         if (fulfiller.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller not found' });
 
+        const fId = fulfiller[0].id;
         const { rows } = await db.query(
             `SELECT o.*,
              ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
@@ -338,8 +339,10 @@ const getFulfillerOrders = async (req, res) => {
              FROM orders o
              WHERE o.fulfiller_id = $1 OR o.queued_for_fulfiller_id = $1
              ORDER BY o.created_at DESC`,
-            [fulfiller[0].id]
+            [fId]
         );
+
+        console.log(`[FulfillerOrders] Query for Fulfiller ID: ${fId} (User: ${userId}) yielded ${rows.length} results.`);
 
         res.status(200).json(rows);
     } catch (error) {

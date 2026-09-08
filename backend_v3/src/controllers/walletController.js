@@ -119,7 +119,7 @@ const initializeTopup = async (req, res) => {
             email,
             currency: 'NGN',
             callback_url: 'pikop://wallet/topup/success',
-            channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+            channels: ['card', 'bank', 'ussd', 'bank_transfer', 'qr', 'mobile_money'],
             metadata: {
                 user_id: userId,
                 type: 'TOPUP'

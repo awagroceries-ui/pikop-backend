@@ -24,7 +24,7 @@ import com.ng.pikop.feature.order.StatusBadge
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FulfillerOrdersScreen(onBack: () -> Unit) {
+fun FulfillerOrdersScreen(onBack: () -> Unit, onNavigateToActiveOrder: (String) -> Unit) {
     var orders by remember { mutableStateOf<List<FulfillerOrderResponse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
 
@@ -88,7 +88,7 @@ fun FulfillerOrdersScreen(onBack: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(orders) { order ->
-                            FulfillerOrderCard(order)
+                            FulfillerOrderCard(order, onNavigateToActiveOrder)
                         }
                     }
                 }
@@ -98,7 +98,8 @@ fun FulfillerOrdersScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun FulfillerOrderCard(order: FulfillerOrderResponse) {
+fun FulfillerOrderCard(order: FulfillerOrderResponse, onResume: (String) -> Unit) {
+    val canResume = order.status == "MATCHED" || order.status == "PICKED_UP" || order.status == "PAYMENT_CAPTURED"
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -127,11 +128,17 @@ fun FulfillerOrderCard(order: FulfillerOrderResponse) {
                     Text("₦${"%.2f".format(order.earnings ?: 0.0)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF388E3C))
                 }
                 
-                Text(
-                    text = (order.created_at ?: "").take(10),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray
-                )
+                if (canResume) {
+                    Button(onClick = { onResume(order.id.toString()) }) {
+                        Text("RESUME")
+                    }
+                } else {
+                    Text(
+                        text = (order.created_at ?: "").take(10),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                }
             }
         }
     }

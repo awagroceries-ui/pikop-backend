@@ -254,11 +254,18 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
     var orderDetails by remember { mutableStateOf<OrderDetailsResponse?>(null) }
     var isConfirming by remember { mutableStateOf(false) }
     var showDisputeDialog by remember { mutableStateOf(false) }
+    var showRatingDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(orderId) {
         try {
             val res = apiService.getOrderDetails(orderId)
-            orderDetails = res.data ?: res
+            val data = res.data ?: res
+            orderDetails = data
+            
+            // Auto-show rating if delivered and not yet rated
+            if ((data.status == "DELIVERED" || data.status == "RELEASED") && data.customer_rating == null) {
+                showRatingDialog = true
+            }
         } catch (e: Exception) {}
     }
 
@@ -332,6 +339,19 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                 }
             }
 
+            if ((currentStatus == "DELIVERED" || currentStatus == "RELEASED") && orderDetails?.customer_rating == null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { showRatingDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9F0A))
+                ) {
+                    Icon(Icons.Default.Star, null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Rate Delivery Experience")
+                }
+            }
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             profile?.let { FulfillerCard(it); Spacer(modifier = Modifier.height(16.dp)) }
             
@@ -347,6 +367,24 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                                 onRefresh()
                             } catch (e: Exception) {
                                 android.widget.Toast.makeText(context, "Report failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                )
+            }
+
+            if (showRatingDialog) {
+                FulfillerRatingDialog(
+                    onDismiss = { showRatingDialog = false },
+                    onConfirm = { rating, comment ->
+                        coroutineScope.launch {
+                            try {
+                                apiService.rateFulfiller(orderId, RatingRequest(rating, comment))
+                                android.widget.Toast.makeText(context, "Thank you for your rating!", android.widget.Toast.LENGTH_SHORT).show()
+                                showRatingDialog = false
+                                onRefresh()
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Rating failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -400,6 +438,50 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+fun FulfillerRatingDialog(onDismiss: () -> Unit, onConfirm: (Int, String?) -> Unit) {
+    var rating by remember { mutableIntStateOf(5) }
+    var comment by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rate your Experience") },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("How was your delivery agent?", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    (1..5).forEach { i ->
+                        IconButton(onClick = { rating = i }) {
+                            Icon(
+                                imageVector = if (i <= rating) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = null,
+                                tint = if (i <= rating) Color(0xFFFF9F0A) else Color.Gray,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = { comment = it },
+                    label = { Text("Add a comment (Optional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(rating, comment.ifBlank { null }) }) {
+                Text("Submit Rating")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Later") }
+        }
+    )
 }
 
 @Composable

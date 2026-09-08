@@ -776,6 +776,50 @@ const reportProblem = async (req, res) => {
     }
 };
 
+/**
+ * Allows a customer to rate a fulfiller after delivery.
+ */
+const rateFulfiller = async (req, res) => {
+    const { orderId } = req.params;
+    const { rating, comment } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // 1. Verify order exists and belongs to user
+        const { rows } = await db.query(
+            "SELECT id, fulfiller_id, status FROM orders WHERE id = $1 AND user_id = $2",
+            [orderId, userId]
+        );
+
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Order not found' });
+        const order = rows[0];
+
+        if (!order.fulfiller_id) return res.status(400).json({ success: false, message: 'No fulfiller assigned to this order' });
+
+        // 2. Record rating in order
+        await db.query(
+            "UPDATE orders SET customer_rating = $1, customer_comment = $2 WHERE id = $3",
+            [rating, comment, orderId]
+        );
+
+        // 3. Recalculate Fulfiller Avg Rating
+        await db.query(`
+            UPDATE fulfillers
+            SET rating_avg = (
+                SELECT AVG(customer_rating)::decimal(3,2)
+                FROM orders
+                WHERE fulfiller_id = $1 AND customer_rating IS NOT NULL
+            )
+            WHERE id = $1
+        `, [order.fulfiller_id]);
+
+        res.status(200).json({ success: true, message: 'Thank you for your feedback!' });
+    } catch (error) {
+        console.error('[RateFulfiller] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -790,5 +834,6 @@ module.exports = {
   verifyPickup,
   verifyDelivery,
   confirmReceipt,
-  reportProblem
+  reportProblem,
+  rateFulfiller
 };

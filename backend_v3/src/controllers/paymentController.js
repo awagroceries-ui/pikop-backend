@@ -46,7 +46,7 @@ const initializePayment = async (req, res) => {
       email,
       currency: 'NGN',
       callback_url: 'pikop://payment/success',
-      channels: ['bank_transfer', 'card', 'bank', 'ussd', 'qr', 'mobile_money'],
+      channels: ['card', 'bank', 'ussd', 'bank_transfer', 'qr', 'mobile_money'],
       metadata: {
         quote_id,
         user_id: userId,
