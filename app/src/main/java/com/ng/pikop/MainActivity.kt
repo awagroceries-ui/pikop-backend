@@ -623,14 +623,14 @@ fun MainAppScaffold(
                         onLogout = {} 
                     )
                 } else {
-                    OrdersDashboardScreen(
+                    CustomerHomeScreen(
                         userEmail = userEmail,
+                        userName = userName,
                         onNewDelivery = { navController.navigate("order_quote") },
                         onTrackOrder = { id -> navController.navigate("track_order/$id") },
-                        onManageAddresses = { nestedNavController.navigate("account") },
-                        onGoToWallet = { nestedNavController.navigate("wallet") },
-                        onGoToAbout = { nestedNavController.navigate("account") },
-                        onLogout = {}
+                        onNavigateToWallet = { nestedNavController.navigate("wallet") },
+                        onNavigateToAddresses = { nestedNavController.navigate("account") },
+                        onNavigateToSupport = { navController.navigate("support_hub") }
                     )
                 }
             }
