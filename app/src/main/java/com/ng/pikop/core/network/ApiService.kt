@@ -480,6 +480,7 @@ data class PaymentInitializationRequest(
     val platform_fee_amount: Double? = null,
     val fee_payer: String? = null,
     val seller_phone: String? = null,
+    val promo_id: String? = null,
     val metadata: Map<String, String>? = null
 )
 

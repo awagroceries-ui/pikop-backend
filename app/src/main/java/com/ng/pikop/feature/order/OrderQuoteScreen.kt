@@ -577,7 +577,8 @@ fun OrderQuoteScreen(
                                                 delivery_fee = result.delivery_fee,
                                                 platform_fee_amount = result.platform_fee_amount,
                                                 fee_payer = result.fee_payer,
-                                                seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null
+                                                seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null,
+                                                promo_id = activePromo?.promo_id
                                             )
                                         )
                                         val authUrl = paymentInit.authorization_url

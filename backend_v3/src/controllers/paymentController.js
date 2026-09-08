@@ -17,7 +17,7 @@ const initializePayment = async (req, res) => {
     const {
         quote_id, amount, email,
         item_price, delivery_fee, platform_fee_amount,
-        fee_payer, seller_phone, payer_id
+        fee_payer, seller_phone, payer_id, promo_id
     } = req.body;
     const userId = req.user.id;
 
@@ -49,6 +49,7 @@ const initializePayment = async (req, res) => {
         initiator_role: fee_payer || 'PAYER',
         seller_phone: seller_phone || null,
         payer_id: payer_id || null,
+        promo_id: promo_id || null,
         recipient_name: user?.full_name,
         recipient_phone: user?.phone
       }
@@ -126,12 +127,12 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             pickup_code_hash, delivery_code_hash, recipient_name, recipient_phone,
             pickup_display_summary, delivery_display_summary, item_price, delivery_fee,
             platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id,
-            original_delivery_fee, original_total_fare
+            original_delivery_fee, original_total_fare, coupon_id
         ) VALUES (
             'pickup_delivery', $1, $2, 'PAYMENT_CAPTURED', $3, $4, $5, $6,
             ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
             ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography,
-            $11, $12, 'PAID', $13, $13, 'v3_pending', 'v3_pending', $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
+            $11, $12, 'PAID', $13, $13, 'v3_pending', 'v3_pending', $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28::uuid
         ) RETURNING id`,
         [
             m.user_id, q.id, q.item_description, q.size_tier, q.pickup_address, q.delivery_address,
@@ -142,7 +143,8 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             m.fee_payer || 'PAYER', m.initiator_role || 'PAYER',
             (parseFloat(m.item_price || 0) > 0) ? 'held' : 'not_applicable',
             m.seller_phone || null, m.payer_id || null,
-            parseFloat(q.delivery_fee), parseFloat(q.total_fare)
+            parseFloat(q.delivery_fee), parseFloat(q.total_fare),
+            m.promo_id || null
         ]
     );
 

@@ -440,38 +440,50 @@ const createOrder = async (req, res) => {
                 pickup_address, delivery_address, pickup_location, delivery_location,
                 total_fare, payment_status, payment_method, payment_reference, payment_channel,
                 recipient_name, recipient_phone, notes, pickup_display_summary, delivery_display_summary, item_photo_url,
-                pickup_code_hash, delivery_code_hash, item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
+                pickup_code_hash, delivery_code_hash, coupon_id,
+                item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
                 escrow_status, payer_id, original_delivery_fee, original_total_fare
             ) VALUES (
-                'pickup_delivery', $1, $2, $21, $3, $4, $5, $6,
-                ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
-                ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography,
-                $11, 'PAID', $12, $13, $12,
-                $14, $15, $16, $17, $18, $19,
-                'v3_pending', 'v3_pending', $22, $23, $24, $25, $26,
+                'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
+                ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
+                ST_SetSRID(ST_MakePoint($10, $11), 4326)::geography,
+                $12, 'PAID', $13, $14, $13,
+                $15, $16, $17, $18, $19, $20,
+                'v3_pending', 'v3_pending', $21::uuid,
+                $22, $23, $24, $25, $26,
                 $27, $28, $29, $30
             ) RETURNING id`,
             [
-                userId, q.id, q.item_description, q.size_tier,
-                q.pickup_address, q.delivery_address,
-                pLng, pLat, dLng, dLat,
-                finalFare, payment_method || 'card', refToSave,
-                recipient_name || 'Recipient',
-                recipient_phone || '000',
-                notes,
-                pickup_display_summary || q.pickup_address.substring(0, 50),
-                delivery_display_summary || q.delivery_address.substring(0, 50),
-                item_photo_url,
-                'PAYMENT_CAPTURED',
-                parseFloat(item_price || 0),
-                parseFloat(delivery_fee || q.delivery_fee || 0),
-                parseFloat(platform_fee_amount || 0),
-                fee_payer || 'PAYER',
-                initiator_role || 'PAYER',
-                (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable',
-                payer_id || null,
-                parseFloat(q.delivery_fee),
-                parseFloat(q.total_fare)
+                userId, // $1
+                q.id,   // $2
+                'PAYMENT_CAPTURED', // $3
+                q.item_description, // $4
+                q.size_tier, // $5
+                q.pickup_address, // $6
+                q.delivery_address, // $7
+                pLng, // $8
+                pLat, // $9
+                dLng, // $10
+                dLat, // $11
+                finalFare, // $12
+                payment_method || 'card', // $13
+                refToSave, // $14
+                recipient_name || 'Recipient', // $15
+                recipient_phone || '000', // $16
+                notes || null, // $17
+                pickup_display_summary || q.pickup_address.substring(0, 50), // $18
+                delivery_display_summary || q.delivery_address.substring(0, 50), // $19
+                item_photo_url || null, // $20
+                couponId || null, // $21
+                parseFloat(item_price || 0), // $22
+                parseFloat(delivery_fee || q.delivery_fee || 0), // $23
+                parseFloat(platform_fee_amount || 0), // $24
+                fee_payer || 'PAYER', // $25
+                initiator_role || 'PAYER', // $26
+                (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable', // $27
+                payer_id || null, // $28
+                parseFloat(q.delivery_fee), // $29
+                parseFloat(q.total_fare) // $30
             ]
         );
 
