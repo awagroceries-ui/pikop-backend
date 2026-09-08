@@ -128,7 +128,7 @@ const acceptOrder = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    if (rows[0].status !== 'SEARCHING') {
+    if (rows[0].status !== 'SEARCHING' && rows[0].status !== 'PAYMENT_CAPTURED') {
         await client.query('ROLLBACK');
         return res.status(400).json({ success: false, message: 'Order is no longer available' });
     }

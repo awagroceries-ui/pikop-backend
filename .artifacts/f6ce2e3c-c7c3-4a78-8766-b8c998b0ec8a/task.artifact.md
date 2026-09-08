@@ -1,10 +1,13 @@
-# Task List - Fix Fulfiller History, Customer Rating & Payment Options
+# Task List - Fix Order Activation, Fulfiller History & Rating System
 
-- [ ] Backend: Add `rateFulfiller` controller & route
-- [ ] Backend: Add diagnostic logs to `getFulfillerOrders`
-- [ ] Backend: Re-order Paystack channels for Bank Transfer
-- [ ] Android: Add "RESUME" button to `FulfillerOrdersScreen.kt`
-- [ ] Android: Add `RatingDialog` to `TrackOrderScreen.kt` for customers
-- [ ] Android: Update `ApiService.kt` with `rateFulfiller`
+- [x] Backend: Centralize `activatePaidMission` in `paymentController.js`
+- [x] Backend: Match SQL fields and values in order insertion (Fixes 500/Missing Orders)
+- [x] Backend: Update `getAvailableOffers` to include `PAYMENT_CAPTURED`
+- [x] Backend: Update `acceptOrder` status check to include `PAYMENT_CAPTURED`
+- [x] Backend: Create migration for customer rating columns
+- [x] Backend: Implement `rateFulfiller` controller and route
+- [x] Android: Add `rateFulfiller` to `ApiService.kt`
+- [x] Android: Add "RESUME" button to `FulfillerOrdersScreen.kt`
+- [x] Android: Implement `RatingDialog` in `TrackOrderScreen.kt`
 - [ ] Verification: Build Android app
 - [ ] Verification: Git automation (Commit and Push)

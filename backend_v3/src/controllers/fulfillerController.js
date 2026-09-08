@@ -372,13 +372,14 @@ const getAvailableOffers = async (req, res) => {
 
     const fulfillerId = fulfiller[0].id;
 
-    // Fetch active SEARCHING orders (unassigned or queued for this fulfiller)
+    // Fetch active SEARCHING or PAYMENT_CAPTURED orders (unassigned or queued for this fulfiller)
     const { rows } = await db.query(
       `SELECT o.id, o.pickup_address, o.delivery_address, o.total_fare, o.item_photo_url, o.created_at,
        ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
        ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng
        FROM orders o
-       WHERE o.status = 'SEARCHING' AND (o.fulfiller_id IS NULL OR o.queued_for_fulfiller_id = $1)
+       WHERE o.status IN ('SEARCHING', 'PAYMENT_CAPTURED')
+       AND (o.fulfiller_id IS NULL OR o.queued_for_fulfiller_id = $1)
        ORDER BY o.created_at DESC
        LIMIT 20`,
       [fulfillerId]

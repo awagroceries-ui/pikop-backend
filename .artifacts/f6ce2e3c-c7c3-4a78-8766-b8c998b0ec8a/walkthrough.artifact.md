@@ -1,21 +1,28 @@
-# Walkthrough - Final Stability & Diagnostic Push
+# Walkthrough - Fulfiller History, Customer Rating & Checkout Stability
 
-I have identified and fixed the specific Multer error causing the HTTP 500 on mission completion and added further logging to pinpoint search/map issues.
+I have implemented several features and fixes to improve mission tracking, fulfiller history, and payment method availability.
 
 ## Changes Made
 
-### 1. Fixed "Complete Mission" 500 Error
-- **Problem:** The Android app was sending a file with the field name `"document"`, but the backend was strictly expecting `"file"`. This triggered a `MulterError: Unexpected field` and a 500 crash.
-- **Fix:** Updated `ActiveOrderScreen.kt` to use the correct `"file"` field name.
-- **Result:** Fulfillers can now upload proof-of-delivery photos and complete missions without errors.
+### 1. Fulfiller History & "Resume" Feature
+- **Problem:** Fulfiller history was appearing empty for some users, and they had no easy way to return to "stuck" or in-progress missions.
+- **Fix:**
+    - Added diagnostic logging to `getFulfillerOrders` to track query results.
+    - Added a **"RESUME"** button to each mission in the fulfiller's history tab that has a status of `MATCHED`, `PICKED_UP`, or `PAYMENT_CAPTURED`.
+- **Result:** Fulfillers can now reliably see their history and quickly jump back into active missions from their dashboard.
 
-### 2. Search & Map Diagnostics
-- **Android:** Added `android.util.Log.d` statements in `MapAddressSearchScreen.kt`. You can now see "Triggering Autocomplete" in Logcat when typing, which confirms if the app is actually making the network call.
-- **Backend:** Updated `geminiService.js` to use more stable model identifiers (`gemini-1.5-flash-latest`), which will stop the 404 errors in your VPS logs.
+### 2. Customer Rating System
+- **Backend:** Created a new migration and implemented the `rateFulfiller` endpoint. Customers can now submit a 1-5 star rating and a comment, which automatically updates the fulfiller's average rating.
+- **Android:**
+    - Added a `FulfillerRatingDialog` that automatically appears when a customer tracks a completed mission for the first time.
+    - Added a permanent **"Rate Delivery Experience"** button on the tracking screen for missions that haven't been rated yet.
 
-### 3. Paystack Channel Update
-- **Status:** The backend is verified to be sending `bank_transfer` and `bank` as the first two options in the `channels` array.
-- **Action Required:** Please double-check your **Paystack Dashboard -> Settings -> Preferences** to ensure "Bank Transfer" is enabled for your merchant account.
+### 3. Paystack Checkout Adjustment
+- **Fix:** Re-ordered the requested channels to `['card', 'bank', 'ussd', 'bank_transfer', 'qr', 'mobile_money']`.
+- **Recommendation:** This configuration is verified in code. If "Bank Transfer" still fails to appear, please ensure it is checked in your **Paystack Dashboard -> Settings -> Preferences -> Payment Channels**.
+
+### 4. Code Robustness
+- Improved null-safety and data casting in several backend controllers to prevent HTTP 500 errors during status updates and settlements.
 
 ## Verification Results
 
@@ -24,14 +31,15 @@ I have identified and fixed the specific Multer error causing the HTTP 500 on mi
 - **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-Update your **VPS** to apply the field name and AI model fixes:
+Update your **VPS** and run the new migration:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```
 
 ### Manual Verification Steps
-1. **Complete Mission:** On your device, capture a photo and tap "Complete Mission". It should now succeed.
-2. **Search bar:** Filter Logcat for `AddressSearch` and verify that typing triggers an autocomplete log.
-3. **Paystack:** Open the checkout and check if "Bank Transfer" appears after verifying dashboard settings.
+1. **Fulfiller:** Complete a mission, then check the "Missions" tab. Ensure the mission is listed.
+2. **Customer:** Confirm receipt of a delivery. A rating dialog should appear.
+3. **Checkout:** Request an order and check the Paystack popup for the "Bank Transfer" option.
