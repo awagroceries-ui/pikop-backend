@@ -436,27 +436,20 @@ const createOrder = async (req, res) => {
 
         const orderRes = await client.query(
             `INSERT INTO orders (
-                order_type, user_id, quote_id, status,
-                item_description, size_tier,
-                pickup_address, delivery_address,
-                pickup_location, delivery_location,
+                order_type, user_id, quote_id, status, item_description, size_tier,
+                pickup_address, delivery_address, pickup_location, delivery_location,
                 total_fare, payment_status, payment_method, payment_reference, payment_channel,
-                recipient_name, recipient_phone, notes,
-                pickup_display_summary, delivery_display_summary, item_photo_url,
-                pickup_code_hash, delivery_code_hash, coupon_id,
-                item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
-                escrow_status, payer_id
+                recipient_name, recipient_phone, notes, pickup_display_summary, delivery_display_summary, item_photo_url,
+                pickup_code_hash, delivery_code_hash, item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
+                escrow_status, payer_id, original_delivery_fee, original_total_fare
             ) VALUES (
-                'pickup_delivery', $1, $2, $21,
-                $3, $4,
-                $5, $6,
+                'pickup_delivery', $1, $2, $21, $3, $4, $5, $6,
                 ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
                 ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography,
                 $11, 'PAID', $12, $13, $12,
                 $14, $15, $16, $17, $18, $19,
-                'v3_pending', 'v3_pending', $20,
-                $22, $23, $24, $25, $26,
-                $27, $28
+                'v3_pending', 'v3_pending', $22, $23, $24, $25, $26,
+                $27, $28, $29, $30
             ) RETURNING id`,
             [
                 userId, q.id, q.item_description, q.size_tier,
@@ -469,15 +462,16 @@ const createOrder = async (req, res) => {
                 pickup_display_summary || q.pickup_address.substring(0, 50),
                 delivery_display_summary || q.delivery_address.substring(0, 50),
                 item_photo_url,
-                couponId,
                 'PAYMENT_CAPTURED',
                 parseFloat(item_price || 0),
-                parseFloat(delivery_fee || 0),
+                parseFloat(delivery_fee || q.delivery_fee || 0),
                 parseFloat(platform_fee_amount || 0),
                 fee_payer || 'PAYER',
                 initiator_role || 'PAYER',
                 (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable',
-                payer_id || null
+                payer_id || null,
+                parseFloat(q.delivery_fee),
+                parseFloat(q.total_fare)
             ]
         );
 
@@ -843,13 +837,16 @@ const getFulfillerOrders = async (req, res) => {
         const { rows } = await db.query(
             `SELECT o.*,
              ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
-             ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng
+             ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng,
+             ROUND(COALESCE(o.original_delivery_fee, o.delivery_fee, o.total_fare) * 0.75, 2) as earnings
              FROM orders o
              WHERE (o.fulfiller_id = $1 OR o.queued_for_fulfiller_id = $1)
              ${statusFilter}
              ORDER BY o.created_at DESC`,
             [fId]
         );
+
+        console.log(`[FulfillerOrders] Query for Fulfiller ID: ${fId} yielded ${rows.length} results.`);
 
         res.status(200).json(rows);
     } catch (error) {

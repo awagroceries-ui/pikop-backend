@@ -125,12 +125,13 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             total_fare, payment_reference, payment_status, payment_channel, payment_method,
             pickup_code_hash, delivery_code_hash, recipient_name, recipient_phone,
             pickup_display_summary, delivery_display_summary, item_price, delivery_fee,
-            platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id
+            platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id,
+            original_delivery_fee, original_total_fare
         ) VALUES (
             'pickup_delivery', $1, $2, 'PAYMENT_CAPTURED', $3, $4, $5, $6,
             ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
             ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography,
-            $11, $12, 'PAID', $13, $13, 'v3_pending', 'v3_pending', $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
+            $11, $12, 'PAID', $13, $13, 'v3_pending', 'v3_pending', $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
         ) RETURNING id`,
         [
             m.user_id, q.id, q.item_description, q.size_tier, q.pickup_address, q.delivery_address,
@@ -140,7 +141,8 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             parseFloat(m.item_price || 0), parseFloat(m.delivery_fee || 0), parseFloat(m.platform_fee_amount || 0),
             m.fee_payer || 'PAYER', m.initiator_role || 'PAYER',
             (parseFloat(m.item_price || 0) > 0) ? 'held' : 'not_applicable',
-            m.seller_phone || null, m.payer_id || null
+            m.seller_phone || null, m.payer_id || null,
+            parseFloat(q.delivery_fee), parseFloat(q.total_fare)
         ]
     );
 

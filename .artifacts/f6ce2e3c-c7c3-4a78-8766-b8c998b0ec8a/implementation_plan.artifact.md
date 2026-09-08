@@ -1,38 +1,61 @@
-# Implementation Plan - Fix Order Activation & Payment Redirection
+# Implementation Plan - Fix Fulfiller History, Earnings & Free Mission Payouts
 
-This plan addresses the "blank page" redirection issue and the failure of order creation after successful payment.
+This plan addresses the missing fulfiller history, zero wallet earnings, and ensures fulfillers are paid correctly for promo-discounted missions.
 
-## User Review Required
-
-> [!IMPORTANT]
-> The current system relies on the backend to redirect the user back to the app using a custom scheme (`pikop://`). Some mobile browsers block these redirects if they are triggered purely via JavaScript. I will implement a more robust redirect page with a clear "Return to App" button as a fallback.
+## Problem Description
+1.  **Empty Fulfiller History:** Fulfillers are unable to see their completed or past missions in the history tab.
+2.  **Missing Wallet Earnings:** Completed missions are not resulting in wallet credits.
+3.  **Free Mission Payouts:** Fulfillers receive ₦0 for missions where the customer used a 100% discount promo code, even though they are entitled to 75% of the original fare.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
-- **Metadata Parsing:** Add logic to handle cases where Paystack returns `metadata` as a string instead of an object.
-- **Robust Redirection:** Replace the simple script in `handleWebhookGET` with a branded Pikop "Payment Successful" page that:
-    - Auto-redirects using `window.location.replace`.
-    - Provides a visible "RETURN TO APP" button.
-    - Handles both `reference` and `trxref` parameters.
-- **Activation Safety:** Ensure `activatePaidMission` handles numeric conversion for all fee/price fields and wraps external services (FCM/Email) in try-catch.
+#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725584000000_add_payout_data_to_orders.js)
+- Add `original_delivery_fee` and `original_total_fare` columns to the `orders` table. This preserves the pre-discount pricing for payout calculations.
 
 #### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **Constraint Alignment:** Verify that all required fields for a V3 order (like `item_price`) are correctly populated during manual creation to avoid database constraint violations.
+- **`createOrder`**:
+    - Save the quote's original `delivery_fee` and `total_fare` into the new `original_` columns.
+    - Set `status` to `PAYMENT_CAPTURED` for promo missions.
+- **`getFulfillerOrders`**:
+    - Add diagnostic logging to track result counts.
+    - Calculate `earnings` in the SQL query: `ROUND(COALESCE(o.original_delivery_fee, o.delivery_fee, o.total_fare) * 0.75, 2) as earnings`.
+- **`rateFulfiller`**: Fix a potential query error by adding `user_id` check.
 
-#### [MODIFY] [placesController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/placesController.js)
-- **Key Safety:** Add a check for `GOOGLE_API_KEY` and return a descriptive 500 error if missing, preventing a server crash.
+#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
+- **`activatePaidMission`**: Populate the new `original_` columns from the quote record.
+
+#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
+- **`processMissionSettlement`**:
+    - Change payout calculation to use `original_delivery_fee` if available.
+    - Ensure fulfillers are credited 75% of the original delivery cost even if the customer paid ₦0.
+
+---
+
+### Android App
+
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Update `CreateOrderRequest` to include `delivery_fee`.
+
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- Pass `delivery_fee = result.delivery_fee` in the `CreateOrderRequest` for free missions.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Syntax check all modified files using `node -c`.
+- Run Android build: `./gradlew assembleDebug`.
+- Syntax check backend: `node -c ...`.
 
 ### Manual Verification
-1. **Redirection:** Perform a payment and verify that the "Mission Activated!" screen appears in the browser and successfully returns you to the app.
-2. **Order Creation:** Verify that immediately after payment, the mission appears in the Customer and Fulfiller "Missions" tabs.
-3. **Search:** Verify that address autocomplete works (confirming the server is stable and key is active).
+1.  **Free Mission Payout:**
+    *   Apply a 100% promo code.
+    *   Complete the mission as a fulfiller.
+    *   Check fulfiller wallet: It should be credited with 75% of the original delivery fee.
+2.  **Fulfiller History:**
+    *   Open "Missions" tab as fulfiller.
+    *   Verify all past missions are listed with their correct earnings.
+3.  **Customer Rating:**
+    *   Verify the rating prompt appears immediately after release.

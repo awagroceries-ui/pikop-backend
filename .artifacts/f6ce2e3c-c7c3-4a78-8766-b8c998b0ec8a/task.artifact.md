@@ -1,8 +1,10 @@
-# Task List - Fix Fulfiller "Blank Screen" & Rating Dialog
+# Task List - Fix Fulfiller History, Earnings & Free Payouts
 
-- [x] Android: Add `PAYMENT_CAPTURED` and `PAYMENT_PENDING` to `isPickupPhase` and map logic in `ActiveOrderScreen.kt`
-- [x] Android: Ensure `ActiveOrderScreen.kt` handles "Mission Queued" state correctly
-- [x] Android: Fix `TrackOrderScreen.kt` to refresh data and show rating dialog after confirmation
-- [x] Android: Add `REFUNDED` and `CANCELLED` to exclusion list in `FulfillerDashboardScreen.kt`
+- [ ] Backend: Create migration for `original_delivery_fee` and `original_total_fare`
+- [ ] Backend: Update `createOrder` to save pre-discount fees
+- [ ] Backend: Update `activatePaidMission` to save pre-discount fees
+- [ ] Backend: Fix `getFulfillerOrders` with earnings calculation and logging
+- [ ] Backend: Update `processMissionSettlement` to payout based on original fee
+- [ ] Android: Update `CreateOrderRequest` and `OrderQuoteScreen` to send `delivery_fee`
 - [ ] Verification: Build Android app
 - [ ] Verification: Git automation (Commit and Push)

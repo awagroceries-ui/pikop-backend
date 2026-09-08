@@ -549,6 +549,7 @@ fun OrderQuoteScreen(
                                                 delivery_display_summary = deliveryAddress.take(50),
                                                 payment_reference = freePaymentRef,
                                                 item_price = result.item_price,
+                                                delivery_fee = result.delivery_fee,
                                                 seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null
                                             )
                                             val response = apiService.createOrder(request)

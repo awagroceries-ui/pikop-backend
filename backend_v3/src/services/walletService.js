@@ -54,15 +54,15 @@ const processMissionSettlement = async (orderId) => {
 
     // 1. Fetch order details
     const orderRes = await client.query(
-        "SELECT id, fulfiller_id, total_fare, delivery_fee, item_price FROM orders WHERE id = $1",
+        "SELECT id, fulfiller_id, total_fare, delivery_fee, item_price, original_delivery_fee FROM orders WHERE id = $1",
         [orderId]
     );
     const order = orderRes.rows[0];
     if (!order || !order.fulfiller_id) throw new Error('Order not eligible for settlement');
 
     // Consolidated Checkout Fix: Only split the delivery fee portion.
-    // If delivery_fee is 0 (old data), fallback to total_fare.
-    const settlableAmount = (parseFloat(order.delivery_fee) > 0) ? parseFloat(order.delivery_fee) : parseFloat(order.total_fare);
+    // ALWAYS use original_delivery_fee if it exists (handles 100% Promo cases)
+    const settlableAmount = parseFloat(order.original_delivery_fee || order.delivery_fee || order.total_fare || 0);
 
     // 2. Fetch Split Config from Settings (Master Brief v3)
     const settingsRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");

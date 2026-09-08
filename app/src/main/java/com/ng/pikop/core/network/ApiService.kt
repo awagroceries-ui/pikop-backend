@@ -97,6 +97,7 @@ data class CreateOrderRequest(
     val delivery_display_summary: String,
     val payment_reference: String? = null,
     val item_price: Double? = null,
+    val delivery_fee: Double? = null,
     val seller_phone: String? = null
 )
 
