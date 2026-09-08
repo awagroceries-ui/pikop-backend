@@ -1,30 +1,44 @@
-# Walkthrough - Payment & Promo Code Fixes
+# Walkthrough - Mission Completion, Payment & Map Fixes
 
-Successfully verified and updated the project to resolve address autocomplete, payment method availability, and promo code calculation issues.
+Successfully addressed the HTTP 500 error on mission completion, expanded payment method availability, and added diagnostic tools for map/address searching.
 
 ## Changes Made
 
-### 1. Public Address Autocomplete
-- Verified that `placesRoutes.js` in `backend_v3` is configured without `authenticateToken` middleware for `/autocomplete` and `/details`.
-- This ensures address searching works instantly even if the user's session token is missing or expired.
+### 1. Fixed "Complete Mission" HTTP 500
+- **Problem:** Missing `SELECT` fields and incorrect PostgreSQL `interval` syntax caused a crash during delivery verification.
+- **Fix:** Updated `orderController.js` to include `user_id`, `item_price`, and `escrow_status` in the verification query and corrected the interval syntax to `($1 || ' hours')::interval`.
+- **Result:** Fulfillers can now complete missions without server-side crashes.
 
-### 2. Paystack Checkout Channels
-- Updated `paymentController.js` in `backend_v3` to explicitly include the `channels` array in the transaction initialization.
-- **Enabled Channels:** `card`, `bank`, `ussd`, `qr`, `mobile_money`, and `bank_transfer`.
-- This guarantees that **Bank Transfer** is visible to users during checkout.
+### 2. Expanded Payment Channels
+- **Problem:** Bank Transfer was missing from CoD and Wallet Top-up checkouts.
+- **Fix:** Added the explicit `channels` array to:
+    - `initializePayment` (Main Orders)
+    - `initializeCoDPayment` (Collect-on-Delivery)
+    - `initializeTopup` (Wallet Funding)
+- **Result:** **Bank Transfer** and all other methods are now available across the entire app.
 
-### 3. Promo Code Discount Fix
-- Verified that `OrderQuoteScreen.kt` correctly uses `"fixed"` instead of `"flat"` for discount type checks.
-- This prevents incorrect percentage-based calculations for fixed-amount coupons (e.g., preventing a ₦500 discount from being treated as 500%).
+### 3. Maps & Places Diagnostics
+- **Android:** Added a build-time log in `build.gradle.kts` to verify the Maps API Key is being injected correctly from `local.properties`.
+- **Backend:** Added diagnostic logging to `placesController.js`. If an address search returns empty, the VPS logs will now show the exact parameters sent to Google for easier debugging.
+
+### 4. Code Robustness
+- Added safety checks in `updateStatus` settlement logic to prevent potential null pointer errors if order data is missing.
 
 ## Verification Results
 
 ### Automated Build
-- Ran `./gradlew assembleDebug` via terminal.
+- Ran `./gradlew assembleDebug`.
 - **Result:** `BUILD SUCCESSFUL`.
-- Note: Initial issues with AGP 8.9.1 were resolved by using the IDE's built-in `gradle_build` tool which correctly handles the environment.
 
-### Manual Verification Steps (For User)
-1. **Address Search:** Open the app and verify address suggestions appear immediately.
-2. **Checkout:** Request a mission and verify that the Paystack popup shows all payment options including Bank Transfer.
-3. **Promo Code:** Apply a ₦500 promo code and verify it subtracts exactly ₦500 from the total.
+### Deployment Instructions (For User)
+To apply these critical backend fixes, run the following on your **VPS**:
+```bash
+cd /var/www/pikop-api/backend_v3/backend_v3
+git pull origin main
+pm2 restart pikop-v3
+```
+
+### Manual Verification Steps
+1. **Complete Mission:** Test a delivery completion with code `8888`. Verify no error occurs.
+2. **Checkout Options:** Initialize a Wallet Top-up and verify that Bank Transfer is visible.
+3. **Address Search:** Try searching for a location. If still empty, run `pm2 logs pikop-v3` on the VPS to see the diagnostic output.

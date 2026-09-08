@@ -10,9 +10,8 @@ const autocomplete = async (req, res) => {
 
     if (!query) return res.status(400).json({ success: false, message: 'Query is required' });
 
-    // One-time log for diagnostic verification
     const keySuffix = (GOOGLE_API_KEY || '').slice(-4);
-    console.log(`[Places] Diagnostic: Autocomplete request. Key suffix: ...${keySuffix}`);
+    console.log(`[Places] Diagnostic: Autocomplete request for "${query}". Key suffix: ...${keySuffix}`);
 
     try {
         const params = {
@@ -29,20 +28,23 @@ const autocomplete = async (req, res) => {
             params.radius = 50000; // 50km radius
         }
 
-        const response = await axios.get('https://maps.googleapis.com/maps/api/place/autocomplete/json', { params });
+        const url = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
+        console.log(`[Places] Calling Google API: ${url} with params:`, JSON.stringify({ ...params, key: '***' }));
+
+        const response = await axios.get(url, { params });
+
+        console.log(`[Places] Google API Status: ${response.data.status}`);
 
         if (response.data.status === 'ZERO_RESULTS') {
-            console.warn(`[Places] Google returned ZERO_RESULTS for query: "${query}" with params:`, JSON.stringify(params));
+            console.warn(`[Places] ZERO_RESULTS for query: "${query}"`);
         }
 
         if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
-            console.error('[Places] Google API Full Response:', JSON.stringify(response.data, null, 2));
-            console.error('[Places] Google API Error Status:', response.data.status);
-            console.error('[Places] Google API Error Message:', response.data.error_message || 'No detail provided');
+            console.error('[Places] Google API Error Response:', JSON.stringify(response.data, null, 2));
             return res.status(200).json({
                 success: false,
                 predictions: [],
-                error: `Google API Error: ${response.data.status}`
+                error: `Google API Error: ${response.data.status} - ${response.data.error_message || 'No detail'}`
             });
         }
 

@@ -46,7 +46,7 @@ const initializePayment = async (req, res) => {
       email,
       currency: 'NGN',
       callback_url: 'pikop://payment/success',
-      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+      channels: ['bank_transfer', 'card', 'bank', 'ussd', 'qr', 'mobile_money'],
       metadata: {
         quote_id,
         user_id: userId,
@@ -62,8 +62,7 @@ const initializePayment = async (req, res) => {
       }
     };
 
-    console.log(`[Paystack] Initializing for ${email}. Amount: ${payload.amount} kobo. Quote: ${quote_id}`);
-    console.log(`[Paystack] FULL PAYLOAD:`, JSON.stringify(payload));
+    console.log(`[Paystack] Initializing for ${email}. Amount: ${payload.amount} kobo. Channels requested: ${payload.channels.join(', ')}`);
 
     const response = await axios.post('https://api.paystack.co/transaction/initialize', payload, {
       headers: {
@@ -72,6 +71,12 @@ const initializePayment = async (req, res) => {
       },
       timeout: 10000
     });
+
+    if (response.data.status) {
+        console.log(`[Paystack] Initialization SUCCESS. Reference: ${response.data.data.reference}`);
+    } else {
+        console.warn(`[Paystack] Initialization returned false status:`, response.data);
+    }
 
     res.status(200).json(response.data.data);
   } catch (error) {

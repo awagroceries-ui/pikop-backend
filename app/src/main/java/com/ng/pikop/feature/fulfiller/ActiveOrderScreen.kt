@@ -465,7 +465,8 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                             }
                                         } catch (e: Throwable) {
                                             android.util.Log.e("ActiveOrder", "Complete Mission Failed", e)
-                                            Toast.makeText(context, "Process Failure: ${e.localizedMessage ?: "Check connection"}", Toast.LENGTH_SHORT).show()
+                                            val errorMessage = com.ng.pikop.core.network.ErrorUtils.parseError(e as? Exception ?: Exception(e.message))
+                                            Toast.makeText(context, "Process Failure: $errorMessage", Toast.LENGTH_LONG).show()
                                         } finally {
                                             isLoading = false
                                         }

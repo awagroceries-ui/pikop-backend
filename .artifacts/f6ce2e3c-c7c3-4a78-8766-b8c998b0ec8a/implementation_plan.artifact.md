@@ -1,27 +1,38 @@
-# Implementation Plan - Fix Address Autocomplete & Include Bank Transfer in Checkout
+# Implementation Plan - Emergency Fix for Mission Completion 500 & Payment Channels
 
-## Problem Description
-
-1. **Address Search Autocomplete**: The backend places routes (`/autocomplete`, `/details`) required `authenticateToken`, which could cause autocomplete failures if token headers were missing or delayed during initial address input.
-2. **Order Checkout Payment Options**: Removing `channels` entirely resulted in Paystack omitting Bank Transfer. We need to explicitly pass `channels: ['card', 'bank', 'ussd', 'bank_transfer', 'qr', 'mobile_money']` to force Paystack to display Bank Transfer alongside card and USSD.
+This plan provides deep diagnostic logging and fixes for the persistent issues on the production server.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [MODIFY] [placesRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/placesRoutes.js)
-- Remove `authenticateToken` middleware from `/autocomplete` and `/details` routes so address search is fully public and lightning-fast.
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- Wrap `verifyDelivery` in a more verbose error handler that returns the exact error message to the app.
+- Ensure all variables used in `verifyDelivery` are properly cast and checked.
+- Fix the `UPDATE` query for `grace_period_expires_at` to use a more standard PostgreSQL interval casting.
 
 #### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
-- In `initializePayment`, include `channels: ['card', 'bank', 'ussd', 'bank_transfer', 'qr', 'mobile_money']` to guarantee Bank Transfer and all options are presented on Paystack checkout.
+- Re-order `channels` to prioritize `bank_transfer`.
+- Add logging to capture the response from Paystack during initialization to see if they are rejecting certain channels.
+
+#### [MODIFY] [placesController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/placesController.js)
+- Add extreme logging to capture the full URL and response from Google Places.
+
+---
+
+### Android App
+
+#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
+- Update the error Toast to show the `message` field from the 500 JSON response if available, which will now contain the server-side error detail.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Run Android build verification via `./gradlew assembleDebug --no-daemon`.
+- Build Android app: `./gradlew assembleDebug`.
 
-### Manual Verification
-- Test address search autocomplete in the app to ensure live suggestions appear without delay.
-- Test order checkout to verify Bank Transfer, Card, and USSD options are available.
+### Manual Verification (Diagnostic)
+1. **Complete Mission:** When it fails, the Toast should now say "Process Failure: Internal Error: <exact database error>".
+2. **Checkout:** Check the VPS logs for `[Paystack] Initialization successful. Channels: ...`.
+3. **Address Search:** Check the VPS logs for `[Places] Google Response Status: ...`.

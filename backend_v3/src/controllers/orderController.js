@@ -614,6 +614,8 @@ const verifyDelivery = async (req, res) => {
     const masterOtp = process.env.MASTER_OTP || '8888';
     const universalCodes = [masterOtp.toString(), '8888', '1234', '0000', '9999'];
 
+    console.log(`[VerifyDelivery] Mission #${id} completion request with code: ${code}`);
+
     try {
         const { rows } = await db.query(
             "SELECT id, status, delivery_code_hash, user_id, item_price, escrow_status FROM orders WHERE id = $1",
@@ -621,11 +623,11 @@ const verifyDelivery = async (req, res) => {
         );
 
         if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Order not found' });
+            return res.status(404).json({ success: false, message: 'Order not found in database' });
         }
 
         const order = rows[0];
-        const isEscrow = order.item_price > 0 && order.escrow_status === 'held';
+        const isEscrow = parseFloat(order.item_price || 0) > 0 && order.escrow_status === 'held';
 
         // Universal Test Code Check
         const isMaster = universalCodes.includes((code || '').toString().trim());
@@ -652,18 +654,17 @@ const verifyDelivery = async (req, res) => {
 
         // Set grace period if escrow
         if (isEscrow) {
-            const graceHours = PlatformConfig.ESCROW.GRACE_PERIOD_HOURS || 48;
+            const graceHours = parseInt(PlatformConfig.ESCROW.GRACE_PERIOD_HOURS || 48);
             await db.query(
                 "UPDATE orders SET grace_period_expires_at = CURRENT_TIMESTAMP + ($1 || ' hours')::interval WHERE id = $2",
                 [graceHours, id]
             );
 
             // Notify Buyer to Confirm (FCM)
-            fcmService.sendSecurePayReminder(order.user_id, id).catch(e => {});
+            fcmService.sendSecurePayReminder(order.user_id, id).catch(e => console.error('[FCM] Reminder Error:', e.message));
         }
 
         // Trigger Settlement for Delivery Fee portion
-        // Consolidated logic in walletService handles this correctly (only splits delivery_fee)
         try {
             const walletService = require('../services/walletService');
             await walletService.processMissionSettlement(id);
@@ -699,10 +700,15 @@ const verifyDelivery = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[VerifyDelivery] Error:', error.message);
-        res.status(500).json({ success: false, message: error.message });
+        console.error('[VerifyDelivery] FATAL ERROR:', error);
+        res.status(500).json({
+            success: false,
+            message: `Internal Error: ${error.message}`,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
+
 
 /**
  * Buyer confirms receipt of item, releasing escrow to seller.
