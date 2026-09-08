@@ -255,8 +255,9 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
     var isConfirming by remember { mutableStateOf(false) }
     var showDisputeDialog by remember { mutableStateOf(false) }
     var showRatingDialog by remember { mutableStateOf(false) }
+    var refreshKey by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(orderId) {
+    LaunchedEffect(orderId, refreshKey) {
         try {
             val res = apiService.getOrderDetails(orderId)
             val data = res.data ?: res
@@ -315,6 +316,7 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                                         try {
                                             apiService.confirmReceipt(orderId)
                                             android.widget.Toast.makeText(context, "Payment Released!", android.widget.Toast.LENGTH_SHORT).show()
+                                            refreshKey++
                                             onRefresh()
                                         } catch (e: Exception) {
                                             android.widget.Toast.makeText(context, "Failed to confirm: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()

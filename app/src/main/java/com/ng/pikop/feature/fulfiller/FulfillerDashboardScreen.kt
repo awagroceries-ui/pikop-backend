@@ -105,7 +105,7 @@ fun FulfillerDashboardScreen(
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                 // Resume Active Mission Banner
                 val activeMissions = history.filter { 
-                    it.status != "DELIVERED" && it.status != "CANCELLED" && it.status != "RECIPIENT_ABSENT"
+                    it.status != "DELIVERED" && it.status != "CANCELLED" && it.status != "RECIPIENT_ABSENT" && it.status != "RELEASED" && it.status != "REFUNDED"
                 }
                 if (activeMissions.isNotEmpty()) {
                     Card(

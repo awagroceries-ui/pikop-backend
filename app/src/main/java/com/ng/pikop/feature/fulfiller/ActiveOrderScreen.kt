@@ -219,13 +219,13 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                         )
                     }
                     
-                    if (orderDetails != null) {
-                        val normStatus = orderStatus.uppercase()
-                        val targetLatLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) {
-                            LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0)
-                        } else {
-                            LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
-                        }
+            if (orderDetails != null) {
+                val normStatus = orderStatus.uppercase()
+                val targetLatLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PAYMENT_CAPTURED", "PAYMENT_PENDING")) {
+                    LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0)
+                } else {
+                    LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
+                }
                         
                         Marker(
                             state = MarkerState(position = targetLatLng),
@@ -277,7 +277,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                 } else {
                     val normalizedStatus = orderStatus.uppercase()
                     
-                    val isPickupPhase = normalizedStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PENDING", "PAID")
+                    val isPickupPhase = normalizedStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PENDING", "PAID", "PAYMENT_CAPTURED", "PAYMENT_PENDING")
                     val isDeliveryPhase = normalizedStatus in listOf("PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY")
                     val isQueued = normalizedStatus == "QUEUED"
 

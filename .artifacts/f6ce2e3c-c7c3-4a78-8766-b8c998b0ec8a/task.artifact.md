@@ -1,13 +1,8 @@
-# Task List - Fix Order Activation, Fulfiller History & Rating System
+# Task List - Fix Fulfiller "Blank Screen" & Rating Dialog
 
-- [x] Backend: Centralize `activatePaidMission` in `paymentController.js`
-- [x] Backend: Match SQL fields and values in order insertion (Fixes 500/Missing Orders)
-- [x] Backend: Update `getAvailableOffers` to include `PAYMENT_CAPTURED`
-- [x] Backend: Update `acceptOrder` status check to include `PAYMENT_CAPTURED`
-- [x] Backend: Create migration for customer rating columns
-- [x] Backend: Implement `rateFulfiller` controller and route
-- [x] Android: Add `rateFulfiller` to `ApiService.kt`
-- [x] Android: Add "RESUME" button to `FulfillerOrdersScreen.kt`
-- [x] Android: Implement `RatingDialog` in `TrackOrderScreen.kt`
+- [x] Android: Add `PAYMENT_CAPTURED` and `PAYMENT_PENDING` to `isPickupPhase` and map logic in `ActiveOrderScreen.kt`
+- [x] Android: Ensure `ActiveOrderScreen.kt` handles "Mission Queued" state correctly
+- [x] Android: Fix `TrackOrderScreen.kt` to refresh data and show rating dialog after confirmation
+- [x] Android: Add `REFUNDED` and `CANCELLED` to exclusion list in `FulfillerDashboardScreen.kt`
 - [ ] Verification: Build Android app
 - [ ] Verification: Git automation (Commit and Push)
