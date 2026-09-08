@@ -24,3 +24,20 @@ yarn-error.log
 *.apk
 *.ap_
 *.dex
+
+# JVM Error Logs
+hs_err_pid*
+replay_pid*
+
+# Android Studio / Kotlin Temp Files
+.android_home/
+.kotlin/
+*.xml.gui
+map_search.xml
+view.xml
+
+# IDE - Better IDEA ignore
+.idea/
+! .idea/vcs.xml
+! .idea/deployment.xml
+! .idea/planningMode.xml
