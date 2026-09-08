@@ -440,23 +440,23 @@ const createOrder = async (req, res) => {
                 item_description, size_tier,
                 pickup_address, delivery_address,
                 pickup_location, delivery_location,
-                total_fare, payment_status, payment_method, payment_reference,
+                total_fare, payment_status, payment_method, payment_reference, payment_channel,
                 recipient_name, recipient_phone, notes,
                 pickup_display_summary, delivery_display_summary, item_photo_url,
                 pickup_code_hash, delivery_code_hash, coupon_id,
                 item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
                 escrow_status, payer_id
             ) VALUES (
-                'pickup_delivery', $1, $2, 'SEARCHING',
+                'pickup_delivery', $1, $2, $21,
                 $3, $4,
                 $5, $6,
                 ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
                 ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography,
-                $11, 'PAID', $12, $13,
+                $11, 'PAID', $12, $13, $12,
                 $14, $15, $16, $17, $18, $19,
                 'v3_pending', 'v3_pending', $20,
-                $21, $22, $23, $24, $25,
-                $26, $27
+                $22, $23, $24, $25, $26,
+                $27, $28
             ) RETURNING id`,
             [
                 userId, q.id, q.item_description, q.size_tier,
@@ -470,12 +470,13 @@ const createOrder = async (req, res) => {
                 delivery_display_summary || q.delivery_address.substring(0, 50),
                 item_photo_url,
                 couponId,
-                item_price || 0,
-                delivery_fee || 0,
-                platform_fee_amount || 0,
+                'PAYMENT_CAPTURED',
+                parseFloat(item_price || 0),
+                parseFloat(delivery_fee || 0),
+                parseFloat(platform_fee_amount || 0),
                 fee_payer || 'PAYER',
                 initiator_role || 'PAYER',
-                (item_price > 0) ? 'held' : 'not_applicable',
+                (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable',
                 payer_id || null
             ]
         );

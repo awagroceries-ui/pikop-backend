@@ -15,6 +15,11 @@ const autocomplete = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Maps service not configured' });
     }
 
+    if (!GOOGLE_API_KEY) {
+        console.error('[Places] FATAL: Google API Key is missing');
+        return res.status(500).json({ success: false, message: 'Places service not configured' });
+    }
+
     const keySuffix = (GOOGLE_API_KEY || '').slice(-4);
     console.log(`[Places] Autocomplete request for "${query}". Session: ${sessionToken ? 'Present' : 'None'}. Key suffix: ...${keySuffix}`);
 
