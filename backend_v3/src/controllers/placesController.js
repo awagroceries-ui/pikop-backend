@@ -10,8 +10,13 @@ const autocomplete = async (req, res) => {
 
     if (!query) return res.status(400).json({ success: false, message: 'Query is required' });
 
+    if (!GOOGLE_API_KEY) {
+        console.error('[Places] FATAL: Google Maps API Key is missing in environment variables');
+        return res.status(500).json({ success: false, message: 'Maps service not configured' });
+    }
+
     const keySuffix = (GOOGLE_API_KEY || '').slice(-4);
-    console.log(`[Places] Diagnostic: Autocomplete request for "${query}". Key suffix: ...${keySuffix}`);
+    console.log(`[Places] Autocomplete request for "${query}". Session: ${sessionToken ? 'Present' : 'None'}. Key suffix: ...${keySuffix}`);
 
     try {
         const params = {
@@ -29,35 +34,32 @@ const autocomplete = async (req, res) => {
         }
 
         const url = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
-        console.log(`[Places] Calling Google API: ${url} with params:`, JSON.stringify({ ...params, key: '***' }));
-
         const response = await axios.get(url, { params });
-
-        console.log(`[Places] Google API Status: ${response.data.status}`);
 
         if (response.data.status === 'ZERO_RESULTS') {
             console.warn(`[Places] ZERO_RESULTS for query: "${query}"`);
+            return res.status(200).json({ success: true, predictions: [] });
         }
 
-        if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
-            console.error('[Places] Google API Error Response:', JSON.stringify(response.data, null, 2));
+        if (response.data.status !== 'OK') {
+            console.error('[Places] Google API Error:', response.data.status, response.data.error_message);
             return res.status(200).json({
                 success: false,
                 predictions: [],
-                error: `Google API Error: ${response.data.status} - ${response.data.error_message || 'No detail'}`
+                error: `Google API Error: ${response.data.status}`
             });
         }
 
         const predictions = response.data.predictions.map(p => ({
             place_id: p.place_id,
             description: p.description,
-            main_text: p.structured_formatting.main_text,
-            secondary_text: p.structured_formatting.secondary_text
+            main_text: p.structured_formatting?.main_text || p.description,
+            secondary_text: p.structured_formatting?.secondary_text || ''
         }));
 
         res.status(200).json({ success: true, predictions });
     } catch (error) {
-        console.error('[Places] Autocomplete error:', error.message);
+        console.error('[Places] Autocomplete Exception:', error.message);
         res.status(500).json({ success: false, message: 'Places service unavailable' });
     }
 };

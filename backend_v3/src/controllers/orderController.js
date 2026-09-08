@@ -820,6 +820,42 @@ const rateFulfiller = async (req, res) => {
     }
 };
 
+/**
+ * Returns missions assigned to or completed by a fulfiller.
+ */
+const getFulfillerOrders = async (req, res) => {
+    const userId = req.user.id;
+    const { filter = 'all' } = req.query;
+
+    try {
+        const { rows: fulfiller } = await db.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
+        if (fulfiller.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller not found' });
+
+        const fId = fulfiller[0].id;
+        let statusFilter = "";
+        if (filter === 'active') {
+            statusFilter = "AND o.status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED')";
+        } else if (filter === 'completed') {
+            statusFilter = "AND o.status IN ('DELIVERED', 'RELEASED')";
+        }
+
+        const { rows } = await db.query(
+            `SELECT o.*,
+             ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
+             ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng
+             FROM orders o
+             WHERE (o.fulfiller_id = $1 OR o.queued_for_fulfiller_id = $1)
+             ${statusFilter}
+             ORDER BY o.created_at DESC`,
+            [fId]
+        );
+
+        res.status(200).json(rows);
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -830,6 +866,7 @@ module.exports = {
   initiateReturn,
   getOrderMessages,
   getUserOrders,
+  getFulfillerOrders,
   cancelOrder,
   verifyPickup,
   verifyDelivery,
