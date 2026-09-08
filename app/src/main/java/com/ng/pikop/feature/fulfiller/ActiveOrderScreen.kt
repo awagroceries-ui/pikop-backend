@@ -435,7 +435,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                             if (podFile.exists()) {
                                                 val compressedFile = ImageUtils.compressFile(context, podFile)
                                                 val requestFile = compressedFile.asRequestBody("image/*".toMediaTypeOrNull())
-                                                val body = MultipartBody.Part.createFormData("document", compressedFile.name, requestFile)
+                                                val body = MultipartBody.Part.createFormData("file", compressedFile.name, requestFile)
                                                 val uploadRes = apiService.uploadOrderPhoto(body)
                                                 val photoUrl = uploadRes["url"] ?: ""
 

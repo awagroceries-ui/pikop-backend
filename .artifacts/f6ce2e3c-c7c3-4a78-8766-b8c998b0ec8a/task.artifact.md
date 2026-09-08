@@ -1,9 +1,7 @@
-# Task List - Fix Mission Completion, Map visibility & Payment Options
+# Task List - Fix 500 Error & Final Search/Map Diagnostics
 
-- [ ] Backend: Fix `verifyDelivery` query and interval syntax
-- [ ] Backend: Fix `updateStatus` settlement safety check
-- [ ] Backend: Add `channels` to CoD and Wallet Top-up checkout
-- [ ] Backend: Add diagnostic logs to Places autocomplete
-- [ ] Android: Add Maps API Key build-time verification
+- [ ] Android: Fix Multer field name in `ActiveOrderScreen.kt` (`document` -> `file`)
+- [ ] Android: Add explicit logging to `MapAddressSearchScreen.kt`
+- [ ] Backend: Update Gemini model identifiers to fix 404s
 - [ ] Verification: Build Android app
 - [ ] Verification: Git automation (Commit and Push)

@@ -1,28 +1,26 @@
-# Walkthrough - Mission Completion, Payment & Map Fixes
+# Walkthrough - Deep Diagnostic & Emergency Fixes
 
-Successfully addressed the HTTP 500 error on mission completion, expanded payment method availability, and added diagnostic tools for map/address searching.
+I have added deep diagnostic logging to the backend and corrected several potential causes for the HTTP 500 and Paystack checkout issues.
 
 ## Changes Made
 
-### 1. Fixed "Complete Mission" HTTP 500
-- **Problem:** Missing `SELECT` fields and incorrect PostgreSQL `interval` syntax caused a crash during delivery verification.
-- **Fix:** Updated `orderController.js` to include `user_id`, `item_price`, and `escrow_status` in the verification query and corrected the interval syntax to `($1 || ' hours')::interval`.
-- **Result:** Fulfillers can now complete missions without server-side crashes.
+### 1. Backend: Deep Diagnostic Logging
+- **Places Controller:** Now logs the exact Google API URL, parameters, and full status code. This will tell us if Google is rejecting the API key or if the query is malformed.
+- **Payment Controller:** Logs the successful initialization of Paystack and the exactly requested channels.
+- **Order Controller:** Wrap `verifyDelivery` in a verbose logger that captures the full stack trace and returns the error message to the Android app.
 
-### 2. Expanded Payment Channels
-- **Problem:** Bank Transfer was missing from CoD and Wallet Top-up checkouts.
-- **Fix:** Added the explicit `channels` array to:
-    - `initializePayment` (Main Orders)
-    - `initializeCoDPayment` (Collect-on-Delivery)
-    - `initializeTopup` (Wallet Funding)
-- **Result:** **Bank Transfer** and all other methods are now available across the entire app.
+### 2. "Complete Mission" (500 Error) Fixes
+- **Interval Syntax:** Changed the PostgreSQL interval casting to a more robust format: `+ ($1 || ' hours')::interval`.
+- **Field Selection:** Verified all necessary fields (`user_id`, `item_price`, `escrow_status`) are selected in the initial query.
+- **Data Casting:** Used `parseFloat` for item price checks to ensure consistency between Postgres strings and JS numbers.
 
-### 3. Maps & Places Diagnostics
-- **Android:** Added a build-time log in `build.gradle.kts` to verify the Maps API Key is being injected correctly from `local.properties`.
-- **Backend:** Added diagnostic logging to `placesController.js`. If an address search returns empty, the VPS logs will now show the exact parameters sent to Google for easier debugging.
+### 3. Paystack Payment Channels
+- **Prioritization:** Moved `bank_transfer` and `bank` to the beginning of the `channels` array.
+- **Consistency:** Applied the same `channels` array to **CoD** and **Wallet Top-up** initializations.
 
-### 4. Code Robustness
-- Added safety checks in `updateStatus` settlement logic to prevent potential null pointer errors if order data is missing.
+### 4. Android: Verbose Error UI
+- Updated `ActiveOrderScreen.kt` to parse and display the specific `message` returned by the backend on 500 errors.
+- **Result:** Instead of just "HTTP 500", the app will now show "Process Failure: Internal Error: <Database/Logic Error>".
 
 ## Verification Results
 
@@ -31,14 +29,14 @@ Successfully addressed the HTTP 500 error on mission completion, expanded paymen
 - **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-To apply these critical backend fixes, run the following on your **VPS**:
+Please run these on your **VPS** to apply the diagnostic tools and fixes:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
 pm2 restart pikop-v3
 ```
 
-### Manual Verification Steps
-1. **Complete Mission:** Test a delivery completion with code `8888`. Verify no error occurs.
-2. **Checkout Options:** Initialize a Wallet Top-up and verify that Bank Transfer is visible.
-3. **Address Search:** Try searching for a location. If still empty, run `pm2 logs pikop-v3` on the VPS to see the diagnostic output.
+### Manual Verification Steps (Diagnostic)
+1. **Complete Mission:** Use code `8888`. If it fails, **please screenshot the exact error message** shown in the Toast.
+2. **Checkout:** Request an order. If Bank Transfer is missing, run `pm2 logs pikop-v3` and check for the `[Paystack]` initialization log.
+3. **Address Search:** Search for "Lagos". If empty, run `pm2 logs pikop-v3` to see the `[Places]` status and URL.

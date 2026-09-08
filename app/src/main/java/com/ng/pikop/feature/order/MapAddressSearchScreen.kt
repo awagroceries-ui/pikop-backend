@@ -242,7 +242,9 @@ fun MapAddressSearchScreen(
                                     isSearchingSuggestions = true
                                     searchError = null
                                     try {
+                                        android.util.Log.d("AddressSearch", "Triggering Autocomplete for: $it")
                                         val response = apiService.getAutocomplete(it, sessionToken.toString())
+                                        android.util.Log.d("AddressSearch", "Autocomplete Success. Predictions: ${response.predictions.size}")
                                         suggestions = response.predictions
                                         if (suggestions.isEmpty()) {
                                             searchError = "No results found"

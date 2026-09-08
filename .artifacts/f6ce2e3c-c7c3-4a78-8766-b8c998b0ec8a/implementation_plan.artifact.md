@@ -1,29 +1,28 @@
-# Implementation Plan - Emergency Fix for Mission Completion 500 & Payment Channels
+# Implementation Plan - Emergency Fix for 500 Error & Final Search/Map Diagnostics
 
-This plan provides deep diagnostic logging and fixes for the persistent issues on the production server.
+This plan fixes the verified "Unexpected field" error causing mission completion failures and adds critical debugging for the map/search issues.
 
 ## Proposed Changes
-
-### Backend (`backend_v3`)
-
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- Wrap `verifyDelivery` in a more verbose error handler that returns the exact error message to the app.
-- Ensure all variables used in `verifyDelivery` are properly cast and checked.
-- Fix the `UPDATE` query for `grace_period_expires_at` to use a more standard PostgreSQL interval casting.
-
-#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
-- Re-order `channels` to prioritize `bank_transfer`.
-- Add logging to capture the response from Paystack during initialization to see if they are rejecting certain channels.
-
-#### [MODIFY] [placesController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/placesController.js)
-- Add extreme logging to capture the full URL and response from Google Places.
-
----
 
 ### Android App
 
 #### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
-- Update the error Toast to show the `message` field from the 500 JSON response if available, which will now contain the server-side error detail.
+- Fix the `MultipartBody` field name from `"document"` to `"file"` to match the backend's Multer configuration.
+- This will resolve the `MulterError: Unexpected field` and the resulting HTTP 500.
+
+#### [MODIFY] [MapAddressSearchScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/MapAddressSearchScreen.kt)
+- Add explicit logging before calling `apiService.getAutocomplete`.
+- Print the exact URL being constructed to ensure the `BASE_URL` is correct.
+
+---
+
+### Backend (`backend_v3`)
+
+#### [MODIFY] [orderRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/orderRoutes.js)
+- Add a safety check/fallback for the Multer field name just in case.
+
+#### [MODIFY] [geminiService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/geminiService.js)
+- Update model names and versions to prevent the 404 errors seen in logs.
 
 ---
 
@@ -32,7 +31,7 @@ This plan provides deep diagnostic logging and fixes for the persistent issues o
 ### Automated Tests
 - Build Android app: `./gradlew assembleDebug`.
 
-### Manual Verification (Diagnostic)
-1. **Complete Mission:** When it fails, the Toast should now say "Process Failure: Internal Error: <exact database error>".
-2. **Checkout:** Check the VPS logs for `[Paystack] Initialization successful. Channels: ...`.
-3. **Address Search:** Check the VPS logs for `[Places] Google Response Status: ...`.
+### Manual Verification
+1. **Complete Mission:** Attempt to complete a mission. It should now proceed to the rating dialog without a 500 error.
+2. **Search bar:** Open Logcat and filter for `AddressSearch`. Verify that `getAutocomplete` is being triggered when typing.
+3. **Paystack:** **IMPORTANT:** Please verify in your **Paystack Dashboard -> Settings -> Preferences** that "Bank Transfer" is checked under "Payment Channels". If it is checked and still not appearing, we may need to contact Paystack support as the backend is correctly requesting it.
