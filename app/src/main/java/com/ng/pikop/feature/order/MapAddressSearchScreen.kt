@@ -242,58 +242,10 @@ fun MapAddressSearchScreen(
                                     isSearchingSuggestions = true
                                     searchError = null
                                     try {
-                                        val center = cameraPositionState.position.target
-                                        
-                                        // Use Native Google Places SDK directly
-                                        val bounds = RectangularBounds.newInstance(
-                                            LatLng(center.latitude - 0.5, center.longitude - 0.5),
-                                            LatLng(center.latitude + 0.5, center.longitude + 0.5)
-                                        )
-                                        val request = FindAutocompletePredictionsRequest.builder()
-                                            .setLocationRestriction(bounds)
-                                            .setCountries("NG")
-                                            .setSessionToken(sessionToken)
-                                            .setQuery(it)
-                                            .build()
-
-                                        val res = suspendCancellableCoroutine<List<AutocompletePrediction>> { cont ->
-                                            placesClient.findAutocompletePredictions(request)
-                                                .addOnSuccessListener { response ->
-                                                    val mapped = response.autocompletePredictions.map { pred ->
-                                                        AutocompletePrediction(
-                                                            place_id = pred.placeId,
-                                                            description = pred.getFullText(null).toString(),
-                                                            main_text = pred.getPrimaryText(null).toString(),
-                                                            secondary_text = pred.getSecondaryText(null).toString()
-                                                        )
-                                                    }
-                                                    if (cont.isActive) cont.resume(mapped)
-                                                }
-                                                .addOnFailureListener { e ->
-                                                    android.util.Log.e("PlacesNative", "Autocomplete failed", e)
-                                                    if (cont.isActive) cont.resume(emptyList())
-                                                }
-                                        }
-
-                                        if (res.isNotEmpty()) {
-                                            suggestions = res
-                                            android.util.Log.d("PlacesNative", "Native suggestions found: ${res.size}")
-                                        } else {
-                                            android.util.Log.w("PlacesNative", "Native suggestions empty. Attempting backend fallback...")
-                                            try {
-                                                val backendRes = apiService.getAutocomplete(it, sessionToken.toString())
-                                                suggestions = backendRes.predictions
-                                                if (suggestions.isEmpty()) {
-                                                    android.util.Log.e("PlacesFallback", "Backend returned zero results for query: $it")
-                                                    searchError = "No results found"
-                                                } else {
-                                                    android.util.Log.d("PlacesFallback", "Backend suggestions found: ${suggestions.size}")
-                                                }
-                                            } catch (fallbackEx: Exception) {
-                                                android.util.Log.e("PlacesFallback", "Backend autocomplete fallback failed", fallbackEx)
-                                                searchError = "Search service unavailable"
-                                                suggestions = emptyList()
-                                            }
+                                        val response = apiService.getAutocomplete(it, sessionToken.toString())
+                                        suggestions = response.predictions
+                                        if (suggestions.isEmpty()) {
+                                            searchError = "No results found"
                                         }
                                     } catch (e: Exception) {
                                         android.util.Log.e("AddressSearch", "Autocomplete error", e)
