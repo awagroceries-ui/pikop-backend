@@ -33,21 +33,23 @@ const handlePremblyWebhook = async (req, res) => {
         const verifiedStatus = (status === 'success' || status === 'verified') ? 'approved' : 'declined';
 
         // 4. Update Database Idempotently
+        // We also update kyc_status to move it forward if approved.
         const updateRes = await db.query(
             `UPDATE fulfillers
              SET didit_verification_status = $1,
+                 kyc_status = CASE WHEN $1 = 'approved' THEN 'PENDING_REVIEW' ELSE kyc_status END,
                  kyc_verified_at = CURRENT_TIMESTAMP,
                  kyc_provider_ref = $2,
                  kyc_details = $3
              WHERE user_id = $4
-             RETURNING id`,
+             RETURNING id, kyc_status`,
             [verifiedStatus, payload.reference || 'prembly_webhook', JSON.stringify(payload), userId]
         );
 
         if (updateRes.rows.length === 0) {
             console.warn(`[Webhook] No fulfiller profile found for user_id ${userId}. Webhook processed but not saved.`);
         } else {
-            console.log(`[Webhook] User ${userId} (${updateRes.rows[0].id}) updated to ${verifiedStatus}`);
+            console.log(`[Webhook] User ${userId} (${updateRes.rows[0].id}) updated to ${verifiedStatus}. Main Status: ${updateRes.rows[0].kyc_status}`);
         }
 
         // 5. Notify Socket (if active)

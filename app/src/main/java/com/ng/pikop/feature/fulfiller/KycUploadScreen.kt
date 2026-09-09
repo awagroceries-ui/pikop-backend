@@ -371,27 +371,29 @@ fun PersonalDetailsStep(
         Text("Personal Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text("We need a few more details to activate your account.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
 
-        OutlinedTextField(
-            value = dob,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Date of Birth") },
-            modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
-            enabled = false, // Disable typing, force click
-            colors = OutlinedTextFieldDefaults.colors(
-                disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                disabledBorderColor = MaterialTheme.colorScheme.outline,
-                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            leadingIcon = { 
-                IconButton(onClick = { showDatePicker = true }) {
-                    Icon(Icons.Default.Cake, null) 
-                }
-            },
-            placeholder = { Text("Select Date") }
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = dob,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Date of Birth") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                ),
+                leadingIcon = { 
+                    Icon(Icons.Default.Cake, null, tint = MaterialTheme.colorScheme.primary) 
+                },
+                placeholder = { Text("Select Date") }
+            )
+            // Overlay a transparent clickable layer to reliably trigger the picker
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable { showDatePicker = true }
+            )
+        }
 
         var genderExpanded by remember { mutableStateOf(false) }
         val genders = listOf("Male", "Female", "Other")

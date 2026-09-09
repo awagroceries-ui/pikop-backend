@@ -127,7 +127,14 @@ const updateFulfillerProfile = async (req, res) => {
             );
         }
 
-        // 3. UPSERT into Fulfiller table (Eliminates 'duplicate key' errors)
+        // 3. Cleanup: Remove any orphaned fulfiller records with same email/phone but different user_id
+        // This prevents the 'fulfillers_email_key' violation during UPSERT.
+        await client.query(
+            "DELETE FROM fulfillers WHERE (email = $1 OR phone = $2) AND user_id != $3",
+            [u.email, phone || u.phone, userId]
+        );
+
+        // 4. UPSERT into Fulfiller table (Eliminates 'duplicate key' errors)
         await client.query(
             `INSERT INTO fulfillers (
                 user_id, full_name, email, phone, primary_class, password_hash,
