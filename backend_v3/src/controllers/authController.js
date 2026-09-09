@@ -275,11 +275,61 @@ const refresh = async (req, res) => {
     }
 };
 
+/**
+ * Updates the user's password.
+ */
+const changePassword = async (req, res) => {
+    const { old_password, new_password } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query("SELECT * FROM users WHERE id = $1", [userId]);
+        const user = rows[0];
+
+        const isMatch = await authService.comparePassword(old_password, user.password_hash);
+        if (!isMatch) return res.status(400).json({ success: false, message: 'Incorrect current password' });
+
+        const newHash = await authService.hashPassword(new_password);
+        await db.query("UPDATE users SET password_hash = $1 WHERE id = $2", [newHash, userId]);
+
+        res.status(200).json({ success: true, message: 'Password updated successfully' });
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Performs a soft-delete of the user account.
+ */
+const deleteAccount = async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+        // Soft delete: set status and anonymize identifiers
+        const anonymizedEmail = `deleted_${userId}@pikop.ng`;
+        const anonymizedPhone = `deleted_${userId}`;
+
+        await db.query(
+            "UPDATE users SET status = 'deleted', email = $1, phone = $2, email_verified_at = NULL WHERE id = $3",
+            [anonymizedEmail, anonymizedPhone, userId]
+        );
+
+        // Revoke all sessions
+        await db.query("UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [userId]);
+
+        res.status(200).json({ success: true, message: 'Account deleted successfully' });
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
   signup,
   verifyEmail,
   login,
   resendOtp,
   refresh,
-  updateFCMToken
+  updateFCMToken,
+  changePassword,
+  deleteAccount
 };

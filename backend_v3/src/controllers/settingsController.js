@@ -26,15 +26,41 @@ const getProfile = async (req, res) => {
  */
 const updateProfile = async (req, res) => {
     const userId = req.user.id;
-    const { full_name, phone } = req.body;
+    const {
+        full_name, phone,
+        bank_name, account_number, bank_code, account_name
+    } = req.body;
+
+    const client = await db.pool.connect();
     try {
-        await db.query(
+        await client.query('BEGIN');
+
+        // 1. Update Core User info
+        await client.query(
             "UPDATE users SET full_name = COALESCE($1, full_name), phone = COALESCE($2, phone) WHERE id = $3",
             [full_name, phone, userId]
         );
+
+        // 2. Update Fulfiller bank info if provided
+        if (bank_name || account_number || bank_code || account_name) {
+            await client.query(
+                `UPDATE fulfillers
+                 SET bank_name = COALESCE($1, bank_name),
+                     account_number = COALESCE($2, account_number),
+                     bank_code = COALESCE($3, bank_code),
+                     account_name = COALESCE($4, account_name)
+                 WHERE user_id = $5`,
+                [bank_name, account_number, bank_code, account_name, userId]
+            );
+        }
+
+        await client.query('COMMIT');
         res.status(200).json({ success: true, message: 'Profile updated' });
     } catch (error) {
+        await client.query('ROLLBACK');
         res.status(500).json({ success: false, message: error.message });
+    } finally {
+        client.release();
     }
 };
 

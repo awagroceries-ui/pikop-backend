@@ -1,6 +1,7 @@
 package com.ng.pikop.feature.auth
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,7 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.HelpCenter
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,6 +20,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ng.pikop.R
+import com.ng.pikop.core.datastore.TokenManager
+import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.ErrorUtils
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +45,63 @@ fun AccountScreen(
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val tokenManager = remember { TokenManager(context) }
+    val apiService = remember { ApiService.create(tokenManager) }
+
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var isActionLoading by remember { mutableStateOf(false) }
+
+    if (showChangePasswordDialog) {
+        ChangePasswordDialog(
+            onDismiss = { showChangePasswordDialog = false },
+            onConfirm = { old, new ->
+                scope.launch {
+                    isActionLoading = true
+                    try {
+                        apiService.changePassword(mapOf("old_password" to old, "new_password" to new))
+                        Toast.makeText(context, "Password Changed", Toast.LENGTH_SHORT).show()
+                        showChangePasswordDialog = false
+                    } catch (e: Exception) {
+                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                    } finally { isActionLoading = false }
+                }
+            },
+            isLoading = isActionLoading
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = { Text("Delete Account?") },
+            text = { Text("This action is permanent. Your active missions will be preserved for history, but you will lose access to your wallet and profile. Are you sure?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isActionLoading = true
+                            try {
+                                apiService.deleteAccount()
+                                onLogout() // Wipe local data
+                            } catch (e: Exception) {
+                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                            } finally { isActionLoading = false }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    if (isActionLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                    else Text("Delete Forever")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -180,13 +242,13 @@ fun AccountScreen(
                 AccountOption(
                     label = "Change Password",
                     icon = Icons.Default.Lock,
-                    onClick = { /* Navigate to change password */ }
+                    onClick = { showChangePasswordDialog = true }
                 )
 
                 AccountOption(
                     label = "Delete Account",
                     icon = Icons.Default.DeleteForever,
-                    onClick = { /* Navigate to delete request */ }
+                    onClick = { showDeleteAccountDialog = true }
                 )
             }
 

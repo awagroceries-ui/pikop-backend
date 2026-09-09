@@ -9,5 +9,7 @@ router.post('/verify-email', authController.verifyEmail);
 router.post('/resend-otp', authController.resendOtp);
 router.post('/refresh', authController.refresh);
 router.post('/fcm-token', authenticateToken, authController.updateFCMToken);
+router.post('/change-password', authenticateToken, authController.changePassword);
+router.post('/delete-account', authenticateToken, authController.deleteAccount);
 
 module.exports = router;

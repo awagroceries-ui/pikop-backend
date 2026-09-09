@@ -1,44 +1,53 @@
-# Implementation Plan - Resolve Admin 504 Gateway Time-out
+# Implementation Plan - Fix Change Password, Delete Account & Bank Editing
 
-This plan addresses the persistent 504 error by optimizing database performance, reducing connection pool pressure, and adding missing indices.
+This plan addresses non-functional buttons for password changes and account deletion, and unlocks fulfiller banking details for editing.
 
-## Problem Description
-1.  **Query Pile-up:** The Admin Dashboard was executing 8 sequential or semi-parallel queries on load. Multiple admin sessions can easily exhaust the 20-connection pool, leading to hangs.
-2.  **Missing Indices:** Critical reporting columns like `order_type`, `created_at`, and `payment_status` lack indices, causing slow table scans as the database grows.
-3.  **Potential Module Hang:** The socket.io join logic was malformed, and some views had suboptimal syntax that could stress the EJS renderer.
+## User Review Required
+
+> [!IMPORTANT]
+> **Account Deletion:** I will implement a "Soft Delete" approach where the user's status is set to `deleted` and their sensitive info (email/phone) is anonymized. This preserves referential integrity for existing missions and ledger entries while complying with data deletion requests.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [MODIFY] [db.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/config/db.js)
-- **Host Flexibility:** Remove the restrictive `host = 'localhost'` override. Allow the `DATABASE_URL` to dictate the host, ensuring compatibility with remote DB instances.
-- **Pooling:** Increase `max` connections to 30 and reduce `idleTimeoutMillis` to free up connections faster.
+#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
+- **`changePassword` [NEW]**: Verify the current password, hash the new password, and update the database.
+- **`deleteAccount` [NEW]**: Mark user status as `deleted`, invalidate all sessions, and anonymize email/phone fields.
 
-#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725590000000_harden_admin_performance.js)
-- Add indices to `orders(order_type)`, `orders(created_at)`, `orders(payment_status)`, and `users(role)`.
+#### [MODIFY] [authRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/authRoutes.js)
+- Register `POST /change-password` and `POST /delete-account`.
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- **Query Consolidation:** Combine the 8 dashboard queries into **two** optimized multi-count queries using `FILTER` clauses.
-- **Efficiency:** This reduces connection acquisition overhead by 75%.
+#### [MODIFY] [settingsController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/settingsController.js)
+- **`updateProfile`**: Extend to support `bank_name`, `account_number`, `bank_code`, and `account_name` for Fulfillers. This allows agents to update their payout details from the profile screen.
 
-#### [MODIFY] [reportController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/reportController.js)
-- **Parallelization:** Use `Promise.all` for `renderReports` to ensure snapshot data is fetched concurrently.
+---
 
-#### [MODIFY] [socketService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/socketService.js)
-- **Join Logic Fix:** Correctly handle `join_order` data whether it's a raw string or an object.
+### Android App
 
-#### [MODIFY] [app.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/app.js)
-- **Latency Tracking:** Add a simple middleware to log the duration of every admin request. This will help pinpoint the exact bottleneck in the VPS logs.
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Add `changePassword(request: Map<String, String>)` and `deleteAccount()` methods.
+
+#### [MODIFY] [ProfileEditScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/ProfileEditScreen.kt)
+- Unlock `bankName` and `accountNumber` fields.
+- Add an "Account Verification" flow (Bank Dropdown + Resolve Account) within the profile editor, similar to the one used in onboarding.
+
+#### [NEW] [ChangePasswordDialog.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/ChangePasswordDialog.kt)
+- Create a dialog to collect current password and new password with validation.
+
+#### [MODIFY] [AccountScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/AccountScreen.kt)
+- Wire the "Change Password" button to show the new dialog.
+- Wire the "Delete Account" button to show a "Final Warning" confirmation dialog before calling the delete API.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Syntax check: `node -c src/controllers/adminController.js`.
+- Syntax check backend: `node -c ...`.
+- Build Android app: `./gradlew assembleDebug`.
 
-### Manual Verification (Guide for User)
-1.  **Restart & Migrate:** Apply the new indices and restart the server.
-2.  **Latency Check:** Open the Dashboard and check the new console logs: `[Admin] GET /admin/dashboard - 120ms`.
-3.  **Stress Test:** Open the dashboard in multiple tabs simultaneously and verify all load promptly without 504.
+### Manual Verification
+1.  **Change Password:** Change the password, log out, and log back in with the new password.
+2.  **Bank Update:** As a fulfiller, update the bank account in the profile and verify it reflects in the "Fulfiller Detail" view on the admin dashboard.
+3.  **Delete Account:** Delete a test account and verify that login is no longer possible and data is anonymized in the DB.

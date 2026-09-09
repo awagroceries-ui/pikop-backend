@@ -227,6 +227,7 @@ data class UserProfileResponse(
     val full_name: String? = null,
     val email: String? = null,
     val phone: String? = null,
+    val role: String? = null,
     val kyc_status: String? = null,
     val bank_name: String? = null,
     val account_number: String? = null,
@@ -725,6 +726,12 @@ interface ApiService {
 
     @PATCH("api/v1/settings/profile")
     suspend fun updateUserProfile(@Body request: ProfileUpdateRequest): AuthResponse
+
+    @POST("api/v1/auth/change-password")
+    suspend fun changePassword(@Body request: Map<String, String>): AuthResponse
+
+    @POST("api/v1/auth/delete-account")
+    suspend fun deleteAccount(): AuthResponse
 
     companion object {
         private const val BASE_URL = "https://api.pikop.com.ng/"
