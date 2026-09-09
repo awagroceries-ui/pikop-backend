@@ -1,66 +1,47 @@
-# Implementation Plan - Termii SMS Integration & Guest Tracking
+# Implementation Plan - Admin-Configurable COD Platform Fee
 
-This plan outlines the integration of Termii as the primary SMS provider for signup OTPs, guest payment links, and guest live tracking links, including the automated ₦50 SMS charge.
+This plan converts the 10% COD platform fee from a hardcoded constant to a dynamic setting managed via the Admin Dashboard.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Termii Sender ID:** I will use `Pikop` as the default sender ID. Please ensure this is registered on your Termii dashboard to avoid carrier filtering in Nigeria.
->
-> **SMS Charge Policy:** Every order involving a guest recipient (non-app user) will incur a one-time ₦50 fee added to the `total_payable`. This covers all guest SMS needed for that specific order (payment links + tracking links).
+> **Fee Freezing:** As requested, the platform fee amount is calculated and stored at the moment of order creation. Changing the rate in settings will only affect new missions; existing missions will retain the fee they were originally quoted.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725592000000_add_termii_and_sms_charge.js)
-- Add `phone_verified_at` to `users` table.
-- Add `sms_charge_amount` to `quotes` and `orders` tables.
-- Create `sms_logs` table to track every SMS sent (recipient, content, purpose, order_id, status, provider_ref).
-
-#### [MODIFY] [smsService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/smsService.js)
-- Implement `sendSms` and `sendOtp` using Termii's REST API.
-- Add `sendTrackingLinkSms` for guest receivers.
-- Implement robust error handling and logging to `sms_logs`.
-
-#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
-- **`signup`**: Send OTP via SMS (using Termii) in addition to email.
-- **`verifyEmail`**: Rename to `verifyOtp` and handle both email and phone verification states.
-- **`resendOtp`**: Add 60-second cooldown per user to prevent abuse.
+#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725593000000_make_cod_fee_configurable.js)
+- Initializes the `cod_fee_rate` key in the `settings` table with a default value of `0.10` (10%).
 
 #### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **`getQuote`**: Calculate `sms_charge_amount` (₦50 if `payer_type === 'GUEST'`) and include in `total_payable`.
-- **`createOrder`**: Persist `sms_charge_amount` to the mission record.
-- **`updateStatus`**: Automatically trigger `sendTrackingLinkSms` when a guest-bound mission moves to `PICKED_UP`.
+- **`getQuote`**:
+    - Fetches the active `cod_fee_rate` from the `settings` table.
+    - Uses the dynamic rate for the `platform_fee_amount` calculation.
+    - **Bug Fix:** Fixed the logic order where `payer_type` was being used to calculate the SMS charge before it was actually determined.
 
-#### [NEW] [guestTracking.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/guest_tracking.ejs)
-- A lightweight, public EJS view with Leaflet.js and Socket.io.
-- Reuses the `location_updated` socket stream for real-time movement.
-- Displays mission status and ETA without requiring an app login.
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- **`updateSettings`**:
+    - Added support for updating `cod_fee_rate`.
+    - Added validation to ensure the rate is between `0.00` and `0.50` (50% max).
+    - Existing audit logging will capture these changes automatically.
 
-#### [MODIFY] [webhookController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/webhookController.js)
-- **`handleTermiiWebhook` [NEW]**: Process delivery reports from Termii and update `sms_logs`.
+#### [MODIFY] [settings.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/settings.ejs)
+- Added an input field for "COD PLATFORM FEE" under the Pricing Dynamics section.
+- Displayed as a percentage for better admin readability (e.g., input `10` for 10% and convert to `0.10` in the backend).
 
 ---
 
 ### Android App
-
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Update `QuoteResponse` and `OrderDetailsResponse` to include `sms_charge_amount`.
-
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- Update the Order Summary UI to show "Guest SMS Charge: ₦50" when applicable.
-
----
+- The app already uses the `platform_fee_amount` returned by the backend's quote API, so no changes are required on the mobile side. This ensures the app is always in sync with the server-side configuration.
 
 ## Verification Plan
 
 ### Automated Tests
-- Syntax check backend: `node -c ...`.
-- Build Android app: `./gradlew assembleDebug`.
+- Syntax check backend: `node -c src/controllers/orderController.js src/controllers/adminController.js`.
 
 ### Manual Verification
-1.  **Signup:** Register a new account and confirm OTP arrives via SMS.
-2.  **Guest Order:** Create an order for a guest. Verify the ₦50 charge appears in the summary.
-3.  **Guest Tracking:** mark a guest order as `PICKED_UP`. Open the link in the SMS and verify the real-time map works.
-4.  **Webhook:** Trigger a test delivery report from Termii and verify `sms_logs` status updates.
+1.  **Rate Change:** Log in as admin, change the COD fee to 12% (0.12), and save.
+2.  **Quote Check:** Request a delivery in the app for a ₦1,000 item. Verify the platform fee is now ₦120.
+3.  **Persistence Check:** Change the rate back to 10% in admin. Verify the previously created mission still shows ₦120 in the admin tracking view.
+4.  **Audit Log:** Verify the `audit_logs` table reflects the setting change.

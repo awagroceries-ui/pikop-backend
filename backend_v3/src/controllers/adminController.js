@@ -201,31 +201,53 @@ const getSettings = async (req, res) => {
 };
 
 const updateSettings = async (req, res) => {
-    const { base_fare_small, base_fare_medium, base_fare_large, per_km_rate, platform_commission } = req.body;
+    const {
+        base_fare_small, base_fare_medium, base_fare_large,
+        per_km_rate, platform_commission, cod_fee_rate
+    } = req.body;
+
     const client = await db.pool.connect();
     try {
         await client.query('BEGIN');
+
+        // Validation for COD Fee Rate (Bounds: 0.00 to 0.50)
+        if (cod_fee_rate !== undefined) {
+            const rate = parseFloat(cod_fee_rate);
+            if (isNaN(rate) || rate < 0 || rate > 0.50) {
+                throw new Error('Invalid COD Platform Fee: Must be between 0% and 50% (0.00 - 0.50)');
+            }
+        }
+
         const settings = [
             ['base_fare_small', base_fare_small],
             ['base_fare_medium', base_fare_medium],
             ['base_fare_large', base_fare_large],
             ['per_km_rate', per_km_rate],
-            ['platform_commission', platform_commission]
+            ['platform_commission', platform_commission],
+            ['cod_fee_rate', cod_fee_rate]
         ];
 
         for (const [key, val] of settings) {
-            if (val) {
+            if (val !== undefined && val !== '') {
                 await client.query(
                     "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-                    [key, val]
+                    [key, val.toString()]
                 );
             }
         }
+
+        // Audit the change
+        await client.query(
+            "INSERT INTO audit_logs (admin_id, action, target_type, payload) VALUES ($1, $2, $3, $4)",
+            [req.session.adminId, 'UPDATE_SETTINGS', 'system', JSON.stringify(req.body)]
+        );
+
         await client.query('COMMIT');
         res.redirect('/admin/settings');
     } catch (error) {
         await client.query('ROLLBACK');
-        res.status(500).send('Settings update failed');
+        console.error('[Admin] Settings update failed:', error.message);
+        res.status(400).send(`Update Failed: ${error.message}`);
     } finally {
         client.release();
     }

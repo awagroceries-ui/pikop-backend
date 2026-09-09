@@ -39,14 +39,16 @@ const getQuote = async (req, res) => {
   let baseFees = { 'SMALL': 400, 'MEDIUM': 800, 'LARGE': 1500 };
   let perKmRate = 110;
   let roadWindingFactor = 1.15;
+  let codFeeRate = 0.10; // Default 10%
 
   try {
-    const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate')");
+    const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate', 'cod_fee_rate')");
     settingsRes.rows.forEach(r => {
         if (r.key === 'base_fare_small') baseFees['SMALL'] = parseFloat(r.value);
         if (r.key === 'base_fare_medium') baseFees['MEDIUM'] = parseFloat(r.value);
         if (r.key === 'base_fare_large') baseFees['LARGE'] = parseFloat(r.value);
         if (r.key === 'per_km_rate') perKmRate = parseFloat(r.value);
+        if (r.key === 'cod_fee_rate') codFeeRate = parseFloat(r.value);
     });
   } catch (e) {
     console.warn('[Quote] Settings fetch failed, using fallback pricing.');
@@ -56,18 +58,7 @@ const getQuote = async (req, res) => {
   const effectiveDistance = distanceKm * roadWindingFactor;
   const delivery_fee = Math.ceil(base_fare + (effectiveDistance * perKmRate));
 
-  // 4. Secure Pay / Escrow Fee Logic
-  const platform_fee_amount = PlatformConfig.roundFee(item_price * PlatformConfig.ESCROW.FEE_PERCENTAGE);
-  const fee_payer = initiator_role; // Rule: initiator bears the fee
-
-  // 4.1 Guest SMS Charge (₦50)
-  // Rule: If payer is GUEST (receives payment link via SMS), charge ₦50 once.
-  const sms_charge_amount = (payer_type === 'GUEST') ? 50 : 0;
-
-  // total_payable for checkout: item + delivery + fee + sms_charge
-  const total_payable = parseFloat(item_price) + delivery_fee + (fee_payer === 'PAYER' ? platform_fee_amount : 0) + sms_charge_amount;
-
-  // 4.1 Reliable Account Lookup (In-App vs Guest)
+  // 4. Reliable Account Lookup (In-App vs Guest) - DETERMINES PAYER TYPE
   let payer_type = 'GUEST';
   let payer_id = null;
   if (recipient_phone) {
@@ -79,14 +70,25 @@ const getQuote = async (req, res) => {
       }
   }
 
-  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Total: ${total_payable} | Payer: ${payer_type}`);
+  // 5. Secure Pay / Escrow Fee Logic (DYNAMIZED)
+  const platform_fee_amount = PlatformConfig.roundFee(item_price * codFeeRate);
+  const fee_payer = initiator_role; // Rule: initiator bears the fee
 
-  // 5. Save Quote
+  // 5.1 Guest SMS Charge (₦50)
+  // Rule: If payer is GUEST (receives payment link via SMS), charge ₦50 once.
+  const sms_charge_amount = (payer_type === 'GUEST') ? 50 : 0;
+
+  // total_payable for checkout: item + delivery + fee + sms_charge
+  const total_payable = parseFloat(item_price) + delivery_fee + (fee_payer === 'PAYER' ? platform_fee_amount : 0) + sms_charge_amount;
+
+  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Total: ${total_payable} | Payer: ${payer_type} | Fee Rate: ${codFeeRate}`);
+
+  // 6. Save Quote
     const quoteRes = await db.query(
-    `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state)
-     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11)
+    `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state, sms_charge_amount)
+     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, $12)
      RETURNING id, expires_at`,
-    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, aiResult.size_tier, total_payable, pickup_state]
+    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, aiResult.size_tier, total_payable, pickup_state, sms_charge_amount]
   );
 
   res.status(200).json({

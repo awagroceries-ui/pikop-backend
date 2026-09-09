@@ -41,6 +41,15 @@
                     </div>
                 </div>
 
+                <div class="mb-5">
+                    <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">COD PLATFORM FEE</label>
+                    <div class="input-group">
+                        <input type="number" step="0.01" name="cod_fee_rate" class="form-control py-2" value="<%= settings.cod_fee_rate %>" required style="border-radius: 6px 0 0 6px;">
+                        <span class="input-group-text bg-light fw-bold">% DEC</span>
+                    </div>
+                    <p class="smaller text-muted mt-2">Current rate used for Secure Pay protection. <i>Applies to new orders only.</i></p>
+                </div>
+
                 <button type="submit" class="btn-pikop-primary w-100 py-3">SAVE SYSTEM PROTOCOLS</button>
             </form>
         </div>
