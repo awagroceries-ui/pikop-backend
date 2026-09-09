@@ -1,9 +1,8 @@
-# Task List - Fix Fulfiller Rating Submission Error
+# Task List - Restrict Promo Codes & Order Summary UI
 
-- [ ] Backend: Create migration for `fulfiller_rating` columns
-- [ ] Backend: Update `rateFulfiller` with duplicate check and `COALESCE` logic
-- [ ] Backend: Implement `rateCustomer` controller and route
-- [ ] Android: Update `TrackOrderScreen.kt` with better error reporting
-- [ ] Android: Update `ActiveOrderScreen.kt` with better error reporting
+- [ ] Backend: Restrict promo discount to `delivery_fee` in `orderController.js`
+- [ ] Backend: Restrict promo discount to `delivery_fee` in `paymentController.js`
+- [ ] Android: Update calculation logic in `OrderQuoteScreen.kt`
+- [ ] Android: Refactor Order Summary UI in `OrderQuoteScreen.kt` with breakdown
 - [ ] Verification: Build Android app
 - [ ] Verification: Git automation (Commit and Push)

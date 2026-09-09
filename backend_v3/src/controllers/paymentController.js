@@ -119,7 +119,31 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
     if (quoteRes.rows.length === 0) throw new Error(`Quote ${qId} not found`);
     const q = quoteRes.rows[0];
 
-    // 3. Insert Order
+    // 3. Calculate Restricted Discount (Promo only applies to Delivery Fee)
+    let deliveryFee = parseFloat(m.delivery_fee || 0);
+    const itemPrice = parseFloat(m.item_price || 0);
+    const platformFee = (m.fee_payer === 'PAYER') ? parseFloat(m.platform_fee_amount || 0) : 0;
+
+    let discount = 0;
+    if (m.promo_id) {
+        try {
+            const couponRes = await client.query("SELECT * FROM coupons WHERE id = $1 AND is_active = true", [m.promo_id]);
+            if (couponRes.rows.length > 0) {
+                const c = couponRes.rows[0];
+                const calculatedDiscount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : deliveryFee * (parseFloat(c.discount_value) / 100);
+
+                // Rule: Promo only discounts delivery fee, never item price or platform fee.
+                discount = Math.min(calculatedDiscount, deliveryFee);
+                deliveryFee = Math.max(0, deliveryFee - discount);
+
+                console.log(`[Activation] Applied Promo: ${c.code}. Discount: ${discount}. New Delivery Fee: ${deliveryFee}`);
+            }
+        } catch (e) { console.error('[Activation] Promo check failed:', e.message); }
+    }
+
+    const finalTotal = itemPrice + deliveryFee + platformFee;
+
+    // 4. Insert Order
     const pCode = Math.floor(1000 + Math.random() * 9000).toString();
     const dCode = Math.floor(1000 + Math.random() * 9000).toString();
     const pHash = await bcrypt.hash(pCode, 10);
@@ -153,11 +177,11 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             q.size_tier, // $5
             q.pickup_address, // $6
             q.delivery_address, // $7
-            q.p_lng, // $8
-            q.p_lat, // $9
-            q.d_lng, // $10
-            q.d_lat, // $11
-            q.total_fare, // $12
+            pLng, // $8
+            pLat, // $9
+            dLng, // $10
+            dLat, // $11
+            finalTotal, // $12 (Final Total)
             'PAID', // $13
             channel, // $14 (payment_method)
             reference, // $15
@@ -166,12 +190,12 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             m.recipient_phone || '000', // $18
             q.pickup_address.substring(0, 50), // $19
             q.delivery_address.substring(0, 50), // $20
-            parseFloat(m.item_price || 0), // $21
-            parseFloat(m.delivery_fee || 0), // $22
-            parseFloat(m.platform_fee_amount || 0), // $23
+            itemPrice, // $21
+            deliveryFee, // $22 (Discounted Delivery Fee)
+            platformFee, // $23
             m.fee_payer || 'PAYER', // $24
             m.initiator_role || 'PAYER', // $25
-            (parseFloat(m.item_price || 0) > 0) ? 'held' : 'not_applicable', // $26
+            (itemPrice > 0) ? 'held' : 'not_applicable', // $26
             m.seller_phone || null, // $27
             m.payer_id || null, // $28
             parseFloat(q.delivery_fee), // $29
@@ -186,7 +210,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
 
     const orderId = orderRes.rows[0].id;
 
-    // 4. Ledger & Notifications (Non-blocking)
+    // 5. Ledger & Notifications (Non-blocking)
     if (parseFloat(m.item_price || 0) > 0) {
         try {
             const sellerRes = await client.query("SELECT id FROM users WHERE phone = $1", [m.seller_phone]);

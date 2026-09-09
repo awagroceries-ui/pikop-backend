@@ -286,10 +286,10 @@ fun OrderQuoteScreen(
                     onClick = {
                         coroutineScope.launch {
                             try {
-                                val total = quoteResult?.total_fare ?: 0.0
+                                val deliveryFee = quoteResult?.delivery_fee ?: 0.0
                                 activePromo = apiService.validatePromoCode(mapOf(
                                     "code" to promoCode,
-                                    "amount" to total.toString()
+                                    "amount" to deliveryFee.toString()
                                 ))
                                 Toast.makeText(context, activePromo?.message ?: "Code Applied", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
@@ -307,7 +307,10 @@ fun OrderQuoteScreen(
                 }
             }
             activePromo?.let { 
-                Text("Discount: ${if(it.discount_type == "fixed") "₦${it.value ?: 0.0}" else "${it.value ?: 0.0}%"}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                val deliveryFee = quoteResult?.delivery_fee ?: 0.0
+                val calculatedDiscount = if (it.discount_type == "fixed") it.value ?: 0.0 else deliveryFee * ((it.value ?: 0.0) / 100)
+                val discount = minOf(calculatedDiscount, deliveryFee)
+                Text("Discount: ₦$discount applied to delivery", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
             }
 
             // Billing Method
@@ -379,34 +382,49 @@ fun OrderQuoteScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                     val result = quoteResult!!
-                    val total = result.total_fare ?: 0.0
                     val size = result.size_tier ?: "MEDIUM"
                     val promo = activePromo
-                    val discount = if (promo == null) 0.0 else if (promo.discount_type == "fixed") promo.value ?: 0.0 else total * ((promo.value ?: 0.0) / 100)
                     
+                    // Promo Rule: Only applies to Delivery Fee, capped at Delivery Fee amount.
+                    val deliveryFee = result.delivery_fee ?: 0.0
+                    val calculatedDiscount = if (promo == null) 0.0 
+                        else if (promo.discount_type == "fixed") promo.value ?: 0.0 
+                        else deliveryFee * ((promo.value ?: 0.0) / 100)
+                    
+                    val discount = minOf(calculatedDiscount, deliveryFee)
+                    
+                    val itemPriceNum = result.item_price ?: 0.0
+                    val platformFee = if (result.fee_payer == "PAYER") result.platform_fee_amount ?: 0.0 else 0.0
+                    val amountToCharge = itemPriceNum + (deliveryFee - discount) + platformFee
+
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Order Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         
+                        // Section 1: COD Item & Fees
                         if (isSecurePay) {
-                            SummaryLine("Item Price", "₦${result.item_price ?: 0.0}")
-                            SummaryLine("Delivery Fee", "₦${result.delivery_fee ?: 0.0}")
-                            if (result.platform_fee_amount != null && result.platform_fee_amount!! > 0 && result.fee_payer == "PAYER") {
-                                SummaryLine("Secure Pay Fee (Initiator)", "₦${result.platform_fee_amount}")
+                            Text("COD Item & Fees", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            SummaryLine("Item price", "₦$itemPriceNum")
+                            if (platformFee > 0) {
+                                SummaryLine("Platform fee (10%)", "₦$platformFee")
                             }
-                        } else {
-                            SummaryLine("Delivery Fee", "₦$total")
+                            SummaryLine("Subtotal", "₦${itemPriceNum + platformFee}")
+                            Spacer(modifier = Modifier.height(12.dp))
                         }
 
+                        // Section 2: Delivery
+                        Text("Delivery", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        SummaryLine("Delivery fee", "₦$deliveryFee")
                         if (discount > 0) {
-                            SummaryLine("Discount", "-₦$discount", color = MaterialTheme.colorScheme.primary)
+                            SummaryLine("Promo discount", "-₦$discount", color = MaterialTheme.colorScheme.primary)
                         }
+                        SummaryLine("Delivery total", "₦${deliveryFee - discount}")
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
                         
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text("Total Payable", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                            Text("₦${total - discount}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                            Text("₦$amountToCharge", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                         }
 
                         if (isSecurePay && result.fee_payer == "SELLER") {
@@ -523,10 +541,19 @@ fun OrderQuoteScreen(
                                         Toast.makeText(context, "Failed to finalize corporate order", Toast.LENGTH_SHORT).show()
                                     }
                                 } else if (result != null) {
-                                    val total = result.total_fare ?: 0.0
                                     val promo = activePromo
-                                    val discount = if (promo == null) 0.0 else if (promo.discount_type == "fixed") promo.value ?: 0.0 else total * ((promo.value ?: 0.0)/100)
-                                    val amountToCharge = total - discount 
+                                    
+                                    // Promo Rule: Only applies to Delivery Fee, capped at Delivery Fee amount.
+                                    val deliveryFee = result.delivery_fee ?: 0.0
+                                    val calculatedDiscount = if (promo == null) 0.0 
+                                        else if (promo.discount_type == "fixed") promo.value ?: 0.0 
+                                        else deliveryFee * ((promo.value ?: 0.0) / 100)
+                                    
+                                    val discount = minOf(calculatedDiscount, deliveryFee)
+                                    val itemPriceNum = result.item_price ?: 0.0
+                                    val platformFee = if (result.fee_payer == "PAYER") result.platform_fee_amount ?: 0.0 else 0.0
+                                    
+                                    val amountToCharge = itemPriceNum + (deliveryFee - discount) + platformFee
 
                                     // 100% DISCOUNT BYPASS
                                     if (amountToCharge <= 0) {
@@ -740,6 +767,7 @@ suspend fun finalizeOrderAfterPayment(
             delivery_display_summary = dSummary,
             payment_reference = paymentReference,
             item_price = quoteResult?.item_price,
+            delivery_fee = quoteResult?.delivery_fee,
             seller_phone = sellerPhone
         )
         val response = apiService.createOrder(request)

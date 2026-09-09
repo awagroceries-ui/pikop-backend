@@ -422,8 +422,12 @@ const createOrder = async (req, res) => {
         if (quoteRes.rows.length === 0) throw new Error('Quote not found');
         const q = quoteRes.rows[0];
 
-        // 3. Handle Promo/Coupon Server-Side Verification
-        let finalFare = parseFloat(q.total_fare);
+        // 3. Handle Promo/Coupon Server-Side Verification (Restricted to Delivery Fee)
+        let deliveryFee = parseFloat(delivery_fee || q.delivery_fee || 0);
+        const itemPriceNum = parseFloat(item_price || 0);
+        const platformFeeNum = (initiator_role === 'PAYER') ? parseFloat(platform_fee_amount || 0) : 0;
+
+        let discount = 0;
         let couponId = null;
 
         if (promo_id) {
@@ -431,11 +435,17 @@ const createOrder = async (req, res) => {
             if (couponRes.rows.length > 0) {
                 const c = couponRes.rows[0];
                 couponId = c.id;
-                const discount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : finalFare * (parseFloat(c.discount_value) / 100);
-                finalFare = Math.max(0, finalFare - discount);
-                console.log(`[Order] Applied Promo: ${c.code}. Discount: ${discount}. New Fare: ${finalFare}`);
+                const calculatedDiscount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : deliveryFee * (parseFloat(c.discount_value) / 100);
+
+                // Rule: Promo only discounts delivery fee, never item price or platform fee.
+                discount = Math.min(calculatedDiscount, deliveryFee);
+                deliveryFee = Math.max(0, deliveryFee - discount);
+
+                console.log(`[Order] Applied Promo: ${c.code}. Discount: ${discount}. New Delivery Fee: ${deliveryFee}`);
             }
         }
+
+        const finalFare = itemPriceNum + deliveryFee + platformFeeNum;
 
         // 4. Create Order (DEFINITIVE ALIGNMENT WITH WEBHOOK)
         // Extract coordinates from body (preferred) or quote fallback

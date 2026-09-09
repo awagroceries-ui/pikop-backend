@@ -1,50 +1,51 @@
-# Implementation Plan - Fix Fulfiller Rating Submission Error
+# Implementation Plan - Restrict Promo Codes to Delivery Fee & UI Breakdown
 
-This plan addresses the error encountered when customers attempt to rate their fulfillers after a mission, and completes the rating system by adding support for fulfillers to rate customers.
+This plan ensures that promo code discounts are only applied to the delivery fee and updates the Order Summary UI to show a clear breakdown of costs.
 
-## User Review Required
-
-> [!IMPORTANT]
-> I have identified that while `rateFulfiller` (customer rating agent) was partially implemented on the backend, the corresponding `rateCustomer` (agent rating customer) endpoint was missing entirely. Additionally, the error handling on the mobile app was swallowing specific server-side error messages, making it difficult to diagnose the "Process Failure."
+## Problem Description
+1.  **Promo Scope:** Promo codes are currently applied to the full order total, which could incorrectly discount the COD item price or platform fees.
+2.  **UI Clarity:** The current order summary does not clearly distinguish between the item/fee portion and the delivery portion, making the promo code's impact less obvious.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725586000000_add_fulfiller_rating_to_orders.js)
-- Add `fulfiller_rating` (integer) and `fulfiller_comment` (text) columns to the `orders` table. This allows agents to rate customers.
-
 #### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **`rateFulfiller`**:
-    - Add a check for existing ratings: return `400` with message "You've already rated this mission" if `customer_rating` is not null.
-    - Add status check: Ensure mission is `DELIVERED`, `RELEASED`, or `COMPLETED`.
-    - Use `COALESCE` in the average rating calculation to prevent nulling out the fulfiller's score if it's their first rating.
-- **`rateCustomer` [NEW]**:
-    - Implement logic to save `fulfiller_rating` and `fulfiller_comment` to the mission record.
-    - Verify that the requester is the fulfiller assigned to the mission.
+- **`createOrder`**:
+    - Update logic to calculate discount based strictly on `delivery_fee`.
+    - `discount = min(promoDiscount, delivery_fee)`.
+    - `finalFare = item_price + (delivery_fee - discount) + platform_fee_amount` (if payer pays fee).
+    - Ensure `original_delivery_fee` stores the pre-discount value.
 
-#### [MODIFY] [orderRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/orderRoutes.js)
-- Register `POST /:orderId/rate` for `rateCustomer` (fulfiller rating customer).
+#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
+- **`activatePaidMission`**:
+    - Align activation logic with the same restricted promo calculation.
+    - Since `quotes` table only has `total_fare`, we will prioritize using the `item_price` and `delivery_fee` passed in the Paystack `metadata`.
 
 ---
 
 ### Android App
 
-#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt)
-- Update the rating submission catch block to use `ErrorUtils.parseError(e)`. This will surface specific errors like "Already rated" instead of a generic failure message.
-
-#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
-- Update the rating submission catch block to use `ErrorUtils.parseError(e)`.
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- **Calculation Logic:**
+    - Update `discount` calculation to be `min(calculatedDiscount, result.delivery_fee)`.
+    - Update `totalPayable` to be `fullItemPrice + (deliveryFee - discount) + platformFee`.
+- **UI Update:**
+    - Refactor the Order Summary card to show two distinct sections:
+        1. **COD Item & Fees:** Item price, Platform fee (if applicable), and Subtotal.
+        2. **Delivery:** Delivery fee, Promo discount (if any), and Delivery total.
+    - Show the final "Total Payable" at the bottom.
+    - Use the same breakdown logic for the UI both before and after applying a promo.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Build Android app: `./gradlew assembleDebug`.
+- Run Android build: `./gradlew assembleDebug`.
 - Syntax check backend: `node -c src/controllers/orderController.js`.
 
 ### Manual Verification
-1.  **Customer Rating:** Complete a mission, track it, and submit a 5-star rating.
-2.  **Duplicate Check:** Try to submit a rating again for the same mission. The app should show "You've already rated this mission."
-3.  **Fulfiller Rating:** As a fulfiller, complete a mission and submit a rating for the customer. Verify it saves successfully.
+1.  **Small Promo:** Apply a ₦200 promo on a ₦1000 delivery fee. Total should decrease by exactly ₦200.
+2.  **Large Promo:** Apply a ₦2000 promo on a ₦1000 delivery fee. Delivery fee should floor at ₦0, and the item price/platform fee should remain untouched.
+3.  **UI Breakdown:** Verify that the "COD Item & Fees" and "Delivery" sections are visually separated and sum up correctly to the "Total Payable".
