@@ -54,11 +54,17 @@ const processMissionSettlement = async (orderId) => {
 
     // 1. Fetch order details
     const orderRes = await client.query(
-        "SELECT id, fulfiller_id, total_fare, delivery_fee, item_price, original_delivery_fee FROM orders WHERE id = $1",
+        "SELECT id, user_id, fulfiller_id, total_fare, delivery_fee, item_price, original_delivery_fee, fee_payer, platform_fee_amount FROM orders WHERE id = $1",
         [orderId]
     );
     const order = orderRes.rows[0];
-    if (!order || !order.fulfiller_id) throw new Error('Order not eligible for settlement');
+
+    if (!order) throw new Error(`Order #${orderId} not found for settlement`);
+
+    if (!order.fulfiller_id) {
+        console.warn(`[Wallet] Settlement skipped for Order #${orderId}: No fulfiller assigned.`);
+        return;
+    }
 
     // Consolidated Checkout Fix: Only split the delivery fee portion.
     // ALWAYS use original_delivery_fee if it exists (handles 100% Promo cases)

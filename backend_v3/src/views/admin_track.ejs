@@ -18,9 +18,13 @@
         <div class="mb-4 border-top pt-3">
             <label class="text-muted smaller fw-bold uppercase d-block mb-1">Active Agent</label>
             <% if (order.agent_name) { %>
-                <div class="fw-bold text-primary"><%= order.agent_name %></div>
+                <div class="fw-bold text-primary"><%= order.agent_name %> <span class="text-muted small">#<%= order.agent_db_id %></span></div>
+                <div class="smaller text-muted text-uppercase mb-2"><%= order.primary_class %> - <%= order.tier %> Agent</div>
                 <div class="small text-muted"><%= order.agent_phone %></div>
-                <div id="eta-box" class="mt-2 small fw-bold text-success">Tracking live agent...</div>
+                <div class="mt-2">
+                    <a href="/admin/fulfillers/<%= order.agent_db_id %>" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size: 10px;">MANAGE AGENT</a>
+                </div>
+                <div id="eta-box" class="mt-3 small fw-bold text-success">Tracking live agent...</div>
             <% } else { %>
                 <div class="text-warning small italic">Waiting for agent acceptance...</div>
             <% } %>

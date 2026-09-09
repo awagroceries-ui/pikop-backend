@@ -36,7 +36,7 @@ const classifyItemSize = async (description) => {
   `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     const jsonMatch = text.match(/\{.*\}/);
@@ -44,7 +44,7 @@ const classifyItemSize = async (description) => {
   } catch (error) {
     console.warn('[Gemini] Primary model failed, attempting fallback:', error.message);
     try {
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
       const result = await fallbackModel.generateContent(prompt);
       const text = result.response.text();
       const jsonMatch = text.match(/\{.*\}/);

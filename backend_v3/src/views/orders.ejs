@@ -25,9 +25,16 @@
                             <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Mission ID</span>
                             <div class="text-black small mono fw-bold">#<%= order.id.toString().slice(-8).toUpperCase() %></div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Customer</span>
                             <div class="text-black small fw-bold"><%= order.user_name %></div>
+                        </div>
+                        <div class="col-md-2">
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Agent</span>
+                            <div class="text-black small fw-bold"><%= order.fulfiller_name || 'UNASSIGNED' %></div>
+                            <% if (order.fulfiller_id) { %>
+                                <div class="smaller text-muted" style="font-size: 9px;">ID: #<%= order.fulfiller_id %></div>
+                            <% } %>
                         </div>
                         <div class="col-md-2 text-center">
                             <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Status</span>

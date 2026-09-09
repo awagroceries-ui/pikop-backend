@@ -54,6 +54,7 @@ app.use('/admin', (req, res, next) => {
 });
 
 app.use(express.json({
+  limit: '5mb', // Increased for large webhooks (e.g. Prembly)
   verify: (req, res, buf) => {
     if (req.originalUrl.includes('/webhook')) {
       req.rawBody = buf.toString();
