@@ -20,13 +20,12 @@ const ensureWalletExists = async (client, ownerType, ownerId) => {
 
 /**
  * Records an immutable ledger entry and updates wallet balance.
- * Target can be 'available' (default) or 'pending'.
  */
 const recordEntry = async (client, walletId, type, amount, purpose, description, orderId = null, target = 'available', metadata = null) => {
   const numericAmount = parseFloat(amount);
   const balanceColumn = target === 'pending' ? 'pending_balance' : 'balance';
 
-  // 1. Lock and update specified balance
+  // 1. Update specified balance
   const walletRes = await client.query(
     `UPDATE wallets SET ${balanceColumn} = ${balanceColumn} + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING balance, pending_balance`,
     [type === 'CREDIT' ? numericAmount : -numericAmount, walletId]
@@ -47,10 +46,12 @@ const recordEntry = async (client, walletId, type, amount, purpose, description,
 /**
  * Processes mission settlement (75/25 Split).
  */
-const processMissionSettlement = async (orderId) => {
-  const client = await db.pool.connect();
+const processMissionSettlement = async (orderId, providedClient = null) => {
+  const client = providedClient || await db.pool.connect();
+  let shouldRelease = !providedClient;
+
   try {
-    await client.query('BEGIN');
+    if (shouldRelease) await client.query('BEGIN');
 
     // 1. Fetch order details
     const orderRes = await client.query(
@@ -63,14 +64,13 @@ const processMissionSettlement = async (orderId) => {
 
     if (!order.fulfiller_id) {
         console.warn(`[Wallet] Settlement skipped for Order #${orderId}: No fulfiller assigned.`);
+        if (shouldRelease) await client.query('COMMIT');
         return;
     }
 
-    // Consolidated Checkout Fix: Only split the delivery fee portion.
-    // ALWAYS use original_delivery_fee if it exists (handles 100% Promo cases)
     const settlableAmount = parseFloat(order.original_delivery_fee || order.delivery_fee || order.total_fare || 0);
 
-    // 2. Fetch Split Config from Settings (Master Brief v3)
+    // 2. Fetch Split Config from Settings
     const settingsRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
     const commissionRate = parseFloat(settingsRes.rows[0]?.value || '0.25');
 
@@ -90,13 +90,12 @@ const processMissionSettlement = async (orderId) => {
         await recordEntry(client, pWalletId, 'CREDIT', order.platform_fee_amount, 'SECURE_PAY_FEE', `Escrow service fee for Order #${order.id}`, order.id);
     }
 
-    await client.query('COMMIT');
+    if (shouldRelease) await client.query('COMMIT');
     console.log(`[Wallet] Settled Mission #${order.id}: Fulfiller +${fulfillerShare}, Platform +${platformShare}`);
 
-    // 6. Trigger Growth Logic (Non-blocking but awaited before release)
+    // 6. Trigger Growth Logic
     try {
         await awardLoyaltyPoints(client, order.user_id, settlableAmount);
-
         const orderCountRes = await client.query("SELECT COUNT(*) FROM orders WHERE user_id = $1 AND status IN ('DELIVERED', 'RELEASED')", [order.user_id]);
         if (parseInt(orderCountRes.rows[0].count) === 1) {
             await processReferralReward(client, order.user_id);
@@ -105,23 +104,24 @@ const processMissionSettlement = async (orderId) => {
         console.error('[Growth] Trigger Error:', gErr.message);
     }
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (shouldRelease) await client.query('ROLLBACK');
     console.error('[Wallet] Settlement Failed:', error.message);
     throw error;
   } finally {
-    client.release();
+    if (shouldRelease) client.release();
   }
 };
 
 /**
  * Remits collected CoD funds to the Vendor.
  */
-const processCoDRemittance = async (orderId) => {
-    const client = await db.pool.connect();
+const processCoDRemittance = async (orderId, providedClient = null) => {
+    const client = providedClient || await db.pool.connect();
+    let shouldRelease = !providedClient;
     try {
-        await client.query('BEGIN');
+        if (shouldRelease) await client.query('BEGIN');
 
-        const { rows } = await db.query(
+        const { rows } = await client.query(
             "SELECT id, vendor_id, collect_on_delivery_amount FROM orders WHERE id = $1",
             [orderId]
         );
@@ -131,24 +131,25 @@ const processCoDRemittance = async (orderId) => {
         const vWalletId = await ensureWalletExists(client, 'VENDOR', order.vendor_id);
         await recordEntry(client, vWalletId, 'CREDIT', order.collect_on_delivery_amount, 'COD_COLLECTION', `Payment collected for Order #${order.id}`, order.id);
 
-        await client.query('COMMIT');
+        if (shouldRelease) await client.query('COMMIT');
         console.log(`[Wallet] CoD Remitted to Vendor ${order.vendor_id} for Order ${order.id}`);
     } catch (error) {
-        await client.query('ROLLBACK');
+        if (shouldRelease) await client.query('ROLLBACK');
         console.error('[Wallet] CoD Remittance Failed:', error.message);
     } finally {
-        client.release();
+        if (shouldRelease) client.release();
     }
 };
 
 /**
  * Moves funds from pending_balance to available_balance for the seller.
- * Deducts the platform fee during this transition.
  */
-const releaseEscrow = async (orderId) => {
-  const client = await db.pool.connect();
+const releaseEscrow = async (orderId, providedClient = null) => {
+  const client = providedClient || await db.pool.connect();
+  let shouldRelease = !providedClient;
+
   try {
-    await client.query('BEGIN');
+    if (shouldRelease) await client.query('BEGIN');
 
     // 1. Fetch order details with fee info
     const orderRes = await client.query(
@@ -171,10 +172,9 @@ const releaseEscrow = async (orderId) => {
     // 2. Determine Seller Payout
     const sellerPayout = order.fee_payer === 'SELLER' ? (itemPrice - fee) : itemPrice;
 
-    // 3. Update Seller Wallet (Target: seller_id (USER) if exists, else fulfiller_id (FULFILLER))
+    // 3. Update Seller Wallet
     let ownerType = 'FULFILLER';
     let ownerId = order.fulfiller_id;
-
     if (order.seller_id) {
         ownerType = 'USER';
         ownerId = order.seller_id;
@@ -204,24 +204,26 @@ const releaseEscrow = async (orderId) => {
       [orderId]
     );
 
-    await client.query('COMMIT');
+    if (shouldRelease) await client.query('COMMIT');
     console.log(`[Wallet] Escrow Released for Order #${orderId}. Seller Payout: ${sellerPayout} to ${ownerType} ${ownerId}`);
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (shouldRelease) await client.query('ROLLBACK');
     console.error('[Wallet] Escrow Release Failed:', error.message);
     throw error;
   } finally {
-    client.release();
+    if (shouldRelease) client.release();
   }
 };
 
 /**
  * Refunds an escrow payment to the buyer.
  */
-const refundEscrow = async (orderId) => {
-    const client = await db.pool.connect();
+const refundEscrow = async (orderId, providedClient = null) => {
+    const client = providedClient || await db.pool.connect();
+    let shouldRelease = !providedClient;
+
     try {
-        await client.query('BEGIN');
+        if (shouldRelease) await client.query('BEGIN');
 
         const { rows } = await client.query(
             "SELECT id, fulfiller_id, seller_id, item_price, escrow_status FROM orders WHERE id = $1 FOR UPDATE",
@@ -253,63 +255,40 @@ const refundEscrow = async (orderId) => {
             [orderId]
         );
 
-        await client.query('COMMIT');
+        if (shouldRelease) await client.query('COMMIT');
         console.log(`[Wallet] Escrow Refunded for Order #${orderId}. Amount: ${itemPrice} from ${ownerType} ${ownerId}`);
     } catch (error) {
-        await client.query('ROLLBACK');
+        if (shouldRelease) await client.query('ROLLBACK');
         console.error('[Wallet] Escrow Refund Failed:', error.message);
         throw error;
     } finally {
-        client.release();
+        if (shouldRelease) client.release();
     }
 };
 
 /**
- * Awards referral rewards to both referrer and referred user.
+ * Awards referral rewards.
  */
 const processReferralReward = async (client, userId) => {
     try {
-        // 1. Check if user was referred and hasn't been rewarded yet
         const { rows } = await client.query(
             "SELECT referred_by_user_id FROM users WHERE id = $1 AND email_verified_at IS NOT NULL",
             [userId]
         );
-
         const referrerId = rows[0]?.referred_by_user_id;
         if (!referrerId) return;
 
-        // 2. Check if already rewarded (idempotency)
-        const check = await client.query(
-            "SELECT id FROM referrals WHERE referred_id = $1 AND status = 'completed'",
-            [userId]
-        );
-        if (check.rows.length > 0) return;
-
         const REWARD_AMOUNT = 250;
-
-        // 3. Reward Referrer
         const referrerWalletId = await ensureWalletExists(client, 'USER', referrerId);
-        await recordEntry(
-            client, referrerWalletId, 'CREDIT', REWARD_AMOUNT,
-            'REFERRAL_BONUS', `Bonus for referring user #${userId}`,
-            null, 'available'
-        );
+        await recordEntry(client, referrerWalletId, 'CREDIT', REWARD_AMOUNT, 'REFERRAL_BONUS', `Bonus for referring user #${userId}`);
 
-        // 4. Reward Referred User
         const userWalletId = await ensureWalletExists(client, 'USER', userId);
-        await recordEntry(
-            client, userWalletId, 'CREDIT', REWARD_AMOUNT,
-            'REFERRAL_WELCOME', `Welcome bonus for using referral code`,
-            null, 'available'
-        );
+        await recordEntry(client, userWalletId, 'CREDIT', REWARD_AMOUNT, 'REFERRAL_WELCOME', `Welcome bonus for using referral code`);
 
-        // 5. Mark referral as completed
         await client.query(
             "INSERT INTO referrals (referrer_id, referred_id, status, rewarded_at) VALUES ($1, $2, 'completed', CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING",
             [referrerId, userId]
         );
-
-        console.log(`[Growth] Referral rewards processed for User #${userId} (Referrer: #${referrerId})`);
     } catch (error) {
         console.error('[Growth] Referral Error:', error.message);
     }
@@ -322,13 +301,10 @@ const awardLoyaltyPoints = async (client, userId, amount) => {
     try {
         const points = Math.floor(parseFloat(amount) / 100);
         if (points <= 0) return;
-
         await client.query(
             "INSERT INTO loyalty_ledger (user_id, points, entry_type, description) VALUES ($1, $2, 'EARN', $3)",
             [userId, points, `Earned from mission spending`]
         );
-
-        console.log(`[Growth] Awarded ${points} loyalty points to User #${userId}`);
     } catch (error) {
         console.error('[Growth] Loyalty Error:', error.message);
     }

@@ -495,9 +495,9 @@ const resolveDispute = async (req, res) => {
         const dispute = rows[0];
 
         if (action === 'REFUND') {
-            await walletService.refundEscrow(dispute.order_id);
+            await walletService.refundEscrow(dispute.order_id, client);
         } else if (action === 'RELEASE') {
-            await walletService.releaseEscrow(dispute.order_id);
+            await walletService.releaseEscrow(dispute.order_id, client);
         }
 
         await client.query(
@@ -666,7 +666,7 @@ const updateOrderStatus = async (req, res) => {
             await client.query("UPDATE orders SET payment_status = 'PAID' WHERE id = $1", [id]);
             if (order && order.escrow_status === 'held') {
                 try {
-                    await walletService.releaseEscrow(id);
+                    await walletService.releaseEscrow(id, client);
                 } catch (e) {
                     console.error('[Admin] Escrow release on force complete failed:', e.message);
                 }
