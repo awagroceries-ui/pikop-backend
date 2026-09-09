@@ -119,7 +119,11 @@ data class FulfillerPublicProfile(
     val profile_photo_url: String? = null,
     val tier: String? = null,
     val vehicle_registration_number: String? = null,
+    val make: String? = null,
+    val mobility_type: String? = null,
+    val primary_class: String? = null,
     val rating_avg: Double? = null,
+    val rating_count: Int? = null,
     val kyc_status: String? = null
 )
 
@@ -167,6 +171,10 @@ data class FulfillerProfileResponse(
     val model: String? = null,
     val color: String? = null,
     val rating_avg: Double? = null,
+    val rating_count: Int? = null,
+    val gender: String? = null,
+    val date_of_birth: String? = null,
+    val home_address: String? = null,
     val bank_name: String? = null,
     val account_number: String? = null,
     val bank_code: String? = null,
@@ -201,6 +209,9 @@ data class ProfileUpdateRequest(
     val phone: String? = null,
     val mobility_type: String? = null,
     val primary_class: String? = null,
+    val gender: String? = null,
+    val date_of_birth: String? = null,
+    val home_address: String? = null,
     val vehicle_details: VehicleDetails? = null,
     val bank_name: String? = null,
     val account_number: String? = null,
@@ -241,7 +252,9 @@ data class OfferResponse(
     val delivery_address: String? = null,
     val total_fare: Double? = null,
     val item_photo_url: String? = null,
-    val expires_at: String? = null
+    val expires_at: String? = null,
+    val distance_km: Double? = null,
+    val collect_on_delivery_amount: Double? = null
 )
 
 data class VerifyCodeRequest(

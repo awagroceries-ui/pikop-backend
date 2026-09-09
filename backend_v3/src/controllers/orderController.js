@@ -189,7 +189,8 @@ const getOrderDetails = async (req, res) => {
       `SELECT o.*,
        ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
        ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng,
-       f.full_name as fulfiller_name, f.primary_class, f.mobility_type,
+       f.full_name as fulfiller_name, f.primary_class, f.mobility_type, f.profile_photo_url,
+       f.tier, f.registration_number, f.rating_avg, f.rating_count, f.make,
        ST_Y(f.current_location::geometry) as fulfiller_lat, ST_X(f.current_location::geometry) as fulfiller_lng
        FROM orders o
        LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
@@ -199,6 +200,20 @@ const getOrderDetails = async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Mission not found' });
 
     const order = rows[0];
+
+    // Map public profile for app
+    order.fulfiller_profile = order.fulfiller_id ? {
+        full_name: order.fulfiller_name,
+        profile_photo_url: order.profile_photo_url,
+        tier: order.tier,
+        vehicle_registration_number: order.registration_number,
+        make: order.make,
+        mobility_type: order.mobility_type,
+        primary_class: order.primary_class,
+        rating_avg: parseFloat(order.rating_avg || 5.0),
+        rating_count: parseInt(order.rating_count || 0),
+        kyc_status: 'VERIFIED' // Basic assumption if assigned
+    } : null;
 
     // Security: Only return plain codes to the customer who created the order or admin
     if (order.user_id !== userId && userRole !== 'ADMIN') {
@@ -855,6 +870,11 @@ const rateFulfiller = async (req, res) => {
             UPDATE fulfillers
             SET rating_avg = (
                 SELECT COALESCE(AVG(customer_rating), 5.0)::decimal(3,2)
+                FROM orders
+                WHERE fulfiller_id = $1 AND customer_rating IS NOT NULL
+            ),
+            rating_count = (
+                SELECT COUNT(*)::integer
                 FROM orders
                 WHERE fulfiller_id = $1 AND customer_rating IS NOT NULL
             )

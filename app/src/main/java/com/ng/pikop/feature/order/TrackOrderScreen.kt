@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.sp
+import com.ng.pikop.feature.fulfiller.FulfillerProfileDialog
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -258,6 +259,7 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
     var isConfirming by remember { mutableStateOf(false) }
     var showDisputeDialog by remember { mutableStateOf(false) }
     var showRatingDialog by remember { mutableStateOf(false) }
+    var showFulfillerProfile by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(orderId, refreshKey) {
@@ -340,8 +342,17 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-            profile?.let { FulfillerCard(it); Spacer(modifier = Modifier.height(16.dp)) }
+            profile?.let { 
+                Box(modifier = Modifier.clickable { showFulfillerProfile = true }) {
+                    FulfillerCard(it)
+                }
+                Spacer(modifier = Modifier.height(16.dp)) 
+            }
             
+            if (showFulfillerProfile && profile != null) {
+                FulfillerProfileDialog(profile = profile!!, onDismiss = { showFulfillerProfile = false })
+            }
+
             if (showDisputeDialog) {
                 SecurePayDisputeDialog(
                     onDismiss = { showDisputeDialog = false },

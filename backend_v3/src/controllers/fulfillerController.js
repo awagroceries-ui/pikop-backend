@@ -100,13 +100,13 @@ const startIdentityVerification = async (req, res) => {
 };
 
 /**
- * Updates fulfiller profile (Class, Mobility, Vehicle).
+ * Updates fulfiller profile (Class, Mobility, Vehicle, Personal).
  */
 const updateFulfillerProfile = async (req, res) => {
     const userId = req.user.id;
     const {
         primary_class, mobility_type, vehicle_details,
-        full_name, phone,
+        full_name, phone, gender, date_of_birth, home_address,
         bank_name, account_number, bank_code, account_name
     } = req.body;
 
@@ -134,7 +134,10 @@ const updateFulfillerProfile = async (req, res) => {
                  bank_name = COALESCE($7, bank_name),
                  account_number = COALESCE($8, account_number),
                  bank_code = COALESCE($9, bank_code),
-                 account_name = COALESCE($10, account_name)
+                 account_name = COALESCE($10, account_name),
+                 gender = COALESCE($12, gender),
+                 date_of_birth = COALESCE($13, date_of_birth),
+                 home_address = COALESCE($14, home_address)
              WHERE user_id = $11
              RETURNING id`,
             [
@@ -148,7 +151,10 @@ const updateFulfillerProfile = async (req, res) => {
                 account_number,
                 bank_code,
                 account_name,
-                userId
+                userId,
+                gender,
+                date_of_birth,
+                home_address
             ]
         );
 
@@ -375,10 +381,14 @@ const getAvailableOffers = async (req, res) => {
     // Fetch active SEARCHING or PAYMENT_CAPTURED orders (unassigned or queued for this fulfiller)
     const { rows } = await db.query(
       `SELECT o.id, o.pickup_address, o.delivery_address, o.total_fare, o.item_photo_url, o.created_at,
+       o.collect_on_delivery_amount,
+       ST_Distance(f.current_location::geography, o.pickup_location::geography) / 1000 as distance_km,
        ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
        ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng
        FROM orders o
-       WHERE o.status IN ('SEARCHING', 'PAYMENT_CAPTURED')
+       CROSS JOIN fulfillers f
+       WHERE f.id = $1
+       AND o.status IN ('SEARCHING', 'PAYMENT_CAPTURED')
        AND (o.fulfiller_id IS NULL OR o.queued_for_fulfiller_id = $1)
        ORDER BY o.created_at DESC
        LIMIT 20`,

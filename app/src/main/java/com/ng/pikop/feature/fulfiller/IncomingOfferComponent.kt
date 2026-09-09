@@ -2,8 +2,10 @@ package com.ng.pikop.feature.fulfiller
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ElectricBike
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,7 +46,21 @@ fun IncomingOfferComponent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "New Delivery Offer", style = MaterialTheme.typography.titleMedium)
+                    val isCod = (offer.collect_on_delivery_amount ?: 0.0) > 0
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (isCod) Icons.Default.Payments else Icons.Default.Info,
+                            contentDescription = null,
+                            tint = if (isCod) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isCod) "Delivery + COD" else "Delivery Only",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     Text(
                         text = "₦${offer.total_fare ?: 0.0}",
                         style = MaterialTheme.typography.headlineSmall,
@@ -59,7 +75,8 @@ fun IncomingOfferComponent(
                     Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
-                        Text(text = "Pickup Region", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        val dist = if (offer.distance_km != null) " (${"%.1f".format(offer.distance_km)} km away)" else ""
+                        Text(text = "Pickup Region$dist", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                         Text(text = offer.pickup_address ?: "N/A", style = MaterialTheme.typography.bodyMedium)
                     }
                 }

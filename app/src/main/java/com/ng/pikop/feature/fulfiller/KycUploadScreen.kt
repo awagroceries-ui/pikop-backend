@@ -14,6 +14,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.Wc
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -79,6 +82,11 @@ fun KycUploadScreen(
     var selectedClass by rememberSaveable { mutableStateOf<String?>(null) }
     var isSavingStep by rememberSaveable { mutableStateOf(false) }
 
+    // Personal Details State
+    var dob by rememberSaveable { mutableStateOf("") }
+    var gender by rememberSaveable { mutableStateOf("") }
+    var homeAddress by rememberSaveable { mutableStateOf("") }
+
     // Photo State
     var profilePhotoUriString by rememberSaveable { mutableStateOf<String?>(null) }
     val profilePhotoUri = remember(profilePhotoUriString) { 
@@ -137,18 +145,19 @@ fun KycUploadScreen(
         // SYNC LOGIC: Only update step if it's a major state change (Verified/Pending)
         // or if we are not currently manually advancing.
         if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
-            currentStep = 5
+            currentStep = 6
+        } else if (res.home_address == null) {
+            currentStep = 0
         } else if (res.profile_photo_url == null) {
-            val target = if (res.primary_class == null) 0 else 1
-            if (target > currentStep) currentStep = target
+            currentStep = 2
         } else if (res.kyc_verification_status != "approved") {
-            if (2 > currentStep) currentStep = 2
-        } else if (res.primary_class?.lowercase() == "driver" && res.registration_number == null) {
             if (3 > currentStep) currentStep = 3
-        } else if (res.account_number == null) {
+        } else if (res.primary_class?.lowercase() == "driver" && res.registration_number == null) {
             if (4 > currentStep) currentStep = 4
+        } else if (res.account_number == null) {
+            if (5 > currentStep) currentStep = 5
         } else {
-            currentStep = 5
+            currentStep = 6
         }
     }
 
@@ -170,11 +179,19 @@ fun KycUploadScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             when (currentStep) {
-                0 -> FulfillerTypeSelectionScreen(
+                0 -> PersonalDetailsStep(
+                    dob = dob,
+                    gender = gender,
+                    address = homeAddress,
+                    onDobChange = { dob = it },
+                    onGenderChange = { gender = it },
+                    onAddressChange = { homeAddress = it }
+                )
+                1 -> FulfillerTypeSelectionScreen(
                     selectedClass = selectedClass,
                     onClassSelected = { cls -> selectedClass = cls }
                 )
-                1 -> ProfilePhotoStep(profilePhotoUri) { 
+                2 -> ProfilePhotoStep(profilePhotoUri) { 
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                         if (captureFile.exists()) captureFile.delete()
                         cameraLauncher.launch(captureUri)
@@ -182,7 +199,7 @@ fun KycUploadScreen(
                         permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
                     }
                 }
-                2 -> IdentityStep(
+                3 -> IdentityStep(
                     status = profile?.kyc_verification_status ?: "not_started", 
                     role = profile?.primary_class ?: "agent",
                     isLaunching = isLaunching,
@@ -198,9 +215,9 @@ fun KycUploadScreen(
                     },
                     onRefresh = { viewModel.refreshProfile() }
                 )
-                3 -> VehicleStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 4 })
-                4 -> BankStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 5 })
-                5 -> SubmissionStep(
+                4 -> VehicleStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 5 })
+                5 -> BankStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 6 })
+                6 -> SubmissionStep(
                     isLoading = isLoading,
                     status = profile?.kyc_status ?: "NOT_SUBMITTED",
                     onComplete = {
@@ -216,7 +233,7 @@ fun KycUploadScreen(
                 )
             }
 
-            if (currentStep < 5) {
+            if (currentStep < 6) {
                 Spacer(modifier = Modifier.weight(1f))
                 Button(
                     onClick = {
@@ -227,25 +244,36 @@ fun KycUploadScreen(
                             try {
                                 when (currentStep) {
                                     0 -> {
-                                        if (selectedClass != null) {
-                                            currentStep = 1 // Optimistic Advance
-                                            api.updateFulfillerProfile(ProfileUpdateRequest(primary_class = selectedClass))
+                                        if (dob.isNotBlank() && gender.isNotBlank() && homeAddress.isNotBlank()) {
+                                            currentStep = 1
+                                            api.updateFulfillerProfile(ProfileUpdateRequest(
+                                                date_of_birth = dob,
+                                                gender = gender,
+                                                home_address = homeAddress
+                                            ))
                                             viewModel.refreshProfile()
                                         }
                                     }
                                     1 -> {
-                                        if (internalPhotoFile.exists()) {
+                                        if (selectedClass != null) {
                                             currentStep = 2 // Optimistic Advance
-                                            val compressed = ImageUtils.compressFile(context, internalPhotoFile)
-                                            val body = MultipartBody.Part.createFormData("photo", "profile.jpg", compressed.asRequestBody("image/*".toMediaTypeOrNull()))
-                                            api.uploadProfilePhoto(body)
+                                            api.updateFulfillerProfile(ProfileUpdateRequest(primary_class = selectedClass))
                                             viewModel.refreshProfile()
                                         }
                                     }
                                     2 -> {
+                                        if (internalPhotoFile.exists()) {
+                                            currentStep = 3 // Optimistic Advance
+                                            val compressed = ImageUtils.compressFile(context, internalPhotoFile)
+                                            val body = MultipartBody.Part.createFormData("file", "profile.jpg", compressed.asRequestBody("image/*".toMediaTypeOrNull()))
+                                            api.uploadProfilePhoto(body)
+                                            viewModel.refreshProfile()
+                                        }
+                                    }
+                                    3 -> {
                                         if (profile?.kyc_verification_status == "approved") {
-                                            if (profile?.primary_class?.lowercase() == "driver") currentStep = 3
-                                            else currentStep = 4
+                                            if (profile?.primary_class?.lowercase() == "driver") currentStep = 4
+                                            else currentStep = 5
                                         } else {
                                             viewModel.refreshProfile()
                                         }
@@ -260,13 +288,14 @@ fun KycUploadScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     enabled = !isLoading && !isSavingStep && (
-                        (currentStep == 0 && selectedClass != null) ||
-                        (currentStep == 1 && profilePhotoUri != null) ||
-                        (currentStep == 2)
+                        (currentStep == 0 && dob.isNotBlank() && gender.isNotBlank() && homeAddress.isNotBlank()) ||
+                        (currentStep == 1 && selectedClass != null) ||
+                        (currentStep == 2 && profilePhotoUri != null) ||
+                        (currentStep == 3)
                     )
                 ) {
                     if (isLoading || isSavingStep) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    else if (currentStep == 2) Text("Verify & Refresh")
+                    else if (currentStep == 3) Text("Verify & Refresh")
                     else Text("CONTINUE", fontWeight = FontWeight.Bold)
                 }
             }
@@ -277,7 +306,7 @@ fun KycUploadScreen(
 @Composable
 fun StepIndicator(current: Int) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        (0..4).forEach { i ->
+        (0..5).forEach { i ->
             Box(modifier = Modifier.size(10.dp).padding(2.dp)) {
                 Surface(
                     shape = androidx.compose.foundation.shape.CircleShape,
@@ -286,6 +315,72 @@ fun StepIndicator(current: Int) {
                 ) {}
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PersonalDetailsStep(
+    dob: String,
+    gender: String,
+    address: String,
+    onDobChange: (String) -> Unit,
+    onGenderChange: (String) -> Unit,
+    onAddressChange: (String) -> Unit
+) {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Personal Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("We need a few more details to activate your account.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+
+        OutlinedTextField(
+            value = dob,
+            onValueChange = onDobChange,
+            label = { Text("Date of Birth (YYYY-MM-DD)") },
+            modifier = Modifier.fillMaxWidth(),
+            leadingIcon = { Icon(Icons.Default.Cake, null) },
+            placeholder = { Text("1990-01-01") }
+        )
+
+        var genderExpanded by remember { mutableStateOf(false) }
+        val genders = listOf("Male", "Female", "Other")
+        ExposedDropdownMenuBox(
+            expanded = genderExpanded,
+            onExpandedChange = { genderExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = gender,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Gender") },
+                leadingIcon = { Icon(Icons.Default.Wc, null) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
+                modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
+            )
+            ExposedDropdownMenu(
+                expanded = genderExpanded,
+                onDismissRequest = { genderExpanded = false }
+            ) {
+                genders.forEach { g ->
+                    DropdownMenuItem(
+                        text = { Text(g) },
+                        onClick = {
+                            onGenderChange(g)
+                            genderExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = address,
+            onValueChange = onAddressChange,
+            label = { Text("Home Address") },
+            modifier = Modifier.fillMaxWidth(),
+            leadingIcon = { Icon(Icons.Default.Home, null) },
+            minLines = 2
+        )
     }
 }
 
