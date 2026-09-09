@@ -1,9 +1,8 @@
-# Task List - COD Parity (Fulfiller & Admin)
+# Task List - Decouple Fulfiller Earnings from COD Release
 
-- [ ] Backend: Enrich `getOrders` and `trackOrder` with escrow data
-- [ ] Backend: Implement `getFulfillerDetail` with wallet breakdown
-- [ ] Backend: Update `orders.ejs` and `admin_track.ejs` templates
-- [ ] Android: Add "Escrow Protected" badge to `ActiveOrderScreen.kt`
-- [ ] Android: Handle `DELIVERED_PENDING_CONFIRMATION` UI state
+- [ ] Backend: Update `getOrderDetails` to return `seller_id`
+- [ ] Backend: Fix `releaseEscrow` and `refundEscrow` wallet mapping
+- [ ] Android: Add `seller_id` to `OrderDetailsResponse`
+- [ ] Android: Refactor `ActiveOrderScreen.kt` "Awaiting Release" UI
 - [ ] Verification: Build Android app
 - [ ] Verification: Git automation (Commit and Push)

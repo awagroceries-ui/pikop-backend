@@ -146,10 +146,10 @@ const releaseEscrow = async (orderId) => {
 
     // 1. Fetch order details with fee info
     const orderRes = await client.query(
-      `SELECT o.id, o.fulfiller_id, o.item_price, o.platform_fee_amount, o.fee_payer, o.user_id,
+      `SELECT o.id, o.fulfiller_id, o.item_price, o.platform_fee_amount, o.fee_payer, o.user_id, o.seller_id,
               o.escrow_status, u.role as seller_role
        FROM orders o
-       JOIN users u ON u.id = o.user_id
+       JOIN users u ON u.id = COALESCE(o.seller_id, o.fulfiller_id, o.user_id)
        WHERE o.id = $1 FOR UPDATE`,
       [orderId]
     );
@@ -163,12 +163,18 @@ const releaseEscrow = async (orderId) => {
     const fee = parseFloat(order.platform_fee_amount);
 
     // 2. Determine Seller Payout
-    // If fee_payer was SELLER, they get itemPrice - fee.
-    // If fee_payer was PAYER, they get full itemPrice (because payer paid fee extra).
     const sellerPayout = order.fee_payer === 'SELLER' ? (itemPrice - fee) : itemPrice;
 
-    // 3. Update Seller Wallet
-    const sellerWalletId = await ensureWalletExists(client, 'FULFILLER', order.fulfiller_id); // Assuming fulfiller is the seller for now, or use user_id
+    // 3. Update Seller Wallet (Target: seller_id (USER) if exists, else fulfiller_id (FULFILLER))
+    let ownerType = 'FULFILLER';
+    let ownerId = order.fulfiller_id;
+
+    if (order.seller_id) {
+        ownerType = 'USER';
+        ownerId = order.seller_id;
+    }
+
+    const sellerWalletId = await ensureWalletExists(client, ownerType, ownerId);
 
     // Debit Pending
     await recordEntry(client, sellerWalletId, 'DEBIT', itemPrice, 'ESCROW_RELEASE', `Releasing escrow for Order #${order.id}`, order.id, 'pending');
@@ -193,7 +199,7 @@ const releaseEscrow = async (orderId) => {
     );
 
     await client.query('COMMIT');
-    console.log(`[Wallet] Escrow Released for Order #${orderId}. Seller Payout: ${sellerPayout}`);
+    console.log(`[Wallet] Escrow Released for Order #${orderId}. Seller Payout: ${sellerPayout} to ${ownerType} ${ownerId}`);
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('[Wallet] Escrow Release Failed:', error.message);
@@ -205,7 +211,6 @@ const releaseEscrow = async (orderId) => {
 
 /**
  * Refunds an escrow payment to the buyer.
- * Note: Real implementation would call Paystack Refund API.
  */
 const refundEscrow = async (orderId) => {
     const client = await db.pool.connect();
@@ -213,7 +218,7 @@ const refundEscrow = async (orderId) => {
         await client.query('BEGIN');
 
         const { rows } = await client.query(
-            "SELECT id, fulfiller_id, item_price, escrow_status FROM orders WHERE id = $1 FOR UPDATE",
+            "SELECT id, fulfiller_id, seller_id, item_price, escrow_status FROM orders WHERE id = $1 FOR UPDATE",
             [orderId]
         );
         const order = rows[0];
@@ -223,7 +228,15 @@ const refundEscrow = async (orderId) => {
         }
 
         const itemPrice = parseFloat(order.item_price);
-        const sellerWalletId = await ensureWalletExists(client, 'FULFILLER', order.fulfiller_id);
+
+        let ownerType = 'FULFILLER';
+        let ownerId = order.fulfiller_id;
+        if (order.seller_id) {
+            ownerType = 'USER';
+            ownerId = order.seller_id;
+        }
+
+        const sellerWalletId = await ensureWalletExists(client, ownerType, ownerId);
 
         // Debit Seller's Pending (zeros out the hold)
         await recordEntry(client, sellerWalletId, 'DEBIT', itemPrice, 'ESCROW_REFUND', `Refunding escrow for Order #${order.id}`, order.id, 'pending');
@@ -235,7 +248,7 @@ const refundEscrow = async (orderId) => {
         );
 
         await client.query('COMMIT');
-        console.log(`[Wallet] Escrow Refunded for Order #${orderId}. Amount: ${itemPrice}`);
+        console.log(`[Wallet] Escrow Refunded for Order #${orderId}. Amount: ${itemPrice} from ${ownerType} ${ownerId}`);
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('[Wallet] Escrow Refund Failed:', error.message);

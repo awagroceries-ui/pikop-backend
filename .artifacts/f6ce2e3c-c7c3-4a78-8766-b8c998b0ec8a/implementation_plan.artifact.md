@@ -1,57 +1,59 @@
-# Implementation Plan - COD Parity for Fulfiller App & Admin Dashboard
+# Implementation Plan - Decouple Fulfiller Earnings from COD Release
 
-This plan extends the COD/Escrow system to the fulfiller app and admin dashboard, ensuring consistency and clear visibility across all roles.
+This plan ensures fulfillers are paid for their delivery service immediately upon drop-off, even if the COD item payment is still held in escrow for the seller.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Fulfiller Role:** Fulfillers will now explicitly see when a mission is "Delivery + COD". They are informed that payment is already escrowed and they should **never** collect cash.
+> **Payout Split Logic:**
+> 1. The fulfiller's **75% delivery fee share** will be credited to their **Available Balance** immediately when they verify the delivery code.
+> 2. The **Item Price** (if applicable) will remain in the **Seller's Pending Balance** until the customer confirms receipt or the grace period expires.
 >
-> **Admin Arbitration:** The dashboard now includes a "Disputes" section where admins can review buyer claims and choose to either `REFUND` to the buyer or `RELEASE` to the seller.
+> **Seller ID mapping:** I will update the system to correctly identify whether the Agent (Fulfiller) or a separate User (Vendor/Customer) is the recipient of the escrowed item payment.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- **`getOrders`**: Add `order_type` and `escrow_status` to the list view. Add filtering support for COD missions.
-- **`trackOrder`**: Enrich the mission detail view with:
-    - Escrow status history.
-    - Fee breakdown (Item price, platform fee, delivery fee).
-    - Ledger trail (Wallet entries related to this mission).
-- **`getFulfillerDetail` [NEW]**: View individual fulfiller stats and wallet breakdown (`pending` vs `available`).
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- Update `getOrderDetails` to include `seller_id` in the selection and response.
 
-#### [MODIFY] [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js)
-- Register the new `getFulfillerDetail` route.
-
-#### [MODIFY] [orders.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/orders.ejs)
-- Update the Mission Board to show "COD" badges and `fee_payer` info.
-
-#### [MODIFY] [admin_track.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/admin_track.ejs)
-- Add a "Financial Audit" section showing the escrow ledger.
+#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
+- **`releaseEscrow`**:
+    - If `seller_id` exists, release the item price to the `USER` wallet associated with that ID.
+    - If `seller_id` is null, fall back to the `FULFILLER` wallet (for independent agents).
+- **`refundEscrow`**: Update similarly to target the correct `pending_balance` pool.
 
 ---
 
 ### Android App
 
-#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
-- **Mission Indicator:** Display a prominent **"Delivery + COD (Escrow Protected)"** badge if `item_price > 0`.
-- **Status Support:** Explicitly handle `DELIVERED_PENDING_CONFIRMATION` status by showing a "Waiting for Customer Confirmation" state.
-- **Cash Guard:** Verify no "Mark as Paid" or manual collection buttons exist for escrowed missions.
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Add `seller_id: Int?` to `OrderDetailsResponse`.
 
-#### [MODIFY] [IncomingOfferComponent.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/IncomingOfferComponent.kt)
-- (Already partially done) Ensure "Delivery + COD" label is prominent and consistent with `ActiveOrderScreen`.
+#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
+- Update the `isAwaitingRelease` UI:
+    - **Header:** Change to "Mission Successfully Completed!"
+    - **Earning Highlight:** Add a line: "₦[Earning Amount] has been credited to your available balance."
+    - **Escrow Note:**
+        - If the agent is the seller: "The item payment (₦[Price]) is pending customer confirmation."
+        - If the agent is NOT the seller: "The item payment will be released to the seller once the customer confirms."
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Syntax check backend: `node -c src/controllers/adminController.js`.
+- Syntax check backend: `node -c src/services/walletService.js`.
 - Build Android app: `./gradlew assembleDebug`.
 
 ### Manual Verification
-1.  **Fulfiller View:** Start a COD mission. Verify the "Escrow Protected" badge appears and no cash collection options are shown.
-2.  **Delivery Flow:** Complete delivery and verify the fulfiller app enters the "Waiting for Confirmation" state.
-3.  **Admin Dashboard:** Locate the mission in the admin board. Verify the fee breakdown and ledger entries are visible and correct.
-4.  **Dispute Test:** File a dispute as a customer. Verify it appears in the admin dashboard and can be resolved.
+1.  **COD Mission (Agent != Seller):**
+    *   Complete delivery as an agent.
+    *   Verify available balance increases by 75% of delivery fee immediately.
+    *   Verify UI shows "Earnings Credited".
+2.  **COD Mission (Agent == Seller):**
+    *   Complete delivery.
+    *   Verify available balance increases by delivery fee share.
+    *   Verify pending balance reflects the item price.
+    *   Verify UI shows "Item Payment Pending".

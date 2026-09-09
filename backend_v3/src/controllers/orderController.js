@@ -212,7 +212,7 @@ const getOrderDetails = async (req, res) => {
         primary_class: order.primary_class,
         rating_avg: parseFloat(order.rating_avg || 5.0),
         rating_count: parseInt(order.rating_count || 0),
-        kyc_status: 'VERIFIED' // Basic assumption if assigned
+        kyc_status: 'VERIFIED'
     } : null;
 
     // Security: Only return plain codes to the customer who created the order or admin

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.ReportProblem
@@ -500,20 +501,44 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                             }
                         }
                     } else if (isAwaitingRelease) {
+                        val earningAmount = ((orderDetails?.delivery_fee ?: 0.0) * 0.75).toInt()
+                        val isSeller = userId == orderDetails?.seller_id?.toString()
+                        
                         Card(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                         ) {
                             Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.HourglassEmpty, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(48.dp), tint = Color(0xFF4CAF50))
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("Delivery Complete", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                Text("Mission Successfully Completed!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    "We are waiting for the customer to confirm receipt and release the funds to your wallet. This usually takes a few minutes.",
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                    style = MaterialTheme.typography.bodyMedium
+                                    text = "₦$earningAmount has been credited to your available balance for this delivery.",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF388E3C),
+                                    textAlign = TextAlign.Center
                                 )
+
+                                if (isSeller) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        "The item payment (₦${orderDetails?.item_price}) is pending customer confirmation. It will be released to your wallet shortly.",
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                } else if ((orderDetails?.item_price ?: 0.0) > 0) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        "The item payment will be released to the seller once the customer confirms receipt.",
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
+                                    )
+                                }
+
                                 Spacer(modifier = Modifier.height(24.dp))
                                 Button(onClick = onOrderCompleted, modifier = Modifier.fillMaxWidth()) {
                                     Text("Back to Dashboard")
