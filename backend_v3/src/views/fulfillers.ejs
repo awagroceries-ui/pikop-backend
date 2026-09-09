@@ -64,7 +64,10 @@
                                                     <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 11px;">Terminate</button>
                                                 </form>
                                             <% } %>
-                                        </div>
+                                            <div class="col-md-2 text-end">
+                            <a href="/admin/fulfillers/<%= f.id %>" class="btn btn-sm btn-outline-primary fw-bold px-3">MANAGE</a>
+                        </div>
+                    </div>
                                         <a href="/admin/kyc/<%= f.id %>" class="btn btn-sm btn-outline-primary py-0 px-2 ms-2" style="font-size: 11px;">View KYC</a>
                                     </td>
                                 </tr>

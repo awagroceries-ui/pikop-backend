@@ -1,6 +1,12 @@
-<div class="mb-5">
-    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Mission Board</h3>
-    <p class="text-muted small">Real-time status of all pickup and delivery operations.</p>
+<div class="mb-5 d-flex justify-content-between align-items-center">
+    <div>
+        <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Mission Board</h3>
+        <p class="text-muted small">Real-time status of all pickup and delivery operations.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/admin/orders" class="btn btn-sm <%= !filters.type ? 'btn-primary' : 'btn-outline-primary' %>">All</a>
+        <a href="/admin/orders?type=COD" class="btn btn-sm <%= filters.type === 'COD' ? 'btn-primary' : 'btn-outline-primary' %>">COD / Escrow</a>
+    </div>
 </div>
 
 <div class="row g-4">
@@ -28,6 +34,9 @@
                             <span class="badge <%= order.status === 'DELIVERED' ? 'bg-green' : 'bg-gold' %> text-white fw-bold smaller" style="padding: 5px 10px;">
                                 <%= order.status %>
                             </span>
+                            <% if (order.item_price > 0) { %>
+                                <div class="mt-1 smaller text-primary fw-bold" style="font-size: 9px;">COD/ESCROW</div>
+                            <% } %>
                         </div>
                         <div class="col-md-2 text-center">
                             <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Fare</span>

@@ -12,8 +12,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material3.*
@@ -266,14 +269,21 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
             }
 
             // Details Section (Bottom 60%)
-            Column(
-                modifier = Modifier
-                    .weight(0.6f)
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                val isCod = (orderDetails?.item_price ?: 0.0) > 0
+                if (isCod) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50)),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Payments, null, modifier = Modifier.size(14.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Delivery + COD (Escrow Protected)", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                
                 Text(text = "Active Mission", style = MaterialTheme.typography.headlineMedium)
                 Text(text = "Order ID: #$orderId", style = MaterialTheme.typography.bodySmall)
 
@@ -289,6 +299,7 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                     
                     val isPickupPhase = normalizedStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PENDING", "PAID", "PAYMENT_CAPTURED", "PAYMENT_PENDING")
                     val isDeliveryPhase = normalizedStatus in listOf("PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY")
+                    val isAwaitingRelease = normalizedStatus == "DELIVERED_PENDING_CONFIRMATION"
                     val isQueued = normalizedStatus == "QUEUED"
 
                     if (isPickupPhase) {
@@ -486,6 +497,27 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                 enabled = !isLoading && deliveryCode.length == 4 && deliveryPhotoUri != null
                             ) {
                                 Text("Complete Mission")
+                            }
+                        }
+                    } else if (isAwaitingRelease) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                        ) {
+                            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.HourglassEmpty, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Delivery Complete", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "We are waiting for the customer to confirm receipt and release the funds to your wallet. This usually takes a few minutes.",
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Button(onClick = onOrderCompleted, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Back to Dashboard")
+                                }
                             }
                         }
                     } else if (isQueued) {

@@ -38,6 +38,41 @@
             <div class="small"><strong>Drop:</strong> <%= order.delivery_address %></div>
         </div>
 
+        <div class="mb-4 border-top pt-3">
+            <label class="text-muted smaller fw-bold uppercase d-block mb-1">Financial Audit</label>
+            <div class="small">
+                <div class="d-flex justify-content-between"><span>Item Price:</span> <span class="fw-bold">₦<%= parseFloat(order.item_price || 0).toLocaleString() %></span></div>
+                <div class="d-flex justify-content-between"><span>Delivery:</span> <span class="fw-bold">₦<%= parseFloat(order.delivery_fee || 0).toLocaleString() %></span></div>
+                <div class="d-flex justify-content-between"><span>Platform Fee:</span> <span class="fw-bold">₦<%= parseFloat(order.platform_fee_amount || 0).toLocaleString() %></span></div>
+                <div class="d-flex justify-content-between border-top mt-1 pt-1"><span class="fw-bold">Total:</span> <span class="fw-bold text-success">₦<%= parseFloat(order.total_fare).toLocaleString() %></span></div>
+            </div>
+            <% if (order.item_price > 0) { %>
+                <div class="mt-2 p-2 bg-light rounded smaller border">
+                    <strong>Escrow Status:</strong> <span class="text-uppercase text-primary"><%= order.escrow_status %></span><br>
+                    <strong>Payer:</strong> <%= order.fee_payer %>
+                </div>
+            <% } %>
+        </div>
+
+        <div class="mb-4 border-top pt-3">
+            <label class="text-muted smaller fw-bold uppercase d-block mb-2">Order Ledger</label>
+            <div style="max-height: 150px; overflow-y: auto;">
+                <% if (ledger.length === 0) { %>
+                    <div class="smaller text-muted italic">No ledger entries yet.</div>
+                <% } else { %>
+                    <% ledger.forEach(entry => { %>
+                        <div class="mb-2 pb-1 border-bottom smaller">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold text-<%= entry.entry_type === 'CREDIT' ? 'success' : 'danger' %>"><%= entry.entry_type %></span>
+                                <span>₦<%= parseFloat(entry.amount).toLocaleString() %></span>
+                            </div>
+                            <div class="text-muted" style="font-size: 9px;"><%= entry.purpose %> - <%= new Date(entry.created_at).toLocaleTimeString() %></div>
+                        </div>
+                    <% }) %>
+                <% } %>
+            </div>
+        </div>
+
         <div class="border-top pt-3 mt-4">
             <label class="text-muted smaller fw-bold uppercase d-block mb-2">Manual Order Override</label>
             <div class="d-grid gap-2">

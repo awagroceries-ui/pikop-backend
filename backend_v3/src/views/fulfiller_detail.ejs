@@ -1,0 +1,100 @@
+<%- include('layout', { body: `
+<div class="mb-4">
+    <a href="/admin/fulfillers" class="btn btn-sm btn-outline-secondary">← Back to Fleet</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card-pikop p-4 h-100 text-center">
+            <div class="mb-3">
+                <% if (fulfiller.profile_photo_url) { %>
+                    <img src="${fulfiller.profile_photo_url}" class="rounded-circle border border-3 border-primary" style="width: 120px; height: 120px; object-fit: cover;">
+                <% } else { %>
+                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto border border-3 border-primary" style="width: 120px; height: 120px;">
+                        <span class="fs-1 fw-bold text-primary">${fulfiller.user_name.charAt(0)}</span>
+                    </div>
+                <% } %>
+            </div>
+            <h4 class="fw-bold mb-0">${fulfiller.user_name}</h4>
+            <p class="text-muted small mb-3">${fulfiller.user_email}</p>
+
+            <div class="badge bg-primary px-3 py-2 mb-4 text-uppercase" style="letter-spacing: 1px;">
+                ${fulfiller.primary_class} - ${fulfiller.tier}
+            </div>
+
+            <div class="row text-center mt-3 pt-3 border-top">
+                <div class="col-6 border-end">
+                    <div class="text-muted smaller uppercase">Rating</div>
+                    <div class="fw-bold text-warning">★ ${parseFloat(fulfiller.rating_avg).toFixed(1)}</div>
+                </div>
+                <div class="col-6">
+                    <div class="text-muted smaller uppercase">Missions</div>
+                    <div class="fw-bold">${fulfiller.rating_count}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="row g-4">
+            <!-- Wallet Summary -->
+            <div class="col-md-6">
+                <div class="card-pikop p-4 bg-primary text-white h-100">
+                    <h6 class="smaller uppercase opacity-75 fw-bold mb-3">Available Balance</h6>
+                    <h2 class="fw-bold mb-1">₦${parseFloat(wallet.balance).toLocaleString()}</h2>
+                    <p class="small opacity-75 mb-0">Payouts requested from this balance.</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card-pikop p-4 bg-gold text-black h-100">
+                    <h6 class="smaller uppercase opacity-75 fw-bold mb-3">Pending (Escrow)</h6>
+                    <h2 class="fw-bold mb-1">₦${parseFloat(wallet.pending_balance).toLocaleString()}</h2>
+                    <p class="small opacity-75 mb-0">Held until customer confirms delivery.</p>
+                </div>
+            </div>
+
+            <!-- Ledger -->
+            <div class="col-12">
+                <div class="card-pikop p-4">
+                    <h5 class="fw-bold mb-4">Financial Ledger</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle border-top">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="smaller border-0">TYPE</th>
+                                    <th class="smaller border-0">AMOUNT</th>
+                                    <th class="smaller border-0">PURPOSE</th>
+                                    <th class="smaller border-0">DATE</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ledger.length === 0 ? '<tr><td colspan="4" class="text-center p-4 text-muted">No transactions found.</td></tr>' : ''}
+                                <% ledger.forEach(entry => { %>
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-${entry.entry_type === 'CREDIT' ? 'success' : 'danger'} smaller fw-bold">
+                                                ${entry.entry_type}
+                                            </span>
+                                        </td>
+                                        <td class="fw-bold text-${entry.entry_type === 'CREDIT' ? 'success' : 'danger'}">
+                                            ${entry.entry_type === 'CREDIT' ? '+' : '-'}₦${parseFloat(entry.amount).toLocaleString()}
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold small">${entry.purpose.replace(/_/g, ' ')}</div>
+                                            <div class="smaller text-muted">${entry.description}</div>
+                                        </td>
+                                        <td class="small text-muted">
+                                            ${new Date(entry.created_at).toLocaleDateString()}<br>
+                                            ${new Date(entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+` })

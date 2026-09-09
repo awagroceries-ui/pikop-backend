@@ -39,6 +39,7 @@ router.post('/orders/:id/update', adminController.updateOrderStatus);
 
 // Fleet & KYC
 router.get('/fulfillers', adminController.getFulfillers);
+router.get('/fulfillers/:id', adminController.getFulfillerDetail);
 router.post('/fulfillers/:id/status', adminController.updateFulfillerStatus);
 
 // Customer Management

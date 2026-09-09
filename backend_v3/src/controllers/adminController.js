@@ -113,15 +113,28 @@ const getDashboard = async (req, res) => {
  * List all orders with filters.
  */
 const getOrders = async (req, res) => {
+    const { type, status } = req.query;
     try {
-        const { rows } = await db.query(`
+        let query = `
             SELECT o.*, u.full_name as user_name, f.full_name as fulfiller_name
             FROM orders o
             JOIN users u ON u.id = o.user_id
             LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
-            ORDER BY o.created_at DESC LIMIT 100
-        `);
-        res.render('orders', { orders: rows });
+            WHERE 1=1
+        `;
+        const params = [];
+        if (type === 'COD') {
+            query += " AND o.item_price > 0";
+        }
+        if (status) {
+            params.push(status);
+            query += ` AND o.status = $${params.length}`;
+        }
+
+        query += " ORDER BY o.created_at DESC LIMIT 100";
+
+        const { rows } = await db.query(query, params);
+        res.render('orders', { orders: rows, filters: { type, status } });
     } catch (error) {
         res.status(500).send(error.message);
     }
@@ -147,7 +160,13 @@ const trackOrder = async (req, res) => {
 
         if (rows.length === 0) return res.status(404).render('error', { message: 'Mission not found' });
 
-        res.render('admin_track', { order: rows[0] });
+        // Fetch Ledger for this order
+        const ledger = await db.query(
+            "SELECT l.*, w.owner_type FROM wallet_ledger_entries l JOIN wallets w ON w.id = l.wallet_id WHERE l.order_id = $1 ORDER BY l.created_at ASC",
+            [id]
+        );
+
+        res.render('admin_track', { order: rows[0], ledger: ledger.rows });
     } catch (error) {
         res.status(500).render('error', { message: error.message });
     }
@@ -733,6 +752,35 @@ const updateCustomerStatus = async (req, res) => {
     }
 };
 
+const getFulfillerDetail = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const fRes = await db.query(`
+            SELECT f.*, u.full_name as user_name, u.email as user_email, u.phone as user_phone
+            FROM fulfillers f
+            JOIN users u ON u.id = f.user_id
+            WHERE f.id = $1`, [id]);
+
+        if (fRes.rows.length === 0) return res.status(404).send('Fulfiller not found');
+
+        const walletRes = await db.query("SELECT * FROM wallets WHERE owner_type = 'FULFILLER' AND owner_id = $1", [id.toString()]);
+
+        let ledger = [];
+        if (walletRes.rows.length > 0) {
+            const ledgerRes = await db.query("SELECT * FROM wallet_ledger_entries WHERE wallet_id = $1 ORDER BY created_at DESC LIMIT 50", [walletRes.rows[0].id]);
+            ledger = ledgerRes.rows;
+        }
+
+        res.render('fulfiller_detail', {
+            fulfiller: fRes.rows[0],
+            wallet: walletRes.rows[0] || { balance: 0, pending_balance: 0 },
+            ledger
+        });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -761,6 +809,7 @@ module.exports = {
   getWithdrawals,
   approveWithdrawal,
   getFulfillers,
+  getFulfillerDetail,
   updateFulfillerStatus,
   updateOrderStatus,
   getTransactions,

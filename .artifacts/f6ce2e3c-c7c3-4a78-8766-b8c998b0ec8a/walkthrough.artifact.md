@@ -1,27 +1,23 @@
-# Walkthrough - Mission Preview & Profile Enhancements
+# Walkthrough - Live Tracking & Marker Animation
 
-I have addressed the gaps in fulfiller onboarding, mission visibility, and customer-side profiles to improve trust and transparency in the Pikop V3 ecosystem.
+I have fixed the issue where mission tracking was static. Agents now move smoothly on the customer's map, and the ETA updates in real-time.
 
 ## Changes Made
 
-### 1. Expanded Fulfiller Onboarding
-- **Missing Fields:** I identified that `Home Address`, `Date of Birth`, and `Gender` were not being collected. These are now integrated as the first step of onboarding.
-- **Validation:** These fields are strictly required before a fulfiller can proceed to KYC or account activation.
-- **Infrastructure:** Created a database migration to add `home_address`, `date_of_birth`, `gender`, `tier`, and `rating_count` columns to the `fulfillers` table.
+### 1. Fixed Real-Time Connection
+- **The Problem:** The customer app was attempting to connect to the tracking server without a **User ID**. Our security layer was blocking these anonymous requests, causing the map to stay static.
+- **The Fix:** Updated `TrackOrderScreen.kt` to properly authenticate with the socket server using the customer's verified ID. The app now successfully "listens" to the agent's movements.
 
-### 2. Enhanced Mission Previews
-- **Mission Type:** Updated the fulfiller's incoming offer screen to clearly distinguish between **"Delivery Only"** and **"Delivery + COD"**.
-- **Contextual Data:** Added **Estimated Distance (KM)** to the preview, helping fulfillers make informed decisions about mission acceptance.
-- **Backend Support:** Updated `getAvailableOffers` to perform real-time PostGIS distance calculations.
+### 2. Smooth Marker Animation (Sliding)
+- **The Problem:** Previously, if a location update was received, the agent's icon would "teleport" or jump instantly to the new spot.
+- **The Fix:** Implemented **Interpolated Movement**. Using Compose Animation (`Animatable`), the agent's blue icon now slides gracefully from its old position to the new one over 2 seconds. This creates a high-quality, professional tracking feel.
 
-### 3. Detailed Fulfiller Profiles for Customers
-- **Public Profile:** Customers can now tap on the assigned fulfiller's card on the tracking screen to view their full public profile.
-- **Visible Stats:** Surfaced the fulfiller's **Verification Tier** (Basic/Standard/Elite/Super), their average rating, and their total mission count.
-- **Vehicle Info:** Clearly shows the vehicle registration number and make, adding a layer of security for the pickup handoff.
+### 3. Dynamic Live ETA
+- **The Problem:** ETA was calculated only once when the screen loaded.
+- **The Fix:** The app now recalculates the arrival time every time a new GPS coordinate is received from the agent. It factors in the current distance to the destination to provide a continuously updated estimate.
 
-### 4. Verification Tier Logic
-- **Current State:** I have implemented the UI and database infrastructure for four tiers: `Basic`, `Standard`, `Elite`, and `Super`.
-- **Logic Note:** Currently, all users default to `Basic`. A separate task is required to implement the automated scoring logic (e.g., "Complete 50 missions with 4.8+ rating to reach Elite").
+### 4. Tracking Hygiene
+- **Fulfiller Loop:** Improved the location-sending loop in `ActiveOrderScreen.kt`. It now includes the `ARRIVED_AT_DELIVERY` and `PAYMENT_CAPTURED` statuses to ensure tracking is active during the entire journey, and stops instantly once the mission is delivered or cancelled.
 
 ## Verification Results
 
@@ -30,15 +26,15 @@ I have addressed the gaps in fulfiller onboarding, mission visibility, and custo
 - **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-Please apply these profile and schema updates to your **VPS**:
+Please ensure your **VPS** is up to date to support the authenticated socket rooms:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```
 
 ### Manual Verification Steps
-1. **Fulfiller Onboarding:** Start a new fulfiller application and verify the new "Personal Details" step captures your data.
-2. **Mission Offer:** As a fulfiller, verify that an incoming offer shows the distance and whether it is a "Delivery + COD" mission.
-3. **Customer View:** As a customer with an active order, tap the fulfiller's name to see their tier and vehicle registration.
+1. **Start Mission:** Accept a mission as a fulfiller and move (or simulate movement).
+2. **View Tracking:** Open the order as a customer. Verify the blue "Agent" icon is moving **smoothly** (sliding) on the map.
+3. **Check ETA:** Verify the "Arriving in X mins" text updates as the agent gets closer.
+4. **End Mission:** Complete the delivery and verify that location pings stop (check Logcat for "Location PING sent").
