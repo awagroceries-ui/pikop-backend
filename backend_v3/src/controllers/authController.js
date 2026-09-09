@@ -328,6 +328,7 @@ const deleteAccount = async (req, res) => {
     }
 };
 
+// V3 CONSOLIDATED EXPORT
 module.exports = {
   signup,
   verifyOtp,
