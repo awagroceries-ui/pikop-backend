@@ -104,6 +104,7 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 // 5. Routes
 app.use('/admin', require('./routes/adminRoutes'));
 app.use('/admin/reports', require('./routes/reportRoutes'));
+app.use('/admin/finances', require('./routes/financialRoutes'));
 app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/orders', require('./routes/orderRoutes'));
 app.use('/api/v1/payments', require('./routes/paymentRoutes'));

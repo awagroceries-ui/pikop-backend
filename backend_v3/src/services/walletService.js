@@ -55,7 +55,7 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
 
     // 1. Fetch order details
     const orderRes = await client.query(
-        "SELECT id, user_id, fulfiller_id, total_fare, delivery_fee, item_price, original_delivery_fee, fee_payer, platform_fee_amount FROM orders WHERE id = $1",
+        "SELECT id, user_id, fulfiller_id, total_fare, delivery_fee, item_price, original_delivery_fee, fee_payer, platform_fee_amount, sms_charge_amount FROM orders WHERE id = $1",
         [orderId]
     );
     const order = orderRes.rows[0];
@@ -90,10 +90,15 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
         await recordEntry(client, pWalletId, 'CREDIT', order.platform_fee_amount, 'SECURE_PAY_FEE', `Escrow service fee for Order #${order.id}`, order.id);
     }
 
-    if (shouldRelease) await client.query('COMMIT');
-    console.log(`[Wallet] Settled Mission #${order.id}: Fulfiller +${fulfillerShare}, Platform +${platformShare}`);
+    // 6. Guest SMS Charge (if applicable)
+    if (parseFloat(order.sms_charge_amount) > 0) {
+        await recordEntry(client, pWalletId, 'CREDIT', order.sms_charge_amount, 'SMS_CHARGE', `Guest notification fee for Order #${order.id}`, order.id);
+    }
 
-    // 6. Trigger Growth Logic
+    if (shouldRelease) await client.query('COMMIT');
+    console.log(`[Wallet] Settled Mission #${order.id}: Fulfiller +${fulfillerShare}, Platform +${platformShare + (order.sms_charge_amount || 0)}`);
+
+    // 7. Trigger Growth Logic
     try {
         await awardLoyaltyPoints(client, order.user_id, settlableAmount);
         const orderCountRes = await client.query("SELECT COUNT(*) FROM orders WHERE user_id = $1 AND status IN ('DELIVERED', 'RELEASED')", [order.user_id]);

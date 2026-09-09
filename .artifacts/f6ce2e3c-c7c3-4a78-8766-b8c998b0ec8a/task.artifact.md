@@ -1,10 +1,8 @@
-# Task List - Termii SMS Integration & Guest Tracking
+# Task List - Admin Financial Overview Dashboard
 
-- [x] Backend: Finalize `smsService.js` with Termii implementation and ₦50 cost logging
-- [x] Backend: Fix `authController.js` logic and cooldown (`val` -> `const`)
-- [x] Backend: Update `orderController.js` to correctly charge for guest SMS
-- [x] Backend: Refactor `guest_tracking.ejs` with correct marker mapping
-- [x] Backend: Secure `webhookController.js` for Termii reports
-- [x] Android: Polish Order Summary UI in `OrderQuoteScreen.kt`
-- [x] Verification: Build and test on device
+- [x] Backend: Implement `SMS_CHARGE` ledger recording in `walletService.js`
+- [x] Backend: Create `financialController.js` with aggregation logic
+- [x] Backend: Implement `financialRoutes.js` and register in `app.js`
+- [x] Admin UI: Create `financial_overview.ejs` with Chart.js visualization
+- [x] Admin UI: Add "Financial Board" link to `layout.ejs`
 - [x] Verification: Git automation (Commit and Push)

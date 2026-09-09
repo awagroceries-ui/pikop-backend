@@ -1,0 +1,173 @@
+<div class="d-flex justify-content-between align-items-center mb-5">
+    <div>
+        <h4 class="fw-bold mb-1 text-black">Financial Board</h4>
+        <p class="text-muted small mb-0">Audit platform revenue, fulfiller payouts, and transaction volume.</p>
+    </div>
+
+    <!-- Time Range & Navigation -->
+    <div class="d-flex align-items-center gap-3">
+        <div class="btn-group shadow-sm">
+            <button class="btn btn-sm <%= data.range === 'daily' ? 'btn-primary' : 'btn-outline-primary' %> px-3" onclick="updateRange('daily')">Daily</button>
+            <button class="btn btn-sm <%= data.range === 'weekly' ? 'btn-primary' : 'btn-outline-primary' %> px-3" onclick="updateRange('weekly')">Weekly</button>
+            <button class="btn btn-sm <%= data.range === 'monthly' ? 'btn-primary' : 'btn-outline-primary' %> px-3" onclick="updateRange('monthly')">Monthly</button>
+            <button class="btn btn-sm <%= data.range === 'annual' ? 'btn-primary' : 'btn-outline-primary' %> px-3" onclick="updateRange('annual')">Annual</button>
+        </div>
+
+        <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-light border" onclick="stepOffset(1)">←</button>
+            <button class="btn btn-sm btn-light border" onclick="stepOffset(-1)" <%= data.offset === 0 ? 'disabled' : '' %>>→</button>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="card-pikop p-4">
+            <div class="text-muted smaller uppercase fw-bold mb-2">Total Operations</div>
+            <h3 class="fw-bold mb-1 mono"><%= data.summary.totalTransactions %></h3>
+            <div class="smaller <%= data.comparison.txDelta >= 0 ? 'text-success' : 'text-danger' %> fw-bold">
+                <%= data.comparison.txDelta >= 0 ? '▲' : '▼' %> <%= Math.abs(data.comparison.txDelta) %>% vs prev
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card-pikop p-4 border-start border-green border-4">
+            <div class="text-green smaller uppercase fw-bold mb-2">Platform Earnings</div>
+            <h3 class="fw-bold mb-1 mono">₦<%= data.summary.platformEarnings.toLocaleString() %></h3>
+            <div class="smaller <%= data.comparison.earningsDelta >= 0 ? 'text-success' : 'text-danger' %> fw-bold">
+                <%= data.comparison.earningsDelta >= 0 ? '▲' : '▼' %> <%= Math.abs(data.comparison.earningsDelta) %>% vs prev
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card-pikop p-4 border-start border-primary border-4">
+            <div class="text-primary smaller uppercase fw-bold mb-2">Fulfiller Payouts</div>
+            <h3 class="fw-bold mb-1 mono">₦<%= data.summary.fulfillerEarnings.toLocaleString() %></h3>
+            <div class="smaller <%= data.comparison.fulfillerDelta >= 0 ? 'text-success' : 'text-danger' %> fw-bold">
+                <%= data.comparison.fulfillerDelta >= 0 ? '▲' : '▼' %> <%= Math.abs(data.comparison.fulfillerDelta) %>% vs prev
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card-pikop p-4 border-start border-gold border-4">
+            <div class="text-gold smaller uppercase fw-bold mb-2">Gross COD Volume</div>
+            <h3 class="fw-bold mb-1 mono">₦<%= data.summary.codVolume.gross.toLocaleString() %></h3>
+            <div class="smaller text-muted">₦<%= data.summary.codVolume.settled.toLocaleString() %> settled</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Trend Chart -->
+    <div class="col-md-8">
+        <div class="card-pikop p-4">
+            <h6 class="text-black fw-bold uppercase mb-4" style="font-size: 11px; letter-spacing: 1px;">Revenue Trend</h6>
+            <div style="height: 350px; width: 100%;">
+                <canvas id="earningsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue Breakdown -->
+    <div class="col-md-4">
+        <div class="card-pikop p-4 h-100">
+            <h6 class="text-black fw-bold uppercase mb-4" style="font-size: 11px; letter-spacing: 1px;">Platform Mix</h6>
+            <div class="d-flex flex-column gap-3">
+                <div class="p-3 border rounded bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-bold">Commission (25%)</span>
+                        <span class="small mono">₦<%= data.summary.platformEarningsBreakdown.commission.toLocaleString() %></span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-green" style="width: <%= (data.summary.platformEarningsBreakdown.commission / (data.summary.platformEarnings || 1)) * 100 %>%"></div>
+                    </div>
+                </div>
+
+                <div class="p-3 border rounded bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-bold">Escrow Fees (10%)</span>
+                        <span class="small mono">₦<%= data.summary.platformEarningsBreakdown.fees.toLocaleString() %></span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-primary" style="width: <%= (data.summary.platformEarningsBreakdown.fees / (data.summary.platformEarnings || 1)) * 100 %>%"></div>
+                    </div>
+                </div>
+
+                <div class="p-3 border rounded bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-bold">Guest SMS (₦50)</span>
+                        <span class="small mono">₦<%= data.summary.platformEarningsBreakdown.sms.toLocaleString() %></span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-warning" style="width: <%= (data.summary.platformEarningsBreakdown.sms / (data.summary.platformEarnings || 1)) * 100 %>%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-auto pt-4 text-center">
+                <p class="smaller text-muted italic">Timezone: Africa/Lagos (WAT)</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateRange(range) {
+        window.location.href = `/admin/finances?range=${range}&offset=0`;
+    }
+
+    function stepOffset(dir) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const curr = parseInt(urlParams.get('offset') || '0');
+        const next = Math.max(0, curr + dir);
+        urlParams.set('offset', next);
+        window.location.search = urlParams.toString();
+    }
+
+    // Trend Visualization
+    const trendData = <%- JSON.stringify(data.trend) %>;
+    const ctx = document.getElementById('earningsChart').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: trendData.map(d => {
+                const date = new Date(d.period);
+                <% if (data.range === 'daily') { %>
+                    return date.getHours() + ":00";
+                <% } else if (data.range === 'weekly' || data.range === 'monthly') { %>
+                    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                <% } else { %>
+                    return date.toLocaleDateString([], { month: 'long' });
+                <% } %>
+            }),
+            datasets: [{
+                label: 'Platform Earnings (₦)',
+                data: trendData.map(d => parseFloat(d.earnings)),
+                backgroundColor: '#008751',
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                x: { grid: { display: false } }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+</script>
+
+<style>
+    .text-green { color: #008751 !important; }
+    .bg-green { background-color: #008751 !important; }
+    .border-green { border-color: #008751 !important; }
+</style>
