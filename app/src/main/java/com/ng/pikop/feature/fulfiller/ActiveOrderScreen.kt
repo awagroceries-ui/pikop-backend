@@ -139,7 +139,9 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
 
     LaunchedEffect(orderStatus) {
         val normStatus = orderStatus.uppercase()
-        if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PICKED_UP", "IN_TRANSIT")) {
+        val trackableStatuses = listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY", "PAYMENT_CAPTURED")
+        
+        if (normStatus in trackableStatuses) {
             while (true) {
                 try {
                     fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
@@ -154,10 +156,18 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                     put("lng", location.longitude)
                                 }
                                 SocketManager.emit("update_mission_location", data)
+                                android.util.Log.d("ActiveOrder", "Location PING sent for Mission #$orderId")
                             }
                         }
-                } catch (e: SecurityException) {}
+                } catch (e: SecurityException) {
+                    android.util.Log.e("ActiveOrder", "Location permission missing", e)
+                } catch (e: Exception) {
+                    android.util.Log.e("ActiveOrder", "Location stream error", e)
+                }
                 delay(10000)
+                
+                // Break loop if status changes to non-trackable (Double Check)
+                if (orderStatus.uppercase() !in trackableStatuses) break
             }
         }
     }

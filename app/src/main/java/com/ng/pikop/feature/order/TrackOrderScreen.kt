@@ -1,6 +1,9 @@
 package com.ng.pikop.feature.order
 
 import android.content.Intent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -61,6 +64,17 @@ fun TrackOrderScreen(
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
+    val userId by tokenManager.userId.collectAsState(initial = null)
+    
+    // Animation State
+    val interpolatedLat = remember { Animatable(0f) }
+    val interpolatedLng = remember { Animatable(0f) }
+    val animatedFulfillerLoc by remember {
+        derivedStateOf {
+            if (interpolatedLat.value != 0f) LatLng(interpolatedLat.value.toDouble(), interpolatedLng.value.toDouble())
+            else fulfillerLocation
+        }
+    }
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
     val scaffoldState = rememberBottomSheetScaffoldState()
@@ -121,15 +135,28 @@ fun TrackOrderScreen(
         fetchHistory()
     }
 
-    DisposableEffect(orderId) {
-        SocketManager.connect()
-        SocketManager.emit("join_order", orderId)
+    DisposableEffect(orderId, userId) {
+        if (userId != null) {
+            SocketManager.connect(userId)
+            SocketManager.emit("join_order", orderId)
+        }
         
         val handleLocationUpdate: (JSONObject) -> Unit = { data ->
             val lat = data.optDouble("lat", 0.0)
             val lng = data.optDouble("lng", 0.0)
             if (lat != 0.0 && lng != 0.0) {
                 val newLoc = LatLng(lat, lng)
+                
+                coroutineScope.launch {
+                    if (interpolatedLat.value == 0f) {
+                        interpolatedLat.snapTo(lat.toFloat())
+                        interpolatedLng.snapTo(lng.toFloat())
+                    } else {
+                        launch { interpolatedLat.animateTo(lat.toFloat(), tween(2000)) }
+                        launch { interpolatedLng.animateTo(lng.toFloat(), tween(2000)) }
+                    }
+                }
+
                 fulfillerLocation = newLoc
                 deliveryLoc?.let { dest ->
                     val distanceKm = calculateDistance(newLoc, dest)
@@ -237,7 +264,7 @@ fun TrackOrderScreen(
                     ) {
                         pickupLoc?.let { Marker(state = MarkerState(position = it), title = "Pickup", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)) }
                         deliveryLoc?.let { Marker(state = MarkerState(position = it), title = "Delivery", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)) }
-                        fulfillerLocation?.let { Marker(state = MarkerState(position = it), title = "Agent", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)) }
+                        animatedFulfillerLoc?.let { Marker(state = MarkerState(position = it), title = "Agent", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)) }
                         
                         if (pickupLoc != null && deliveryLoc != null) {
                             Polyline(points = listOf(pickupLoc!!, deliveryLoc!!), color = Color.Gray, width = 5f, pattern = listOf(Dash(20f), Gap(10f)))

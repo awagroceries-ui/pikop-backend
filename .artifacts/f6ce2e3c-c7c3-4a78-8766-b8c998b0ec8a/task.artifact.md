@@ -1,8 +1,11 @@
-# Task List - Restrict Promo Codes & Order Summary UI
+# Task List - Fix Live Tracking & Marker Animation
 
-- [x] Backend: Restrict promo discount to `delivery_fee` in `orderController.js`
-- [x] Backend: Restrict promo discount to `delivery_fee` in `paymentController.js`
-- [x] Android: Update calculation logic in `OrderQuoteScreen.kt`
-- [x] Android: Refactor Order Summary UI in `OrderQuoteScreen.kt` with breakdown
-- [x] Verification: Build Android app
-- [x] Verification: Git automation (Commit and Push)
+- [x] Backend: Create migration for extended fulfiller fields
+- [x] Backend: Enrich available offers with distance and COD amount
+- [x] Backend: Enrich order details with fulfiller public stats
+- [x] Android: Update data models in `ApiService.kt`
+- [x] Android: Implement "Personal Details" step in `KycUploadScreen.kt`
+- [/] Android: Implement marker animation and dynamic ETA in `TrackOrderScreen.kt`
+- [ ] Android: Fix socket connection on customer side
+- [ ] Verification: Build and Test smooth movement
+- [ ] Verification: Git automation (Commit and Push)
