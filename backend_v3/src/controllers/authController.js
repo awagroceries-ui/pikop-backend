@@ -147,6 +147,48 @@ const verifyOtp = async (req, res) => {
 };
 
 /**
+ * Handles user login.
+ */
+const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const { rows } = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (rows.length === 0) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+    const user = rows[0];
+    const isMatch = await authService.comparePassword(password, user.password_hash);
+    if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+    if (!user.email_verified_at) {
+        return res.status(403).json({ success: false, message: 'ACCOUNT_UNVERIFIED', email: user.email, role: user.role });
+    }
+
+    const tokens = authService.generateTokens(user);
+
+    await db.query(
+        "INSERT INTO user_sessions (user_id, refresh_token, ip_address) VALUES ($1, $2, $3)",
+        [user.id, tokens.refreshToken, req.ip]
+    );
+
+    res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        userId: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        phone: user.phone,
+        role: user.role,
+        referral_code: user.referral_code
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Resends OTP with cooldown protection.
  */
 const resendOtp = async (req, res) => {
@@ -182,17 +224,6 @@ const resendOtp = async (req, res) => {
   } catch (error) {
     throw error;
   }
-};
-
-module.exports = {
-  signup,
-  verifyOtp,
-  login,
-  resendOtp,
-  refresh,
-  updateFCMToken,
-  changePassword,
-  deleteAccount
 };
 
 /**
@@ -281,7 +312,6 @@ const deleteAccount = async (req, res) => {
     const userId = req.user.id;
 
     try {
-        // Soft delete: set status and anonymize identifiers
         const anonymizedEmail = `deleted_${userId}@pikop.ng`;
         const anonymizedPhone = `deleted_${userId}`;
 
@@ -290,7 +320,6 @@ const deleteAccount = async (req, res) => {
             [anonymizedEmail, anonymizedPhone, userId]
         );
 
-        // Revoke all sessions
         await db.query("UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [userId]);
 
         res.status(200).json({ success: true, message: 'Account deleted successfully' });
@@ -301,7 +330,7 @@ const deleteAccount = async (req, res) => {
 
 module.exports = {
   signup,
-  verifyEmail,
+  verifyOtp,
   login,
   resendOtp,
   refresh,

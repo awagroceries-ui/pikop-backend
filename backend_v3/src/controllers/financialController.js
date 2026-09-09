@@ -2,7 +2,6 @@ const db = require('../config/db');
 
 /**
  * Aggregates platform-wide financial metrics.
- * Supports time range toggles: daily, weekly, monthly, annual.
  */
 const getFinancialOverview = async (req, res) => {
     const { range = 'daily', offset = 0 } = req.query;
@@ -19,7 +18,17 @@ const getFinancialOverview = async (req, res) => {
             default: interval = '1 day'; truncate = 'day'; break;
         }
 
-        const baseTime = `(DATE_TRUNC('${truncate}', NOW() AT TIME ZONE 'Africa/Lagos') - INTERVAL '${numericOffset} ${range.replace('ly','').replace('ual','')}')`;
+        // Map UI range to valid Postgres interval keywords
+        const intervalUnitMap = {
+            'daily': 'day',
+            'weekly': 'week',
+            'monthly': 'month',
+            'annual': 'year'
+        };
+        const unit = intervalUnitMap[range] || 'day';
+
+        // Use parameterized values for the interval to avoid injection/syntax issues
+        const baseTime = `(DATE_TRUNC('${truncate}', NOW() AT TIME ZONE 'Africa/Lagos') - ($1 || ' ${unit}')::interval)`;
         const startTime = `${baseTime}`;
         const endTime = `(${baseTime} + INTERVAL '${interval}')`;
 
@@ -27,9 +36,6 @@ const getFinancialOverview = async (req, res) => {
         const prevEndTime = `${baseTime}`;
 
         // 2. Metrics Queries
-        // Platform Earnings: COMMISSION + SECURE_PAY_FEE + SMS_CHARGE
-        // Fulfiller Earnings: SETTLEMENT to Fulfiller
-        // COD Volume: SUM(item_price) for orders in range
         const metricsQuery = (start, end) => `
             SELECT
                 COUNT(*) FILTER (WHERE purpose IN ('SETTLEMENT', 'COMMISSION')) as tx_count,
@@ -50,10 +56,10 @@ const getFinancialOverview = async (req, res) => {
         `;
 
         const [currMetrics, prevMetrics, currCod, prevCod] = await Promise.all([
-            db.query(metricsQuery(startTime, endTime)),
-            db.query(metricsQuery(prevStartTime, prevEndTime)),
-            db.query(codQuery(startTime, endTime)),
-            db.query(codQuery(prevStartTime, prevEndTime))
+            db.query(metricsQuery(startTime, endTime), [numericOffset]),
+            db.query(metricsQuery(prevStartTime, prevEndTime), [numericOffset]),
+            db.query(codQuery(startTime, endTime), [numericOffset]),
+            db.query(codQuery(prevStartTime, prevEndTime), [numericOffset])
         ]);
 
         const c = currMetrics.rows[0];
@@ -79,7 +85,7 @@ const getFinancialOverview = async (req, res) => {
             WHERE created_at >= ${startTime} AND created_at < ${endTime}
             GROUP BY 1 ORDER BY period ASC
         `;
-        const trend = await db.query(trendQuery);
+        const trend = await db.query(trendQuery, [numericOffset]);
 
         const data = {
             range,
