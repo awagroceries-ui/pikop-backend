@@ -3,6 +3,7 @@ const router = express.Router();
 const webhookController = require('../controllers/webhookController');
 
 router.post('/prembly', webhookController.handlePremblyWebhook);
+router.post('/termii', webhookController.handleTermiiWebhook);
 router.get('/redirect', webhookController.handlePremblyRedirect);
 
 module.exports = router;

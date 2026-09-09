@@ -398,7 +398,8 @@ fun OrderQuoteScreen(
                     
                     val itemPriceNum = result.item_price ?: 0.0
                     val platformFee = if (result.fee_payer == "PAYER") result.platform_fee_amount ?: 0.0 else 0.0
-                    val amountToCharge = itemPriceNum + (deliveryFee - discount) + platformFee
+                    val smsCharge = result.sms_charge_amount ?: 0.0
+                    val amountToCharge = itemPriceNum + (deliveryFee - discount) + platformFee + smsCharge
 
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Order Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -421,7 +422,13 @@ fun OrderQuoteScreen(
                         if (discount > 0) {
                             SummaryLine("Promo discount", "-₦$discount", color = MaterialTheme.colorScheme.primary)
                         }
-                        SummaryLine("Delivery total", "₦${deliveryFee - discount}")
+                        
+                        // SMS Charge for Guest
+                        if (result.sms_charge_amount != null && result.sms_charge_amount!! > 0) {
+                            SummaryLine("Guest SMS charge", "₦${result.sms_charge_amount}")
+                        }
+
+                        SummaryLine("Delivery total", "₦${deliveryFee - discount + (result.sms_charge_amount ?: 0.0)}")
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
                         
@@ -557,8 +564,9 @@ fun OrderQuoteScreen(
                                     val discount = minOf(calculatedDiscount, deliveryFee)
                                     val itemPriceNum = result.item_price ?: 0.0
                                     val platformFee = if (result.fee_payer == "PAYER") result.platform_fee_amount ?: 0.0 else 0.0
+                                    val smsCharge = result.sms_charge_amount ?: 0.0
                                     
-                                    val amountToCharge = itemPriceNum + (deliveryFee - discount) + platformFee
+                                    val amountToCharge = itemPriceNum + (deliveryFee - discount) + platformFee + smsCharge
 
                                     // 100% DISCOUNT BYPASS
                                     if (amountToCharge <= 0) {

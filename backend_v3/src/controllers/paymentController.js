@@ -124,6 +124,10 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
     const itemPrice = parseFloat(m.item_price || 0);
     const platformFee = (m.fee_payer === 'PAYER') ? parseFloat(m.platform_fee_amount || 0) : 0;
 
+    // 3.1 Guest SMS Charge (₦50)
+    const isGuestPayer = !m.payer_id;
+    const smsCharge = isGuestPayer ? 50 : 0;
+
     let discount = 0;
     if (m.promo_id) {
         try {
@@ -141,7 +145,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
         } catch (e) { console.error('[Activation] Promo check failed:', e.message); }
     }
 
-    const finalTotal = itemPrice + deliveryFee + platformFee;
+    const finalTotal = itemPrice + deliveryFee + platformFee + smsCharge;
 
     // 4. Insert Order
     const pCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -158,7 +162,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             pickup_display_summary, delivery_display_summary, item_price, delivery_fee,
             platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id,
             original_delivery_fee, original_total_fare, pickup_code_hash, delivery_code_hash,
-            pickup_code, delivery_code, coupon_id, pickup_state
+            pickup_code, delivery_code, coupon_id, pickup_state, sms_charge_amount
         ) VALUES (
             'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
             ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -167,7 +171,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             $17, $18, $19, $20, $21, $22,
             $23, $24, $25, $26, $27, $28,
             $29, $30, $31, $32,
-            $33, $34, $35::uuid, $36
+            $33, $34, $35::uuid, $36, $37
         ) RETURNING id`,
         [
             m.user_id, // $1
@@ -205,7 +209,8 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             pCode, // $33
             dCode, // $34
             m.promo_id || null, // $35
-            m.pickup_state || q.pickup_state // $36
+            m.pickup_state || q.pickup_state, // $36
+            parseFloat(smsCharge) // $37
         ]
     );
 

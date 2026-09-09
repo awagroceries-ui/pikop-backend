@@ -1,8 +1,11 @@
-# Task List - Fix Admin Visibility & KYC Rendering
+# Task List - Termii SMS Integration & Guest Tracking
 
-- [x] Backend: Add static route for `/uploads` in `app.js`
-- [x] Backend: Ensure `kyc_details` parsing in `adminController.js`
-- [x] Backend: Inject absolute `baseUrl` into all KYC views
-- [x] Backend: Update `kyc_review.ejs` to show structured Prembly data
-- [x] Backend: Update `kyc_review.ejs` to use absolute image paths
-- [x] Verification: Git automation (Commit and Push)
+- [ ] Backend: Create migration for `phone_verified_at`, `sms_charge_amount`, and `sms_logs`
+- [ ] Backend: Implement Termii REST client in `smsService.js`
+- [ ] Backend: Update `authController.js` to send OTP via SMS during signup/resend
+- [ ] Backend: Update `orderController.js` with ₦50 SMS charge logic and guest tracking trigger
+- [ ] Backend: Create public web tracking page `guest_tracking.ejs`
+- [ ] Backend: Implement Termii webhook in `webhookController.js`
+- [ ] Android: Update data models and Order Summary UI for SMS charge
+- [ ] Verification: Build Android app
+- [ ] Verification: Git automation (Commit and Push)

@@ -80,7 +80,30 @@ const handlePremblyRedirect = (req, res) => {
     `);
 };
 
+/**
+ * Webhook for Termii SMS Delivery Reports.
+ */
+const handleTermiiWebhook = async (req, res) => {
+    const payload = req.body;
+    // Termii typically sends: { message_id: "...", status: "Delivered", recipient: "...", ... }
+
+    const { message_id, status, recipient } = payload;
+    console.log(`[Webhook] Termii delivery report: ref=${message_id} | status=${status} | to=${recipient}`);
+
+    try {
+        await db.query(
+            "UPDATE sms_logs SET status = $1 WHERE provider_ref = $2",
+            [status.toLowerCase(), message_id]
+        );
+        res.status(200).send('OK');
+    } catch (error) {
+        console.error('[Webhook] Termii DB Error:', error.message);
+        res.status(500).send('Retry later');
+    }
+};
+
 module.exports = {
     handlePremblyWebhook,
-    handlePremblyRedirect
+    handlePremblyRedirect,
+    handleTermiiWebhook
 };

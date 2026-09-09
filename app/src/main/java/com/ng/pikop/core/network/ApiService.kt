@@ -77,6 +77,7 @@ data class QuoteResponse(
     val platform_fee_amount: Double? = null,
     val fee_payer: String? = null,
     val total_fare: Double? = null,
+    val sms_charge_amount: Double? = null,
     val payer_info: PayerInfo? = null,
     val expires_at: String? = null
 )
@@ -148,6 +149,7 @@ data class OrderDetailsResponse(
     @SerializedName("item_price") val item_price: Double? = null,
     @SerializedName("delivery_fee") val delivery_fee: Double? = null,
     @SerializedName("platform_fee_amount") val platform_fee_amount: Double? = null,
+    @SerializedName("sms_charge_amount") val sms_charge_amount: Double? = null,
     @SerializedName("fee_payer") val fee_payer: String? = null,
     @SerializedName("escrow_status") val escrow_status: String? = null,
     @SerializedName("seller_id") val seller_id: Int? = null,
@@ -519,7 +521,7 @@ interface ApiService {
     @POST("api/v1/auth/login")
     suspend fun login(@Body request: LoginRequest): AuthResponse
 
-    @POST("api/v1/auth/verify-email")
+    @POST("api/v1/auth/verify-otp")
     suspend fun verifyEmail(@Body request: VerifyEmailRequest): AuthResponse
 
     @POST("api/v1/auth/resend-otp")

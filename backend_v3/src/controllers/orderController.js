@@ -60,8 +60,12 @@ const getQuote = async (req, res) => {
   const platform_fee_amount = PlatformConfig.roundFee(item_price * PlatformConfig.ESCROW.FEE_PERCENTAGE);
   const fee_payer = initiator_role; // Rule: initiator bears the fee
 
-  // total_payable for checkout: item + delivery + (fee if payer is paying)
-  const total_payable = parseFloat(item_price) + delivery_fee + (fee_payer === 'PAYER' ? platform_fee_amount : 0);
+  // 4.1 Guest SMS Charge (₦50)
+  // Rule: If payer is GUEST (receives payment link via SMS), charge ₦50 once.
+  const sms_charge_amount = (payer_type === 'GUEST') ? 50 : 0;
+
+  // total_payable for checkout: item + delivery + fee + sms_charge
+  const total_payable = parseFloat(item_price) + delivery_fee + (fee_payer === 'PAYER' ? platform_fee_amount : 0) + sms_charge_amount;
 
   // 4.1 Reliable Account Lookup (In-App vs Guest)
   let payer_type = 'GUEST';
@@ -93,6 +97,7 @@ const getQuote = async (req, res) => {
     item_price,
     delivery_fee,
     platform_fee_amount,
+    sms_charge_amount,
     fee_payer,
     total_fare: total_payable,
     payer_info: {
@@ -417,7 +422,7 @@ const createOrder = async (req, res) => {
             pickup_display_summary, delivery_display_summary, item_photo_url,
             promo_id, payment_reference,
             pickup_lat, pickup_lng, delivery_lat, delivery_lng,
-            item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
+            item_price, delivery_fee, platform_fee_amount, sms_charge_amount, fee_payer, initiator_role,
             payer_id, pickup_state
         } = req.body;
     const userId = req.user.id;
@@ -486,7 +491,8 @@ const createOrder = async (req, res) => {
                 recipient_name, recipient_phone, notes, pickup_display_summary, delivery_display_summary, item_photo_url,
                 pickup_code_hash, delivery_code_hash, pickup_code, delivery_code, coupon_id,
                 item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
-                escrow_status, payer_id, original_delivery_fee, original_total_fare, pickup_state
+                escrow_status, payer_id, original_delivery_fee, original_total_fare, pickup_state,
+                sms_charge_amount
             ) VALUES (
                 'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
                 ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -495,7 +501,8 @@ const createOrder = async (req, res) => {
                 $17, $18, $19, $20, $21, $22,
                 $23, $24, $25, $26, $27::uuid,
                 $28, $29, $30, $31, $32,
-                $33, $34, $35, $36, $37
+                $33, $34, $35, $36, $37,
+                $38
             ) RETURNING id`,
             [
                 userId, // $1
@@ -526,15 +533,16 @@ const createOrder = async (req, res) => {
                 dCode, // $26
                 couponId || null, // $27
                 parseFloat(item_price || 0), // $28
-                parseFloat(delivery_fee || q.delivery_fee || 0), // $29
-                parseFloat(platform_fee_amount || 0), // $30
+                parseFloat(deliveryFee || 0), // $29
+                parseFloat(platformFeeNum || 0), // $30
                 fee_payer || 'PAYER', // $31
                 initiator_role || 'PAYER', // $32
                 (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable', // $33
                 payer_id || null, // $34
                 parseFloat(q.delivery_fee), // $35
                 parseFloat(q.total_fare), // $36
-                pickup_state || q.pickup_state // $37
+                pickup_state || q.pickup_state, // $37
+                parseFloat(sms_charge_amount || 0) // $38
             ]
         );
 
@@ -654,6 +662,19 @@ const verifyPickup = async (req, res) => {
             status: 'PICKED_UP',
             message: 'Pickup code verified successfully'
         });
+
+        // 3. Trigger Guest Tracking SMS (Termii)
+        try {
+            const { rows } = await db.query(
+                "SELECT recipient_phone, payer_id FROM orders WHERE id = $1",
+                [id]
+            );
+            if (rows.length > 0 && !rows[0].payer_id && rows[0].recipient_phone) {
+                await smsService.sendTrackingLinkSms(rows[0].recipient_phone, id);
+            }
+        } catch (e) {
+            console.error('[VerifyPickup] Guest SMS fail:', e.message);
+        }
 
     } catch (error) {
         console.error('[VerifyPickup] Error:', error.message);
@@ -971,6 +992,30 @@ const getFulfillerOrders = async (req, res) => {
     }
 };
 
+/**
+ * Public endpoint for Guest Live Tracking.
+ */
+const getGuestTracking = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        const { rows } = await db.query(`
+            SELECT o.*,
+            ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
+            ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng,
+            f.full_name as fulfiller_name, f.mobility_type, f.rating_avg,
+            ST_Y(f.current_location::geometry) as fulfiller_lat, ST_X(f.current_location::geometry) as fulfiller_lng
+            FROM orders o
+            LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
+            WHERE o.id = $1`, [orderId]);
+
+        if (rows.length === 0) return res.status(404).send("Mission not found.");
+
+        res.render('guest_tracking', { order: rows[0], layout: false });
+    } catch (e) {
+        res.status(500).send("Tracking unavailable.");
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -988,5 +1033,6 @@ module.exports = {
   confirmReceipt,
   reportProblem,
   rateFulfiller,
-  rateCustomer
+  rateCustomer,
+  getGuestTracking
 };

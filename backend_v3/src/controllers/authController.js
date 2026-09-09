@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const authService = require('../services/authService');
 const emailService = require('../services/emailService');
+const smsService = require('../services/smsService');
 const { normalizePhone } = require('../utils/phone');
 const crypto = require('crypto');
 
@@ -30,7 +31,7 @@ const signup = async (req, res) => {
     );
     const user = userRes.rows[0];
 
-    // 4. Generate OTP
+    // 4. Generate OTP (Internal/Email)
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
 
@@ -39,9 +40,15 @@ const signup = async (req, res) => {
       [user.id, otp, expiresAt]
     );
 
+    // 5. Trigger Termii SMS OTP (External)
+    const smsOtpRes = await smsService.sendOtp(normalizedPhone);
+    if (smsOtpRes.success) {
+        await client.query("UPDATE users SET kyc_provider_ref = $1 WHERE id = $2", [smsOtpRes.pinId, user.id]);
+    }
+
     await client.query('COMMIT');
 
-    // 5. Send OTP Email (Async)
+    // 6. Send OTP Email (Async)
     const subject = `Verify your Pikop Account: ${otp}`;
     const html = `
         <h2 class="greeting">Welcome to Pikop!</h2>
@@ -49,13 +56,14 @@ const signup = async (req, res) => {
         <div class="cta-container">
             <span class="otp-code">${otp}</span>
         </div>
+        <p style="text-align: center;">We've also sent a verification code to your phone ${phone}.</p>
         <p class="text" style="text-align: center;">This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
     `;
     emailService.sendMail(email, subject, html).catch(err => console.error('[Auth] Initial OTP fail:', err.message));
 
     res.status(201).json({
       success: true,
-      message: 'User registered. Please verify your email.',
+      message: 'User registered. Please verify your email or phone.',
       userId: user.id,
       email: user.email,
       role: user.role
@@ -66,52 +74,56 @@ const signup = async (req, res) => {
     if (error.code === '23505') {
       return res.status(400).json({ success: false, message: 'Email or phone already registered' });
     }
-    throw error; // Let global handler catch it
+    throw error;
   } finally {
     client.release();
   }
 };
 
 /**
- * Verifies email with OTP.
+ * Unified OTP Verification (Email/Internal or SMS/Termii).
  */
-const verifyEmail = async (req, res) => {
+const verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
   const masterOtp = process.env.MASTER_OTP;
 
   try {
-    let user;
+    const { rows: users } = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (users.length === 0) return res.status(404).json({ success: false, message: 'Account not found' });
+    const user = users[0];
 
-    // Check Master OTP Bypass
+    let verified = false;
+
+    // 1. Check Master OTP Bypass
     if (masterOtp && otp.toString().trim() === masterOtp.toString().trim()) {
-        const userRes = await db.query("SELECT * FROM users WHERE email = $1", [email]);
-        if (userRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Account not found' });
-        user = userRes.rows[0];
-    } else {
-        const { rows } = await db.query(
-            `SELECT ov.*, u.*
-             FROM otp_verifications ov
-             JOIN users u ON u.id = ov.user_id
-             WHERE u.email = $1 AND ov.otp_code = $2 AND ov.expires_at > CURRENT_TIMESTAMP`,
-            [email, otp]
-        );
+        verified = true;
+    }
 
-        if (rows.length === 0) {
-            return res.status(400).json({ success: false, message: 'Invalid or expired code' });
-        }
-        user = rows[0];
+    // 2. Check Internal Email OTP
+    if (!verified) {
+        const { rows: internalOtp } = await db.query(
+            "SELECT * FROM otp_verifications WHERE user_id = $1 AND otp_code = $2 AND expires_at > CURRENT_TIMESTAMP",
+            [user.id, otp]
+        );
+        if (internalOtp.length > 0) verified = true;
+    }
+
+    // 3. Check Termii SMS OTP
+    if (!verified && user.kyc_provider_ref) {
+        verified = await smsService.verifyOtpToken(user.kyc_provider_ref, otp);
+    }
+
+    if (!verified) {
+        return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
     }
 
     // Mark as verified
-    await db.query("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
+    await db.query("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP, phone_verified_at = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
     await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [user.id]);
 
-    // Send Branded Welcome Email
-    emailService.sendWelcomeEmail(user.email, user.full_name, user.role).catch(e => console.error('[WelcomeEmail] Error:', e.message));
-
+    emailService.sendWelcomeEmail(user.email, user.full_name, user.role).catch(() => {});
     const tokens = authService.generateTokens(user);
 
-    // Register Session
     await db.query(
         "INSERT INTO user_sessions (user_id, refresh_token, ip_address) VALUES ($1, $2, $3)",
         [user.id, tokens.refreshToken, req.ip]
@@ -119,7 +131,7 @@ const verifyEmail = async (req, res) => {
 
     res.status(200).json({
         success: true,
-        message: 'Email verified successfully',
+        message: 'Account verified successfully',
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         userId: user.id,
@@ -135,88 +147,52 @@ const verifyEmail = async (req, res) => {
 };
 
 /**
- * Handles user login.
- */
-const login = async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const { rows } = await db.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (rows.length === 0) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-
-    const user = rows[0];
-    const isMatch = await authService.comparePassword(password, user.password_hash);
-    if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-
-    if (!user.email_verified_at) {
-        return res.status(403).json({ success: false, message: 'ACCOUNT_UNVERIFIED', email: user.email, role: user.role });
-    }
-
-    const tokens = authService.generateTokens(user);
-
-    await db.query(
-        "INSERT INTO user_sessions (user_id, refresh_token, ip_address) VALUES ($1, $2, $3)",
-        [user.id, tokens.refreshToken, req.ip]
-    );
-
-    res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        userId: user.id,
-        email: user.email,
-        full_name: user.full_name,
-        phone: user.phone,
-        role: user.role,
-        referral_code: user.referral_code
-    });
-  } catch (error) {
-    throw error;
-  }
-};
-
-/**
- * Resends OTP to user.
+ * Resends OTP with cooldown protection.
  */
 const resendOtp = async (req, res) => {
   const { email } = req.body;
 
   try {
-    const userRes = await db.query("SELECT id FROM users WHERE email = $1", [email]);
-    if (userRes.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Account not found' });
-    }
+    const userRes = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Account not found' });
     const user = userRes.rows[0];
 
-    // Clear old OTPs
+    // COOLDOWN: 60 seconds
+    const lastOtp = await db.query("SELECT created_at FROM otp_verifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [user.id]);
+    if (lastOtp.rows.length > 0) {
+        const timeSinceLast = Date.now() - new Date(lastOtp.rows[0].created_at).getTime();
+        if (timeSinceLast < 60000) {
+            return res.status(429).json({ success: false, message: `Please wait ${Math.ceil((60000 - timeSinceLast)/1000)}s before requesting another code.` });
+        }
+    }
+
+    // 1. Internal Email OTP
     await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [user.id]);
-
-    // Generate new OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60000);
+    await db.query("INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)", [user.id, otp, new Date(Date.now() + 10 * 60000)]);
+    emailService.sendMail(email, `New Code: ${otp}`, `<p>Your code is <b>${otp}</b></p>`).catch(() => {});
 
-    await db.query(
-      "INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)",
-      [user.id, otp, expiresAt]
-    );
+    // 2. Termii SMS OTP
+    const smsOtpRes = await smsService.sendOtp(user.phone);
+    if (smsOtpRes.success) {
+        await db.query("UPDATE users SET kyc_provider_ref = $1 WHERE id = $2", [smsOtpRes.pinId, user.id]);
+    }
 
-    // Send Email
-    const subject = `Your New Pikop Verification Code: ${otp}`;
-    const html = `
-        <h2 class="greeting">New Verification Code</h2>
-        <p class="text">You requested a new verification code for your Pikop account. Please use the code below to continue:</p>
-        <div class="cta-container">
-            <span class="otp-code">${otp}</span>
-        </div>
-        <p class="text" style="text-align: center;">This code will expire in 10 minutes. For your security, do not share this code with anyone.</p>
-    `;
-    emailService.sendMail(email, subject, html).catch(err => console.error('[Auth] Resend fail:', err.message));
-
-    res.status(200).json({ success: true, message: 'Verification code resent successfully' });
+    res.status(200).json({ success: true, message: 'Verification code resent via email and SMS.' });
   } catch (error) {
     throw error;
   }
+};
+
+module.exports = {
+  signup,
+  verifyOtp,
+  login,
+  resendOtp,
+  refresh,
+  updateFCMToken,
+  changePassword,
+  deleteAccount
 };
 
 /**

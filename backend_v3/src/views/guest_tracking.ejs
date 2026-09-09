@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pikop Live Tracking | Order #<%= order.id %></title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background: #f4f7f6; color: #1a1a1a; }
+        #map { height: 60vh; width: 100%; }
+        .details-panel {
+            padding: 24px;
+            background: white;
+            border-radius: 24px 24px 0 0;
+            margin-top: -24px;
+            position: relative;
+            z-index: 1000;
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.05);
+        }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .status-badge {
+            background: #008751; color: white; padding: 6px 14px; border-radius: 20px;
+            font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .order-id { font-size: 14px; color: #666; font-weight: 600; }
+        .agent-info { display: flex; align-items: center; gap: 16px; padding: 16px; background: #f8f9fa; border-radius: 16px; margin-bottom: 20px; }
+        .agent-avatar { width: 48px; height: 48px; background: #008751; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; }
+        .agent-name { font-weight: 700; font-size: 16px; }
+        .eta-box { text-align: center; padding: 16px; background: #e8f5e9; border-radius: 12px; color: #2e7d32; font-weight: 800; font-size: 18px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div class="details-panel">
+        <div class="header">
+            <div>
+                <div class="order-id">Order #<%= order.id.toString().slice(-8).toUpperCase() %></div>
+                <div class="status-badge" id="status-label"><%= order.status.replace('_', ' ') %></div>
+            </div>
+            <img src="/public/assets/logo.png" alt="Pikop" style="height: 32px;">
+        </div>
+
+        <div id="eta-container" class="eta-box">Calculating ETA...</div>
+
+        <div class="agent-info">
+            <div class="agent-avatar"><%= (order.fulfiller_name || 'A').charAt(0) %></div>
+            <div>
+                <div class="agent-name"><%= order.fulfiller_name || 'Agent Assigned' %></div>
+                <div style="font-size: 12px; color: #666;">Rating: ★ <%= parseFloat(order.rating_avg || 5.0).toFixed(1) %></div>
+            </div>
+        </div>
+
+        <div style="font-size: 14px; color: #666;">
+            <strong>Dropoff:</strong> <%= order.delivery_address %>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const pickup = [<%= order.pickup_lat %>, <%= order.pickup_lng %>];
+        const delivery = [<%= order.delivery_lat %>, <%= order.delivery_lng %>];
+        let agentPos = <%= order.fulfiller_lat ? `[${order.fulfiller_lat}, ${order.fulfiller_lng}]` : 'null' %>;
+        const mobility = "<%= order.mobility_type || 'bike' %>";
+
+        const map = L.map('map', { zoomControl: false }).setView(delivery, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{y}/{x}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const destIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            iconSize: [25, 41], iconAnchor: [12, 41]
+        });
+
+        const agentIcon = L.icon({
+            iconUrl: `/public/assets/marker_${mobility.toLowerCase()}.png`,
+            iconSize: [36, 36], iconAnchor: [18, 18]
+        });
+
+        L.marker(delivery, { icon: destIcon }).addTo(map).bindPopup("Your Location");
+
+        let agentMarker = null;
+        if (agentPos) {
+            agentMarker = L.marker(agentPos, { icon: agentIcon }).addTo(map);
+        }
+
+        const socket = io();
+        socket.emit('join_order', { orderId: "<%= order.id %>" });
+
+        socket.on('location_updated', (data) => {
+            const newPos = [data.lat, data.lng];
+            if (!agentMarker) {
+                agentMarker = L.marker(newPos, { icon: agentIcon }).addTo(map);
+            } else {
+                agentMarker.setLatLng(newPos);
+            }
+
+            // Calculate basic ETA
+            const dist = map.distance(newPos, delivery) / 1000; // KM
+            const mins = Math.max(1, Math.round((dist / 20) * 60)); // Assumes 20km/h avg
+            document.getElementById('eta-container').innerText = `Estimated Arrival: ${mins} mins`;
+        });
+
+        socket.on('status_updated', (data) => {
+            document.getElementById('status-label').innerText = data.status.replace('_', ' ');
+            if (data.status === 'DELIVERED') {
+                document.getElementById('eta-container').innerText = "Arrived!";
+                document.getElementById('eta-container').style.background = '#e3f2fd';
+                document.getElementById('eta-container').style.color = '#1976d2';
+            }
+        });
+    </script>
+</body>
+</html>

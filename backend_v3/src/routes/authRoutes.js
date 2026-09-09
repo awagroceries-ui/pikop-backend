@@ -5,7 +5,7 @@ const { authenticateToken } = require('../middleware/authMiddleware');
 
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
-router.post('/verify-email', authController.verifyEmail);
+router.post('/verify-otp', authController.verifyOtp);
 router.post('/resend-otp', authController.resendOtp);
 router.post('/refresh', authController.refresh);
 router.post('/fcm-token', authenticateToken, authController.updateFCMToken);

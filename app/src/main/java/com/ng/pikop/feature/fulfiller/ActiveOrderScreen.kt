@@ -523,12 +523,23 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                 )
 
                                 if (isSeller) {
+                                    val fee = if (orderDetails?.fee_payer == "SELLER") orderDetails?.platform_fee_amount ?: 0.0 else 0.0
+                                    val netPayout = (orderDetails?.item_price ?: 0.0) - fee
+                                    
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Text(
-                                        "The item payment (₦${orderDetails?.item_price}) is pending customer confirmation. It will be released to your wallet shortly.",
+                                        "The item payment (₦${netPayout}) is pending customer confirmation. It will be released to your wallet shortly.",
                                         textAlign = TextAlign.Center,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
+                                    if (fee > 0.0) {
+                                        Text(
+                                            "(₦$fee platform fee deducted from total ₦${orderDetails?.item_price})",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.Gray,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
                                 } else if ((orderDetails?.item_price ?: 0.0) > 0) {
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Text(
