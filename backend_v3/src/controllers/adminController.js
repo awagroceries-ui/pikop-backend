@@ -302,11 +302,19 @@ const getKYCReview = async (req, res) => {
 
         if (fRes.rows.length === 0) return res.status(404).send('Fulfiller not found');
 
+        const f = fRes.rows[0];
+
+        // Ensure kyc_details is parsed if stringified
+        if (f.kyc_details && typeof f.kyc_details === 'string') {
+            try { f.kyc_details = JSON.parse(f.kyc_details); } catch (e) {}
+        }
+
         const docs = await db.query("SELECT * FROM kyc_documents WHERE fulfiller_id = $1", [id]);
 
         res.render('kyc_review', {
-            f: fRes.rows[0],
-            docs: docs.rows
+            f,
+            docs: docs.rows,
+            baseUrl: process.env.BASE_URL || 'https://api.pikop.com.ng'
         });
     } catch (error) {
         res.status(500).send(error.message);

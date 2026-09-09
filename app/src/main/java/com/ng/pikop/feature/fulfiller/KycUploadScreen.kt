@@ -371,27 +371,30 @@ fun PersonalDetailsStep(
         Text("Personal Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text("We need a few more details to activate your account.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
 
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
             OutlinedTextField(
                 value = dob,
                 onValueChange = {},
                 readOnly = true,
+                enabled = true,
                 label = { Text("Date of Birth") },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                 ),
                 leadingIcon = { 
                     Icon(Icons.Default.Cake, null, tint = MaterialTheme.colorScheme.primary) 
                 },
                 placeholder = { Text("Select Date") }
             )
-            // Overlay a transparent clickable layer to reliably trigger the picker
+            // Overlay a transparent clickable layer to reliably trigger the picker and block keyboard
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clickable { showDatePicker = true }
+                    .background(Color.Transparent)
             )
         }
 

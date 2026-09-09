@@ -21,7 +21,7 @@
                 </div>
                 <div class="col-md-4 text-end">
                     <% if (f.profile_photo_url) { %>
-                        <img src="<%= f.profile_photo_url %>" class="rounded border" style="width: 80px; height: 80px; object-fit: cover;">
+                        <img src="<%= f.profile_photo_url.startsWith('http') ? f.profile_photo_url : baseUrl + f.profile_photo_url %>" class="rounded border" style="width: 80px; height: 80px; object-fit: cover;">
                     <% } else { %>
                         <div class="bg-light rounded border d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
                             <span class="text-muted smaller">No Photo</span>
@@ -34,15 +34,18 @@
                 <div class="mt-4 p-3 border rounded bg-light">
                     <h6 class="smaller fw-bold text-muted uppercase mb-2">Automated Verification Report</h6>
                     <div class="row g-2">
-                        <% if (typeof f.kyc_details === 'object') { %>
-                            <% if (f.kyc_details.verification_type) { %>
-                                <div class="col-6"><span class="text-muted smaller">Type:</span> <span class="small fw-bold"><%= f.kyc_details.verification_type %></span></div>
+                        <% if (typeof f.kyc_details === 'object' && f.kyc_details !== null) { %>
+                            <%
+                                // Prembly specific mapping
+                                const report = f.kyc_details;
+                                const vType = report.verification_type || (report.data && report.data.verification_type);
+                                const vStatus = report.status || (report.data && report.data.status);
+                            %>
+                            <% if (vType) { %>
+                                <div class="col-6"><span class="text-muted smaller">Type:</span> <span class="small fw-bold"><%= vType %></span></div>
                             <% } %>
-                            <% if (f.kyc_details.status) { %>
-                                <div class="col-6"><span class="text-muted smaller">Status:</span> <span class="small fw-bold"><%= f.kyc_details.status %></span></div>
-                            <% } %>
-                            <% if (f.kyc_details.confidence) { %>
-                                <div class="col-6"><span class="text-muted smaller">Confidence:</span> <span class="small fw-bold"><%= f.kyc_details.confidence %>%</span></div>
+                            <% if (vStatus) { %>
+                                <div class="col-6"><span class="text-muted smaller">Status:</span> <span class="small fw-bold"><%= vStatus %></span></div>
                             <% } %>
 
                             <!-- Detailed Breakdown Toggle -->
@@ -72,7 +75,7 @@
                         <div class="col-md-6">
                             <div class="border rounded p-3 bg-light">
                                 <label class="text-muted smaller fw-bold uppercase d-block mb-2"><%= doc.doc_type.replace('_', ' ') %></label>
-                                <a href="<%= doc.file_url %>" target="_blank" class="btn btn-sm btn-pikop-outline w-100 mb-2">VIEW DOCUMENT</a>
+                                <a href="<%= doc.file_url.startsWith('http') ? doc.file_url : baseUrl + doc.file_url %>" target="_blank" class="btn btn-sm btn-pikop-outline w-100 mb-2">VIEW DOCUMENT</a>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="badge bg-secondary smaller"><%= doc.status %></span>
                                     <span class="smaller text-muted">Expires: <%= doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString() : 'N/A' %></span>

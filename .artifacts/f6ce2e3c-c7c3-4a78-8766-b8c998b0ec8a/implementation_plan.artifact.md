@@ -1,49 +1,42 @@
-# Implementation Plan - Fix Onboarding Errors & KYC Sync
+# Implementation Plan - Fix Admin KYC Visibility & File Rendering
 
-This plan fixes the "Duplicate Key" error in fulfiller activation, ensures KYC verification syncs with the admin dashboard, and polishes the Date Picker UI.
+This plan fixes the missing Prembly reports on the admin dashboard, resolves the image rendering issues, and polishes the fulfiller onboarding date picker.
 
 ## Problem Description
-1.  **Constraint Mismatch:** The `ON CONFLICT (user_id)` logic is failing because `user_id` lacks a unique constraint in the database.
-2.  **Email Conflict:** Fulfillers encounter `fulfillers_email_key` violations, likely due to orphaned records from previous test attempts or deleted users.
-3.  **KYC Dashboard Sync:** Verification results are saved in a secondary field (`didit_verification_status`) but aren't moving the main `kyc_status` forward, making them invisible to admins in the primary status column.
-4.  **Date Picker UI:** The current implementation might be hard to trigger or still allowing manual input in some states.
+1.  **Admin Visibility:** Successful Prembly verifications are not clearly surfaced on the admin review screen, even though they exist in the database.
+2.  **Image Rendering:** KYC documents and profile photos appear as broken links in the admin dashboard because they use relative paths (e.g., `/uploads/...`) which don't resolve correctly from the admin's context.
+3.  **Date Picker:** The fulfiller activation screen still allows/requires manual date entry instead of forcing the calendar picker.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725591000000_add_unique_user_id_to_fulfillers.js)
-- Add a unique constraint to `fulfillers(user_id)`. This is required for the `UPSERT` (ON CONFLICT) logic to work.
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- **`getKYCReview`**:
+    - Ensure `kyc_details` is always parsed as an object if it arrives as a string.
+    - Inject the `BASE_URL` (from `.env` or config) into the view so that image links can be made absolute.
 
-#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
-- **`updateFulfillerProfile`**:
-    - Before the UPSERT, delete any existing fulfiller records that have the same `email` or `phone` but a **different** (or null) `user_id`. This cleans up "orphaned" records that cause duplicate key errors.
-
-#### [MODIFY] [webhookController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/webhookController.js)
-- **`handlePremblyWebhook`**:
-    - When a verification is `approved`, also update the main `kyc_status` to `'PENDING_REVIEW'` (or a new state like `'ID_VERIFIED'`).
-    - This ensures the record appears as "Progressed" on the Admin Dashboard immediately.
+#### [MODIFY] [kyc_review.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/kyc_review.ejs)
+- **Absolute URLs:** Prefix all `<img>` src and `<a>` href attributes for documents with the `BASE_URL`.
+- **Report Rendering:** Refactor the "Automated Verification Report" section to handle both raw JSON and formatted display more robustly.
 
 ---
 
 ### Android App
 
 #### [MODIFY] [KycUploadScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/KycUploadScreen.kt)
-- **Date Picker Polish:**
-    - Ensure the `OutlinedTextField` is fully disabled for manual input but wrapped in a reliable clickable `Box`.
-    - Improve the `DatePickerDialog` logic to handle initial states more gracefully.
-- **Refresh Logic:**
-    - Increase the frequency of the profile refresh when a user returns to the app from the external verification browser.
+- **Force Picker:** Set `readOnly = true` and `enabled = true` on the `OutlinedTextField` but use a `Box` wrapper with a `pointerInput` or a dedicated `IconButton` to strictly trigger the `DatePickerDialog`.
+- **Status Advancement:** Ensure the `LaunchedEffect` that observes the profile refreshes more aggressively after returning from the Prembly widget.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Syntax check backend: `node -c ...`.
 - Build Android app: `./gradlew assembleDebug`.
+- Syntax check backend views: `node -e "require('ejs').compile(...)"`.
 
 ### Manual Verification
-1.  **Duplicate Test:** Try to activate a fulfiller multiple times. Verify no "Duplicate Key" or "Constraint Matching" errors occur.
-2.  **Date Picker:** Open onboarding and verify the calendar appears immediately upon tapping the DOB field.
-3.  **KYC Sync:** Complete a test verification. Verify the fulfiller status updates on the **Admin Dashboard** Mission Board and Fleet list without manual intervention.
+1.  **Date Picker:** Open the Fulfiller "Personal Details" step. Tapping anywhere on the Date of Birth field must open the calendar. Keyboard must not appear.
+2.  **Admin Image Check:** Open an agent's KYC review page in the Admin Dashboard. All photos and document links must render correctly.
+3.  **Admin Report Check:** Complete a test Prembly verification. Verify the "Automated Verification Report" appears in the agent's review page with the full JSON payload visible in the collapsible section.

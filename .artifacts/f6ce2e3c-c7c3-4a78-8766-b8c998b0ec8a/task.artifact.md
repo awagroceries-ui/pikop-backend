@@ -1,9 +1,9 @@
-# Task List - Fix Onboarding Errors & KYC Sync
+# Task List - Fix Admin KYC Visibility & File Rendering
 
-- [ ] Backend: Add unique constraint on `fulfillers(user_id)` via migration
-- [ ] Backend: Update `updateFulfillerProfile` to clear orphan records before UPSERT
-- [ ] Backend: Update `handlePremblyWebhook` to move `kyc_status` forward
-- [ ] Android: Refactor Date Picker to be fully active/clickable
-- [ ] Android: Polish advancement logic and refresh handling
-- [ ] Verification: Build and verify the entire activation flow
+- [ ] Backend: Inject absolute `BASE_URL` into admin review views
+- [ ] Backend: Update `kyc_review.ejs` to use absolute image paths
+- [ ] Backend: Refactor `kyc_review.ejs` report rendering logic
+- [ ] Android: Force `DatePickerDialog` to be the only way to input DOB
+- [ ] Android: Improve auto-advancement after Prembly return
+- [ ] Verification: Build and verify both Admin and App fixes
 - [ ] Verification: Git automation (Commit and Push)
