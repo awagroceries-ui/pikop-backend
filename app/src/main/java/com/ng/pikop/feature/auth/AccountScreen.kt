@@ -242,13 +242,19 @@ fun AccountScreen(
                 AccountOption(
                     label = "Change Password",
                     icon = Icons.Default.Lock,
-                    onClick = { showChangePasswordDialog = true }
+                    onClick = { 
+                        android.util.Log.d("AccountScreen", "Change Password Clicked")
+                        showChangePasswordDialog = true 
+                    }
                 )
 
                 AccountOption(
                     label = "Delete Account",
                     icon = Icons.Default.DeleteForever,
-                    onClick = { showDeleteAccountDialog = true }
+                    onClick = { 
+                        android.util.Log.d("AccountScreen", "Delete Account Clicked")
+                        showDeleteAccountDialog = true 
+                    }
                 )
             }
 

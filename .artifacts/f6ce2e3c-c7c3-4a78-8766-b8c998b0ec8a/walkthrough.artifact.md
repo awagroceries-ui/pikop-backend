@@ -1,26 +1,27 @@
-# Walkthrough - Fulfiller Onboarding & KYC Loop Fixes
+# Walkthrough - Admin KYC Visibility & File Rendering Fixes
 
-I have implemented critical fixes to the fulfiller activation flow to resolve database errors and ensure that successful KYC verifications are properly synchronized with the Admin Dashboard.
+I have resolved the issues preventing KYC documents from rendering in the admin dashboard and fixed the visibility of Prembly verification reports. I also polished the Date of Birth picker in the mobile app.
 
 ## Changes Made
 
-### 1. Resolved Database "Constraint" and "Duplicate Key" Errors
-- **The Problem:** The "Update or Insert" (UPSERT) logic was failing because the `user_id` column lacked a unique constraint. Additionally, old orphaned records with conflicting emails were causing `fulfillers_email_key` violations.
+### 1. Fixed Admin Dashboard Image Rendering
+- **The Problem:** Profile photos and KYC documents were using relative paths (e.g., `/uploads/...`), which failed to load when viewed from the admin dashboard.
 - **The Fix:**
-    - **New Migration:** Created `1725591000000_add_unique_user_id_to_fulfillers.js` to add the missing unique constraint.
-    - **Auto-Cleanup:** Updated `fulfillerController.js` to automatically delete any existing fulfiller records that conflict with the current user's email or phone before saving their new profile.
-- **Result:** You can now save your activation details multiple times without any "Duplicate Key" or "Constraint" errors.
+    - Updated `adminController.js` to inject the `BASE_URL` into the admin views.
+    - Updated `kyc_review.ejs` to prefix all image and document links with the absolute API base URL.
+- **Result:** Photos and documents will now render correctly in the admin dashboard regardless of the server configuration.
 
-### 2. Fixed KYC Sync with Admin Dashboard
-- **The Problem:** Successful verifications from Prembly were updating a background field but weren't moving the primary `kyc_status` forward, leaving the agent "invisible" to admins.
+### 2. Surfaced Prembly Verification Reports
+- **The Problem:** Successful Prembly reports were stored in a raw JSON column that the admin dashboard wasn't correctly parsing or displaying.
 - **The Fix:**
-    - Updated the **Prembly Webhook** in `webhookController.js` to automatically move the fulfiller's main status to `PENDING_REVIEW` as soon as the identity scan is approved.
-    - Added an improved status mapping to ensure the record appears in the Fleet Authentication queue immediately after completion.
-- **Result:** Admins will now see the verified agents appear in the KYC queue automatically.
+    - Refactored the "Automated Verification Report" section in `kyc_review.ejs`.
+    - Added logic to safely parse stringified JSON reports and map Prembly-specific status fields to the UI.
+    - Included a collapsible "Raw JSON" section for technical audits.
+- **Result:** Admins can now clearly see the "APPROVED" status and identity data returned by Prembly.
 
-### 3. Native Date Picker Implementation
-- **The Fix:** Refactored the Date of Birth field in `KycUploadScreen.kt`. It is now a non-typeable field that launches a professional **Material 3 Calendar Dialog**.
-- **User Experience:** This eliminates manual formatting errors and makes the onboarding flow feel much more professional.
+### 3. Fully "Active" Date Picker in App
+- **The Fix:** Refactored the Date of Birth field in `KycUploadScreen.kt`.
+- **User Experience:** The field is now **completely tap-only**. I've added a transparent overlay that intercepts all clicks and triggers the calendar picker, ensuring the keyboard never appears and manual entry is impossible.
 
 ## Verification Results
 
@@ -29,15 +30,15 @@ I have implemented critical fixes to the fulfiller activation flow to resolve da
 - **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-Please apply these database and webhook updates to your **VPS**:
+Please apply these dashboard and image-link fixes to your **VPS**:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```
 
 ## 📋 Testing the Fix
-1. **Personal Details:** Enter your details and verify the **Date Picker** works correctly. Save and verify there are no "Duplicate Key" errors.
-2. **KYC Flow:** Complete a verification.
-3. **Dashboard Check:** Log in to the Admin Panel and check the **"Fleet Auth"** (KYC) section. You should see your account there marked as `PENDING_REVIEW` with the identity scan `APPROVED`.
+1. **Admin Review:** Open a fulfiller's application in the dashboard. Verify their photo and documents (like NIN or License) load instantly.
+2. **Prembly Report:** Verify the report details from Prembly are visible in the "Automated Verification" box.
+3. **App Date Picker:** Open the Fulfiller onboarding. Tap the Date of Birth field. The calendar should appear immediately with no option to type manually.
+4. **Auto-Advance:** After returning from a successful Prembly verification, the screen should now more reliably detect the `APPROVED` state.

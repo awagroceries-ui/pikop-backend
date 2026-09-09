@@ -127,10 +127,10 @@ const updateFulfillerProfile = async (req, res) => {
             );
         }
 
-        // 3. Cleanup: Remove any orphaned fulfiller records with same email/phone but different user_id
-        // This prevents the 'fulfillers_email_key' violation during UPSERT.
+        // 3. Cleanup: Remove any fulfiller records with same email/phone but different user_id
+        // Using IS DISTINCT FROM to handle NULL cases reliably in Postgres.
         await client.query(
-            "DELETE FROM fulfillers WHERE (email = $1 OR phone = $2) AND user_id != $3",
+            "DELETE FROM fulfillers WHERE (email = $1 OR phone = $2) AND (user_id IS DISTINCT FROM $3)",
             [u.email, phone || u.phone, userId]
         );
 

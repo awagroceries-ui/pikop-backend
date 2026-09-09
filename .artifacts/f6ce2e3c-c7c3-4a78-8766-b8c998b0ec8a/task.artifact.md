@@ -1,9 +1,8 @@
-# Task List - Fix Admin KYC Visibility & File Rendering
+# Task List - Fix Account, Banking & Activation
 
-- [ ] Backend: Inject absolute `BASE_URL` into admin review views
-- [ ] Backend: Update `kyc_review.ejs` to use absolute image paths
-- [ ] Backend: Refactor `kyc_review.ejs` report rendering logic
-- [ ] Android: Force `DatePickerDialog` to be the only way to input DOB
-- [ ] Android: Improve auto-advancement after Prembly return
-- [ ] Verification: Build and verify both Admin and App fixes
+- [ ] Backend: Refactor cleanup query in `fulfillerController.js` for robust orphan removal
+- [ ] Android: Add diagnostic logging to `AccountScreen.kt` button clicks
+- [ ] Android: Unlock banking fields and fix role check in `ProfileEditScreen.kt`
+- [ ] Android: Polish Date Picker trigger in `KycUploadScreen.kt`
+- [ ] Verification: Build Android app
 - [ ] Verification: Git automation (Commit and Push)

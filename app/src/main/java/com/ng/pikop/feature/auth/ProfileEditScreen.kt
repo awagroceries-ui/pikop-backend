@@ -89,10 +89,10 @@ fun ProfileEditScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (role == "FULFILLER") {
+            if (role.uppercase() == "FULFILLER") {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text("Payout Bank Account", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 if (isBankListLoading) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -107,7 +107,7 @@ fun ProfileEditScreen(onBack: () -> Unit) {
                             readOnly = true,
                             label = { Text("Bank Name") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = bankExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable, true),
+                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )
                         ExposedDropdownMenu(

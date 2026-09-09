@@ -383,7 +383,9 @@ fun PersonalDetailsStep(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                     focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline
                 ),
                 leadingIcon = { 
                     Icon(Icons.Default.Cake, null, tint = MaterialTheme.colorScheme.primary) 
@@ -395,6 +397,10 @@ fun PersonalDetailsStep(
                 modifier = Modifier
                     .matchParentSize()
                     .background(Color.Transparent)
+                    .clickable { 
+                        android.util.Log.d("KycOnboarding", "Date Picker Triggered")
+                        showDatePicker = true 
+                    }
             )
         }
 

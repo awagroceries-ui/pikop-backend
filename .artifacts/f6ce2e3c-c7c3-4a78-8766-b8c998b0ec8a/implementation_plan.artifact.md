@@ -1,42 +1,50 @@
-# Implementation Plan - Fix Admin KYC Visibility & File Rendering
+# Implementation Plan - Fix Account Buttons, Banking Fields & Activation Errors
 
-This plan fixes the missing Prembly reports on the admin dashboard, resolves the image rendering issues, and polishes the fulfiller onboarding date picker.
+This plan addresses non-functional buttons in the Account screen, unlocks banking details for editing, and fixes the "Duplicate Key" error in fulfiller activation.
 
 ## Problem Description
-1.  **Admin Visibility:** Successful Prembly verifications are not clearly surfaced on the admin review screen, even though they exist in the database.
-2.  **Image Rendering:** KYC documents and profile photos appear as broken links in the admin dashboard because they use relative paths (e.g., `/uploads/...`) which don't resolve correctly from the admin's context.
-3.  **Date Picker:** The fulfiller activation screen still allows/requires manual date entry instead of forcing the calendar picker.
+1.  **Duplicate Key Error:** Fulfiller activation fails because the cleanup query doesn't handle NULL `user_id` values, leaving conflicting email/phone records in the database.
+2.  **Locked Banking Fields:** Banking details in `ProfileEditScreen.kt` feel "locked" or non-editable, possibly due to role mismatch or UI interaction issues.
+3.  **Non-functional Buttons:** "Change Password" and "Delete Account" buttons in `AccountScreen.kt` are not responding or showing their respective dialogs.
+4.  **Manual Date Entry:** The Date of Birth field still allows manual typing instead of forcing the calendar picker.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- **`getKYCReview`**:
-    - Ensure `kyc_details` is always parsed as an object if it arrives as a string.
-    - Inject the `BASE_URL` (from `.env` or config) into the view so that image links can be made absolute.
-
-#### [MODIFY] [kyc_review.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/kyc_review.ejs)
-- **Absolute URLs:** Prefix all `<img>` src and `<a>` href attributes for documents with the `BASE_URL`.
-- **Report Rendering:** Refactor the "Automated Verification Report" section to handle both raw JSON and formatted display more robustly.
+#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
+- **Robust Cleanup:** Update the deletion query to handle `NULL` `user_id` values when clearing conflicting email/phone records:
+    ```sql
+    DELETE FROM fulfillers WHERE (email = $1 OR phone = $2) AND (user_id IS DISTINCT FROM $3)
+    ```
 
 ---
 
 ### Android App
 
+#### [MODIFY] [AccountScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/AccountScreen.kt)
+- **Log Clicks:** Add `android.util.Log` and `Toast` messages to the `AccountOption` clicks to verify they are being triggered.
+- **Surface Elevation:** Ensure `OutlinedCard` is properly interactive and not being "eaten" by the scrollable container.
+
+#### [MODIFY] [ProfileEditScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/ProfileEditScreen.kt)
+- **Case-Insensitive Role:** Update the role check to `role.uppercase() == "FULFILLER"`.
+- **Unlock Fields:** Ensure `readOnly = false` for the account number and properly wire the bank dropdown.
+- **Interaction Fix:** Wrap the bank fields in a way that works reliably within the scrollable column.
+
 #### [MODIFY] [KycUploadScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/KycUploadScreen.kt)
-- **Force Picker:** Set `readOnly = true` and `enabled = true` on the `OutlinedTextField` but use a `Box` wrapper with a `pointerInput` or a dedicated `IconButton` to strictly trigger the `DatePickerDialog`.
-- **Status Advancement:** Ensure the `LaunchedEffect` that observes the profile refreshes more aggressively after returning from the Prembly widget.
+- **Date Picker Polish:**
+    - Fully disable the text field (`enabled = false`) and use a `Box` with `clickable` and `pointerInput` to ensure the calendar opens every time and the keyboard never appears.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
+- Syntax check backend: `node -c ...`.
 - Build Android app: `./gradlew assembleDebug`.
-- Syntax check backend views: `node -e "require('ejs').compile(...)"`.
 
 ### Manual Verification
-1.  **Date Picker:** Open the Fulfiller "Personal Details" step. Tapping anywhere on the Date of Birth field must open the calendar. Keyboard must not appear.
-2.  **Admin Image Check:** Open an agent's KYC review page in the Admin Dashboard. All photos and document links must render correctly.
-3.  **Admin Report Check:** Complete a test Prembly verification. Verify the "Automated Verification Report" appears in the agent's review page with the full JSON payload visible in the collapsible section.
+1.  **Change Password / Delete:** Click these buttons in the Account screen. Verify that a dialog appears immediately.
+2.  **Activation Fix:** Save fulfiller profile details. Verify no "Duplicate Key" or "Constraint" error occurs even if the email exists from an old session.
+3.  **Bank Update:** As a fulfiller, successfully update the bank details in the profile.
+4.  **Date Picker:** Tap the DOB field and verify the calendar appears instantly without the keyboard.
