@@ -1,21 +1,22 @@
-# Walkthrough - Payout & SQL Alignment Fix
+# Walkthrough - Pickup & Delivery Code Generation
 
-I have resolved the "could not determine data type of parameter $20" error and finalized the data flow for fulfiller earnings.
+I have fixed the issue where pickup and delivery confirmation codes were not being generated or displayed to the customer. These codes are now reliably generated, securely hashed, and surfaced on the customer's tracking screen.
 
 ## Changes Made
 
-### 1. Fixed SQL Alignment Bug
-- **Problem:** A mismatch in the number of parameters and their indices in the `INSERT INTO orders` query caused a PostgreSQL error during free mission activation.
-- **Fix:**
-    - Re-aligned all 30 parameters in `orderController.js` and `paymentController.js`.
-    - Added explicit UUID casting (`$21::uuid`) for the `coupon_id` field to prevent ambiguous type errors when a promo code is missing.
-    - Added null-safety for `notes` and `item_photo_url`.
-- **Result:** Missions (including free ones) now activate correctly without database driver errors.
+### 1. Backend: Robust Code Generation & Hashing
+- **Migration:** Created a new migration to add `pickup_code` and `delivery_code` columns to the `orders` table.
+- **Generation:** Updated `orderController.js` and `paymentController.js` to generate unique 4-digit numeric codes at order creation.
+- **Security:** The plain codes are stored for the customer's view, while secure hashes (`bcrypt`) are stored for fulfiller-side verification.
+- **Access Control:** Updated `getOrderDetails` to ensure that plain confirmation codes are **only** returned to the customer who created the mission (or an admin). Fulfillers only see the hashes, preventing unauthorized bypass.
 
-### 2. Completed Earnings Data Flow
-- **Android:** Updated `PaymentInitializationRequest` and the main checkout flow to send the `promo_id`.
-- **Backend:** Updated the Paystack metadata to capture the `promo_id`. This ensures that even if a mission is paid, the system knows which coupon was used and can calculate fulfiller payouts correctly.
-- **Result:** Fulfillers are now guaranteed their 75% share based on pre-discount prices for both paid and free missions.
+### 2. Android App: Surfacing Codes to Customers
+- **Model Update:** Added `pickup_code` and `delivery_code` fields to the `OrderDetailsResponse` in `ApiService.kt`.
+- **UI Enhancement:** Updated `TrackOrderScreen.kt` to include a **"Confirmation Codes"** section in the tracking sheet.
+- **Copy Affordance:** Added a `CodeBox` component that allows customers to tap and copy the codes to their clipboard for easy sharing with agents/recipients.
+
+### 3. Fulfiller Verification Stability
+- **Verification Logic:** Refined the fulfiller-side verification to use the top-level `bcrypt` instance and improved SQL parameter alignment, ensuring "Verify Pickup" and "Verify Delivery" are rock-solid.
 
 ## Verification Results
 
@@ -24,13 +25,16 @@ I have resolved the "could not determine data type of parameter $20" error and f
 - **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-Please run these on your **VPS** to apply the SQL and metadata fixes:
+Please run these on your **VPS** to apply the database schema changes and generation logic:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```
 
 ### Manual Verification Steps
-1. **Free Mission:** Request a delivery with a 100% discount code. It should now activate successfully and show "Mission Activated!".
-2. **Fulfiller Earnings:** Complete the mission. Check the fulfiller's history and wallet; the earnings should be calculated from the original price, not the ₦0 paid by the customer.
+1. **Request Mission:** Create a new delivery mission.
+2. **View Tracking:** Once activated, go to the "Tracking" screen. You should see a new card with two 4-digit codes: one for Pickup and one for Delivery.
+3. **Copy Code:** Tap a code to copy it.
+4. **Fulfiller Check:** As a fulfiller, try to verify pickup/delivery with an incorrect code. It should be rejected. Verify with the correct code to proceed.

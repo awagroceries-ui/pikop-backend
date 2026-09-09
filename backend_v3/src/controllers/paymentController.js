@@ -129,53 +129,58 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
         `INSERT INTO orders (
             order_type, user_id, quote_id, status, item_description, size_tier,
             pickup_address, delivery_address, pickup_location, delivery_location,
-            total_fare, payment_reference, payment_status, payment_channel, payment_method,
+            total_fare, payment_status, payment_method, payment_reference, payment_channel,
             recipient_name, recipient_phone,
             pickup_display_summary, delivery_display_summary, item_price, delivery_fee,
             platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id,
             original_delivery_fee, original_total_fare, pickup_code_hash, delivery_code_hash,
             pickup_code, delivery_code, coupon_id
         ) VALUES (
-            'pickup_delivery', $1, $2, 'PAYMENT_CAPTURED', $3, $4, $5, $6,
-            ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
-            ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography,
-            $11, $12, 'PAID', $13, $14,
-            $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::uuid
+            'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
+            ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
+            ST_SetSRID(ST_MakePoint($10, $11), 4326)::geography,
+            $12, $13, $14, $15, $16,
+            $17, $18, $19, $20, $21, $22,
+            $23, $24, $25, $26, $27, $28,
+            $29, $30, $31, $32,
+            $33, $34, $35::uuid
         ) RETURNING id`,
         [
             m.user_id, // $1
             q.id,      // $2
-            q.item_description, // $3
-            q.size_tier, // $4
-            q.pickup_address, // $5
-            q.delivery_address, // $6
-            q.p_lng, // $7
-            q.p_lat, // $8
-            q.d_lng, // $9
-            q.d_lat, // $10
-            q.total_fare, // $11
-            reference, // $12
-            channel, // $13 (payment_channel)
+            'PAYMENT_CAPTURED', // $3
+            q.item_description, // $4
+            q.size_tier, // $5
+            q.pickup_address, // $6
+            q.delivery_address, // $7
+            q.p_lng, // $8
+            q.p_lat, // $9
+            q.d_lng, // $10
+            q.d_lat, // $11
+            q.total_fare, // $12
+            'PAID', // $13
             channel, // $14 (payment_method)
-            m.recipient_name || 'Recipient', // $15
-            m.recipient_phone || '000', // $16
-            q.pickup_address.substring(0, 50), // $17
-            q.delivery_address.substring(0, 50), // $18
-            parseFloat(m.item_price || 0), // $19
-            parseFloat(m.delivery_fee || 0), // $20
-            parseFloat(m.platform_fee_amount || 0), // $21
-            m.fee_payer || 'PAYER', // $22
-            m.initiator_role || 'PAYER', // $23
-            (parseFloat(m.item_price || 0) > 0) ? 'held' : 'not_applicable', // $24
-            m.seller_phone || null, // $25
-            m.payer_id || null, // $26
-            parseFloat(q.delivery_fee), // $27
-            parseFloat(q.total_fare), // $28
-            pHash, // $29
-            dHash, // $30
-            pCode, // $31
-            dCode, // $32
-            m.promo_id || null // $33
+            reference, // $15
+            channel, // $16 (payment_channel)
+            m.recipient_name || 'Recipient', // $17
+            m.recipient_phone || '000', // $18
+            q.pickup_address.substring(0, 50), // $19
+            q.delivery_address.substring(0, 50), // $20
+            parseFloat(m.item_price || 0), // $21
+            parseFloat(m.delivery_fee || 0), // $22
+            parseFloat(m.platform_fee_amount || 0), // $23
+            m.fee_payer || 'PAYER', // $24
+            m.initiator_role || 'PAYER', // $25
+            (parseFloat(m.item_price || 0) > 0) ? 'held' : 'not_applicable', // $26
+            m.seller_phone || null, // $27
+            m.payer_id || null, // $28
+            parseFloat(q.delivery_fee), // $29
+            parseFloat(q.total_fare), // $30
+            pHash, // $31
+            dHash, // $32
+            pCode, // $33
+            dCode, // $34
+            m.promo_id || null // $35
         ]
     );
 

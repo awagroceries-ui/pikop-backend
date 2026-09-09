@@ -465,11 +465,11 @@ const createOrder = async (req, res) => {
                 'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
                 ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
                 ST_SetSRID(ST_MakePoint($10, $11), 4326)::geography,
-                $12, 'PAID', $13, $14, $13,
-                $15, $16, $17, $18, $19, $20,
-                $21, $22, $23, $24, $25::uuid,
-                $26, $27, $28, $29, $30,
-                $31, $32, $33, $34
+                $12, $13, $14, $15, $16,
+                $17, $18, $19, $20, $21, $22,
+                $23, $24, $25, $26, $27::uuid,
+                $28, $29, $30, $31, $32,
+                $33, $34, $35, $36
             ) RETURNING id`,
             [
                 userId, // $1
@@ -484,28 +484,30 @@ const createOrder = async (req, res) => {
                 dLng, // $10
                 dLat, // $11
                 finalFare, // $12
-                payment_method || 'card', // $13
-                refToSave, // $14
-                recipient_name || 'Recipient', // $15
-                recipient_phone || '000', // $16
-                notes || null, // $17
-                pickup_display_summary || q.pickup_address.substring(0, 50), // $18
-                delivery_display_summary || q.delivery_address.substring(0, 50), // $19
-                item_photo_url || null, // $20
-                pHash, // $21
-                dHash, // $22
-                pCode, // $23
-                dCode, // $24
-                couponId || null, // $25
-                parseFloat(item_price || 0), // $26
-                parseFloat(delivery_fee || q.delivery_fee || 0), // $27
-                parseFloat(platform_fee_amount || 0), // $28
-                fee_payer || 'PAYER', // $29
-                initiator_role || 'PAYER', // $30
-                (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable', // $31
-                payer_id || null, // $32
-                parseFloat(q.delivery_fee), // $33
-                parseFloat(q.total_fare) // $34
+                'PAID', // $13
+                payment_method || 'card', // $14
+                refToSave, // $15
+                payment_method || 'card', // $16 (payment_channel)
+                recipient_name || 'Recipient', // $17
+                recipient_phone || '000', // $18
+                notes || null, // $19
+                pickup_display_summary || q.pickup_address.substring(0, 50), // $20
+                delivery_display_summary || q.delivery_address.substring(0, 50), // $21
+                item_photo_url || null, // $22
+                pHash, // $23
+                dHash, // $24
+                pCode, // $25
+                dCode, // $26
+                couponId || null, // $27
+                parseFloat(item_price || 0), // $28
+                parseFloat(delivery_fee || q.delivery_fee || 0), // $29
+                parseFloat(platform_fee_amount || 0), // $30
+                fee_payer || 'PAYER', // $31
+                initiator_role || 'PAYER', // $32
+                (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable', // $33
+                payer_id || null, // $34
+                parseFloat(q.delivery_fee), // $35
+                parseFloat(q.total_fare) // $36
             ]
         );
 

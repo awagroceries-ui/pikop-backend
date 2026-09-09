@@ -26,6 +26,9 @@ import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.WalletTransaction
 import com.ng.pikop.core.network.WithdrawalRequest
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -44,15 +47,28 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
     val scope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
 
-    val fetchWallet = suspend {
-        isLoading = true
-        try {
-            val response = apiService.getWalletInfo()
-            balance = response.balance ?: 0.0
-            pendingBalance = response.pending_balance ?: 0.0
-            transactions = response.transactions ?: emptyList()
-        } catch (e: Exception) {}
-        isLoading = false
+    val fetchWallet = {
+        scope.launch {
+            isLoading = true
+            try {
+                val response = apiService.getWalletInfo()
+                balance = response.balance ?: 0.0
+                pendingBalance = response.pending_balance ?: 0.0
+                transactions = response.transactions ?: emptyList()
+            } catch (e: Exception) {}
+            isLoading = false
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                fetchWallet()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(Unit) {
