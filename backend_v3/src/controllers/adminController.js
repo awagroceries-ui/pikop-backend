@@ -76,35 +76,43 @@ const postSignup = async (req, res) => {
  */
 const getDashboard = async (req, res) => {
   try {
-    const activeOrdersRes = await db.query("SELECT COUNT(*) FROM orders WHERE status NOT IN ('DELIVERED', 'CANCELLED')");
-    const onlineFulfillersRes = await db.query("SELECT COUNT(*) FROM fulfillers WHERE online_status = 'ONLINE'");
-    const revenueRes = await db.query("SELECT SUM(total_fare) FROM orders WHERE payment_status = 'PAID'");
-
-    // Total Users Breakdown
-    const totalUsersRes = await db.query("SELECT COUNT(*) FROM users");
-    const customerUsersRes = await db.query("SELECT COUNT(*) FROM users WHERE role = 'CUSTOMER'");
-    const fulfillerUsersRes = await db.query("SELECT COUNT(*) FROM users WHERE role = 'FULFILLER'");
-
-    // Alert counts
-    const pendingKYC = await db.query("SELECT COUNT(*) FROM fulfillers WHERE kyc_status = 'PENDING_REVIEW'");
-    const supportConv = await db.query("SELECT COUNT(*) FROM conversations WHERE status = 'OPEN'");
+    const [
+      activeOrdersRes,
+      onlineFulfillersRes,
+      revenueRes,
+      totalUsersRes,
+      customerUsersRes,
+      fulfillerUsersRes,
+      pendingKYC,
+      supportConv
+    ] = await Promise.all([
+      db.query("SELECT COUNT(*) FROM orders WHERE status NOT IN ('DELIVERED', 'CANCELLED')"),
+      db.query("SELECT COUNT(*) FROM fulfillers WHERE online_status = 'ONLINE'"),
+      db.query("SELECT SUM(total_fare) FROM orders WHERE payment_status = 'PAID'"),
+      db.query("SELECT COUNT(*) FROM users"),
+      db.query("SELECT COUNT(*) FROM users WHERE role = 'CUSTOMER'"),
+      db.query("SELECT COUNT(*) FROM users WHERE role = 'FULFILLER'"),
+      db.query("SELECT COUNT(*) FROM fulfillers WHERE kyc_status = 'PENDING_REVIEW'"),
+      db.query("SELECT COUNT(*) FROM conversations WHERE status = 'OPEN'")
+    ]);
 
     res.render('dashboard', {
       stats: {
-        activeOrders: activeOrdersRes.rows[0].count || 0,
-        onlineFulfillers: onlineFulfillersRes.rows[0].count || 0,
+        activeOrders: parseInt(activeOrdersRes.rows[0].count || 0),
+        onlineFulfillers: parseInt(onlineFulfillersRes.rows[0].count || 0),
         totalRevenue: parseFloat(revenueRes.rows[0].sum || 0),
         totalUsers: parseInt(totalUsersRes.rows[0].count || 0),
         customerUsers: parseInt(customerUsersRes.rows[0].count || 0),
         fulfillerUsers: parseInt(fulfillerUsersRes.rows[0].count || 0),
         notifications: {
-          kyc: pendingKYC.rows[0].count || 0,
-          support: supportConv.rows[0].count || 0,
+          kyc: parseInt(pendingKYC.rows[0].count || 0),
+          support: parseInt(supportConv.rows[0].count || 0),
           disputes: 0
         }
       }
     });
   } catch (error) {
+    console.error('[Admin] Dashboard Error:', error.message);
     res.status(500).render('error', { message: error.message });
   }
 };

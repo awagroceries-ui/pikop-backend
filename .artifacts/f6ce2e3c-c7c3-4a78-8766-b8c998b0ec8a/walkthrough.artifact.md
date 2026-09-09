@@ -1,24 +1,30 @@
-# Walkthrough - Decoupled Fulfiller Earnings
+# Walkthrough - Critical Dispatch Fix (20km State Lock)
 
-I have updated the system to ensure that fulfiller earnings (75% of the delivery fee) are credited immediately upon delivery, regardless of the escrow status of the COD item price.
+I have implemented the critical dispatch fixes to ensure missions are only matched to fulfillers within the same state and within a strictly enforced 20km radius.
 
 ## Changes Made
 
-### 1. Immediate Payout for Delivery
-- **Logic:** Updated `walletService.js` to ensure the fulfiller's share of the delivery fee is always credited to their **Available Balance** as soon as the delivery code is verified.
-- **Independence:** This credit is now fully decoupled from the `item_price`, which remains in escrow. Fulfillers no longer have to wait for customer confirmation to receive their delivery pay.
+### 1. Hard State-Level Filtering
+- **The Problem:** Mission requests were "leaking" across states (e.g., Port Harcourt orders appearing to agents in Lagos).
+- **The Fix:**
+    - Added `pickup_state` to all orders/quotes and `current_state` to all fulfiller profiles.
+    - Updated the dispatch engine and the `getAvailableOffers` API to enforce a **hard equality match** between the order's pickup state and the fulfiller's current state.
+    - **Outcome:** An agent in Lagos will never see an order from Port Harcourt, even if their distance filter is set wide.
 
-### 2. Refactored "Mission Completed" UI
-- **The Problem:** The previous UI showed a "Waiting for customer" screen that made agents feel like they hadn't been paid for their work.
-- **The Fix:** Redesigned the screen in `ActiveOrderScreen.kt` to:
-    - **Highlight Success:** Show a prominent "Mission Successfully Completed!" header with a green checkmark.
-    - **Earnings Confirmation:** Explicitly state the amount (₦X) that has been added to their available balance.
-    - **Contextual Info:**
-        - If the agent is the seller: Inform them that the *item payment* is pending release.
-        - If the agent is NOT the seller: Inform them that the item payment will be released to the seller separately.
+### 2. Strict 20km Radius Lock
+- **Requirement:** Limit the visibility of orders to agents within a reasonable proximity.
+- **Implementation:** Added a PostGIS-powered geographic check (`ST_DWithin`) to only return orders within **20,000 meters** (20km) of the fulfiller's current location.
+- **Outcome:** Fulfillers now only see nearby, profitable missions.
 
-### 3. Corrected Escrow Target Mapping
-- **The Fix:** Fixed a bug in `releaseEscrow` and `refundEscrow` that defaulted to the Fulfiller's wallet. The system now correctly identifies the **Seller's wallet** (User ID) for item price movements, ensuring vendors and customers receive their escrowed funds correctly.
+### 3. Background Fleet Pings (Staleness Guard)
+- **The Problem:** Fulfillers who were "Online" but idle were not updating their location, leading to matching against stale data.
+- **The Fix:**
+    - Updated the fulfiller app (`FulfillerDashboardScreen.kt`) to send a background GPS and State ping **every 60 seconds** while marked "Online."
+    - Added a **Staleness Guard** on the server: Fulfillers who haven't pinged in the last 30 minutes are automatically excluded from new order broadcasts.
+    - **Outcome:** Higher dispatch precision and reduced "ghost agent" matching.
+
+### 4. Enriched Mission Preview
+- Fulfillers can now see the **exact distance (KM)** to the pickup point and the **Mission Type** (Delivery Only vs. Delivery + COD) in their list of offers before accepting.
 
 ## Verification Results
 
@@ -27,14 +33,15 @@ I have updated the system to ensure that fulfiller earnings (75% of the delivery
 - **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-Please apply these logic updates to your **VPS**:
+Please apply these critical schema and dispatch logic updates to your **VPS**:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```
 
 ### Manual Verification Steps
-1. **Agent Earning Check:** Complete a COD delivery. Immediately check the Agent's wallet; the 75% delivery fee share should be visible in "Available Balance."
-2. **UI Verification:** Confirm the new success screen shows the correct earning amount.
-3. **Escrow Release:** As the customer, release the funds. Verify the `item_price` is credited to the **Seller's** wallet (not the Agent's, unless they are the same).
+1. **State Isolation:** Create an order in Port Harcourt. Verify a Lagos fulfiller (after background ping) does not see it.
+2. **Radius Boundary:** Move a fulfiller to 21km away from a test pickup. Verify the offer disappears from their screen.
+3. **Background Ping:** Open the Fulfiller Dashboard and wait 60 seconds. Check Logcat for `[FleetPing] Background PING sent`.
