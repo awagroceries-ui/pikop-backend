@@ -264,7 +264,21 @@ fun TrackOrderScreen(
                     ) {
                         pickupLoc?.let { Marker(state = MarkerState(position = it), title = "Pickup", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)) }
                         deliveryLoc?.let { Marker(state = MarkerState(position = it), title = "Delivery", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)) }
-                        animatedFulfillerLoc?.let { Marker(state = MarkerState(position = it), title = "Agent", icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)) }
+                        animatedFulfillerLoc?.let { 
+                            val iconRes = when(fulfillerProfile?.mobility_type?.lowercase()) {
+                                "agent", "walking" -> com.ng.pikop.R.drawable.marker_walking
+                                "bicycle" -> com.ng.pikop.R.drawable.marker_bicycle
+                                "bike", "motorcycle" -> com.ng.pikop.R.drawable.marker_bike
+                                "car", "van", "truck" -> com.ng.pikop.R.drawable.marker_car
+                                else -> com.ng.pikop.R.drawable.marker_bike // Default
+                            }
+                            
+                            Marker(
+                                state = MarkerState(position = it), 
+                                title = "Agent", 
+                                icon = BitmapDescriptorFactory.fromResource(iconRes)
+                            ) 
+                        }
                         
                         if (pickupLoc != null && deliveryLoc != null) {
                             Polyline(points = listOf(pickupLoc!!, deliveryLoc!!), color = Color.Gray, width = 5f, pattern = listOf(Dash(20f), Gap(10f)))

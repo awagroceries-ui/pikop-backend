@@ -1,45 +1,43 @@
-# Walkthrough - Termii SMS Integration & Guest Tracking
+# Walkthrough - Termii SMS & Guest Tracking Integration
 
-I have integrated **Termii** as the official SMS provider for Pikop, enabling secure onboarding, guest payments, and a new real-time guest tracking experience.
+I have successfully integrated **Termii** as the primary SMS provider for Pikop and implemented real-time live tracking for guest users.
 
 ## Changes Made
 
-### 1. Unified Termii SMS Service
-- **OTP via SMS:** Implemented `sendOtp` and `verifyOtpToken` using Termii's high-reliability OTP product. Fulfillers and Customers now receive a 6-digit verification code via SMS during signup and resend requests.
-- **Guest Links:** Wired Secure Pay payment links and tracking links to send automatically via Termii SMS to recipients who don't have the app.
-- **Auditing:** Created a new `sms_logs` table. Every message sent is recorded with its recipient, content, purpose, and provider reference for operational cost tracking.
+### 1. Termii SMS Integration
+- **OTP Delivery:** Both customers and fulfillers now receive their signup/login 6-digit codes via high-reliability SMS.
+- **Guest Links:** Secure Pay links and Live Tracking links are now automatically dispatched to non-app users via Termii.
+- **Cost Tracking:** Implemented an automated **₦50 charge per order** whenever guest-bound SMS messages (Payment or Tracking links) are required.
 
-### 2. Public Guest Tracking Page
-- **The Feature:** Built a lightweight, browser-based tracking page (`guest_tracking.ejs`). Guest receivers can now track their delivery live without downloading the app.
-- **Real-time Movement:** The web page reuses the same Socket.io data stream as the mobile app. The agent icon moves smoothly on the map as their GPS coordinates update.
-- **Visual Consistency:** Exported and integrated the custom marker icons (Walking, Rider, Bike, Car) so the guest web experience matches the professional look of the Pikop app.
+### 2. Live Guest Tracking Web Page
+- **The Feature:** Built a public, mobile-friendly web tracking portal (`/guest/:orderId`). Guest recipients can now track their agent live in their phone's browser without downloading the app.
+- **Real-Time Data:** Reused the existing Socket.io stream to ensure marker movement is smooth and the ETA is accurate.
+- **Professional Mapping:** Integrated the custom Pikop marker set (`Walking`, `Bicycle`, `Bike`, `Car`) so the guest experience matches the professional look of the mobile app.
 
-### 3. Automated ₦50 Guest SMS Charge
-- **Charging Policy:** Every order involving a guest recipient now automatically incurs a **one-time ₦50 fee**.
-- **Billing:** This fee is added to the `total_payable` and billed to the order's payer (the party responsible for the platform fee).
-- **Transparency:** Added a "Guest SMS Charge: ₦50" line item to the Order Summary UI in the Android app, ensuring the payer sees exactly what they are being charged for.
+### 3. Transparent Checkout
+- **The Fix:** Updated the Order Summary UI in the Android app to clearly show the **"Guest delivery SMS: ₦50"** line item when a guest recipient is involved.
+- **Centralized Charging:** The fee is automatically calculated and added to the total payable, billed to the party responsible for the mission.
 
-### 4. Termii Webhook & Sync
-- **Webhook Endpoint:** Implemented `POST /api/v1/webhooks/termii`. This endpoint is ready for configuration on the Termii dashboard to receive real-time delivery reports.
-- **Reliability:** The system now automatically updates the `sms_logs` when Termii confirms a message has been successfully delivered to the carrier.
+### 4. Reliability & Security
+- **SMS Webhook:** Created an endpoint for Termii to send real-time delivery reports. Failed deliveries will now be logged in the database for support investigation.
+- **Webhook Security:** Added a secret token check to ensure only verified messages from Termii are accepted by the server.
 
 ## Verification Results
 
-### Automated Build
-- Ran `./gradlew assembleDebug`.
-- **Result:** `BUILD SUCCESSFUL`.
+### Automated Check
+- Backend syntax check: `PASS`.
+- Android app build: `PASS`.
 
 ### Deployment Instructions (For User)
-Please apply these critical schema and SMS updates to your **VPS**:
+Please run these on your **VPS** to apply the new SMS logic and guest tracking features:
+
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```
 
 > [!IMPORTANT]
-> **Termii Configuration:**
-> 1. Set `TERMII_API_KEY` in your VPS `.env` file.
-> 2. Set your registered `TERMII_SENDER_ID` (default is `Pikop`).
-> 3. Configure your Termii Webhook URL to: `https://api.pikop.com.ng/api/v1/webhooks/termii`
+> **Termii Setup:**
+> 1. Set `TERMII_API_KEY` and `TERMII_SENDER_ID` in your `.env` file.
+> 2. Set your Termii Webhook URL to: `https://api.pikop.com.ng/api/v1/webhooks/termii?token=termii_stable_v3`

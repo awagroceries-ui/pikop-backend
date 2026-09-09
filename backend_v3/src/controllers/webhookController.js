@@ -84,6 +84,15 @@ const handlePremblyRedirect = (req, res) => {
  * Webhook for Termii SMS Delivery Reports.
  */
 const handleTermiiWebhook = async (req, res) => {
+    // Basic Security: Check for a secret token in query or headers
+    const secretToken = process.env.TERMII_WEBHOOK_TOKEN || 'termii_stable_v3';
+    const inboundToken = req.query.token || req.headers['x-termii-token'];
+
+    if (inboundToken !== secretToken) {
+        console.warn('[Webhook] Termii: Unauthorized attempt with token:', inboundToken);
+        return res.status(401).send('Unauthorized');
+    }
+
     const payload = req.body;
     // Termii typically sends: { message_id: "...", status: "Delivered", recipient: "...", ... }
 
@@ -93,7 +102,7 @@ const handleTermiiWebhook = async (req, res) => {
     try {
         await db.query(
             "UPDATE sms_logs SET status = $1 WHERE provider_ref = $2",
-            [status.toLowerCase(), message_id]
+            [status ? status.toLowerCase() : 'unknown', message_id]
         );
         res.status(200).send('OK');
     } catch (error) {

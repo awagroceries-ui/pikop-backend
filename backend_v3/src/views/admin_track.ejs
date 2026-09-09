@@ -118,7 +118,20 @@
     // Custom Icons
     const pickIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
     const dropIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
-    const agentIcon = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [30, 48], iconAnchor: [15, 48] });
+
+    // Map mobility type to specific marker asset
+    const mobility = "<%= order.mobility_type || 'bike' %>";
+    const markerMap = {
+        'agent': 'marker_agent.png',
+        'walking': 'marker_agent.png',
+        'bicycle': 'marker_rider.png',
+        'bike': 'marker_bike.png',
+        'motorcycle': 'marker_bike.png',
+        'driver': 'marker_driver.png',
+        'car': 'marker_driver.png'
+    };
+    const iconFile = markerMap[mobility.toLowerCase()] || 'marker_bike.png';
+    const agentIcon = L.icon({ iconUrl: `/public/assets/${iconFile}`, iconSize: [36, 36], iconAnchor: [18, 18] });
 
     // Add Static Markers
     L.marker(pickup, { icon: pickIcon }).addTo(map).bindPopup("<b>Pickup Point</b>");

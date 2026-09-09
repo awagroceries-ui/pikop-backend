@@ -58,15 +58,15 @@ const getQuote = async (req, res) => {
   const effectiveDistance = distanceKm * roadWindingFactor;
   const delivery_fee = Math.ceil(base_fare + (effectiveDistance * perKmRate));
 
-  // 4. Reliable Account Lookup (In-App vs Guest) - DETERMINES PAYER TYPE
-  let payer_type = 'GUEST';
-  let payer_id = null;
+  // 4. Reliable Account Lookup (In-App vs Guest) - DETERMINES RECIPIENT TYPE
+  let recipient_type = 'GUEST';
+  let recipient_user_id = null;
   if (recipient_phone) {
       const normalized = normalizePhone(recipient_phone);
       const userMatch = await db.query("SELECT id FROM users WHERE phone = $1", [normalized]);
       if (userMatch.rows.length > 0) {
-          payer_type = 'APP_USER';
-          payer_id = userMatch.rows[0].id;
+          recipient_type = 'APP_USER';
+          recipient_user_id = userMatch.rows[0].id;
       }
   }
 
@@ -75,13 +75,15 @@ const getQuote = async (req, res) => {
   const fee_payer = initiator_role; // Rule: initiator bears the fee
 
   // 5.1 Guest SMS Charge (₦50)
-  // Rule: If payer is GUEST (receives payment link via SMS), charge ₦50 once.
-  const sms_charge_amount = (payer_type === 'GUEST') ? 50 : 0;
+  // Rule: If recipient is GUEST (requires tracking link SMS)
+  // OR if payer is GUEST (requires payment link SMS), charge ₦50 once.
+  // Note: For now, if recipient is GUEST, they are always treated as Guest Payer if Secure Pay is used.
+  const sms_charge_amount = (recipient_type === 'GUEST') ? 50 : 0;
 
   // total_payable for checkout: item + delivery + fee + sms_charge
   const total_payable = parseFloat(item_price) + delivery_fee + (fee_payer === 'PAYER' ? platform_fee_amount : 0) + sms_charge_amount;
 
-  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Total: ${total_payable} | Payer: ${payer_type} | Fee Rate: ${codFeeRate}`);
+  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Total: ${total_payable} | Recipient: ${recipient_type} | Fee Rate: ${codFeeRate}`);
 
   // 6. Save Quote
     const quoteRes = await db.query(
@@ -103,8 +105,8 @@ const getQuote = async (req, res) => {
     fee_payer,
     total_fare: total_payable,
     payer_info: {
-        type: payer_type,
-        user_id: payer_id
+        type: recipient_type, // Map back to UI expectations
+        user_id: recipient_user_id
     },
     expires_at: quoteRes.rows[0].expires_at
   });
@@ -668,11 +670,18 @@ const verifyPickup = async (req, res) => {
         // 3. Trigger Guest Tracking SMS (Termii)
         try {
             const { rows } = await db.query(
-                "SELECT recipient_phone, payer_id FROM orders WHERE id = $1",
+                "SELECT recipient_phone FROM orders WHERE id = $1",
                 [id]
             );
-            if (rows.length > 0 && !rows[0].payer_id && rows[0].recipient_phone) {
-                await smsService.sendTrackingLinkSms(rows[0].recipient_phone, id);
+            if (rows.length > 0 && rows[0].recipient_phone) {
+                const phone = rows[0].recipient_phone;
+                const normalized = normalizePhone(phone);
+                const userCheck = await db.query("SELECT id FROM users WHERE phone = $1", [normalized]);
+
+                // If recipient is NOT an app user, send tracking SMS
+                if (userCheck.rows.length === 0) {
+                    await smsService.sendTrackingLinkSms(phone, id);
+                }
             }
         } catch (e) {
             console.error('[VerifyPickup] Guest SMS fail:', e.message);

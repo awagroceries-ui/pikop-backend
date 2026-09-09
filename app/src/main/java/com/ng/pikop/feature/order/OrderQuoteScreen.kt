@@ -423,12 +423,13 @@ fun OrderQuoteScreen(
                             SummaryLine("Promo discount", "-₦$discount", color = MaterialTheme.colorScheme.primary)
                         }
                         
-                        // SMS Charge for Guest
-                        if (result.sms_charge_amount != null && result.sms_charge_amount!! > 0) {
-                            SummaryLine("Guest SMS charge", "₦${result.sms_charge_amount}")
+                        // SMS Charge for Guest (ONLY if > 0)
+                        val smsChargeVal = result.sms_charge_amount ?: 0.0
+                        if (smsChargeVal > 0) {
+                            SummaryLine("Guest SMS charge", "₦$smsChargeVal")
                         }
 
-                        SummaryLine("Delivery total", "₦${deliveryFee - discount + (result.sms_charge_amount ?: 0.0)}")
+                        SummaryLine("Delivery total", "₦${deliveryFee - discount + smsChargeVal}")
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
                         

@@ -75,8 +75,17 @@
             iconSize: [25, 41], iconAnchor: [12, 41]
         });
 
+        // Map mobility type to specific marker asset
+        const markerMap = {
+            'agent': 'marker_agent.png',
+            'rider': 'marker_rider.png',
+            'bike': 'marker_bike.png',
+            'driver': 'marker_driver.png'
+        };
+        const iconFile = markerMap[mobility.toLowerCase()] || 'marker_bike.png';
+
         const agentIcon = L.icon({
-            iconUrl: `/public/assets/marker_${mobility.toLowerCase()}.png`,
+            iconUrl: `/public/assets/${iconFile}`,
             iconSize: [36, 36], iconAnchor: [18, 18]
         });
 

@@ -1,47 +1,58 @@
-# Implementation Plan - Admin-Configurable COD Platform Fee
+# Implementation Plan - Termii SMS Integration & Guest Tracking
 
-This plan converts the 10% COD platform fee from a hardcoded constant to a dynamic setting managed via the Admin Dashboard.
+This plan outlines the final integration of Termii as the primary SMS provider and the implementation of live guest tracking with automated ₦50 charging.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Fee Freezing:** As requested, the platform fee amount is calculated and stored at the moment of order creation. Changing the rate in settings will only affect new missions; existing missions will retain the fee they were originally quoted.
+> **Termii Sender ID:** I will use `Pikop` as the default sender ID. Please ensure this is registered on your Termii dashboard.
+>
+> **SMS Charge Policy:** A one-time ₦50 fee is added to any order requiring guest SMS (payment links or tracking links). This is billed to the order's payer and logged for audit.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725593000000_make_cod_fee_configurable.js)
-- Initializes the `cod_fee_rate` key in the `settings` table with a default value of `0.10` (10%).
+#### [MODIFY] [smsService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/smsService.js)
+- Finalize Termii REST client for `sendSms` and `sendOtp`.
+- Implement `cost_naira` logging (₦50 for guest messages).
+- Use `Pikop` sender ID and the provided API key.
+
+#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
+- **Bug Fix:** Change `val` to `const` in `resendOtp` cooldown logic.
+- Ensure `verifyOtp` correctly resolves Termii's `pin_id`.
 
 #### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **`getQuote`**:
-    - Fetches the active `cod_fee_rate` from the `settings` table.
-    - Uses the dynamic rate for the `platform_fee_amount` calculation.
-    - **Bug Fix:** Fixed the logic order where `payer_type` was being used to calculate the SMS charge before it was actually determined.
+- **Logic Fix:** Update `sms_charge_amount` to apply if **either** the payer or the recipient is a guest (non-app user).
+- Ensure `total_payable` correctly sums `item_price + delivery_fee + platform_fee + sms_charge`.
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- **`updateSettings`**:
-    - Added support for updating `cod_fee_rate`.
-    - Added validation to ensure the rate is between `0.00` and `0.50` (50% max).
-    - Existing audit logging will capture these changes automatically.
+#### [MODIFY] [guest_tracking.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/guest_tracking.ejs)
+- Map `primary_class` (`agent`, `rider`, `driver`) to the correct marker icons:
+    - `agent` -> `marker_walking.png`
+    - `rider` -> `marker_bike.png`
+    - `driver` -> `marker_car.png`
+- Ensure Leaflet.js uses absolute paths for these markers via the static `/public/assets` route.
 
-#### [MODIFY] [settings.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/settings.ejs)
-- Added an input field for "COD PLATFORM FEE" under the Pricing Dynamics section.
-- Displayed as a percentage for better admin readability (e.g., input `10` for 10% and convert to `0.10` in the backend).
+#### [MODIFY] [webhookController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/webhookController.js)
+- Implement basic security for the Termii delivery report webhook.
 
 ---
 
 ### Android App
-- The app already uses the `platform_fee_amount` returned by the backend's quote API, so no changes are required on the mobile side. This ensures the app is always in sync with the server-side configuration.
+
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- Polish the Order Summary UI to show a clean "Guest delivery SMS: ₦50" line item only when applicable.
+
+---
 
 ## Verification Plan
 
 ### Automated Tests
-- Syntax check backend: `node -c src/controllers/orderController.js src/controllers/adminController.js`.
+- Syntax check backend: `node -c ...`.
+- Build Android app: `./gradlew assembleDebug`.
 
 ### Manual Verification
-1.  **Rate Change:** Log in as admin, change the COD fee to 12% (0.12), and save.
-2.  **Quote Check:** Request a delivery in the app for a ₦1,000 item. Verify the platform fee is now ₦120.
-3.  **Persistence Check:** Change the rate back to 10% in admin. Verify the previously created mission still shows ₦120 in the admin tracking view.
-4.  **Audit Log:** Verify the `audit_logs` table reflects the setting change.
+1.  **Signup SMS:** Confirm 6-digit OTP arrives via SMS on signup.
+2.  **Guest Charge:** Create an order for a guest phone number; verify ₦50 is added to the total.
+3.  **Guest Tracking:** Open the tracking link from the SMS on a mobile browser; verify the agent marker moves live.
+4.  **Audit Log:** Verify `sms_logs` table shows ₦50 cost for guest messages and ₦0 for signup OTPs.

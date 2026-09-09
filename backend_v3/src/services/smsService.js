@@ -11,10 +11,11 @@ const TERMII_BASE_URL = 'https://api.ng.termii.com/api';
  */
 const logSms = async (recipient, content, purpose, orderId = null, ref = null, status = 'sent') => {
     try {
+        const cost = (purpose === 'signup_otp') ? 0 : 50; // Signup OTP is free for user, others cost 50 NGN
         await db.query(
-            `INSERT INTO sms_logs (recipient, content, purpose, order_id, provider_ref, status)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [recipient, content, purpose, orderId, ref, status]
+            `INSERT INTO sms_logs (recipient, content, purpose, order_id, provider_ref, status, cost_naira)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [recipient, content, purpose, orderId, ref, status, cost]
         );
     } catch (e) {
         console.error('[SMS] Logging failed:', e.message);
