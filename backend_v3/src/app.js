@@ -38,6 +38,21 @@ app.use(compression()); // Optimize payload size
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(morgan('dev'));
+
+// Admin Latency Middleware
+app.use('/admin', (req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (duration > 1000) {
+      console.warn(`[Admin-Latency] SLOW: ${req.method} ${req.path} took ${duration}ms`);
+    } else {
+      console.log(`[Admin-Latency] ${req.method} ${req.path} - ${duration}ms`);
+    }
+  });
+  next();
+});
+
 app.use(express.json({
   verify: (req, res, buf) => {
     if (req.originalUrl.includes('/webhook')) {

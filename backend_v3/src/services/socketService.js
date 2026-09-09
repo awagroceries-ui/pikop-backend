@@ -72,17 +72,19 @@ const init = (server) => {
     }
 
     // Manual Joins (Legacy support)
-    socket.on("join_order", (orderId) => {
-        if(orderId && orderId !== 'null') {
+    socket.on("join_order", (data) => {
+        const orderId = typeof data === 'object' ? data.orderId : data;
+        if(orderId && orderId !== 'null' && orderId !== '[object Object]') {
             socket.join(`order_${orderId}`);
-            console.log(`[Socket] User ${userId} manually joined Order: ${orderId}`);
+            console.log(`[Socket] User ${userId} joined Order: ${orderId}`);
         }
     });
 
-    socket.on("join_support", (conversationId) => {
+    socket.on("join_support", (data) => {
+        const conversationId = typeof data === 'object' ? data.conversationId : data;
         if(conversationId && conversationId !== 'null') {
             socket.join(`support_${conversationId}`);
-            console.log(`[Socket] User ${userId} manually joined Support: ${conversationId}`);
+            console.log(`[Socket] User ${userId} joined Support: ${conversationId}`);
         }
     });
 

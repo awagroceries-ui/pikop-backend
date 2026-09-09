@@ -31,14 +31,14 @@ if (config.password) {
 }
 
 const pool = new Pool({
-  host: config.host || 'localhost',
-  user: config.user || '',
-  password: config.password || '',
-  database: config.database || 'pikop',
+  host: config.host,
+  user: config.user,
+  password: config.password,
+  database: config.database,
   port: config.port || 5432,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  max: 30, // Increased for concurrency
+  idleTimeoutMillis: 10000, // Close idle clients faster
+  connectionTimeoutMillis: 5000, // Fail fast if DB unreachable
   ssl: (connectionString && (connectionString.includes('sslmode=require') || connectionString.includes('render.com')))
        ? { rejectUnauthorized: false } : false
 });

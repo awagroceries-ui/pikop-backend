@@ -1,60 +1,44 @@
-# Implementation Plan - Fix Cross-State Order Dispatch (20km Radius)
+# Implementation Plan - Resolve Admin 504 Gateway Time-out
 
-This plan resolves the critical bug where orders are dispatched across state boundaries and implements smooth live tracking with a strictly enforced 20km radius.
+This plan addresses the persistent 504 error by optimizing database performance, reducing connection pool pressure, and adding missing indices.
 
 ## Problem Description
-1.  **Dispatch Leakage:** The `getAvailableOffers` API lacks distance or state filtering, allowing any online agent to see every mission in the database.
-2.  **Missing Regional Data:** Structured "state" data is not stored in the `orders` or `fulfillers` tables, making it impossible to perform hard regional filtering.
-3.  **Stale Locations:** Fulfillers' locations are not updated when they are "idle" but online, leading to incorrect distance calculations.
+1.  **Query Pile-up:** The Admin Dashboard was executing 8 sequential or semi-parallel queries on load. Multiple admin sessions can easily exhaust the 20-connection pool, leading to hangs.
+2.  **Missing Indices:** Critical reporting columns like `order_type`, `created_at`, and `payment_status` lack indices, causing slow table scans as the database grows.
+3.  **Potential Module Hang:** The socket.io join logic was malformed, and some views had suboptimal syntax that could stress the EJS renderer.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725588000000_add_state_filtering_columns.js)
-- Add `pickup_state` to `quotes` and `orders` tables.
-- Add `current_state` to the `fulfillers` table.
+#### [MODIFY] [db.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/config/db.js)
+- **Host Flexibility:** Remove the restrictive `host = 'localhost'` override. Allow the `DATABASE_URL` to dictate the host, ensuring compatibility with remote DB instances.
+- **Pooling:** Increase `max` connections to 30 and reduce `idleTimeoutMillis` to free up connections faster.
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **`getQuote` & `createOrder`**: Accept `pickup_state` from the request and persist it.
+#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725590000000_harden_admin_performance.js)
+- Add indices to `orders(order_type)`, `orders(created_at)`, `orders(payment_status)`, and `users(role)`.
 
-#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
-- **`updateStatus`**: Accept and save `current_state`.
-- **`getAvailableOffers`**:
-    - **Hard Filter:** Add `AND o.pickup_state = f.current_state` to the SQL query.
-    - **Radius Filter:** Add `AND ST_DWithin(f.current_location::geography, o.pickup_location::geography, 20000)` (Strict 20km limit).
-    - **Staleness Guard:** Filter out fulfillers whose `last_ping_at` is older than 30 minutes.
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- **Query Consolidation:** Combine the 8 dashboard queries into **two** optimized multi-count queries using `FILTER` clauses.
+- **Efficiency:** This reduces connection acquisition overhead by 75%.
 
-#### [MODIFY] [dispatchService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/dispatchService.js)
-- Update `findNearbyFulfillers` to include the `current_state = order.pickup_state` hard filter and the 20km radius limit.
+#### [MODIFY] [reportController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/reportController.js)
+- **Parallelization:** Use `Promise.all` for `renderReports` to ensure snapshot data is fetched concurrently.
 
----
+#### [MODIFY] [socketService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/socketService.js)
+- **Join Logic Fix:** Correctly handle `join_order` data whether it's a raw string or an object.
 
-### Android App
-
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Update `QuoteRequest`, `CreateOrderRequest`, and `FulfillerStatusRequest` to include state fields.
-- Update `OrderDetailsResponse` to include `pickup_state`.
-
-#### [MODIFY] [MapAddressSearchScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/MapAddressSearchScreen.kt)
-- Update the selection logic to resolve the `state` name from Google Places `ADDRESS_COMPONENTS`.
-- Pass the state back to the caller via `onAddressSelected(address, lat, lng, state)`.
-
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- Capture and send the `pickup_state` during quote and order creation.
-
-#### [MODIFY] [FulfillerDashboardScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerDashboardScreen.kt)
-- **Periodic Ping:** Implement a `LaunchedEffect` that pings the server with current coordinates and state every 60 seconds while `isOnline` is true to prevent staleness.
+#### [MODIFY] [app.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/app.js)
+- **Latency Tracking:** Add a simple middleware to log the duration of every admin request. This will help pinpoint the exact bottleneck in the VPS logs.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Syntax check backend: `node -c ...`.
-- Build Android app: `./gradlew assembleDebug`.
+- Syntax check: `node -c src/controllers/adminController.js`.
 
-### Manual Verification
-1.  **State Separation:** Create an order in Port Harcourt. Verify a fulfiller in Lagos (with updated location) **cannot** see the offer in their list.
-2.  **Radius Test:** Move a fulfiller to 21km from the pickup point. Verify the offer disappears from their list.
-3.  **Staleness Test:** Disable location pings for a fulfiller for 31 minutes. Verify they no longer receive new offers until they ping again.
+### Manual Verification (Guide for User)
+1.  **Restart & Migrate:** Apply the new indices and restart the server.
+2.  **Latency Check:** Open the Dashboard and check the new console logs: `[Admin] GET /admin/dashboard - 120ms`.
+3.  **Stress Test:** Open the dashboard in multiple tabs simultaneously and verify all load promptly without 504.

@@ -71,17 +71,14 @@ const getUserAnalytics = async (req, res) => {
  */
 const renderReports = async (req, res) => {
     try {
-        // Fetch snapshot for initial render
-        const moduleStats = await db.query(`
-            SELECT order_type, COUNT(*) as count, SUM(total_fare) as gmv
-            FROM orders GROUP BY order_type
-        `);
-
-        const cityStats = await db.query(`
-            SELECT city, COUNT(*) as count FROM vendors GROUP BY city
-            UNION
-            SELECT city, COUNT(*) as count FROM kitchens GROUP BY city
-        `);
+        const [moduleStats, cityStats] = await Promise.all([
+            db.query(`SELECT order_type, COUNT(*) as count, SUM(total_fare) as gmv FROM orders GROUP BY order_type`),
+            db.query(`
+                SELECT city, COUNT(*) as count FROM vendors GROUP BY city
+                UNION
+                SELECT city, COUNT(*) as count FROM kitchens GROUP BY city
+            `)
+        ]);
 
         res.render('reports', {
             moduleStats: moduleStats.rows,

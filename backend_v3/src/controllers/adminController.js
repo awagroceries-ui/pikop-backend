@@ -76,37 +76,43 @@ const postSignup = async (req, res) => {
  */
 const getDashboard = async (req, res) => {
   try {
-    const [
-      activeOrdersRes,
-      onlineFulfillersRes,
-      revenueRes,
-      totalUsersRes,
-      customerUsersRes,
-      fulfillerUsersRes,
-      pendingKYC,
-      supportConv
-    ] = await Promise.all([
-      db.query("SELECT COUNT(*) FROM orders WHERE status NOT IN ('DELIVERED', 'CANCELLED')"),
-      db.query("SELECT COUNT(*) FROM fulfillers WHERE online_status = 'ONLINE'"),
-      db.query("SELECT SUM(total_fare) FROM orders WHERE payment_status = 'PAID'"),
-      db.query("SELECT COUNT(*) FROM users"),
-      db.query("SELECT COUNT(*) FROM users WHERE role = 'CUSTOMER'"),
-      db.query("SELECT COUNT(*) FROM users WHERE role = 'FULFILLER'"),
-      db.query("SELECT COUNT(*) FROM fulfillers WHERE kyc_status = 'PENDING_REVIEW'"),
-      db.query("SELECT COUNT(*) FROM conversations WHERE status = 'OPEN'")
+    const [ordersRes, usersRes, fleetRes] = await Promise.all([
+      db.query(`
+        SELECT
+            COUNT(*) FILTER (WHERE status NOT IN ('DELIVERED', 'CANCELLED')) as active_count,
+            SUM(total_fare) FILTER (WHERE payment_status = 'PAID' AND created_at >= NOW() - INTERVAL '24 hours') as revenue_24h
+        FROM orders
+      `),
+      db.query(`
+        SELECT
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE role = 'CUSTOMER') as customers,
+            COUNT(*) FILTER (WHERE role = 'FULFILLER') as fulfillers
+        FROM users
+      `),
+      db.query(`
+        SELECT
+            (SELECT COUNT(*) FROM fulfillers WHERE online_status = 'ONLINE')::int as online_count,
+            (SELECT COUNT(*) FROM fulfillers WHERE kyc_status = 'PENDING_REVIEW')::int as pending_kyc,
+            (SELECT COUNT(*) FROM conversations WHERE status = 'OPEN')::int as open_support
+      `)
     ]);
+
+    const o = ordersRes.rows[0];
+    const u = usersRes.rows[0];
+    const f = fleetRes.rows[0];
 
     res.render('dashboard', {
       stats: {
-        activeOrders: parseInt(activeOrdersRes.rows[0].count || 0),
-        onlineFulfillers: parseInt(onlineFulfillersRes.rows[0].count || 0),
-        totalRevenue: parseFloat(revenueRes.rows[0].sum || 0),
-        totalUsers: parseInt(totalUsersRes.rows[0].count || 0),
-        customerUsers: parseInt(customerUsersRes.rows[0].count || 0),
-        fulfillerUsers: parseInt(fulfillerUsersRes.rows[0].count || 0),
+        activeOrders: parseInt(o.active_count || 0),
+        onlineFulfillers: parseInt(f.online_count || 0),
+        totalRevenue: parseFloat(o.revenue_24h || 0),
+        totalUsers: parseInt(u.total || 0),
+        customerUsers: parseInt(u.customers || 0),
+        fulfillerUsers: parseInt(u.fulfillers || 0),
         notifications: {
-          kyc: parseInt(pendingKYC.rows[0].count || 0),
-          support: parseInt(supportConv.rows[0].count || 0),
+          kyc: parseInt(f.pending_kyc || 0),
+          support: parseInt(f.open_support || 0),
           disputes: 0
         }
       }
