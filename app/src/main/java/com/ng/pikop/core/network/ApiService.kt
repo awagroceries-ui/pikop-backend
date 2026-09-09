@@ -146,6 +146,8 @@ data class OrderDetailsResponse(
     @SerializedName("escrow_status") val escrow_status: String? = null,
     @SerializedName("grace_period_expires_at") val grace_period_expires_at: String? = null,
     @SerializedName("customer_rating") val customer_rating: Int? = null,
+    @SerializedName("pickup_code") val pickup_code: String? = null,
+    @SerializedName("delivery_code") val delivery_code: String? = null,
     @SerializedName("fulfiller_profile") val fulfiller_profile: FulfillerPublicProfile? = null,
     @SerializedName("history") val history: List<StatusHistoryItem>? = null,
     @SerializedName("data") val data: OrderDetailsResponse? = null

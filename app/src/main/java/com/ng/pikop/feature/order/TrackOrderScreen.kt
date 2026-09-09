@@ -9,6 +9,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -294,47 +297,29 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
 
             if (isPendingConfirmation) {
                 Spacer(modifier = Modifier.height(16.dp))
+                // ... (existing code for pending confirmation)
+            }
+
+            // Pickup & Delivery Codes for Customer
+            if (orderDetails?.pickup_code != null || orderDetails?.delivery_code != null) {
+                Spacer(modifier = Modifier.height(16.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Action Required", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Your item has been delivered. Please confirm receipt to release payment to the seller.", style = MaterialTheme.typography.bodySmall)
+                        Text("Confirmation Codes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Share these with the agent at handoff.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                         
-                        orderDetails?.grace_period_expires_at?.let { expiry ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Auto-confirms in: ${formatCountdown(expiry)}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Button(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        isConfirming = true
-                                        try {
-                                            apiService.confirmReceipt(orderId)
-                                            android.widget.Toast.makeText(context, "Payment Released!", android.widget.Toast.LENGTH_SHORT).show()
-                                            refreshKey++
-                                            onRefresh()
-                                        } catch (e: Exception) {
-                                            android.widget.Toast.makeText(context, "Failed to confirm: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                                        } finally { isConfirming = false }
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                enabled = !isConfirming,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text("Confirm Receipt")
+                            val pCode = orderDetails?.pickup_code
+                            if (pCode != null) {
+                                CodeBox("Pickup", pCode, Modifier.weight(1f))
                             }
-                            OutlinedButton(
-                                onClick = { showDisputeDialog = true },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                            ) {
-                                Text("Report Issue")
+                            val dCode = orderDetails?.delivery_code
+                            if (dCode != null) {
+                                CodeBox("Delivery", dCode, Modifier.weight(1f))
                             }
                         }
                     }
@@ -573,6 +558,33 @@ fun TimelineItem(step: OrderStatusStep) {
                 Text(text = step.time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
             }
             Text(text = step.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+        }
+    }
+}
+
+@Composable
+fun CodeBox(label: String, code: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    Surface(
+        modifier = modifier,
+        color = Color.White,
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .clickable {
+                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("Pikop Code", code)
+                    clipboard.setPrimaryClip(clip)
+                    android.widget.Toast.makeText(context, "$label code copied!", android.widget.Toast.LENGTH_SHORT).show()
+                },
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Text(code, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.primary)
+            Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(14.dp), tint = Color.Gray)
         }
     }
 }

@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const bcrypt = require('bcryptjs');
 const geminiService = require('../services/geminiService');
 const walletService = require('../services/walletService');
 const emailService = require('../services/emailService');
@@ -180,6 +181,9 @@ const acceptOrder = async (req, res) => {
  */
 const getOrderDetails = async (req, res) => {
   const { orderId } = req.params;
+  const userId = req.user.id;
+  const userRole = req.user.role;
+
   try {
     const { rows } = await db.query(
       `SELECT o.*,
@@ -193,7 +197,16 @@ const getOrderDetails = async (req, res) => {
       [orderId]
     );
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Mission not found' });
-    res.status(200).json(rows[0]);
+
+    const order = rows[0];
+
+    // Security: Only return plain codes to the customer who created the order or admin
+    if (order.user_id !== userId && userRole !== 'ADMIN') {
+        delete order.pickup_code;
+        delete order.delivery_code;
+    }
+
+    res.status(200).json(order);
   } catch (error) {
     throw error;
   }
@@ -434,13 +447,18 @@ const createOrder = async (req, res) => {
         const refToSave = payment_reference || `FREE_${q.id.substring(0,8)}_${Date.now()}`;
         console.log(`[ManualOrder] PRE-FLIGHT: Quote: ${q.id} | User: ${userId} | Fare: ${finalFare} | Ref: ${refToSave} | Coupon: ${couponId}`);
 
+        const pCode = Math.floor(1000 + Math.random() * 9000).toString();
+        const dCode = Math.floor(1000 + Math.random() * 9000).toString();
+        const pHash = await bcrypt.hash(pCode, 10);
+        const dHash = await bcrypt.hash(dCode, 10);
+
         const orderRes = await client.query(
             `INSERT INTO orders (
                 order_type, user_id, quote_id, status, item_description, size_tier,
                 pickup_address, delivery_address, pickup_location, delivery_location,
                 total_fare, payment_status, payment_method, payment_reference, payment_channel,
                 recipient_name, recipient_phone, notes, pickup_display_summary, delivery_display_summary, item_photo_url,
-                pickup_code_hash, delivery_code_hash, coupon_id,
+                pickup_code_hash, delivery_code_hash, pickup_code, delivery_code, coupon_id,
                 item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
                 escrow_status, payer_id, original_delivery_fee, original_total_fare
             ) VALUES (
@@ -449,9 +467,9 @@ const createOrder = async (req, res) => {
                 ST_SetSRID(ST_MakePoint($10, $11), 4326)::geography,
                 $12, 'PAID', $13, $14, $13,
                 $15, $16, $17, $18, $19, $20,
-                'v3_pending', 'v3_pending', $21::uuid,
-                $22, $23, $24, $25, $26,
-                $27, $28, $29, $30
+                $21, $22, $23, $24, $25::uuid,
+                $26, $27, $28, $29, $30,
+                $31, $32, $33, $34
             ) RETURNING id`,
             [
                 userId, // $1
@@ -474,16 +492,20 @@ const createOrder = async (req, res) => {
                 pickup_display_summary || q.pickup_address.substring(0, 50), // $18
                 delivery_display_summary || q.delivery_address.substring(0, 50), // $19
                 item_photo_url || null, // $20
-                couponId || null, // $21
-                parseFloat(item_price || 0), // $22
-                parseFloat(delivery_fee || q.delivery_fee || 0), // $23
-                parseFloat(platform_fee_amount || 0), // $24
-                fee_payer || 'PAYER', // $25
-                initiator_role || 'PAYER', // $26
-                (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable', // $27
-                payer_id || null, // $28
-                parseFloat(q.delivery_fee), // $29
-                parseFloat(q.total_fare) // $30
+                pHash, // $21
+                dHash, // $22
+                pCode, // $23
+                dCode, // $24
+                couponId || null, // $25
+                parseFloat(item_price || 0), // $26
+                parseFloat(delivery_fee || q.delivery_fee || 0), // $27
+                parseFloat(platform_fee_amount || 0), // $28
+                fee_payer || 'PAYER', // $29
+                initiator_role || 'PAYER', // $30
+                (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable', // $31
+                payer_id || null, // $32
+                parseFloat(q.delivery_fee), // $33
+                parseFloat(q.total_fare) // $34
             ]
         );
 
@@ -575,7 +597,6 @@ const verifyPickup = async (req, res) => {
 
         let isValid = isMaster;
         if (!isValid && order.pickup_code_hash && order.pickup_code_hash !== 'v3_pending') {
-            const bcrypt = require('bcryptjs');
             isValid = await bcrypt.compare(code.toString(), order.pickup_code_hash);
         } else if (!isValid && order.pickup_code_hash === 'v3_pending') {
             isValid = true;
@@ -641,7 +662,6 @@ const verifyDelivery = async (req, res) => {
 
         let isValid = isMaster;
         if (!isValid && order.delivery_code_hash && order.delivery_code_hash !== 'v3_pending') {
-            const bcrypt = require('bcryptjs');
             isValid = await bcrypt.compare(code.toString(), order.delivery_code_hash);
         } else if (!isValid && order.delivery_code_hash === 'v3_pending') {
             isValid = true;

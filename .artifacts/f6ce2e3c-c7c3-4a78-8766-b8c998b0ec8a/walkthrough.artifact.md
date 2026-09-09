@@ -1,27 +1,21 @@
-# Walkthrough - Fulfiller History & Guaranteed Earnings Fix
+# Walkthrough - Payout & SQL Alignment Fix
 
-I have implemented the fixes to ensure fulfillers see their full mission history and receive their guaranteed 75% payout even on free (100% discount) missions.
+I have resolved the "could not determine data type of parameter $20" error and finalized the data flow for fulfiller earnings.
 
 ## Changes Made
 
-### 1. Backend: Guaranteed Payout Logic
-- **Problem:** When a mission was "free" for a customer (100% discount), the fulfiller's payout was being calculated as 75% of ₦0, resulting in zero earnings.
+### 1. Fixed SQL Alignment Bug
+- **Problem:** A mismatch in the number of parameters and their indices in the `INSERT INTO orders` query caused a PostgreSQL error during free mission activation.
 - **Fix:**
-    - Created a database migration to add `original_delivery_fee` and `original_total_fare` columns to the `orders` table.
-    - Updated the activation logic to capture and store these original prices at the moment of order creation.
-    - Updated `walletService.js` to calculate fulfiller earnings based on these **original** prices. Fulfillers will now always receive 75% of the original delivery fee.
-- **Result:** Fulfillers are now fairly compensated for every mission they complete, regardless of promo codes.
+    - Re-aligned all 30 parameters in `orderController.js` and `paymentController.js`.
+    - Added explicit UUID casting (`$21::uuid`) for the `coupon_id` field to prevent ambiguous type errors when a promo code is missing.
+    - Added null-safety for `notes` and `item_photo_url`.
+- **Result:** Missions (including free ones) now activate correctly without database driver errors.
 
-### 2. Backend: Fixed Fulfiller History
-- **Problem:** Fulfiller history was appearing empty due to missing fields and restrictive status filtering.
-- **Fix:**
-    - Updated the `getFulfillerOrders` query to explicitly calculate `earnings` using the new `original_` columns.
-    - Added diagnostic logging to confirm query results on the server.
-    - Included `PAYMENT_CAPTURED` status in the available offers and history views.
-- **Result:** Fulfillers can now reliably see all past and present missions with their calculated earnings.
-
-### 3. Android App: Price Persistence
-- Updated `ApiService.kt` and `OrderQuoteScreen.kt` to send the `delivery_fee` during order creation. This ensures the backend has the correct baseline for payout calculation even if the customer's total is zero.
+### 2. Completed Earnings Data Flow
+- **Android:** Updated `PaymentInitializationRequest` and the main checkout flow to send the `promo_id`.
+- **Backend:** Updated the Paystack metadata to capture the `promo_id`. This ensures that even if a mission is paid, the system knows which coupon was used and can calculate fulfiller payouts correctly.
+- **Result:** Fulfillers are now guaranteed their 75% share based on pre-discount prices for both paid and free missions.
 
 ## Verification Results
 
@@ -30,14 +24,13 @@ I have implemented the fixes to ensure fulfillers see their full mission history
 - **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-Please run these on your **VPS** to apply the new database columns and earnings logic:
+Please run these on your **VPS** to apply the SQL and metadata fixes:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```
 
 ### Manual Verification Steps
-1. **Fulfiller History:** Open the "Missions" tab as a fulfiller. You should now see all past missions and their corresponding earnings.
-2. **Free Mission Test:** Complete a mission where a 100% discount was applied. Check the fulfiller's wallet; it should show a credit for 75% of the original delivery price.
+1. **Free Mission:** Request a delivery with a 100% discount code. It should now activate successfully and show "Mission Activated!".
+2. **Fulfiller Earnings:** Complete the mission. Check the fulfiller's history and wallet; the earnings should be calculated from the original price, not the ₦0 paid by the customer.

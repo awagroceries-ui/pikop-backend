@@ -1,5 +1,6 @@
 const axios = require('axios');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 
 const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
@@ -119,32 +120,62 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
     const q = quoteRes.rows[0];
 
     // 3. Insert Order
+    const pCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const dCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const pHash = await bcrypt.hash(pCode, 10);
+    const dHash = await bcrypt.hash(dCode, 10);
+
     const orderRes = await client.query(
         `INSERT INTO orders (
             order_type, user_id, quote_id, status, item_description, size_tier,
             pickup_address, delivery_address, pickup_location, delivery_location,
             total_fare, payment_reference, payment_status, payment_channel, payment_method,
-            pickup_code_hash, delivery_code_hash, recipient_name, recipient_phone,
+            recipient_name, recipient_phone,
             pickup_display_summary, delivery_display_summary, item_price, delivery_fee,
             platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id,
-            original_delivery_fee, original_total_fare, coupon_id
+            original_delivery_fee, original_total_fare, pickup_code_hash, delivery_code_hash,
+            pickup_code, delivery_code, coupon_id
         ) VALUES (
             'pickup_delivery', $1, $2, 'PAYMENT_CAPTURED', $3, $4, $5, $6,
             ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
             ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography,
-            $11, $12, 'PAID', $13, $13, 'v3_pending', 'v3_pending', $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28::uuid
+            $11, $12, 'PAID', $13, $14,
+            $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33::uuid
         ) RETURNING id`,
         [
-            m.user_id, q.id, q.item_description, q.size_tier, q.pickup_address, q.delivery_address,
-            q.p_lng, q.p_lat, q.d_lng, q.d_lat, q.total_fare, reference, channel,
-            m.recipient_name || 'Recipient', m.recipient_phone || '000',
-            q.pickup_address.substring(0, 50), q.delivery_address.substring(0, 50),
-            parseFloat(m.item_price || 0), parseFloat(m.delivery_fee || 0), parseFloat(m.platform_fee_amount || 0),
-            m.fee_payer || 'PAYER', m.initiator_role || 'PAYER',
-            (parseFloat(m.item_price || 0) > 0) ? 'held' : 'not_applicable',
-            m.seller_phone || null, m.payer_id || null,
-            parseFloat(q.delivery_fee), parseFloat(q.total_fare),
-            m.promo_id || null
+            m.user_id, // $1
+            q.id,      // $2
+            q.item_description, // $3
+            q.size_tier, // $4
+            q.pickup_address, // $5
+            q.delivery_address, // $6
+            q.p_lng, // $7
+            q.p_lat, // $8
+            q.d_lng, // $9
+            q.d_lat, // $10
+            q.total_fare, // $11
+            reference, // $12
+            channel, // $13 (payment_channel)
+            channel, // $14 (payment_method)
+            m.recipient_name || 'Recipient', // $15
+            m.recipient_phone || '000', // $16
+            q.pickup_address.substring(0, 50), // $17
+            q.delivery_address.substring(0, 50), // $18
+            parseFloat(m.item_price || 0), // $19
+            parseFloat(m.delivery_fee || 0), // $20
+            parseFloat(m.platform_fee_amount || 0), // $21
+            m.fee_payer || 'PAYER', // $22
+            m.initiator_role || 'PAYER', // $23
+            (parseFloat(m.item_price || 0) > 0) ? 'held' : 'not_applicable', // $24
+            m.seller_phone || null, // $25
+            m.payer_id || null, // $26
+            parseFloat(q.delivery_fee), // $27
+            parseFloat(q.total_fare), // $28
+            pHash, // $29
+            dHash, // $30
+            pCode, // $31
+            dCode, // $32
+            m.promo_id || null // $33
         ]
     );
 

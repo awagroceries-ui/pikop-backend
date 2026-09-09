@@ -1,61 +1,44 @@
-# Implementation Plan - Fix Fulfiller History, Earnings & Free Mission Payouts
+# Implementation Plan - Prepare for Google Play Store (Beta Track)
 
-This plan addresses the missing fulfiller history, zero wallet earnings, and ensures fulfillers are paid correctly for promo-discounted missions.
+This plan outlines the technical steps to prepare the Pikop Android app for submission to the Google Play Store for closed testing.
 
-## Problem Description
-1.  **Empty Fulfiller History:** Fulfillers are unable to see their completed or past missions in the history tab.
-2.  **Missing Wallet Earnings:** Completed missions are not resulting in wallet credits.
-3.  **Free Mission Payouts:** Fulfillers receive ₦0 for missions where the customer used a 100% discount promo code, even though they are entitled to 75% of the original fare.
+## User Review Required
+
+> [!IMPORTANT]
+> **Production Signing Key:** To submit to the Play Store, you must generate a **Release Keystore**. I can help you with the Gradle configuration, but you will need to store this file securely and keep the password safe.
+>
+> **API Key Restrictions:**
+> 1. Ensure your **Google Maps API Key** is restricted to the package name `com.ng.pikop` and your signing certificate's SHA-1 fingerprint in the Google Cloud Console.
+> 2. Ensure your **Paystack Public Key** is the correct "Live" key (though for Beta testing, you may want to stay on the "Test" key until you are ready for real money).
+>
+> **Privacy Policy:** Google requires a public URL for your Privacy Policy. You should host the content of `PrivacyPolicyScreen.kt` on your website (e.g., `https://pikop.com.ng/privacy`).
 
 ## Proposed Changes
 
-### Backend (`backend_v3`)
+### Android App (`/app`)
 
-#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725584000000_add_payout_data_to_orders.js)
-- Add `original_delivery_fee` and `original_total_fare` columns to the `orders` table. This preserves the pre-discount pricing for payout calculations.
+#### [MODIFY] [build.gradle.kts](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/build.gradle.kts)
+- Update `versionCode` (e.g., to `2`) and `versionName` (e.g., to `"1.0.1-beta"`) to distinguish it from the initial build.
+- Enable **R8 Obfuscation** for the release build: set `isMinifyEnabled = true` and `isShrinkResources = true`.
+- (Optional) Prepare a `signingConfigs` block so the terminal can build a signed AAB directly.
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **`createOrder`**:
-    - Save the quote's original `delivery_fee` and `total_fare` into the new `original_` columns.
-    - Set `status` to `PAYMENT_CAPTURED` for promo missions.
-- **`getFulfillerOrders`**:
-    - Add diagnostic logging to track result counts.
-    - Calculate `earnings` in the SQL query: `ROUND(COALESCE(o.original_delivery_fee, o.delivery_fee, o.total_fare) * 0.75, 2) as earnings`.
-- **`rateFulfiller`**: Fix a potential query error by adding `user_id` check.
-
-#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
-- **`activatePaidMission`**: Populate the new `original_` columns from the quote record.
-
-#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
-- **`processMissionSettlement`**:
-    - Change payout calculation to use `original_delivery_fee` if available.
-    - Ensure fulfillers are credited 75% of the original delivery cost even if the customer paid ₦0.
+#### [MODIFY] [AndroidManifest.xml](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/AndroidManifest.xml)
+- Verify that `android:debuggable="false"` (automatically handled by release builds) and ensure the `label` and `icon` are final.
 
 ---
 
-### Android App
+### Google Play Console Checklist
 
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Update `CreateOrderRequest` to include `delivery_fee`.
-
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- Pass `delivery_fee = result.delivery_fee` in the `CreateOrderRequest` for free missions.
-
----
+1.  **Internal/Closed Testing Track:** Create a new "Closed Testing" track and add the email addresses of your beta testers.
+2.  **App Content:** Complete the "App Content" section (target audience, data safety, etc.).
+3.  **Store Listing:** Upload high-resolution icons (512x512), a feature graphic (1024x500), and at least two phone screenshots.
 
 ## Verification Plan
 
 ### Automated Tests
-- Run Android build: `./gradlew assembleDebug`.
-- Syntax check backend: `node -c ...`.
+- Run `./gradlew bundleRelease` to generate the **Android App Bundle (.aab)**.
+- Verify the `.aab` file exists in `app/build/outputs/bundle/release/`.
 
 ### Manual Verification
-1.  **Free Mission Payout:**
-    *   Apply a 100% promo code.
-    *   Complete the mission as a fulfiller.
-    *   Check fulfiller wallet: It should be credited with 75% of the original delivery fee.
-2.  **Fulfiller History:**
-    *   Open "Missions" tab as fulfiller.
-    *   Verify all past missions are listed with their correct earnings.
-3.  **Customer Rating:**
-    *   Verify the rating prompt appears immediately after release.
+- Install the generated AAB on a test device using `bundletool` or by uploading it to the **Internal Sharing** track in the Play Console.
+- Confirm the app launches and API calls (Maps, Backend) still work with obfuscation enabled.
