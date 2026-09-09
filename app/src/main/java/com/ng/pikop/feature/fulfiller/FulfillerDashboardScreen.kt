@@ -25,6 +25,12 @@ import com.ng.pikop.core.network.OfferResponse
 import com.ng.pikop.feature.auth.NavigationDrawerContent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import android.location.Geocoder
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import java.util.Locale
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,29 +54,49 @@ fun FulfillerDashboardScreen(
     val tokenManager = remember { TokenManager(context) }
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
     // Initial Fetch
-    LaunchedEffect(Unit) {
-        try {
-            val response = apiService.getFulfillerProfile()
-            val profile = response.data ?: response
-            
-            kycStatus = profile.kyc_status ?: "PENDING"
-            isOnline = profile.online_status == "ONLINE"
-            history = apiService.getFulfillerOrders()
+    // ... (existing fetch)
 
-            val wallet = apiService.getWalletInfo()
-            walletBalance = wallet.balance ?: 0.0
-        } catch (e: Exception) {}
-    }
-
-    // Polling
+    // Polling & Background Pings
     LaunchedEffect(isOnline) {
         while (isOnline) {
             try {
+                // 1. Fetch Offers
                 offers = apiService.getOffers()
-            } catch (e: Exception) {}
-            delay(5000)
+                
+                // 2. Refresh Wallet & History (Real-time stats)
+                val wallet = apiService.getWalletInfo()
+                walletBalance = wallet.balance ?: 0.0
+                history = apiService.getFulfillerOrders()
+
+                // 3. Location & State PING (Idle Fleet Management)
+                try {
+                    val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+                    if (location != null) {
+                        val state = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val geocoder = Geocoder(context, Locale.getDefault())
+                                @Suppress("DEPRECATION")
+                                geocoder.getFromLocation(location.latitude, location.longitude, 1)?.firstOrNull()?.adminArea
+                            } catch (e: Exception) { null }
+                        }
+                        
+                        apiService.updateStatus(FulfillerStatusRequest(
+                            online_status = "ONLINE",
+                            lat = location.latitude,
+                            lng = location.longitude,
+                            current_state = state
+                        ))
+                        android.util.Log.d("FleetPing", "Background PING sent: ${location.latitude}, ${location.longitude} ($state)")
+                    }
+                } catch (e: SecurityException) {}
+
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardPoll", "Error: ${e.message}")
+            }
+            delay(60000) // 60s interval for background sync
         }
     }
 
@@ -198,7 +224,26 @@ fun FulfillerDashboardScreen(
                                     isLoading = true
                                     try {
                                         android.util.Log.d("FleetStatus", "Updating status to: $targetStatus")
-                                        apiService.updateStatus(FulfillerStatusRequest(targetStatus))
+                                        
+                                        // Resolve current state before going online
+                                        var state: String? = null
+                                        if (checked) {
+                                            try {
+                                                val loc = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+                                                state = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                    try {
+                                                        val geocoder = Geocoder(context, Locale.getDefault())
+                                                        @Suppress("DEPRECATION")
+                                                        geocoder.getFromLocation(loc?.latitude ?: 0.0, loc?.longitude ?: 0.0, 1)?.firstOrNull()?.adminArea
+                                                    } catch (e: Exception) { null }
+                                                }
+                                            } catch (e: SecurityException) {}
+                                        }
+
+                                        apiService.updateStatus(FulfillerStatusRequest(
+                                            online_status = targetStatus,
+                                            current_state = state
+                                        ))
                                         
                                         isOnline = checked
                                         android.widget.Toast.makeText(context, "Status updated: $targetStatus", android.widget.Toast.LENGTH_SHORT).show()

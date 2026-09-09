@@ -58,7 +58,8 @@ data class QuoteRequest(
     val delivery_lng: Double,
     val item_price: Double? = 0.0,
     val initiator_role: String? = "PAYER",
-    val recipient_phone: String? = null
+    val recipient_phone: String? = null,
+    val pickup_state: String? = null
 )
 
 data class PayerInfo(
@@ -98,7 +99,8 @@ data class CreateOrderRequest(
     val payment_reference: String? = null,
     val item_price: Double? = null,
     val delivery_fee: Double? = null,
-    val seller_phone: String? = null
+    val seller_phone: String? = null,
+    val pickup_state: String? = null
 )
 
 data class OrderResponse(
@@ -153,6 +155,7 @@ data class OrderDetailsResponse(
     @SerializedName("customer_rating") val customer_rating: Int? = null,
     @SerializedName("pickup_code") val pickup_code: String? = null,
     @SerializedName("delivery_code") val delivery_code: String? = null,
+    @SerializedName("pickup_state") val pickup_state: String? = null,
     @SerializedName("fulfiller_profile") val fulfiller_profile: FulfillerPublicProfile? = null,
     @SerializedName("history") val history: List<StatusHistoryItem>? = null,
     @SerializedName("data") val data: OrderDetailsResponse? = null
@@ -234,7 +237,8 @@ data class UserProfileResponse(
 data class FulfillerStatusRequest(
     val online_status: String,
     val lat: Double? = null,
-    val lng: Double? = null
+    val lng: Double? = null,
+    val current_state: String? = null
 )
 
 data class FulfillerOrderResponse(
@@ -497,6 +501,7 @@ data class PaymentInitializationRequest(
     val fee_payer: String? = null,
     val seller_phone: String? = null,
     val promo_id: String? = null,
+    val pickup_state: String? = null,
     val metadata: Map<String, String>? = null
 )
 

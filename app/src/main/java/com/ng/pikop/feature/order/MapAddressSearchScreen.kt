@@ -61,7 +61,7 @@ import java.util.*
 fun MapAddressSearchScreen(
     title: String,
     onBack: () -> Unit,
-    onAddressSelected: (String, Double, Double) -> Unit
+    onAddressSelected: (String, Double, Double, String?) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -98,6 +98,7 @@ fun MapAddressSearchScreen(
     var searchJob by remember { mutableStateOf<Job?>(null) }
     
     var currentResolvedAddress by remember { mutableStateOf("Locating...") }
+    var currentResolvedState by remember { mutableStateOf<String?>(null) }
     var isGeocoding by remember { mutableStateOf(false) }
     
     val focusRequester = remember { FocusRequester() }
@@ -168,18 +169,20 @@ fun MapAddressSearchScreen(
         if (!cameraPositionState.isMoving && hasResolvedInitialLocation) {
             val center = cameraPositionState.position.target
             isGeocoding = true
-            val address = withContext(Dispatchers.IO) {
+            val resolved = withContext(Dispatchers.IO) {
                 try {
                     val geocoder = Geocoder(context, Locale.getDefault())
                     @Suppress("DEPRECATION")
                     val results = geocoder.getFromLocation(center.latitude, center.longitude, 1)
-                    results?.firstOrNull()?.getAddressLine(0) ?: "Custom Location"
+                    val addr = results?.firstOrNull()
+                    Pair(addr?.getAddressLine(0) ?: "Custom Location", addr?.adminArea)
                 } catch (e: Exception) { 
                     android.util.Log.e("MapSearch", "Geocode error", e)
-                    "Custom Pin Location" 
+                    Pair("Custom Pin Location", null) 
                 }
             }
-            currentResolvedAddress = address
+            currentResolvedAddress = resolved.first
+            currentResolvedState = resolved.second
             isGeocoding = false
         }
     }
@@ -349,14 +352,21 @@ fun MapAddressSearchScreen(
                                             query = ""
                                             suggestions = emptyList()
                                             try {
-                                                val request = FetchPlaceRequest.builder(p.place_id, listOf(Place.Field.LAT_LNG))
+                                                val request = FetchPlaceRequest.builder(p.place_id, listOf(Place.Field.LAT_LNG, Place.Field.ADDRESS_COMPONENTS))
                                                     .setSessionToken(sessionToken)
                                                     .build()
                                                 
                                                 val response = placesClient.fetchPlace(request).await()
-                                                response.place.latLng?.let { latLng ->
+                                                val place = response.place
+                                                place.latLng?.let { latLng ->
                                                     cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 17f))
                                                 }
+                                                
+                                                // Extract state from components
+                                                currentResolvedState = place.addressComponents?.asList()?.find { comp ->
+                                                    comp.types.contains("administrative_area_level_1")
+                                                }?.name
+                                                
                                                 sessionToken = AutocompleteSessionToken.newInstance()
                                             } catch (e: Exception) {
                                                 android.util.Log.e("PlacesNative", "Place details fetch failed", e)
@@ -401,7 +411,7 @@ fun MapAddressSearchScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = { onAddressSelected(currentResolvedAddress, cameraPositionState.position.target.latitude, cameraPositionState.position.target.longitude) },
+                    onClick = { onAddressSelected(currentResolvedAddress, cameraPositionState.position.target.latitude, cameraPositionState.position.target.longitude, currentResolvedState) },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     enabled = !isGeocoding,
                     shape = MaterialTheme.shapes.medium

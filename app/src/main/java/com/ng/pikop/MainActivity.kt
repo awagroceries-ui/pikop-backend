@@ -495,10 +495,11 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             MapAddressSearchScreen(
                 title = title,
                 onBack = { navController.popBackStack() },
-                onAddressSelected = { address, lat, lng ->
+                onAddressSelected = { address, lat, lng, state ->
                     navController.previousBackStackEntry?.savedStateHandle?.set("${type}_address", address)
                     navController.previousBackStackEntry?.savedStateHandle?.set("${type}_lat", lat)
                     navController.previousBackStackEntry?.savedStateHandle?.set("${type}_lng", lng)
+                    navController.previousBackStackEntry?.savedStateHandle?.set("${type}_state", state)
                     navController.popBackStack()
                 }
             )

@@ -1,19 +1,24 @@
-# Walkthrough - COD Parity for Fulfillers & Admin
+# Walkthrough - Decoupled Fulfiller Earnings
 
-I have completed the extension of the COD/Escrow system to the fulfiller app and the admin dashboard, ensuring that all participants have a clear and consistent view of the payment status.
+I have updated the system to ensure that fulfiller earnings (75% of the delivery fee) are credited immediately upon delivery, regardless of the escrow status of the COD item price.
 
 ## Changes Made
 
-### 1. Fulfiller App: Escrow Clarity
-- **Mission Badge:** Added a prominent **"Delivery + COD (Escrow Protected)"** badge to the `ActiveOrderScreen`. This informs agents that the payment is already secured by Pikop and they should **not** collect cash.
-- **Awaiting Release State:** Implemented a new UI state for the `DELIVERED_PENDING_CONFIRMATION` status. Fulfillers now see a clear "Delivery Complete" screen with an explanation that funds will be released once the customer confirms receipt.
-- **Improved Hygiene:** Restored and polished the pickup and delivery phase logic to ensure a bug-free mission flow.
+### 1. Immediate Payout for Delivery
+- **Logic:** Updated `walletService.js` to ensure the fulfiller's share of the delivery fee is always credited to their **Available Balance** as soon as the delivery code is verified.
+- **Independence:** This credit is now fully decoupled from the `item_price`, which remains in escrow. Fulfillers no longer have to wait for customer confirmation to receive their delivery pay.
 
-### 2. Admin Dashboard: Mission Control & Audit
-- **Enhanced Mission Board:** The orders list now includes a **"COD/ESCROW"** tag and allows filtering specifically for these types of missions.
-- **Detailed Financial Audit:** The mission tracking view for admins now shows a complete cost breakdown (Item vs. Delivery vs. Platform Fee) and a real-time **Order Ledger**, providing a transparent audit trail of all wallet movements for that mission.
-- **Fulfiller Wallet Visibility:** Created a new **"Fulfiller Detail"** view for admins. This allows support staff to see an agent's `available_balance` vs. `pending_balance` and their full transaction history for faster troubleshooting.
-- **Dispute Resolution:** Confirmed and polished the arbitration flow, allowing admins to resolve disputes by either refunding the buyer or releasing the escrow to the seller.
+### 2. Refactored "Mission Completed" UI
+- **The Problem:** The previous UI showed a "Waiting for customer" screen that made agents feel like they hadn't been paid for their work.
+- **The Fix:** Redesigned the screen in `ActiveOrderScreen.kt` to:
+    - **Highlight Success:** Show a prominent "Mission Successfully Completed!" header with a green checkmark.
+    - **Earnings Confirmation:** Explicitly state the amount (₦X) that has been added to their available balance.
+    - **Contextual Info:**
+        - If the agent is the seller: Inform them that the *item payment* is pending release.
+        - If the agent is NOT the seller: Inform them that the item payment will be released to the seller separately.
+
+### 3. Corrected Escrow Target Mapping
+- **The Fix:** Fixed a bug in `releaseEscrow` and `refundEscrow` that defaulted to the Fulfiller's wallet. The system now correctly identifies the **Seller's wallet** (User ID) for item price movements, ensuring vendors and customers receive their escrowed funds correctly.
 
 ## Verification Results
 
@@ -22,7 +27,7 @@ I have completed the extension of the COD/Escrow system to the fulfiller app and
 - **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-Please apply these dashboard and audit updates to your **VPS**:
+Please apply these logic updates to your **VPS**:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
@@ -30,7 +35,6 @@ pm2 restart pikop-v3
 ```
 
 ### Manual Verification Steps
-1. **Agent View:** Start a mission with an item price. Verify the "Escrow Protected" badge appears.
-2. **Handoff:** Verify delivery using the OTP code. The agent app should move to the "Awaiting Confirmation" screen.
-3. **Admin Check:** Log in to the admin dashboard, find the mission, and verify the "Financial Audit" and "Order Ledger" sections are populated correctly.
-4. **Fulfiller Audit:** Go to "Fleet" -> "Manage" for an agent to see their pending vs available balance breakdown.
+1. **Agent Earning Check:** Complete a COD delivery. Immediately check the Agent's wallet; the 75% delivery fee share should be visible in "Available Balance."
+2. **UI Verification:** Confirm the new success screen shows the correct earning amount.
+3. **Escrow Release:** As the customer, release the funds. Verify the `item_price` is credited to the **Seller's** wallet (not the Agent's, unless they are the same).

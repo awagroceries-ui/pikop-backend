@@ -280,7 +280,7 @@ const uploadDocument = async (req, res) => {
  * Updates fulfiller online status and current GPS location.
  */
 const updateStatus = async (req, res) => {
-  const { online_status, lat, lng } = req.body;
+  const { online_status, lat, lng, current_state } = req.body;
   const userId = req.user.id;
 
   try {
@@ -288,13 +288,14 @@ const updateStatus = async (req, res) => {
       UPDATE fulfillers
       SET online_status = $1,
           current_location = ST_SetSRID(ST_MakePoint($2, $3), 4326),
+          current_state = COALESCE($5, current_state),
           last_ping_at = CURRENT_TIMESTAMP,
           last_active_at = CURRENT_TIMESTAMP
       WHERE user_id = $4
       RETURNING id, online_status
     `;
 
-    const { rows } = await db.query(query, [online_status || 'OFFLINE', lng || 0, lat || 0, userId]);
+    const { rows } = await db.query(query, [online_status || 'OFFLINE', lng || 0, lat || 0, userId, current_state]);
 
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller profile not found' });
 
@@ -379,6 +380,7 @@ const getAvailableOffers = async (req, res) => {
     const fulfillerId = fulfiller[0].id;
 
     // Fetch active SEARCHING or PAYMENT_CAPTURED orders (unassigned or queued for this fulfiller)
+    // CRITICAL: Filter by Same State, 20km Radius, and exclude stale fulfillers.
     const { rows } = await db.query(
       `SELECT o.id, o.pickup_address, o.delivery_address, o.total_fare, o.item_photo_url, o.created_at,
        o.collect_on_delivery_amount,
@@ -390,6 +392,9 @@ const getAvailableOffers = async (req, res) => {
        WHERE f.id = $1
        AND o.status IN ('SEARCHING', 'PAYMENT_CAPTURED')
        AND (o.fulfiller_id IS NULL OR o.queued_for_fulfiller_id = $1)
+       AND o.pickup_state = f.current_state
+       AND ST_DWithin(f.current_location::geography, o.pickup_location::geography, 20000)
+       AND f.last_ping_at > NOW() - interval '30 minutes'
        ORDER BY o.created_at DESC
        LIMIT 20`,
       [fulfillerId]

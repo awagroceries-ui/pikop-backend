@@ -6,21 +6,24 @@ const fcmService = require('./fcmService');
  * Shared Dispatch Engine - v3 (Milestone 6)
  */
 const findNearbyFulfillers = async (order) => {
-  const radiusMeters = 10000; // 10km base radius
+  const radiusMeters = 20000; // 20km strict radius
 
   try {
     // V3 Advanced Dispatch (Milestone 6 + Prompt 5 Capacity)
     // Filter:
     // 1. Must be ONLINE and VERIFIED
-    // 2. Must be within Radius
-    // 3. Must have remaining Queue Capacity based on class
+    // 2. Must be within 20km Radius
+    // 3. Must be in the Same State
+    // 4. Must have remaining Queue Capacity based on class
     const query = `
       SELECT f.user_id, f.id, f.primary_class, ST_Distance(f.current_location, $1) as dist,
              (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) as load
       FROM fulfillers f
       WHERE f.online_status = 'ONLINE'
       AND f.kyc_status = 'VERIFIED'
+      AND f.current_state = $3
       AND ST_DWithin(f.current_location, $1, $2)
+      AND f.last_ping_at > NOW() - interval '30 minutes'
       AND (
           (f.primary_class = 'agent' AND (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) < 2)
           OR (f.primary_class = 'rider' AND (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) < 5)
@@ -30,7 +33,7 @@ const findNearbyFulfillers = async (order) => {
       LIMIT 20
     `;
 
-    const { rows } = await db.query(query, [order.pickup_location, radiusMeters]);
+    const { rows } = await db.query(query, [order.pickup_location, radiusMeters, order.pickup_state]);
     return rows;
   } catch (error) {
     console.error('[Dispatch] Search Error:', error.message);

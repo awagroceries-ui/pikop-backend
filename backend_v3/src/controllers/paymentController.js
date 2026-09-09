@@ -158,7 +158,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             pickup_display_summary, delivery_display_summary, item_price, delivery_fee,
             platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id,
             original_delivery_fee, original_total_fare, pickup_code_hash, delivery_code_hash,
-            pickup_code, delivery_code, coupon_id
+            pickup_code, delivery_code, coupon_id, pickup_state
         ) VALUES (
             'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
             ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -167,7 +167,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             $17, $18, $19, $20, $21, $22,
             $23, $24, $25, $26, $27, $28,
             $29, $30, $31, $32,
-            $33, $34, $35::uuid
+            $33, $34, $35::uuid, $36
         ) RETURNING id`,
         [
             m.user_id, // $1
@@ -204,7 +204,8 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             dHash, // $32
             pCode, // $33
             dCode, // $34
-            m.promo_id || null // $35
+            m.promo_id || null, // $35
+            m.pickup_state || q.pickup_state // $36
         ]
     );
 
