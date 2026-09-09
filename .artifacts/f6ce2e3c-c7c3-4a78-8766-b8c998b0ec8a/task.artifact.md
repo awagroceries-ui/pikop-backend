@@ -1,8 +1,8 @@
-# Task List - Fix Account, Banking & Activation
+# Task List - Fix Admin Visibility & KYC Rendering
 
-- [ ] Backend: Refactor cleanup query in `fulfillerController.js` for robust orphan removal
-- [ ] Android: Add diagnostic logging to `AccountScreen.kt` button clicks
-- [ ] Android: Unlock banking fields and fix role check in `ProfileEditScreen.kt`
-- [ ] Android: Polish Date Picker trigger in `KycUploadScreen.kt`
-- [ ] Verification: Build Android app
-- [ ] Verification: Git automation (Commit and Push)
+- [x] Backend: Add static route for `/uploads` in `app.js`
+- [x] Backend: Ensure `kyc_details` parsing in `adminController.js`
+- [x] Backend: Inject absolute `baseUrl` into all KYC views
+- [x] Backend: Update `kyc_review.ejs` to show structured Prembly data
+- [x] Backend: Update `kyc_review.ejs` to use absolute image paths
+- [x] Verification: Git automation (Commit and Push)

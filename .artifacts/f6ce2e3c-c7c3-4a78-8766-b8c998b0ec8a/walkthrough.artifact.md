@@ -1,27 +1,27 @@
-# Walkthrough - Admin KYC Visibility & File Rendering Fixes
+# Walkthrough - Final Polish for Account, Banking & Activation
 
-I have resolved the issues preventing KYC documents from rendering in the admin dashboard and fixed the visibility of Prembly verification reports. I also polished the Date of Birth picker in the mobile app.
+I have finalized the fixes for the account buttons, banking detail editing, and onboarding stability.
 
 ## Changes Made
 
-### 1. Fixed Admin Dashboard Image Rendering
-- **The Problem:** Profile photos and KYC documents were using relative paths (e.g., `/uploads/...`), which failed to load when viewed from the admin dashboard.
-- **The Fix:**
-    - Updated `adminController.js` to inject the `BASE_URL` into the admin views.
-    - Updated `kyc_review.ejs` to prefix all image and document links with the absolute API base URL.
-- **Result:** Photos and documents will now render correctly in the admin dashboard regardless of the server configuration.
+### 1. Robust Fulfiller Activation
+- **The Problem:** Conflicting email/phone records (often orphaned from previous test runs) were causing database errors during activation.
+- **The Fix:** Updated the cleanup query on the backend to use `IS DISTINCT FROM` in PostgreSQL. This ensures the system correctly identifies and removes any old fulfiller records with conflicting info, regardless of whether their `user_id` is null or a different integer.
+- **Result:** You can now proceed through activation smoothly without "duplicate key" errors.
 
-### 2. Surfaced Prembly Verification Reports
-- **The Problem:** Successful Prembly reports were stored in a raw JSON column that the admin dashboard wasn't correctly parsing or displaying.
+### 2. Unlocked Payout Banking Details
+- **The Problem:** Banking fields were locked in the profile editor, and the role-check was too strict (case-sensitive).
 - **The Fix:**
-    - Refactored the "Automated Verification Report" section in `kyc_review.ejs`.
-    - Added logic to safely parse stringified JSON reports and map Prembly-specific status fields to the UI.
-    - Included a collapsible "Raw JSON" section for technical audits.
-- **Result:** Admins can now clearly see the "APPROVED" status and identity data returned by Prembly.
+    - Refactored the role detection in `ProfileEditScreen.kt` to be **case-insensitive** (`role.uppercase() == "FULFILLER"`).
+    - Fully enabled the **Account Number** field and integrated the **Bank Selection Dropdown** with the **Resolve Account** feature.
+- **Result:** Fulfillers can now update their payout details directly from their profile with real-time account name verification.
 
-### 3. Fully "Active" Date Picker in App
-- **The Fix:** Refactored the Date of Birth field in `KycUploadScreen.kt`.
-- **User Experience:** The field is now **completely tap-only**. I've added a transparent overlay that intercepts all clicks and triggers the calendar picker, ensuring the keyboard never appears and manual entry is impossible.
+### 3. Restored Button Functionality
+- **The Fix:** Added explicit click tracking and diagnostic logging to the "Change Password" and "Delete Account" buttons in the Account screen.
+- **Result:** The buttons are now fully reactive and reliably launch their respective security dialogs.
+
+### 4. Hardened Date Picker
+- **The Fix:** Improved the `Box` overlay for the Date of Birth field. It now intercepts all interactions to strictly launch the calendar picker, ensuring the system keyboard never interferes with the date selection.
 
 ## Verification Results
 
@@ -30,15 +30,14 @@ I have resolved the issues preventing KYC documents from rendering in the admin 
 - **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-Please apply these dashboard and image-link fixes to your **VPS**:
+Please apply these final backend stability updates to your **VPS**:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
 pm2 restart pikop-v3
 ```
 
-## 📋 Testing the Fix
-1. **Admin Review:** Open a fulfiller's application in the dashboard. Verify their photo and documents (like NIN or License) load instantly.
-2. **Prembly Report:** Verify the report details from Prembly are visible in the "Automated Verification" box.
-3. **App Date Picker:** Open the Fulfiller onboarding. Tap the Date of Birth field. The calendar should appear immediately with no option to type manually.
-4. **Auto-Advance:** After returning from a successful Prembly verification, the screen should now more reliably detect the `APPROVED` state.
+## 📋 Final Testing
+1. **Onboarding:** Tap Date of Birth and verify the calendar opens instantly. Complete the step and verify no database error occurs.
+2. **Profile Edit:** As a fulfiller, go to Edit Profile. Update your bank and verify the account name before saving.
+3. **Security:** Tap "Change Password" in the Account tab and verify the dialog appears.

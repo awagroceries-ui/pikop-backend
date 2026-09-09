@@ -32,29 +32,43 @@
 
             <% if (f.kyc_details) { %>
                 <div class="mt-4 p-3 border rounded bg-light">
-                    <h6 class="smaller fw-bold text-muted uppercase mb-2">Automated Verification Report</h6>
-                    <div class="row g-2">
+                    <h6 class="smaller fw-bold text-muted uppercase mb-3">Automated Identity Report (Prembly)</h6>
+                    <div class="row g-3">
                         <% if (typeof f.kyc_details === 'object' && f.kyc_details !== null) { %>
                             <%
-                                // Prembly specific mapping
                                 const report = f.kyc_details;
-                                const vType = report.verification_type || (report.data && report.data.verification_type);
-                                const vStatus = report.status || (report.data && report.data.status);
+                                // Handle varying Prembly response structures
+                                const data = report.data || report;
+                                const firstName = data.first_name || data.firstName;
+                                const lastName = data.last_name || data.lastName;
+                                const dob = data.dob || data.dateOfBirth;
+                                const status = report.status || report.message;
                             %>
-                            <% if (vType) { %>
-                                <div class="col-6"><span class="text-muted smaller">Type:</span> <span class="small fw-bold"><%= vType %></span></div>
-                            <% } %>
-                            <% if (vStatus) { %>
-                                <div class="col-6"><span class="text-muted smaller">Status:</span> <span class="small fw-bold"><%= vStatus %></span></div>
-                            <% } %>
+
+                            <div class="col-md-6">
+                                <span class="text-muted smaller d-block">Verified Name</span>
+                                <span class="small fw-bold text-black"><%= firstName %> <%= lastName %></span>
+                            </div>
+                            <div class="col-md-6">
+                                <span class="text-muted smaller d-block">Verified DOB</span>
+                                <span class="small fw-bold text-black"><%= dob || 'N/A' %></span>
+                            </div>
+                            <div class="col-md-6">
+                                <span class="text-muted smaller d-block">Verification Status</span>
+                                <span class="badge bg-success smaller uppercase"><%= status %></span>
+                            </div>
+                            <div class="col-md-6">
+                                <span class="text-muted smaller d-block">Reference</span>
+                                <span class="mono smaller text-muted"><%= report.reference || 'prembly_v3' %></span>
+                            </div>
 
                             <!-- Detailed Breakdown Toggle -->
-                            <div class="col-12 mt-2">
+                            <div class="col-12 mt-3 pt-3 border-top">
                                 <button class="btn btn-link btn-sm p-0 smaller text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#kycRaw">
-                                    View Full JSON Payload ↓
+                                    Show Technical Data (JSON) ↓
                                 </button>
                                 <div class="collapse mt-2" id="kycRaw">
-                                    <pre class="bg-dark text-success p-3 rounded smaller" style="max-height: 300px; overflow-y: auto;"><code><%= JSON.stringify(f.kyc_details, null, 2) %></code></pre>
+                                    <pre class="bg-dark text-success p-3 rounded smaller" style="max-height: 250px; overflow-y: auto; font-size: 10px;"><code><%= JSON.stringify(f.kyc_details, null, 2) %></code></pre>
                                 </div>
                             </div>
                         <% } else { %>

@@ -1,39 +1,25 @@
-# Implementation Plan - Fix Account Buttons, Banking Fields & Activation Errors
+# Implementation Plan - Fix Admin Dashboard Visibility & KYC File Rendering
 
-This plan addresses non-functional buttons in the Account screen, unlocks banking details for editing, and fixes the "Duplicate Key" error in fulfiller activation.
+This plan resolves the issues where Prembly reports were not visible to admins and KYC images/documents were not rendering in the dashboard.
 
 ## Problem Description
-1.  **Duplicate Key Error:** Fulfiller activation fails because the cleanup query doesn't handle NULL `user_id` values, leaving conflicting email/phone records in the database.
-2.  **Locked Banking Fields:** Banking details in `ProfileEditScreen.kt` feel "locked" or non-editable, possibly due to role mismatch or UI interaction issues.
-3.  **Non-functional Buttons:** "Change Password" and "Delete Account" buttons in `AccountScreen.kt` are not responding or showing their respective dialogs.
-4.  **Manual Date Entry:** The Date of Birth field still allows manual typing instead of forcing the calendar picker.
+1.  **Broken Image Rendering:** Fulfiller photos and documents use relative paths (e.g., `/uploads/...`). These failed to load because the server lacked a static route for the `uploads/` directory, and the dashboard lacked an absolute `BASE_URL` context.
+2.  **Invisible Prembly Reports:** Successful verification results from Prembly were stored in the database but were not correctly parsed or displayed in the admin review screen.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
-- **Robust Cleanup:** Update the deletion query to handle `NULL` `user_id` values when clearing conflicting email/phone records:
-    ```sql
-    DELETE FROM fulfillers WHERE (email = $1 OR phone = $2) AND (user_id IS DISTINCT FROM $3)
-    ```
+#### [MODIFY] [app.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/app.js)
+- **Static Route:** Add `app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))` to expose the submitted documents to the web.
 
----
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- **Report Parsing:** Ensure `kyc_details` is parsed into a JSON object before being passed to the view.
+- **Context Injection:** Pass the absolute `BASE_URL` to all KYC-related views.
 
-### Android App
-
-#### [MODIFY] [AccountScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/AccountScreen.kt)
-- **Log Clicks:** Add `android.util.Log` and `Toast` messages to the `AccountOption` clicks to verify they are being triggered.
-- **Surface Elevation:** Ensure `OutlinedCard` is properly interactive and not being "eaten" by the scrollable container.
-
-#### [MODIFY] [ProfileEditScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/ProfileEditScreen.kt)
-- **Case-Insensitive Role:** Update the role check to `role.uppercase() == "FULFILLER"`.
-- **Unlock Fields:** Ensure `readOnly = false` for the account number and properly wire the bank dropdown.
-- **Interaction Fix:** Wrap the bank fields in a way that works reliably within the scrollable column.
-
-#### [MODIFY] [KycUploadScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/KycUploadScreen.kt)
-- **Date Picker Polish:**
-    - Fully disable the text field (`enabled = false`) and use a `Box` with `clickable` and `pointerInput` to ensure the calendar opens every time and the keyboard never appears.
+#### [MODIFY] [kyc_review.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/kyc_review.ejs)
+- **Absolute Paths:** Update all `<img>` and `<a>` tags to use the injected `baseUrl`.
+- **Identity Display:** Refactor the report section to extract and display key identity fields from Prembly (e.g., Verified Name, DOB, Document Number) in a structured table.
 
 ---
 
@@ -41,10 +27,9 @@ This plan addresses non-functional buttons in the Account screen, unlocks bankin
 
 ### Automated Tests
 - Syntax check backend: `node -c ...`.
-- Build Android app: `./gradlew assembleDebug`.
+- Verify static route: Access `https://api.pikop.com.ng/uploads/test.jpg` (after restart).
 
 ### Manual Verification
-1.  **Change Password / Delete:** Click these buttons in the Account screen. Verify that a dialog appears immediately.
-2.  **Activation Fix:** Save fulfiller profile details. Verify no "Duplicate Key" or "Constraint" error occurs even if the email exists from an old session.
-3.  **Bank Update:** As a fulfiller, successfully update the bank details in the profile.
-4.  **Date Picker:** Tap the DOB field and verify the calendar appears instantly without the keyboard.
+1.  **Dashboard Rendering:** Open an agent's application in the Admin Dashboard. All photos and documents should now be visible as images or clickable links.
+2.  **Report Visibility:** Verify that the "Automated Verification Report" section now shows the fulfiller's verified name and document status from Prembly.
+3.  **Audit Trail:** Confirm the "Raw JSON" section can be expanded to view the full Prembly payload.

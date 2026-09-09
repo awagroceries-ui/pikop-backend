@@ -273,9 +273,6 @@ const getConversationDetails = async (req, res) => {
     }
 };
 
-/**
- * KYC Review Queue (v3)
- */
 const getKYCQueue = async (req, res) => {
     try {
         const { rows } = await db.query(`
@@ -285,7 +282,10 @@ const getKYCQueue = async (req, res) => {
             WHERE f.kyc_status != 'VERIFIED'
             ORDER BY f.created_at DESC
         `);
-        res.render('kyc_queue', { fulfillers: rows });
+        res.render('kyc_queue', {
+            fulfillers: rows,
+            baseUrl: process.env.BASE_URL || 'https://api.pikop.com.ng'
+        });
     } catch (error) {
         res.status(500).send(error.message);
     }

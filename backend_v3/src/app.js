@@ -99,6 +99,7 @@ console.log(`[System] Views directory set to: ${viewsPath}`);
 
 // 4. Static Files
 app.use('/public', express.static(path.join(__dirname, '../public')));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // 5. Routes
 app.use('/admin', require('./routes/adminRoutes'));
