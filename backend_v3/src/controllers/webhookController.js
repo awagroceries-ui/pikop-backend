@@ -20,22 +20,35 @@ const handlePremblyWebhook = async (req, res) => {
     console.log(`[Webhook] Prembly received: ref=${customer_reference} | type=${verification_type} | status=${status}`);
 
     try {
-        // 2. Identify Fulfiller (customer_reference is the user_ref passed at init)
-        const userId = customer_reference.replace('pikop_kyc_', '');
+        // 2. Identify Fulfiller (customer_reference is 'pikop_kyc_{userId}')
+        const userIdRaw = customer_reference.replace('pikop_kyc_', '');
+        const userId = parseInt(userIdRaw);
+
+        if (isNaN(userId)) {
+            console.error(`[Webhook] Invalid userId derived from reference: ${customer_reference}`);
+            return res.status(400).send('Invalid Reference');
+        }
 
         // 3. Map status to Pikop v3
         const verifiedStatus = (status === 'success' || status === 'verified') ? 'approved' : 'declined';
 
         // 4. Update Database Idempotently
-        await db.query(
+        const updateRes = await db.query(
             `UPDATE fulfillers
              SET didit_verification_status = $1,
                  kyc_verified_at = CURRENT_TIMESTAMP,
                  kyc_provider_ref = $2,
                  kyc_details = $3
-             WHERE user_id = $4`,
+             WHERE user_id = $4
+             RETURNING id`,
             [verifiedStatus, payload.reference || 'prembly_webhook', JSON.stringify(payload), userId]
         );
+
+        if (updateRes.rows.length === 0) {
+            console.warn(`[Webhook] No fulfiller profile found for user_id ${userId}. Webhook processed but not saved.`);
+        } else {
+            console.log(`[Webhook] User ${userId} (${updateRes.rows[0].id}) updated to ${verifiedStatus}`);
+        }
 
         // 5. Notify Socket (if active)
         try {

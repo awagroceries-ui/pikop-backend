@@ -1,6 +1,8 @@
-# Task List - Resolve Admin 504 Deadlock
+# Task List - Fix Fulfiller Activation & Webhook Sync
 
-- [x] Backend: Refactor `walletService.js` to support optional transaction client
-- [x] Backend: Pass active `client` from `adminController.js` to wallet services
-- [x] Backend: Fix EJS syntax in `fulfiller_detail.ejs`
-- [x] Verification: Git automation (Commit and Push)
+- [ ] Backend: Refactor `updateFulfillerProfile` to use UPSERT logic
+- [ ] Backend: Improve Prembly webhook logging and robustness
+- [ ] Android: Implement `DatePickerDialog` for Date of Birth
+- [ ] Android: Polished advancement logic for KYC step
+- [ ] Verification: Build and verify onboarding flow
+- [ ] Verification: Git automation (Commit and Push)

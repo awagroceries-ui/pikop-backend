@@ -114,7 +114,12 @@ const updateFulfillerProfile = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 1. Update Core User data if provided
+        // 1. Fetch current user core info (email is needed for fulfiller insert if not exists)
+        const userRes = await client.query("SELECT full_name, email, phone FROM users WHERE id = $1", [userId]);
+        if (userRes.rows.length === 0) throw new Error('User not found');
+        const u = userRes.rows[0];
+
+        // 2. Update Core User data if provided
         if (full_name || phone) {
             await client.query(
                 "UPDATE users SET full_name = COALESCE($1, full_name), phone = COALESCE($2, phone) WHERE id = $3",
@@ -122,26 +127,34 @@ const updateFulfillerProfile = async (req, res) => {
             );
         }
 
-        // 2. Update Fulfiller table
-        const fulfillerRes = await client.query(
-            `UPDATE fulfillers
-             SET primary_class = COALESCE($1, primary_class),
-                 mobility_type = COALESCE($2, mobility_type),
-                 registration_number = COALESCE($3, registration_number),
-                 make = COALESCE($4, make),
-                 model = COALESCE($5, model),
-                 color = COALESCE($6, color),
-                 bank_name = COALESCE($7, bank_name),
-                 account_number = COALESCE($8, account_number),
-                 bank_code = COALESCE($9, bank_code),
-                 account_name = COALESCE($10, account_name),
-                 gender = COALESCE($12, gender),
-                 date_of_birth = COALESCE($13, date_of_birth),
-                 home_address = COALESCE($14, home_address)
-             WHERE user_id = $11
-             RETURNING id`,
+        // 3. UPSERT into Fulfiller table (Eliminates 'duplicate key' errors)
+        await client.query(
+            `INSERT INTO fulfillers (
+                user_id, full_name, email, phone, primary_class, password_hash,
+                mobility_type, registration_number, make, model, color,
+                bank_name, account_number, bank_code, account_name,
+                gender, date_of_birth, home_address
+             ) VALUES ($1, $2, $3, $4, $5, 'external_auth', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+             ON CONFLICT (user_id) DO UPDATE SET
+                primary_class = COALESCE(EXCLUDED.primary_class, fulfillers.primary_class),
+                mobility_type = COALESCE(EXCLUDED.mobility_type, fulfillers.mobility_type),
+                registration_number = COALESCE(EXCLUDED.registration_number, fulfillers.registration_number),
+                make = COALESCE(EXCLUDED.make, fulfillers.make),
+                model = COALESCE(EXCLUDED.model, fulfillers.model),
+                color = COALESCE(EXCLUDED.color, fulfillers.color),
+                bank_name = COALESCE(EXCLUDED.bank_name, fulfillers.bank_name),
+                account_number = COALESCE(EXCLUDED.account_number, fulfillers.account_number),
+                bank_code = COALESCE(EXCLUDED.bank_code, fulfillers.bank_code),
+                account_name = COALESCE(EXCLUDED.account_name, fulfillers.account_name),
+                gender = COALESCE(EXCLUDED.gender, fulfillers.gender),
+                date_of_birth = COALESCE(EXCLUDED.date_of_birth, fulfillers.date_of_birth),
+                home_address = COALESCE(EXCLUDED.home_address, fulfillers.home_address)`,
             [
-                primary_class,
+                userId,
+                full_name || u.full_name,
+                u.email,
+                phone || u.phone,
+                primary_class || 'rider',
                 mobility_type,
                 vehicle_details?.registration_number,
                 vehicle_details?.make,
@@ -151,26 +164,14 @@ const updateFulfillerProfile = async (req, res) => {
                 account_number,
                 bank_code,
                 account_name,
-                userId,
                 gender,
                 date_of_birth,
                 home_address
             ]
         );
 
-        if (fulfillerRes.rows.length === 0) {
-            // Create fulfiller record if it somehow doesn't exist but user is FULFILLER role
-            const userRes = await client.query("SELECT full_name, email, phone FROM users WHERE id = $1", [userId]);
-            const u = userRes.rows[0];
-            await client.query(
-                `INSERT INTO fulfillers (user_id, full_name, email, phone, primary_class, password_hash)
-                 VALUES ($1, $2, $3, $4, $5, 'external_auth')`,
-                [userId, u.full_name, u.email, u.phone, primary_class || 'rider']
-            );
-        }
-
         await client.query('COMMIT');
-        res.status(200).json({ success: true, message: 'Profile updated' });
+        res.status(200).json({ success: true, message: 'Profile updated successfully' });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('[Fulfiller] Update Error:', error.message);

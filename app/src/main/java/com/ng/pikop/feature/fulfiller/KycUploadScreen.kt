@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Wc
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
+import java.util.Calendar
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -329,17 +331,66 @@ fun PersonalDetailsStep(
     onAddressChange: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val calendar = Calendar.getInstance()
+    
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = if (dob.isNotBlank()) {
+            try {
+                val parts = dob.split("-")
+                calendar.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
+                calendar.timeInMillis
+            } catch (e: Exception) { System.currentTimeMillis() }
+        } else System.currentTimeMillis()
+    )
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        calendar.timeInMillis = millis
+                        val year = calendar.get(Calendar.YEAR)
+                        val month = calendar.get(Calendar.MONTH) + 1
+                        val day = calendar.get(Calendar.DAY_OF_MONTH)
+                        onDobChange("$year-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}")
+                    }
+                    showDatePicker = false
+                }) { Text("Confirm") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Personal Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text("We need a few more details to activate your account.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
 
         OutlinedTextField(
             value = dob,
-            onValueChange = onDobChange,
-            label = { Text("Date of Birth (YYYY-MM-DD)") },
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Default.Cake, null) },
-            placeholder = { Text("1990-01-01") }
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Date of Birth") },
+            modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
+            enabled = false, // Disable typing, force click
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            leadingIcon = { 
+                IconButton(onClick = { showDatePicker = true }) {
+                    Icon(Icons.Default.Cake, null) 
+                }
+            },
+            placeholder = { Text("Select Date") }
         )
 
         var genderExpanded by remember { mutableStateOf(false) }
@@ -409,21 +460,48 @@ fun IdentityStep(status: String, role: String, isLaunching: Boolean, onVerifyCli
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Identity Verification", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Card(modifier = Modifier.fillMaxWidth(), onClick = {
-            if (isLaunching || status == "approved") return@Card
-            val hasCamera = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-            val hasAudio = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-            if (!hasCamera || !hasAudio) onPermissionRequest() else onVerifyClick()
-        }) {
-            Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (isLaunching) CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                else Icon(imageVector = if (status == "approved") Icons.Default.CheckCircle else Icons.Default.Fingerprint, contentDescription = null, tint = if (status == "approved") Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(if (status == "approved") "Identity Verified" else "Start Verification", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text(status.uppercase(), style = MaterialTheme.typography.labelSmall, color = statusColor)
+        
+        if (status.lowercase() == "approved") {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(32.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text("Identity Verified", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                        Text("You can now proceed to the next step.", style = MaterialTheme.typography.bodySmall, color = Color(0xFF2E7D32).copy(alpha = 0.8f))
+                    }
                 }
-                IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, null) }
+            }
+        } else {
+            Card(modifier = Modifier.fillMaxWidth(), onClick = {
+                if (isLaunching) return@Card
+                val hasCamera = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                val hasAudio = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                if (!hasCamera || !hasAudio) onPermissionRequest() else onVerifyClick()
+            }) {
+                Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (isLaunching) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    else Icon(imageVector = Icons.Default.Fingerprint, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(if (status.lowercase() == "pending") "Verification in Progress" else "Start Identity Scan", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(status.uppercase(), style = MaterialTheme.typography.labelSmall, color = statusColor)
+                    }
+                    IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, null) }
+                }
+            }
+            
+            if (status.lowercase() == "pending") {
+                Text(
+                    "Verification is being processed. This usually takes 1-2 minutes. Tap the refresh icon above if the status doesn't update automatically.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
             }
         }
     }
