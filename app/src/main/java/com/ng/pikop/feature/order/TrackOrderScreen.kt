@@ -371,7 +371,8 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                                 showRatingDialog = false
                                 onRefresh()
                             } catch (e: Exception) {
-                                android.widget.Toast.makeText(context, "Rating failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                val errorMsg = com.ng.pikop.core.network.ErrorUtils.parseError(e)
+                                android.widget.Toast.makeText(context, "Rating failed: $errorMsg", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
                     }

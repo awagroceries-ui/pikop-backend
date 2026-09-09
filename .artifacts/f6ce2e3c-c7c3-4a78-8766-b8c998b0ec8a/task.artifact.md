@@ -1,9 +1,9 @@
-# Task List - Fix Wallet Balance, History & Order Activation
+# Task List - Fix Fulfiller Rating Submission Error
 
-- [ ] Backend: Fix 34-parameter SQL query in `orderController.js` (`createOrder`)
-- [ ] Backend: Fix 34-parameter SQL query in `paymentController.js` (`activatePaidMission`)
-- [ ] Backend: Match `original_delivery_fee` and `original_total_fare` columns exactly
-- [ ] Android: Implement auto-refresh on focus for `WalletScreen.kt`
-- [ ] Android: Implement auto-refresh on focus for `FulfillerOrdersScreen.kt`
+- [ ] Backend: Create migration for `fulfiller_rating` columns
+- [ ] Backend: Update `rateFulfiller` with duplicate check and `COALESCE` logic
+- [ ] Backend: Implement `rateCustomer` controller and route
+- [ ] Android: Update `TrackOrderScreen.kt` with better error reporting
+- [ ] Android: Update `ActiveOrderScreen.kt` with better error reporting
 - [ ] Verification: Build Android app
 - [ ] Verification: Git automation (Commit and Push)

@@ -816,14 +816,23 @@ const rateFulfiller = async (req, res) => {
     try {
         // 1. Verify order exists and belongs to user
         const { rows } = await db.query(
-            "SELECT id, fulfiller_id, status FROM orders WHERE id = $1 AND user_id = $2",
+            "SELECT id, fulfiller_id, status, customer_rating FROM orders WHERE id = $1 AND user_id = $2",
             [orderId, userId]
         );
 
         if (rows.length === 0) return res.status(404).json({ success: false, message: 'Order not found' });
         const order = rows[0];
 
+        if (order.customer_rating !== null) {
+            return res.status(400).json({ success: false, message: "You've already rated this mission." });
+        }
+
         if (!order.fulfiller_id) return res.status(400).json({ success: false, message: 'No fulfiller assigned to this order' });
+
+        const validStatuses = ['DELIVERED', 'RELEASED', 'DELIVERED_PENDING_CONFIRMATION', 'CONFIRMED'];
+        if (!validStatuses.includes(order.status.toUpperCase())) {
+            return res.status(400).json({ success: false, message: 'Mission must be completed before rating.' });
+        }
 
         // 2. Record rating in order
         await db.query(
@@ -835,7 +844,7 @@ const rateFulfiller = async (req, res) => {
         await db.query(`
             UPDATE fulfillers
             SET rating_avg = (
-                SELECT AVG(customer_rating)::decimal(3,2)
+                SELECT COALESCE(AVG(customer_rating), 5.0)::decimal(3,2)
                 FROM orders
                 WHERE fulfiller_id = $1 AND customer_rating IS NOT NULL
             )
@@ -845,6 +854,48 @@ const rateFulfiller = async (req, res) => {
         res.status(200).json({ success: true, message: 'Thank you for your feedback!' });
     } catch (error) {
         console.error('[RateFulfiller] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Allows a fulfiller to rate a customer after delivery.
+ */
+const rateCustomer = async (req, res) => {
+    const { orderId } = req.params;
+    const { rating, comment } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // 1. Verify order exists and belongs to this fulfiller (via fulfillers table join)
+        const { rows } = await db.query(`
+            SELECT o.id, o.fulfiller_id, o.status, o.fulfiller_rating
+            FROM orders o
+            JOIN fulfillers f ON f.id = o.fulfiller_id
+            WHERE o.id = $1 AND f.user_id = $2
+        `, [orderId, userId]);
+
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Order not found or unauthorized' });
+        const order = rows[0];
+
+        if (order.fulfiller_rating !== null) {
+            return res.status(400).json({ success: false, message: "You've already rated this customer." });
+        }
+
+        const validStatuses = ['DELIVERED', 'RELEASED', 'DELIVERED_PENDING_CONFIRMATION', 'CONFIRMED'];
+        if (!validStatuses.includes(order.status.toUpperCase())) {
+            return res.status(400).json({ success: false, message: 'Mission must be completed before rating.' });
+        }
+
+        // 2. Record rating in order
+        await db.query(
+            "UPDATE orders SET fulfiller_rating = $1, fulfiller_comment = $2 WHERE id = $3",
+            [rating, comment, orderId]
+        );
+
+        res.status(200).json({ success: true, message: 'Customer rated successfully.' });
+    } catch (error) {
+        console.error('[RateCustomer] Error:', error.message);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -904,5 +955,6 @@ module.exports = {
   verifyDelivery,
   confirmReceipt,
   reportProblem,
-  rateFulfiller
+  rateFulfiller,
+  rateCustomer
 };

@@ -523,7 +523,11 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                 coroutineScope.launch {
                     try {
                         apiService.rateCustomer(orderId, com.ng.pikop.core.network.RatingRequest(rating))
-                    } catch (e: Exception) {}
+                        Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        val errorMsg = com.ng.pikop.core.network.ErrorUtils.parseError(e)
+                        Toast.makeText(context, "Rating failed: $errorMsg", Toast.LENGTH_SHORT).show()
+                    }
                     showRatingDialog = false
                     onOrderCompleted()
                 }
