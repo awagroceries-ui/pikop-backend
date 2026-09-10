@@ -27,7 +27,8 @@ const getFinancialOverview = async (req, res) => {
         };
         const unit = intervalUnitMap[range] || 'day';
 
-        const baseTime = `(DATE_TRUNC('${truncate}', NOW() AT TIME ZONE 'Africa/Lagos') - INTERVAL '${numericOffset} ${unit}')`;
+        // PostgreSQL compatible interval string
+        const baseTime = `(DATE_TRUNC('${truncate}', NOW() AT TIME ZONE 'Africa/Lagos') - (INTERVAL '1' ${unit} * ${numericOffset}))`;
         const startTime = `${baseTime}`;
         const endTime = `(${baseTime} + INTERVAL '${interval}')`;
 
@@ -68,12 +69,11 @@ const getFinancialOverview = async (req, res) => {
 
         // 3. Prepare Chart Data (Trend over sub-periods)
         let seriesTrunc;
-        let seriesCount;
         switch (range) {
-            case 'weekly': seriesTrunc = 'day'; seriesCount = 7; break;
-            case 'monthly': seriesTrunc = 'day'; seriesCount = 30; break;
-            case 'annual': seriesTrunc = 'month'; seriesCount = 12; break;
-            default: seriesTrunc = 'hour'; seriesCount = 24; break;
+            case 'weekly': seriesTrunc = 'day'; break;
+            case 'monthly': seriesTrunc = 'day'; break;
+            case 'annual': seriesTrunc = 'month'; break;
+            default: seriesTrunc = 'hour'; break;
         }
 
         const trendQuery = `

@@ -11,17 +11,9 @@ const autocomplete = async (req, res) => {
     if (!query) return res.status(400).json({ success: false, message: 'Query is required' });
 
     if (!GOOGLE_API_KEY) {
-        console.error('[Places] FATAL: Google Maps API Key is missing in environment variables');
+        console.error('[Places] FATAL: Google API Key is missing in environment variables');
         return res.status(500).json({ success: false, message: 'Maps service not configured' });
     }
-
-    if (!GOOGLE_API_KEY) {
-        console.error('[Places] FATAL: Google API Key is missing');
-        return res.status(500).json({ success: false, message: 'Places service not configured' });
-    }
-
-    const keySuffix = (GOOGLE_API_KEY || '').slice(-4);
-    console.log(`[Places] Autocomplete request for "${query}". Session: ${sessionToken ? 'Present' : 'None'}. Key suffix: ...${keySuffix}`);
 
     try {
         const params = {
@@ -42,7 +34,6 @@ const autocomplete = async (req, res) => {
         const response = await axios.get(url, { params });
 
         if (response.data.status === 'ZERO_RESULTS') {
-            console.warn(`[Places] ZERO_RESULTS for query: "${query}"`);
             return res.status(200).json({ success: true, predictions: [] });
         }
 

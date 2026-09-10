@@ -1102,13 +1102,6 @@ const getGuestTracking = async (req, res) => {
 };
 
 /**
- * Public endpoint for Guest Live Tracking.
- */
-const getGuestTracking = async (req, res) => {
-    // ... (existing logic)
-};
-
-/**
  * Internal Helper: Processes crowdsourced landmarks.
  */
 const processLandmark = async (text, lat, lng) => {
@@ -1247,7 +1240,22 @@ const grantConsent = async (req, res) => {
 
 module.exports = {
   getQuote,
-  // ...
+  getOrderByQuote,
+  createOrder,
+  acceptOrder,
+  getOrderDetails,
+  updateStatus,
+  initiateReturn,
+  getOrderMessages,
+  getUserOrders,
+  getFulfillerOrders,
+  cancelOrder,
+  verifyPickup,
+  verifyDelivery,
+  confirmReceipt,
+  reportProblem,
+  rateFulfiller,
+  rateCustomer,
   getGuestTracking,
   processLandmark,
   failDelivery,

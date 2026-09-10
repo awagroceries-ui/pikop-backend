@@ -321,7 +321,6 @@ const deleteAccount = async (req, res) => {
             [anonymizedEmail, anonymizedPhone, userId]
         );
 
-        // Revoke all sessions
         await db.query("UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [userId]);
 
         res.status(200).json({ success: true, message: 'Account deleted successfully' });
