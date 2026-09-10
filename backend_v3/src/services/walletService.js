@@ -53,17 +53,22 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
   try {
     if (shouldRelease) await client.query('BEGIN');
 
-    // 1. Fetch order details
+    // 1. Fetch order details with User ID instead of just Fulfiller ID
     const orderRes = await client.query(
-        "SELECT id, user_id, fulfiller_id, total_fare, delivery_fee, item_price, original_delivery_fee, fee_payer, platform_fee_amount, sms_charge_amount FROM orders WHERE id = $1",
+        `SELECT o.id, o.user_id, o.fulfiller_id, o.total_fare, o.delivery_fee, o.item_price,
+                o.original_delivery_fee, o.fee_payer, o.platform_fee_amount, o.sms_charge_amount,
+                f.user_id as fulfiller_user_id
+         FROM orders o
+         LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
+         WHERE o.id = $1`,
         [orderId]
     );
     const order = orderRes.rows[0];
 
     if (!order) throw new Error(`Order #${orderId} not found for settlement`);
 
-    if (!order.fulfiller_id) {
-        console.warn(`[Wallet] Settlement skipped for Order #${orderId}: No fulfiller assigned.`);
+    if (!order.fulfiller_id || !order.fulfiller_user_id) {
+        console.warn(`[Wallet] Settlement skipped for Order #${orderId}: No fulfiller or linked user found.`);
         if (shouldRelease) await client.query('COMMIT');
         return;
     }
@@ -77,8 +82,8 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
     const platformShare = settlableAmount * commissionRate;
     const fulfillerShare = settlableAmount - platformShare;
 
-    // 3. Fulfiller Credit
-    const fWalletId = await ensureWalletExists(client, 'FULFILLER', order.fulfiller_id);
+    // 3. Fulfiller Credit (NOW UNIFIED TO USER WALLET)
+    const fWalletId = await ensureWalletExists(client, 'USER', order.fulfiller_user_id);
     await recordEntry(client, fWalletId, 'CREDIT', fulfillerShare, 'SETTLEMENT', `Earnings for Mission #${order.id}`, order.id);
 
     // 4. Platform Credit (Delivery Share)
@@ -159,9 +164,9 @@ const releaseEscrow = async (orderId, providedClient = null) => {
     // 1. Fetch order details with fee info
     const orderRes = await client.query(
       `SELECT o.id, o.fulfiller_id, o.item_price, o.platform_fee_amount, o.fee_payer, o.user_id, o.seller_id,
-              o.escrow_status, u.role as seller_role
+              o.escrow_status, f.user_id as fulfiller_user_id
        FROM orders o
-       JOIN users u ON u.id = COALESCE(o.seller_id, o.fulfiller_id, o.user_id)
+       LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
        WHERE o.id = $1 FOR UPDATE`,
       [orderId]
     );
@@ -177,15 +182,9 @@ const releaseEscrow = async (orderId, providedClient = null) => {
     // 2. Determine Seller Payout
     const sellerPayout = order.fee_payer === 'SELLER' ? (itemPrice - fee) : itemPrice;
 
-    // 3. Update Seller Wallet
-    let ownerType = 'FULFILLER';
-    let ownerId = order.fulfiller_id;
-    if (order.seller_id) {
-        ownerType = 'USER';
-        ownerId = order.seller_id;
-    }
-
-    const sellerWalletId = await ensureWalletExists(client, ownerType, ownerId);
+    // 3. Update Seller Wallet (ALWAYS USER TYPE NOW)
+    const targetUserId = order.seller_id || order.fulfiller_user_id || order.user_id;
+    const sellerWalletId = await ensureWalletExists(client, 'USER', targetUserId);
 
     // Debit Pending
     await recordEntry(client, sellerWalletId, 'DEBIT', itemPrice, 'ESCROW_RELEASE', `Releasing escrow for Order #${order.id}`, order.id, 'pending');
@@ -231,7 +230,10 @@ const refundEscrow = async (orderId, providedClient = null) => {
         if (shouldRelease) await client.query('BEGIN');
 
         const { rows } = await client.query(
-            "SELECT id, fulfiller_id, seller_id, item_price, escrow_status FROM orders WHERE id = $1 FOR UPDATE",
+            `SELECT o.id, o.fulfiller_id, o.seller_id, o.item_price, o.escrow_status, f.user_id as fulfiller_user_id
+             FROM orders o
+             LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
+             WHERE o.id = $1 FOR UPDATE`,
             [orderId]
         );
         const order = rows[0];
@@ -242,14 +244,8 @@ const refundEscrow = async (orderId, providedClient = null) => {
 
         const itemPrice = parseFloat(order.item_price);
 
-        let ownerType = 'FULFILLER';
-        let ownerId = order.fulfiller_id;
-        if (order.seller_id) {
-            ownerType = 'USER';
-            ownerId = order.seller_id;
-        }
-
-        const sellerWalletId = await ensureWalletExists(client, ownerType, ownerId);
+        const targetUserId = order.seller_id || order.fulfiller_user_id || order.user_id;
+        const sellerWalletId = await ensureWalletExists(client, 'USER', targetUserId);
 
         // Debit Seller's Pending (zeros out the hold)
         await recordEntry(client, sellerWalletId, 'DEBIT', itemPrice, 'ESCROW_REFUND', `Refunding escrow for Order #${order.id}`, order.id, 'pending');

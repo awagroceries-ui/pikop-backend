@@ -1,33 +1,45 @@
-# Implementation Plan - Fix Fulfiller Dashboard Verification Status
+# Implementation Plan - Unified Wallet System (Fix for "Missing" Top-ups)
 
-This plan fixes the issue where fulfillers see an outdated "Account Not Verified" status on their dashboard even after completing the verification process.
+This plan permanently resolves the recurring issue where wallet top-ups (especially for fulfillers) do not reflect in the app balance by unifying all financial activity into a single, user-centric wallet.
 
 ## Problem Description
-1.  **State Desync:** The `FulfillerDashboardScreen` has its own local `kycStatus` variable initialized to `"PENDING"`, which is never updated from the global `TokenManager` or the backend.
-2.  **Missing Wiring:** `MainActivity` observes the correct `kycStatus` from `TokenManager` but fails to pass it as a parameter to `FulfillerDashboardScreen`.
-3.  **Confusing UX:** The dashboard shows a generic "Account Not Verified" error even when the account is actually `PENDING_REVIEW`, which is frustrating for users who have finished their steps.
+1.  **Wallet Fragmentation:** Fulfillers currently have two separate wallets: a `USER` wallet (for top-ups and Secure Pay) and a `FULFILLER` wallet (for mission earnings).
+2.  **Role-Based Read/Write Discrepancy:** The Paystack Webhook always credits the `USER` wallet. However, when an agent is in "Fulfiller Mode," the app only shows their `FULFILLER` wallet.
+3.  **Result:** Top-ups appear successful in the admin dashboard (which audit's all transactions) but are invisible to the agent because they are stored under a different owner ID.
 
 ## Proposed Changes
 
+### Backend (`backend_v3`)
+
+#### [NEW] [Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725594000000_unify_wallet_system.js)
+- **Heal Script:** A migration that automatically finds all `FULFILLER` wallets, identifies their corresponding `user_id`, and merges their balances and history into the main `USER` wallet.
+- **Cleanup:** Marks the `FULFILLER` wallets as obsolete or deletes them.
+
+#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
+- **Standardize:** Update all functions (`ensureWalletExists`, `recordEntry`, `processMissionSettlement`, `releaseEscrow`) to **always** use `owner_type = 'USER'` and the `user_id`.
+- **Remove Fulfiller ID Dependency:** Even mission earnings will now be credited directly to the `USER` wallet using the `user_id` linked to that fulfiller.
+
+#### [MODIFY] [walletController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/walletController.js)
+- **Simplify `getMyWallet`**: Remove the role check. Always fetch the wallet where `owner_type = 'USER'` and `owner_id = userId`.
+- **Update `requestWithdrawal`**: Ensure fulfillers can still withdraw, but they now pull from the unified balance.
+
+#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
+- Ensure all top-ups and escrow logic strictly use the unified user-based wallet.
+
+---
+
 ### Android App
+- No changes required. The app already calls `getWalletInfo()`. By fixing the backend to return a unified balance, the app will instantly "reveal" all previously "missing" funds.
 
-#### [MODIFY] [FulfillerDashboardScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerDashboardScreen.kt)
-- Update the function signature to accept `kycStatus: String`.
-- Remove the local `var kycStatus by remember { mutableStateOf("PENDING") }`.
-- Refactor the **KYC Status Card** to distinguish between `NOT_STARTED` and `PENDING_REVIEW`:
-    - If `PENDING_REVIEW`: Show a yellow "Verification Under Review" card with a message explaining the 24-hour SLA.
-    - If `VERIFIED`: Hide the card entirely (as it already does).
-- Ensure the **Online/Offline Switch** and **Bottom Message** are correctly enabled based on the passed-in `kycStatus`.
-
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Pass the `kycStatus` (collected from `TokenManager`) into the `FulfillerDashboardScreen` call.
+---
 
 ## Verification Plan
 
 ### Automated Tests
 - Build Android app: `./gradlew assembleDebug`.
+- Syntax check backend: `node -c ...`.
 
 ### Manual Verification
-1.  **Pending State:** Log in as a fulfiller who has submitted for review. Verify the dashboard shows "Verification Under Review" instead of "Account Not Verified".
-2.  **Verified State:** As an admin, approve a fulfiller. Verify the dashboard automatically updates (via background sync) to remove the warning and enables the "Online" switch.
-3.  **Go Online:** Confirm that once `VERIFIED`, the agent can actually toggle the switch to "ONLINE".
+1.  **The "Heal" Test:** After running the migration, verify that a fulfiller who previously had "missing" top-ups now sees their full combined balance (Top-ups + Earnings).
+2.  **Unified Flow:** Complete a top-up as a fulfiller. Verify it reflects immediately in the same balance where their earnings are shown.
+3.  **Audit:** Verify the admin `Transactions` ledger still shows all activity but now correctly attributed to the single `USER` wallet.

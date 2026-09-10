@@ -42,7 +42,7 @@ const getFinancialOverview = async (req, res) => {
                 COALESCE(SUM(amount) FILTER (WHERE purpose = 'COMMISSION'), 0) as commission,
                 COALESCE(SUM(amount) FILTER (WHERE purpose = 'SECURE_PAY_FEE'), 0) as platform_fees,
                 COALESCE(SUM(amount) FILTER (WHERE purpose = 'SMS_CHARGE'), 0) as sms_earnings,
-                COALESCE(SUM(amount) FILTER (WHERE purpose = 'SETTLEMENT' AND wallet_id IN (SELECT id FROM wallets WHERE owner_type = 'FULFILLER')), 0) as fulfiller_earnings
+                COALESCE(SUM(amount) FILTER (WHERE purpose = 'SETTLEMENT' AND wallet_id IN (SELECT id FROM wallets WHERE owner_type = 'USER')), 0) as fulfiller_earnings
             FROM wallet_ledger_entries
             WHERE created_at >= ${start} AND created_at < ${end}
         `;

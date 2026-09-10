@@ -1,7 +1,7 @@
-# Task List - Fix Fulfiller Dashboard Verification Status
+# Task List - Unified Wallet System Fix
 
-- [ ] Android: Update `FulfillerDashboardScreen.kt` signature and remove local state
-- [ ] Android: Refactor `FulfillerDashboardScreen.kt` UI to handle `PENDING_REVIEW` state
-- [ ] Android: Pass `kycStatus` from `MainActivity.kt` to `FulfillerDashboardScreen`
-- [ ] Verification: Build and verify status updates
+- [ ] Backend: Create migration to merge `FULFILLER` wallets into `USER` wallets
+- [ ] Backend: Update `walletService.js` to use unified `USER` + `user_id` pattern
+- [ ] Backend: Update `walletController.js` to remove role-based wallet splitting
+- [ ] Backend: Update `financialController.js` metrics queries for unified wallets
 - [ ] Verification: Git automation (Commit and Push)

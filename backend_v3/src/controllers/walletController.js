@@ -10,30 +10,15 @@ const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
  */
 const getMyWallet = async (req, res) => {
   const userId = req.user.id;
-  const userRole = req.user.role;
 
   try {
-    // 1. Determine Owner Type/ID
-    let ownerType = 'USER';
-    let ownerId = userId;
+    // Standardize on a single USER wallet per human ID
+    const walletId = await walletService.ensureWalletExists(db, 'USER', userId);
 
-    if (userRole === 'FULFILLER') {
-        const fRes = await db.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
-        if (fRes.rows.length > 0) {
-            ownerType = 'FULFILLER';
-            ownerId = fRes.rows[0].id;
-        }
-    }
-
-    // 2. Fetch Wallet
     const { rows: wallets } = await db.query(
-        "SELECT id, balance, pending_balance, currency FROM wallets WHERE owner_type = $1 AND owner_id = $2",
-        [ownerType, ownerId.toString()]
+        "SELECT id, balance, pending_balance, currency FROM wallets WHERE id = $1",
+        [walletId]
     );
-
-    if (wallets.length === 0) {
-        return res.status(200).json({ success: true, data: { balance: 0, pending_balance: 0, currency: 'NGN', transactions: [] } });
-    }
 
     const wallet = wallets[0];
 
@@ -69,20 +54,20 @@ const requestWithdrawal = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 1. Auth Check
+        // 1. Auth Check: Fulfiller record must exist for banking details
         const fRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
         if (fRes.rows.length === 0) return res.status(403).json({ success: false, message: 'Only fulfillers can withdraw' });
         const fulfillerId = fRes.rows[0].id;
 
-        // 2. Wallet Check
-        const walletId = await walletService.ensureWalletExists(client, 'FULFILLER', fulfillerId);
+        // 2. Unified Wallet Check
+        const walletId = await walletService.ensureWalletExists(client, 'USER', userId);
         const { rows } = await client.query("SELECT balance FROM wallets WHERE id = $1 FOR UPDATE", [walletId]);
 
         if (parseFloat(rows[0].balance) < parseFloat(amount)) {
             return res.status(400).json({ success: false, message: 'Insufficient balance' });
         }
 
-        // 3. Debit Wallet
+        // 3. Debit Unified Wallet
         await walletService.recordEntry(client, walletId, 'DEBIT', amount, 'WITHDRAWAL', 'Payout requested');
 
         // 4. Create Withdrawal Record
