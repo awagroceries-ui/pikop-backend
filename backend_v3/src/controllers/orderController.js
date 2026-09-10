@@ -130,18 +130,20 @@ const getQuote = async (req, res) => {
 
   // 5. Secure Pay / Escrow Fee Logic (DYNAMIZED)
   const platform_fee_amount = PlatformConfig.roundFee(item_price * codFeeRate);
-  const fee_payer = initiator_role; // Rule: initiator bears the fee
+
+  // FIXED RULE: The person paying for the item (Buyer) ALWAYS bears the fee.
+  const fee_payer = 'PAYER';
 
   // 5.1 Guest SMS Charge (₦50)
-  // Rule: If recipient is GUEST (requires tracking link SMS)
-  // OR if payer is GUEST (requires payment link SMS), charge ₦50 once.
-  // Note: For now, if recipient is GUEST, they are always treated as Guest Payer if Secure Pay is used.
   const sms_charge_amount = (recipient_type === 'GUEST') ? 50 : 0;
 
-  // total_payable for checkout: item + delivery + fee + sms_charge
-  const total_payable = parseFloat(item_price) + delivery_fee + (fee_payer === 'PAYER' ? platform_fee_amount : 0) + sms_charge_amount;
+  // 5.2 Calculate UPFRONT Total (What the initiator pays NOW)
+  // If initiator is PAYER, they pay Item + Delivery + Fee.
+  // If initiator is SELLER, they pay only Delivery.
+  const isPayerInitiator = initiator_role === 'PAYER';
+  const total_payable = (isPayerInitiator ? parseFloat(item_price) + platform_fee_amount : 0) + delivery_fee + sms_charge_amount;
 
-  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Total: ${total_payable} | Recipient: ${recipient_type} | Fee Rate: ${codFeeRate}`);
+  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Upfront: ${total_payable} | Recipient: ${recipient_type} | Fee Rate: ${codFeeRate}`);
 
   // 6. Save Quote
     const quoteRes = await db.query(

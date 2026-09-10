@@ -419,9 +419,12 @@ fun OrderQuoteScreen(
                     val discount = minOf(calculatedDiscount, deliveryFee)
                     
                     val itemPriceNum = result.item_price ?: 0.0
-                    val platformFee = if (result.fee_payer == "PAYER") result.platform_fee_amount ?: 0.0 else 0.0
+                    val platformFee = result.platform_fee_amount ?: 0.0
                     val smsCharge = result.sms_charge_amount ?: 0.0
-                    val amountToCharge = itemPriceNum + (deliveryFee - discount) + platformFee + smsCharge
+                    
+                    // Logic: If user is Buyer, they pay everything. If Seller, they pay only Delivery + SMS.
+                    val isBuyer = initiatorRole == "PAYER"
+                    val amountToCharge = (if (isBuyer) itemPriceNum + platformFee else 0.0) + (deliveryFee - discount) + smsCharge
 
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Order Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -429,17 +432,17 @@ fun OrderQuoteScreen(
                         
                         // Section 1: COD Item & Fees
                         if (isSecurePay) {
-                            Text("COD Item & Fees", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text("Secure Pay Breakdown", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             SummaryLine("Item price", "₦$itemPriceNum")
-                            if (platformFee > 0) {
-                                SummaryLine("Platform fee (10%)", "₦$platformFee")
-                            }
-                            SummaryLine("Subtotal", "₦${itemPriceNum + platformFee}")
+                            SummaryLine("Platform fee (Buyer pays)", "₦$platformFee")
+                            
+                            val subtotal = itemPriceNum + platformFee
+                            SummaryLine(if (isBuyer) "Subtotal (You pay)" else "Subtotal (Recipient pays)", "₦$subtotal", fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(12.dp))
                         }
 
                         // Section 2: Delivery
-                        Text("Delivery", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("Logistics", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         SummaryLine("Delivery fee", "₦$deliveryFee")
                         if (discount > 0) {
                             SummaryLine("Promo discount", "-₦$discount", color = MaterialTheme.colorScheme.primary)
@@ -775,10 +778,10 @@ fun LandmarkInput(
 }
 
 @Composable
-fun SummaryLine(label: String, value: String, color: Color = Color.Unspecified) {
+fun SummaryLine(label: String, value: String, color: Color = Color.Unspecified, fontWeight: FontWeight = FontWeight.Normal) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = color)
+        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = fontWeight, color = color)
     }
 }
 
