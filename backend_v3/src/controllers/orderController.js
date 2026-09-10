@@ -5,6 +5,7 @@ const walletService = require('../services/walletService');
 const emailService = require('../services/emailService');
 const fcmService = require('../services/fcmService');
 const smsService = require('../services/smsService');
+const dispatchService = require('../services/dispatchService');
 const PlatformConfig = require('../config/platform');
 const { normalizePhone } = require('../utils/phone');
 
@@ -636,9 +637,25 @@ const createOrder = async (req, res) => {
         await client.query('COMMIT');
         console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId} | Fare: ${finalFare}`);
 
+        // Active Dispatch: Notify nearby fulfillers immediately
+        if (orderRes.rows[0].status === 'SEARCHING' || orderRes.rows[0].status === 'PAYMENT_CAPTURED') {
+            const fulfillers = await dispatchService.findNearbyFulfillers(orderRes.rows[0]);
+            if (fulfillers.length > 0) {
+                dispatchService.broadcastOffer(orderRes.rows[0], fulfillers).catch(() => {});
+            }
+        }
+
         // Crowdsource landmarks if valid
         if (q.pickup_landmark) await processLandmark(q.pickup_landmark, pLat, pLng);
         if (q.delivery_landmark) await processLandmark(q.delivery_landmark, dLat, dLng);
+
+        // Active Dispatch: Broadcast to nearby fulfillers immediately
+        if (orderRes.rows[0].status === 'SEARCHING' || orderRes.rows[0].status === 'PAYMENT_CAPTURED') {
+            const fulfillers = await dispatchService.findNearbyFulfillers(orderRes.rows[0]);
+            if (fulfillers.length > 0) {
+                dispatchService.broadcastOffer(orderRes.rows[0], fulfillers).catch(() => {});
+            }
+        }
 
         // Outreach for Secure Pay
         if (item_price > 0) {

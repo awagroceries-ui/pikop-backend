@@ -1,7 +1,11 @@
-# Task List - Fix SMS OTP Delivery & Integrate Keys
+# Task List - Fix Order Transmission & Audible Pings
 
-- [x] Backend: Add `formatForTermii` helper in `phone.js`
-- [x] Backend: Update `smsService.js` with DND channel, digit-only formatting, and provided API key
-- [x] Backend: Update `webhookController.js` with provided Signing Secret
-- [x] Backend: Update `.env.example` with Termii secret placeholder
-- [x] Verification: Git automation (Commit and Push)
+- [ ] Backend: Update `fcmService.js` for audible pings (Notification + Data)
+- [ ] Backend: Harden `dispatchService.js` filters (Class + Zone + State)
+- [ ] Backend: Trigger Active Dispatch in `orderController.js` and `paymentController.js`
+- [ ] Backend: Implement `dispatchReminderJob.js` and start in `app.js`
+- [ ] Android: Wire `SocketManager` in `MainActivity.kt`
+- [ ] Android: Add socket listener in `FulfillerDashboardScreen.kt` for instant offers
+- [ ] Android: Harden `PikopMessagingService.kt` for high-importance sound
+- [ ] Verification: Build and verify instant transmission and reminders
+- [ ] Verification: Git automation (Commit and Push)

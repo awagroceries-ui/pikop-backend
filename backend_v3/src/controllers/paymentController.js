@@ -8,6 +8,7 @@ const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
 const walletService = require('../services/walletService');
 const emailService = require('../services/emailService');
 const fcmService = require('../services/fcmService');
+const dispatchService = require('../services/dispatchService');
 const smsService = require('../services/smsService');
 
 /**
@@ -298,6 +299,13 @@ const handleWebhook = async (req, res) => {
                     await client.query('COMMIT');
                 } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
             }
+
+            // Active Dispatch: Broadcast mission after successful Guest payment
+            const fulfillers = await dispatchService.findNearbyFulfillers(order);
+            if (fulfillers.length > 0) {
+                dispatchService.broadcastOffer(order, fulfillers).catch(() => {});
+            }
+
             return res.sendStatus(200);
         }
     }

@@ -46,7 +46,7 @@ try {
 }
 
 /**
- * Sends a high-priority push notification (Data-only for consistency).
+ * Sends a high-priority push notification (Alert + Data).
  */
 const sendNotification = async (userId, title, body, data = {}) => {
   if (!admin.apps.length) return;
@@ -55,22 +55,28 @@ const sendNotification = async (userId, title, body, data = {}) => {
     const { rows } = await db.query("SELECT token FROM user_fcm_tokens WHERE user_id = $1", [userId]);
     if (rows.length === 0) return;
 
-    // Milestone 9: Use "data" payloads for manual construction on client
     const message = {
       token: rows[0].token,
+      notification: {
+        title: title,
+        body: body
+      },
       data: {
-        title,
-        body,
-        channel_id: "pikop_v3_logistics",
-        ...data
+        ...data,
+        channel_id: "pikop_v3_logistics"
       },
       android: {
-        priority: "high"
+        priority: "high",
+        notification: {
+            sound: "default",
+            click_action: "FLUTTER_NOTIFICATION_CLICK" // Legacy support
+        }
       },
       apns: {
         payload: {
           aps: {
             contentAvailable: true,
+            sound: "default"
           }
         }
       }

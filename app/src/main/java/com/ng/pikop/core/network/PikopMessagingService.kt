@@ -37,7 +37,10 @@ class PikopMessagingService : FirebaseMessagingService() {
         val pendingIntent = PendingIntent.getActivity(this, System.currentTimeMillis().toInt(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-        val channelId = "pikop_notifications"
+        // MILSTONE: High-Priority Channel for Audible Pings (Logistics)
+        val channelId = if (type == "MISSION_OFFER") "pikop_mission_alerts" else "pikop_notifications"
+        val channelName = if (type == "MISSION_OFFER") "Mission Alerts" else "Pikop Updates"
+        
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.pikop_badge)
             .setContentTitle(title)
@@ -45,16 +48,23 @@ class PikopMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setCategory(NotificationCompat.CATEGORY_ALARM) // Ensure sound on most devices
             .setContentIntent(pendingIntent)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Pikop Updates", NotificationManager.IMPORTANCE_HIGH).apply {
+            val importance = if (type == "MISSION_OFFER") NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(channelId, channelName, importance).apply {
                 description = "Critical delivery and mission alerts"
                 enableLights(true)
                 enableVibration(true)
                 setShowBadge(true)
+                // Set custom sound or default
+                setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI, android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build())
             }
             notificationManager.createNotificationChannel(channel)
         }

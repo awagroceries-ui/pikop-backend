@@ -58,6 +58,20 @@ fun FulfillerDashboardScreen(
     val apiService = remember { ApiService.create(tokenManager) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
+    // Active Mission Listener (Socket)
+    LaunchedEffect(isOnline) {
+        if (isOnline) {
+            com.ng.pikop.core.network.SocketManager.on("new_mission_offer") {
+                android.util.Log.d("DashboardSocket", "New mission offer received via socket. Refreshing...")
+                coroutineScope.launch {
+                    try {
+                        offers = apiService.getOffers()
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+    }
+
     // Initial Fetch: Sync Wallet & History
     LaunchedEffect(Unit) {
         try {

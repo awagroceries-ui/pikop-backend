@@ -255,6 +255,9 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
     // Profile Auto-Sync & Push Token Registration
     LaunchedEffect(accessToken) {
         if (accessToken != null) {
+            // Socket Connectivity
+            userId?.let { com.ng.pikop.core.network.SocketManager.connect(it) }
+
             // 1. Sync Profile Data and Start Background Approval Monitoring
             scope.launch {
                 while (true) {

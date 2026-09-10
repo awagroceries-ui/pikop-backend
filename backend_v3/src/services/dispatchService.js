@@ -19,11 +19,19 @@ const findNearbyFulfillers = async (order) => {
       SELECT f.user_id, f.id, f.primary_class, ST_Distance(f.current_location, $1) as dist,
              (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) as load
       FROM fulfillers f
+      LEFT JOIN zones z ON ST_Intersects(f.current_location::geometry, z.boundary::geometry)
       WHERE f.online_status = 'ONLINE'
       AND f.kyc_status = 'VERIFIED'
-      AND f.current_state = $3
+      AND f.current_state ILIKE $3 -- Resilient state matching
       AND ST_DWithin(f.current_location, $1, $2)
       AND f.last_ping_at > NOW() - interval '30 minutes'
+
+      -- 1. Class-based Eligibility (from Order Size)
+      AND f.primary_class = ANY($4::text[])
+
+      -- 2. Zone-based Okada Restrictions
+      AND (z.id IS NULL OR f.primary_class = ANY(z.allowed_fulfiller_classes))
+
       AND (
           (f.primary_class = 'agent' AND (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) < 2)
           OR (f.primary_class = 'rider' AND (SELECT COUNT(*) FROM orders WHERE (fulfiller_id = f.id OR queued_for_fulfiller_id = f.id) AND status NOT IN ('DELIVERED', 'CANCELLED')) < 5)
@@ -33,7 +41,8 @@ const findNearbyFulfillers = async (order) => {
       LIMIT 20
     `;
 
-    const { rows } = await db.query(query, [order.pickup_location, radiusMeters, order.pickup_state]);
+    const statePattern = `%${(order.pickup_state || '').split(' ')[0]}%`;
+    const { rows } = await db.query(query, [order.pickup_location, radiusMeters, statePattern, order.required_fulfiller_classes]);
     return rows;
   } catch (error) {
     console.error('[Dispatch] Search Error:', error.message);
@@ -59,8 +68,18 @@ const broadcastOffer = async (order, fulfillers) => {
         distance_km: (f.dist / 1000).toFixed(1)
     });
 
-    // PUSH Notification (v3.5.1)
-    fcmService.sendNotification(f.user_id, "New Mission Offer", `Earn ₦${Math.ceil(order.total_fare * 0.75)} with a new delivery nearby.`);
+    // PUSH Notification (v3.5.1 Audible Ping)
+    fcmService.sendNotification(
+        f.user_id,
+        "New Mission Nearby! 🚀",
+        `Earn ₦${Math.ceil(order.total_fare * 0.75)} delivering: ${order.item_description}. Tap to view.`,
+        {
+            type: "MISSION_OFFER",
+            order_id: order.id.toString(),
+            sound: "default",
+            priority: "high"
+        }
+    );
   });
 };
 
