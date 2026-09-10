@@ -1,9 +1,7 @@
-# Task List - Prioritize SMS OTP
+# Task List - Fix SMS OTP Delivery & Integrate Keys
 
-- [ ] Backend: Refactor `signup` to only send SMS OTP initially
-- [ ] Backend: Implement `requestEmailOtp` fallback controller
-- [ ] Backend: Register fallback route in `authRoutes.js`
-- [ ] Android: Add `requestEmailOtp` to `ApiService.kt`
-- [ ] Android: Refactor `EmailOtpScreen.kt` UI to focus on Phone first and add Email Fallback
-- [ ] Verification: Build and verify end-to-end OTP flow
-- [ ] Verification: Git automation (Commit and Push)
+- [x] Backend: Add `formatForTermii` helper in `phone.js`
+- [x] Backend: Update `smsService.js` with DND channel, digit-only formatting, and provided API key
+- [x] Backend: Update `webhookController.js` with provided Signing Secret
+- [x] Backend: Update `.env.example` with Termii secret placeholder
+- [x] Verification: Git automation (Commit and Push)

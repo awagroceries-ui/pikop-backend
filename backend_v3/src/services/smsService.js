@@ -1,5 +1,6 @@
 const axios = require('axios');
 const db = require('../config/db');
+const { formatForTermii } = require('../utils/phone');
 require('dotenv').config();
 
 const TERMII_API_KEY = process.env.TERMII_API_KEY || 'tlv_vNooxh-VZNQ4yFmywjNwA5DxC1KdgDkLZYRXOHqtkys';
@@ -26,13 +27,14 @@ const logSms = async (recipient, content, purpose, orderId = null, ref = null, s
  * Generic SMS Send via Termii.
  */
 const sendSms = async (to, message, purpose = 'generic', orderId = null) => {
+    const termiiPhone = formatForTermii(to);
     try {
         const payload = {
-            to: to,
+            to: termiiPhone,
             from: TERMII_SENDER_ID,
             sms: message,
             type: "plain",
-            channel: "generic",
+            channel: "dnd", // Use DND for better reliability in Nigeria
             api_key: TERMII_API_KEY
         };
 
@@ -44,7 +46,8 @@ const sendSms = async (to, message, purpose = 'generic', orderId = null) => {
 
         return { success: true, ref };
     } catch (error) {
-        console.error(`[Termii] Failed to send to ${to}:`, error.response?.data || error.message);
+        const errorData = error.response?.data || error.message;
+        console.error(`[Termii] Failed to send to ${to}:`, JSON.stringify(errorData));
         await logSms(to, message, purpose, orderId, null, 'failed');
         return { success: false, error: error.message };
     }
@@ -54,13 +57,14 @@ const sendSms = async (to, message, purpose = 'generic', orderId = null) => {
  * Sends and Manages OTP via Termii.
  */
 const sendOtp = async (to) => {
+    const termiiPhone = formatForTermii(to);
     try {
         const payload = {
             api_key: TERMII_API_KEY,
             message_type: "NUMERIC",
-            to: to,
+            to: termiiPhone,
             from: TERMII_SENDER_ID,
-            channel: "generic",
+            channel: "dnd", // Use DND for reliable OTP delivery
             pin_attempts: 3,
             pin_time_to_live: 10, // 10 minutes
             pin_length: 6,
@@ -76,7 +80,8 @@ const sendOtp = async (to) => {
 
         return { success: true, pinId };
     } catch (error) {
-        console.error(`[Termii] OTP fail for ${to}:`, error.response?.data || error.message);
+        const errorData = error.response?.data || error.message;
+        console.error(`[Termii] OTP fail for ${to}:`, JSON.stringify(errorData));
         return { success: false, error: error.message };
     }
 };

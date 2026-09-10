@@ -84,8 +84,8 @@ const handlePremblyRedirect = (req, res) => {
  * Webhook for Termii SMS Delivery Reports.
  */
 const handleTermiiWebhook = async (req, res) => {
-    // Basic Security: Check for a secret token in query or headers
-    const secretToken = process.env.TERMII_WEBHOOK_TOKEN || 'termii_stable_v3';
+    // Authorized token for Termii (Signing Secret provided)
+    const secretToken = process.env.TERMII_WEBHOOK_TOKEN || 'tsk_aMngGOk22bKBmOATkpceSlKtoG';
     const inboundToken = req.query.token || req.headers['x-termii-token'];
 
     if (inboundToken !== secretToken) {

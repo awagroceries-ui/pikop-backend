@@ -26,4 +26,13 @@ const normalizePhone = (phone) => {
     return '+' + cleaned;
 };
 
-module.exports = { normalizePhone };
+/**
+ * Formats a phone number specifically for Termii (Nigerian digits only, no +).
+ */
+const formatForTermii = (phone) => {
+    const normalized = normalizePhone(phone);
+    if (!normalized) return null;
+    return normalized.replace('+', '');
+};
+
+module.exports = { normalizePhone, formatForTermii };

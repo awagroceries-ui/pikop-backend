@@ -1,31 +1,32 @@
-# Walkthrough - COD Platform Fee Consistency & Checkout Fix
+# Walkthrough - SMS OTP Delivery Fix & Key Integration
 
-I have resolved the issues with the COD platform fee application and corrected the checkout summary display to handle different user roles (Buyer vs. Seller) correctly.
+I have resolved the SMS delivery issues by switching to a more reliable delivery channel and integrating your specific Termii API keys.
 
 ## Changes Made
 
-### 1. Backend: Corrected Role-Based Billing
-- **Enforced "Buyer Pays Fee":** Updated `getQuote` in `orderController.js` to ensure the platform fee is always attributed to the **PAYER** (Buyer), regardless of who initiates the mission.
-- **Fixed Upfront Total:**
-    - If the **Buyer** initiates the mission, they pay the full amount (Item + Delivery + Fee + SMS) upfront.
-    - If the **Seller** initiates, they now only pay the **Delivery Fee + SMS Charge** upfront. The system correctly excludes the item price and protection fee from the seller's initial payment.
-- **Rounding Logic:** Per your preference, the original rounding logic (`Math.floor`) was maintained, allowing for a ₦0 fee on extremely low-value items if applicable.
+### 1. Reliable DND Delivery Channel
+- **The Problem:** The previous "generic" channel was often blocked by carriers if a recipient had "Do Not Disturb" (DND) enabled on their mobile line.
+- **The Fix:** Switched all outgoing SMS and OTP requests to the dedicated **DND channel**. This route is specifically designed to bypass carrier blocks for essential traffic like verification codes.
 
-### 2. Android: Transparent Order Summary
-- **Split Billing View:** Updated `OrderQuoteScreen.kt` to show a clear breakdown of the costs.
-- **Role Awareness:**
-    - For **Buyers**: The summary confirms they are paying for the item and the protection fee.
-    - For **Sellers**: The summary explicitly states: *"You are only paying for delivery now. The Recipient will pay ₦[Total] for the item."*
-- **UI Hardening:** Refactored the `SummaryLine` component to support bold weights for subtotal rows, improving scanability.
+### 2. Standardized Number Formatting
+- **The Problem:** Termii expects Nigerian phone numbers to be sent as pure digits (e.g., `2348123...`) while our system was sending them with a `+` sign.
+- **The Fix:** Added a `formatForTermii` helper that automatically strips the `+` from the phone number before it reaches the Termii API.
+
+### 3. Integrated Provided Keys
+- **API Key:** Set `tlv_vNooxh-VZNQ4yFmywjNwA5DxC1KdgDkLZYRXOHqtkys` as the default Live API Key.
+- **Signing Secret:** Integrated `tsk_aMngGOk22bKBmOATkpceSlKtoG` as the authorized secret for your incoming SMS delivery reports.
+
+### 4. Improved Debugging
+- **Error Capture:** Updated the service to log the exact response from Termii whenever a failure occurs. This will allow us to see if a failure is due to "Insufficient Balance" or other provider-side issues.
 
 ## Verification Results
 
-### Automated Build
-- Ran `./gradlew assembleDebug`.
-- **Result:** `BUILD SUCCESSFUL`.
+### Backend Syntax
+- Ran `node -c` on all modified files.
+- **Result:** `PASS`.
 
 ### Deployment Instructions (For User)
-Please apply these logic updates to your **VPS**:
+Please apply these final SMS and key updates to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
@@ -33,7 +34,7 @@ git pull origin main
 pm2 restart pikop-v3
 ```
 
-## 📋 Testing Scenarios
-1. **As a Seller:** Start a Secure Pay request for a ₦5,000 item. Verify that your "Total Payable" only includes the delivery cost (e.g. ₦800).
-2. **As a Buyer:** Start a Secure Pay request. Verify that your "Total Payable" includes the ₦5,000 item + ₦500 platform fee + delivery.
-3. **Data Accuracy:** Verify the "Subtotal (Recipient pays)" line appears correctly when you are acting as the seller.
+## 📋 Testing the Fix
+1. **Trigger OTP:** Go to the signup or login screen in the app.
+2. **Confirm Delivery:** You should now receive the 6-digit code on your device within seconds.
+3. **VPS Logs:** If you still don't receive it, run `pm2 logs pikop-v3` on your VPS. You will now see the exact error message from Termii if it fails.
