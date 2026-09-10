@@ -314,14 +314,45 @@ const getKYCQueue = async (req, res) => {
 };
 
 const getKYCReview = async (req, res) => {
-    // ... (existing logic)
+    const { id } = req.params;
+    try {
+        const fRes = await db.query(`
+            SELECT f.*, u.full_name, u.email, u.phone as user_phone
+            FROM fulfillers f
+            JOIN users u ON u.id = f.user_id
+            WHERE f.id = $1`, [id]);
+
+        if (fRes.rows.length === 0) return res.status(404).send('Fulfiller not found');
+
+        const f = fRes.rows[0];
+
+        // Ensure kyc_details is parsed if stringified
+        if (f.kyc_details && typeof f.kyc_details === 'string') {
+            try { f.kyc_details = JSON.parse(f.kyc_details); } catch (e) {}
+        }
+
+        const docs = await db.query("SELECT * FROM kyc_documents WHERE fulfiller_id = $1", [id]);
+
+        res.render('kyc_review', {
+            f,
+            docs: docs.rows,
+            baseUrl: process.env.BASE_URL || 'https://api.pikop.com.ng'
+        });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
 };
 
 /**
  * Lists crowdsourced landmark suggestions.
  */
 const getLandmarks = async (req, res) => {
-    // ...
+    try {
+        const { rows } = await db.query("SELECT * FROM landmark_suggestions ORDER BY submission_count DESC, created_at DESC LIMIT 100");
+        res.render('landmarks', { landmarks: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
 };
 
 /**
@@ -869,6 +900,9 @@ module.exports = {
   updateFulfillerStatus,
   updateOrderStatus,
   getTransactions,
+  getLandmarks,
+  getTrafficCorridors,
+  addTrafficCorridor,
   getCustomers,
   getCustomerDetail,
   updateCustomerStatus
