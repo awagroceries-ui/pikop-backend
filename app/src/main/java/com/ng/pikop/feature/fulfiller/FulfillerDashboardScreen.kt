@@ -192,9 +192,13 @@ fun FulfillerDashboardScreen(
                                     color = if (isPending) Color(0xFFE65100).copy(alpha = 0.8f) else MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
                                 )
                             }
-                            if (!isPending) {
+                            if (!isPending && kycStatus != "REJECTED") {
                                 TextButton(onClick = onGoToKyc) {
                                     Text("Verify Now")
+                                }
+                            } else if (kycStatus == "REJECTED") {
+                                TextButton(onClick = onGoToKyc) {
+                                    Text("Fix Issues")
                                 }
                             }
                         }

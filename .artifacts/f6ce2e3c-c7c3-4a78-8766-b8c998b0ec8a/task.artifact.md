@@ -1,7 +1,8 @@
-# Task List - Unified Wallet System Fix
+# Task List - Fix Fulfiller Status Sync & Navigation
 
-- [ ] Backend: Create migration to merge `FULFILLER` wallets into `USER` wallets
-- [ ] Backend: Update `walletService.js` to use unified `USER` + `user_id` pattern
-- [ ] Backend: Update `walletController.js` to remove role-based wallet splitting
-- [ ] Backend: Update `financialController.js` metrics queries for unified wallets
+- [ ] Android: Sync `kyc_status` to `TokenManager` in `KycViewModel.refreshProfile()`
+- [ ] Android: Implement identity status polling in `KycUploadScreen.kt`
+- [ ] Android: Add global status polling loop in `MainActivity.kt` for fulfillers
+- [ ] Android: Polish dashboard logic for `REJECTED` and `NOT_STARTED` states
+- [ ] Verification: Build and verify end-to-end activation flow
 - [ ] Verification: Git automation (Commit and Push)

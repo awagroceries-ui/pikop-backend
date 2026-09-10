@@ -38,9 +38,27 @@ class KycViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val res = apiService.getFulfillerProfile()
-                // Unwrap if nested in 'data'
                 val profileData = res.data ?: res
                 _profile.value = profileData
+                
+                // Sync with global TokenManager so other screens (like Dashboard) update
+                profileData.kyc_status?.let { status ->
+                    val currentTokens = tokenManager.accessToken.first()
+                    if (currentTokens != null) {
+                        tokenManager.saveTokens(
+                            accessToken = currentTokens,
+                            refreshToken = tokenManager.refreshToken.first() ?: "",
+                            userId = tokenManager.userId.first(),
+                            email = tokenManager.userEmail.first() ?: "",
+                            role = tokenManager.userRole.first() ?: "FULFILLER",
+                            name = tokenManager.userName.first(),
+                            phone = tokenManager.userPhone.first(),
+                            isVerified = tokenManager.isVerified.first(),
+                            referralCode = tokenManager.referralCode.first(),
+                            kycStatus = status
+                        )
+                    }
+                }
             } catch (e: Exception) {
                 android.util.Log.e("KycViewModel", "Profile refresh failed", e)
             }

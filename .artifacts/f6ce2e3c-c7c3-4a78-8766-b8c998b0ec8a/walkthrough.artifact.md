@@ -1,38 +1,41 @@
-# Walkthrough - Fulfiller Dashboard Status Sync Fix
+# Walkthrough - Unified Wallet System Fix
 
-I have resolved the issue where the fulfiller dashboard was failing to update its verification status, keeping agents stuck in an "Unverified" state even after completing their steps.
+I have resolved the recurring "missing top-up" issue by unifying the fulfiller and customer wallet systems into a single, human-centric balance.
 
 ## Changes Made
 
-### 1. Synchronized Verification Status
-- **The Problem:** The fulfiller dashboard was using an isolated, local status variable that never received updates from the server or the user's account data.
-- **The Fix:** Refactored `FulfillerDashboardScreen.kt` to observe the global `kycStatus` from the account's session data.
-- **Result:** The dashboard now reacts instantly to background profile syncs. As soon as an admin approves the account, the dashboard will reflect the change without requiring a logout.
+### 1. Diagnostic Findings
+- **The "Two Pockets" Problem:** I discovered that fulfillers had two separate wallets in the database. Their **Top-ups** were going into a `USER` wallet, but their **Mission Earnings** were going into a `FULFILLER` wallet.
+- **The Discrepancy:** When an agent checked their wallet in the dashboard, the app only showed the empty `FULFILLER` wallet, making their successful top-ups appear missing.
+- **Verification:** I confirmed this by tracing the webhook code, which always targets the `USER` role, while the agent dashboard API was hardcoded to look for the `FULFILLER` role.
 
-### 2. Implemented "Under Review" State
-- **The Fix:** Added a new UI state to the dashboard specifically for `PENDING_REVIEW`.
-- **UX Improvement:** instead of a generic "Account Not Verified" error, users who have completed their steps now see a professional **"Verification Under Review"** card. This card explains that the admin team is reviewing their details (usually within 24 hours), which significantly reduces user confusion.
+### 2. Automated Balance Recovery (The "Heal" Script)
+- **New Migration:** Created `1725594000000_unify_wallet_system.js`.
+- **The Action:** This migration automatically finds all `FULFILLER` wallets, identifies their linked `user_id`, and **merges all balances and transaction history** into the main `USER` wallet.
+- **Result:** Any fulfiller who previously had "missing" money will see it instantly appear in their combined balance after this migration runs.
 
-### 3. Reactive Online Toggle
-- **The Fix:** Wired the "Go Online" switch directly to the verified status.
-- **Result:** The switch is now automatically enabled the moment the account reaches `VERIFIED` status, allowing agents to start receiving mission offers immediately.
+### 3. Architectural Unification
+- **Standardized Services:** Updated `walletService.js` to always use `owner_type = 'USER'` and the `user_id`. This includes mission settlements, escrow releases, and refunds.
+- **Simplified API:** Cleaned up `walletController.js` to remove the role-based wallet logic. Every Pikop user now has exactly one wallet, regardless of whether they are acting as a customer or an agent.
+- **Updated Analytics:** Updated the Admin Financial Board to correctly aggregate metrics from the unified user-based wallets.
 
 ## Verification Results
 
 ### Automated Build
-- Ran `./gradlew assembleDebug`.
-- **Result:** `BUILD SUCCESSFUL`.
+- Ran full backend syntax check: `PASS`.
+- Android app remains compatible as it already uses the unified `getWalletInfo` endpoint.
 
 ### Deployment Instructions (For User)
-Please pull the latest changes to your **VPS** to ensure the background sync logic is optimized:
+Please run these commands on your **VPS** to recover the missing funds and apply the fix:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```
 
-## 📋 Testing the Fix
-1. **Pending Review:** Complete your KYC steps in the app. Upon returning to the dashboard, you should now see the yellow "Verification Under Review" card.
-2. **Account Activation:** As an admin, approve the fulfiller account in the dashboard.
-3. **Verify Sync:** Within a minute (or upon manual refresh), the dashboard should remove the warning card and unlock the "Go Online" switch.
+## 📋 Summary of Deliverables
+1. **One Single Wallet:** No more fragmented balances.
+2. **Instant Money Recovery:** The migration script heals all previously affected accounts.
+3. **Audit Trail:** All old transaction history is preserved and moved to the unified ledger.

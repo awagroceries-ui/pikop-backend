@@ -133,12 +133,22 @@ fun KycUploadScreen(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions[Manifest.permission.CAMERA] == true) {
-            if (currentStep == 1) cameraLauncher.launch(captureUri)
-            else if (currentStep == 2) refreshKey++
+            if (currentStep == 2) cameraLauncher.launch(captureUri)
+            else if (currentStep == 3) refreshKey++
         }
     }
 
     LaunchedEffect(refreshKey) { viewModel.refreshProfile() }
+
+    // Latency Handling: Poll status while in identity step if pending
+    LaunchedEffect(currentStep, profile?.kyc_verification_status) {
+        if (currentStep == 3 && profile?.kyc_verification_status == "pending") {
+            while (profile?.kyc_verification_status == "pending") {
+                kotlinx.coroutines.delay(5000)
+                viewModel.refreshProfile()
+            }
+        }
+    }
 
     LaunchedEffect(profile) {
         if (isSavingStep) return@LaunchedEffect

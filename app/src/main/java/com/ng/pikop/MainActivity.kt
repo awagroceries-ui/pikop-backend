@@ -255,26 +255,42 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
     // Profile Auto-Sync & Push Token Registration
     LaunchedEffect(accessToken) {
         if (accessToken != null) {
-            // 1. Sync Profile Data
+            // 1. Sync Profile Data and Start Background Approval Monitoring
             scope.launch {
-                try {
-                    val api = ApiService.create(tokenManager)
-                    val profile = api.getUserProfile()
-                    tokenManager.saveTokens(
-                        accessToken = accessToken!!,
-                        refreshToken = tokenManager.refreshToken.first() ?: "",
-                        userId = userId,
-                        email = userEmail ?: "",
-                        role = userRole ?: "CUSTOMER",
-                        name = profile.full_name,
-                        phone = profile.phone,
-                        isVerified = isVerified,
-                        referralCode = referralCode,
-                        kycStatus = profile.kyc_status
-                    )
-                    android.util.Log.d("PikopSync", "Profile background sync complete")
-                } catch (e: Exception) {
-                    android.util.Log.e("PikopSync", "Profile sync failed: ${e.message}")
+                while (true) {
+                    try {
+                        val api = ApiService.create(tokenManager)
+                        val profile = api.getUserProfile()
+                        
+                        // Check if status changed
+                        val currentKyc = tokenManager.kycStatus.first()
+                        if (profile.kyc_status != currentKyc) {
+                            android.util.Log.d("PikopSync", "KYC Status Update detected: ${profile.kyc_status}")
+                        }
+
+                        tokenManager.saveTokens(
+                            accessToken = accessToken!!,
+                            refreshToken = tokenManager.refreshToken.first() ?: "",
+                            userId = userId,
+                            email = userEmail ?: "",
+                            role = userRole ?: "CUSTOMER",
+                            name = profile.full_name,
+                            phone = profile.phone,
+                            isVerified = isVerified,
+                            referralCode = referralCode,
+                            kycStatus = profile.kyc_status
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e("PikopSync", "Profile sync failed: ${e.message}")
+                    }
+                    
+                    // If verified, we can stop or slow down polling
+                    val status = tokenManager.kycStatus.first()
+                    if (status == "VERIFIED") {
+                        delay(300000) // 5 mins if verified
+                    } else {
+                        delay(60000) // 1 min if pending/not started
+                    }
                 }
             }
 
