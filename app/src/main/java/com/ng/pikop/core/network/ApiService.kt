@@ -729,6 +729,14 @@ interface ApiService {
     @PATCH("api/v1/settings/profile")
     suspend fun updateUserProfile(@Body request: ProfileUpdateRequest): AuthResponse
 
+    @Multipart
+    @POST("api/v1/fulfillers/kyc/document")
+    suspend fun uploadKycDocument(
+        @Part("doc_type") type: okhttp3.RequestBody,
+        @Part("expiry_date") expiry: okhttp3.RequestBody?,
+        @Part file: okhttp3.MultipartBody.Part
+    ): AuthResponse
+
     @POST("api/v1/auth/change-password")
     suspend fun changePassword(@Body request: Map<String, String>): AuthResponse
 

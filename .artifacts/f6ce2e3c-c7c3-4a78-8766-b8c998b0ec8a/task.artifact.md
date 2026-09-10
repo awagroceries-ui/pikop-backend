@@ -1,8 +1,9 @@
-# Task List - Fix Fulfiller Status Sync & Navigation
+# Task List - Admin Dashboard Full KYC Visibility
 
-- [ ] Android: Sync `kyc_status` to `TokenManager` in `KycViewModel.refreshProfile()`
-- [ ] Android: Implement identity status polling in `KycUploadScreen.kt`
-- [ ] Android: Add global status polling loop in `MainActivity.kt` for fulfillers
-- [ ] Android: Polish dashboard logic for `REJECTED` and `NOT_STARTED` states
-- [ ] Verification: Build and verify end-to-end activation flow
+- [ ] Backend: Update `kyc_review.ejs` to display vehicle details and ID images from `kyc_details`
+- [ ] Backend: Add document image previews to `kyc_review.ejs`
+- [ ] Android: Add `uploadKycDocument` to `ApiService.kt`
+- [ ] Android: Implement new `OperationalDocumentsStep` in `KycUploadScreen.kt`
+- [ ] Android: Insert document upload step into onboarding flow and update step logic
+- [ ] Verification: Build and verify end-to-end KYC data visibility
 - [ ] Verification: Git automation (Commit and Push)

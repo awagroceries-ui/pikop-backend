@@ -137,6 +137,39 @@ fun KycUploadScreen(
             else if (currentStep == 3) refreshKey++
         }
     }
+    
+    // File Picker for Documents
+    var docTypeToUpload by remember { mutableStateOf<String?>(null) }
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null && docTypeToUpload != null) {
+            scope.launch {
+                isSavingStep = true
+                try {
+                    val tokenManager = TokenManager(context)
+                    val api = ApiService.create(tokenManager)
+                    
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                    val file = File(context.cacheDir, "upload_doc.jpg")
+                    file.outputStream().use { inputStream?.copyTo(it) }
+                    
+                    val reqFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                    val body = MultipartBody.Part.createFormData("file", file.name, reqFile)
+                    val typePart = docTypeToUpload!!.toRequestBody("text/plain".toMediaTypeOrNull())
+                    
+                    api.uploadKycDocument(typePart, null, body)
+                    Toast.makeText(context, "${docTypeToUpload?.replace("_", " ")} Uploaded", Toast.LENGTH_SHORT).show()
+                    viewModel.refreshProfile()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Upload failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    isSavingStep = false
+                    docTypeToUpload = null
+                }
+            }
+        }
+    }
 
     LaunchedEffect(refreshKey) { viewModel.refreshProfile() }
 
@@ -154,12 +187,13 @@ fun KycUploadScreen(
         if (isSavingStep) return@LaunchedEffect
         val res = profile ?: return@LaunchedEffect
         
-        // SYNC LOGIC: Only update step if it's a major state change (Verified/Pending)
-        // or if we are not currently manually advancing.
+        // SYNC LOGIC: Robust multi-step advancement
         if (res.kyc_status == "PENDING_REVIEW" || res.kyc_status == "VERIFIED") {
-            currentStep = 6
+            currentStep = 7
         } else if (res.home_address == null) {
             currentStep = 0
+        } else if (res.primary_class == null) {
+            currentStep = 1
         } else if (res.profile_photo_url == null) {
             currentStep = 2
         } else if (res.kyc_verification_status != "approved") {
@@ -167,9 +201,9 @@ fun KycUploadScreen(
         } else if (res.primary_class?.lowercase() == "driver" && res.registration_number == null) {
             if (4 > currentStep) currentStep = 4
         } else if (res.account_number == null) {
-            if (5 > currentStep) currentStep = 5
+            if (6 > currentStep) currentStep = 6
         } else {
-            currentStep = 6
+            currentStep = 7
         }
     }
 
@@ -228,8 +262,15 @@ fun KycUploadScreen(
                     onRefresh = { viewModel.refreshProfile() }
                 )
                 4 -> VehicleStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 5 })
-                5 -> BankStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 6 })
-                6 -> SubmissionStep(
+                5 -> OperationalDocumentsStep(
+                    role = profile?.primary_class ?: "agent",
+                    onUploadRequest = { type: String ->
+                        docTypeToUpload = type
+                        filePickerLauncher.launch("image/*")
+                    }
+                )
+                6 -> BankStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 7 })
+                7 -> SubmissionStep(
                     isLoading = isLoading,
                     status = profile?.kyc_status ?: "NOT_SUBMITTED",
                     onComplete = {
@@ -245,7 +286,7 @@ fun KycUploadScreen(
                 )
             }
 
-            if (currentStep < 6) {
+            if (currentStep < 7) {
                 Spacer(modifier = Modifier.weight(1f))
                 Button(
                     onClick = {
@@ -290,6 +331,11 @@ fun KycUploadScreen(
                                             viewModel.refreshProfile()
                                         }
                                     }
+                                    4 -> { currentStep = 5 }
+                                    5 -> { currentStep = 6 }
+                                    6 -> { 
+                                        // Bank step handles its own save
+                                    }
                                 }
                             } catch (e: Exception) {
                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
@@ -303,7 +349,10 @@ fun KycUploadScreen(
                         (currentStep == 0 && dob.isNotBlank() && gender.isNotBlank() && homeAddress.isNotBlank()) ||
                         (currentStep == 1 && selectedClass != null) ||
                         (currentStep == 2 && profilePhotoUri != null) ||
-                        (currentStep == 3)
+                        (currentStep == 3) ||
+                        (currentStep == 4) ||
+                        (currentStep == 5) ||
+                        (currentStep == 6)
                     )
                 ) {
                     if (isLoading || isSavingStep) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
@@ -318,7 +367,7 @@ fun KycUploadScreen(
 @Composable
 fun StepIndicator(current: Int) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        (0..5).forEach { i ->
+        (0..7).forEach { i ->
             Box(modifier = Modifier.size(10.dp).padding(2.dp)) {
                 Surface(
                     shape = androidx.compose.foundation.shape.CircleShape,
@@ -706,6 +755,54 @@ fun VehicleStep(tokenManager: TokenManager, onComplete: () -> Unit) {
             enabled = !isSaving && regNum.isNotBlank() && make.isNotBlank()
         ) {
             if (isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Save & Finalize")
+        }
+    }
+}
+
+@Composable
+fun OperationalDocumentsStep(role: String, onUploadRequest: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Operational Documents", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Upload clear photos of your official documents for verification.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+
+        DocumentUploadCard(
+            label = "Government ID (NIN/Voter/Passport)",
+            onUpload = { onUploadRequest("GOVERNMENT_ID") }
+        )
+
+        if (role.lowercase() == "rider" || role.lowercase() == "driver") {
+            DocumentUploadCard(
+                label = "Driver's License",
+                onUpload = { onUploadRequest("DRIVERS_LICENSE") }
+            )
+        }
+
+        if (role.lowercase() == "driver") {
+            DocumentUploadCard(
+                label = "Vehicle Registration (Logbook)",
+                onUpload = { onUploadRequest("VEHICLE_REGISTRATION") }
+            )
+        }
+    }
+}
+
+@Composable
+fun DocumentUploadCard(label: String, onUpload: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onUpload,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                Text("Tap to upload photo", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            }
+            Icon(Icons.Default.CloudUpload, null, tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

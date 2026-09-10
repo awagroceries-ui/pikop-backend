@@ -62,6 +62,17 @@
                                 <span class="mono smaller text-muted"><%= report.reference || 'prembly_v3' %></span>
                             </div>
 
+                            <% if (data.image || data.face_image || data.selfie) { %>
+                                <div class="col-md-12 mt-2">
+                                    <span class="text-muted smaller d-block mb-1">Captured ID / Selfie</span>
+                                    <div class="d-flex gap-2">
+                                        <% if (data.image) { %><img src="<%= data.image %>" class="rounded border" style="height: 120px; width: auto;"><% } %>
+                                        <% if (data.face_image) { %><img src="<%= data.face_image %>" class="rounded border" style="height: 120px; width: auto;"><% } %>
+                                        <% if (data.selfie) { %><img src="<%= data.selfie %>" class="rounded border" style="height: 120px; width: auto;"><% } %>
+                                    </div>
+                                </div>
+                            <% } %>
+
                             <!-- Detailed Breakdown Toggle -->
                             <div class="col-12 mt-3 pt-3 border-top">
                                 <button class="btn btn-link btn-sm p-0 smaller text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#kycRaw">
@@ -79,6 +90,28 @@
             <% } %>
         </div>
 
+        <div class="card-pikop p-4 mb-4">
+            <h6 class="fw-bold mb-3 border-bottom pb-2">Vehicle Audit</h6>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="text-muted smaller fw-bold uppercase d-block">Make</label>
+                    <div class="text-black small"><%= f.make || 'N/A' %></div>
+                </div>
+                <div class="col-md-3">
+                    <label class="text-muted smaller fw-bold uppercase d-block">Model</label>
+                    <div class="text-black small"><%= f.model || 'N/A' %></div>
+                </div>
+                <div class="col-md-3">
+                    <label class="text-muted smaller fw-bold uppercase d-block">Color</label>
+                    <div class="text-black small"><%= f.color || 'N/A' %></div>
+                </div>
+                <div class="col-md-3">
+                    <label class="text-muted smaller fw-bold uppercase d-block">Plate Number</label>
+                    <div class="text-black fw-bold small"><%= f.registration_number || 'N/A' %></div>
+                </div>
+            </div>
+        </div>
+
         <div class="card-pikop p-4">
             <h6 class="fw-bold mb-3 border-bottom pb-2">Operational Documents</h6>
             <% if (docs.length === 0) { %>
@@ -88,8 +121,16 @@
                     <% docs.forEach(doc => { %>
                         <div class="col-md-6">
                             <div class="border rounded p-3 bg-light">
-                                <label class="text-muted smaller fw-bold uppercase d-block mb-2"><%= doc.doc_type.replace('_', ' ') %></label>
-                                <a href="<%= doc.file_url.startsWith('http') ? doc.file_url : baseUrl + doc.file_url %>" target="_blank" class="btn btn-sm btn-pikop-outline w-100 mb-2">VIEW DOCUMENT</a>
+                                <label class="text-muted smaller fw-bold uppercase d-block mb-2"><%= doc.doc_type.replace(/_/g, ' ') %></label>
+
+                                <% const isImage = doc.file_url.match(/\.(jpeg|jpg|gif|png)$/i); %>
+                                <% if (isImage) { %>
+                                    <div class="mb-2">
+                                        <img src="<%= doc.file_url.startsWith('http') ? doc.file_url : baseUrl + doc.file_url %>" class="rounded border w-100" style="height: 150px; object-fit: contain; background: white;">
+                                    </div>
+                                <% } %>
+
+                                <a href="<%= doc.file_url.startsWith('http') ? doc.file_url : baseUrl + doc.file_url %>" target="_blank" class="btn btn-sm btn-pikop-outline w-100 mb-2">VIEW FULL DOCUMENT</a>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="badge bg-secondary smaller"><%= doc.status %></span>
                                     <span class="smaller text-muted">Expires: <%= doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString() : 'N/A' %></span>

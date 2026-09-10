@@ -1,28 +1,45 @@
-# Implementation Plan - Fix Fulfiller Status Sync & Navigation
+# Implementation Plan - Fix Missing Admin KYC Data & Add Document Uploads
 
-This plan resolves the two reported issues: (1) post-verification navigation loop and (2) approved status not reflecting in the app.
+This plan addresses the missing verification report data and documents in the admin dashboard, and adds the missing document upload steps to the fulfiller onboarding flow.
 
 ## Problem Description
-1.  **Stale Post-Verification State:** After finishing identity verification, the app refreshes the profile once. Due to webhook latency, the status might still be "pending" on the server. The app stays on the verification screen instead of advancing.
-2.  **Dashboard Status Desync:** `MainActivity` and `KycViewModel` do not update `TokenManager` regularly. Even after an admin approves a fulfiller, the dashboard (which reads from `TokenManager`) shows the old "Unverified" state.
-3.  **Local vs Global State:** `KycUploadScreen` and `FulfillerDashboardScreen` have isolated refresh logic that doesn't share updates through the global `TokenManager`.
+1.  **Admin Visibility Gap:** While the profile photo works, other captured data from Prembly (ID images, facial match) and vehicle details are not being displayed in the admin review screen.
+2.  **Missing Android Steps:** The Android onboarding flow only captures a profile photo and vehicle strings, but lacks the ability to upload actual document files (ID card, Vehicle papers) into the `kyc_documents` table.
+3.  **Data Fragmentation:** Verification reports are stored in a JSON blob (`kyc_details`) but only a few text fields are being extracted in the view.
 
 ## Proposed Changes
 
+### Backend (`backend_v3`)
+
+#### [MODIFY] [kyc_review.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/kyc_review.ejs)
+- **Vehicle Audit:** Add a dedicated section to display vehicle `make`, `model`, `color`, and `registration_number`.
+- **Identity Visuals:** Extract and display the captured ID image and selfie from the `kyc_details` JSON blob (mapping common fields from Prembly/IdentityPass like `data.image` or `data.face_image`).
+- **Document Previews:** Update the operational documents section to show image previews for uploaded files rather than just a download link.
+
+---
+
 ### Android App
 
-#### [MODIFY] [KycViewModel.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/KycViewModel.kt)
-- Update `refreshProfile()` to also sync the new `kyc_status` to `TokenManager`. This ensures that any update found while on the verification screen is immediately visible to the dashboard.
-
 #### [MODIFY] [KycUploadScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/KycUploadScreen.kt)
-- **Status Polling:** Add a `LaunchedEffect` that polls the profile every 5 seconds if the current step is `3` (Identity Verification) and the status is still `pending`. This handles webhook latency automatically.
-- **Auto-Advance:** Ensure that if `kyc_verification_status` becomes `approved`, the screen automatically moves to the next logical step (Vehicle or Bank).
+- **New Onboarding Step (Step 4):** Insert a new "Document Upload" step before the final submission.
+- **Multi-Document Support:** Allow users to upload:
+    - **Government ID** (NIN, Voter Card, etc.)
+    - **Driver's License** (Conditional for Riders/Drivers)
+    - **Vehicle Registration** (Conditional for Riders/Drivers)
+- **File Picker Integration:** Use `ActivityResultContracts.GetContent` to allow selecting images or PDFs from the device gallery.
+- **Backend Sync:** Wire these uploads to the `api/v1/fulfillers/kyc/document` endpoint.
 
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- **Background Polling:** Add a global polling loop (every 30-60 seconds) that refreshes the user profile if `userRole == "FULFILLER"` and `kycStatus != "VERIFIED"`. This ensures admin approvals are picked up without requiring an app restart or manual refresh.
-
-#### [MODIFY] [FulfillerDashboardScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerDashboardScreen.kt)
-- Ensure the "Verify Now" button is only shown if `kycStatus` is `NOT_STARTED` or `REJECTED`.
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Add `uploadKycDocument` method:
+    ```kotlin
+    @Multipart
+    @POST("api/v1/fulfillers/kyc/document")
+    suspend fun uploadKycDocument(
+        @Part("doc_type") type: RequestBody,
+        @Part("expiry_date") expiry: RequestBody?,
+        @Part file: MultipartBody.Part
+    ): AuthResponse
+    ```
 
 ---
 
@@ -30,8 +47,11 @@ This plan resolves the two reported issues: (1) post-verification navigation loo
 
 ### Automated Tests
 - Build Android app: `./gradlew assembleDebug`.
+- Syntax check backend views.
 
 ### Manual Verification
-1.  **Post-Verification:** Complete an identity scan. Wait a few seconds on the app without clicking anything. Verify the screen automatically moves forward as the webhook completes.
-2.  **Admin Approval:** Submit for review. On the dashboard, see "Verification Under Review". Approve the account as admin. Wait for the background sync (or manual refresh). Verify the dashboard switch unlocks and the warning disappears.
-3.  **App Restart:** Close and reopen the app after approval. Verify the state is correctly persisted as `VERIFIED`.
+1.  **Android Onboarding:** Go through the flow as a Driver. Verify you can upload an ID card and Vehicle Registration.
+2.  **Admin Dashboard:** Open the fulfiller's review page.
+    *   Confirm the **Vehicle Section** shows the correct registration and model.
+    *   Confirm the **Identity Section** shows the ID images from Prembly.
+    *   Confirm the **Operational Documents** show clear previews of the uploaded ID and Vehicle papers.

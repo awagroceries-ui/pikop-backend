@@ -1,41 +1,43 @@
-# Walkthrough - Unified Wallet System Fix
+# Walkthrough - Fulfiller Status Sync & Navigation Fix
 
-I have resolved the recurring "missing top-up" issue by unifying the fulfiller and customer wallet systems into a single, human-centric balance.
+I have resolved the issues preventing the fulfiller app from correctly recognizing verification results and admin approvals in real-time.
 
 ## Changes Made
 
-### 1. Diagnostic Findings
-- **The "Two Pockets" Problem:** I discovered that fulfillers had two separate wallets in the database. Their **Top-ups** were going into a `USER` wallet, but their **Mission Earnings** were going into a `FULFILLER` wallet.
-- **The Discrepancy:** When an agent checked their wallet in the dashboard, the app only showed the empty `FULFILLER` wallet, making their successful top-ups appear missing.
-- **Verification:** I confirmed this by tracing the webhook code, which always targets the `USER` role, while the agent dashboard API was hardcoded to look for the `FULFILLER` role.
+### 1. Automated Verification Auto-Advance
+- **The Problem:** After completing an identity scan, the app often stayed on the "Start Verification" screen because it checked the status before the server had received the result from the provider.
+- **The Fix:** Implemented **Intelligent Polling** in `KycUploadScreen.kt`. While on the identity step, the app now automatically checks for updates every 5 seconds.
+- **Result:** As soon as the verification is approved on the server, the app will **instantly move to the next step** without any user interaction.
 
-### 2. Automated Balance Recovery (The "Heal" Script)
-- **New Migration:** Created `1725594000000_unify_wallet_system.js`.
-- **The Action:** This migration automatically finds all `FULFILLER` wallets, identifies their linked `user_id`, and **merges all balances and transaction history** into the main `USER` wallet.
-- **Result:** Any fulfiller who previously had "missing" money will see it instantly appear in their combined balance after this migration runs.
+### 2. Unified Global Profile Sync
+- **The Problem:** The verification screen and the dashboard were "out of sync" because they weren't sharing their status updates.
+- **The Fix:** Updated the `KycViewModel` to automatically push any discovered status updates into the global `TokenManager`.
+- **Result:** Any approval found while on the verification screen is now immediately applied to the dashboard.
 
-### 3. Architectural Unification
-- **Standardized Services:** Updated `walletService.js` to always use `owner_type = 'USER'` and the `user_id`. This includes mission settlements, escrow releases, and refunds.
-- **Simplified API:** Cleaned up `walletController.js` to remove the role-based wallet logic. Every Pikop user now has exactly one wallet, regardless of whether they are acting as a customer or an agent.
-- **Updated Analytics:** Updated the Admin Financial Board to correctly aggregate metrics from the unified user-based wallets.
+### 3. Background Approval Monitoring
+- **The Problem:** Agents had to restart the app to see if an admin had approved their account.
+- **The Fix:** Added a global background loop in `MainActivity.kt` that polls for profile updates every minute for unverified fulfillers.
+- **Result:** If an admin approves an account while the agent has the app open, the dashboard will **automatically unlock** and hide the "Account Not Verified" warning within 60 seconds.
+
+### 4. Improved Rejection UX
+- **The Fix:** Updated the dashboard to specifically handle the `REJECTED` state.
+- **Result:** If an application is rejected, the agent now sees a "Fix Issues" button that takes them back to the verification flow to correct their data.
 
 ## Verification Results
 
 ### Automated Build
-- Ran full backend syntax check: `PASS`.
-- Android app remains compatible as it already uses the unified `getWalletInfo` endpoint.
+- Ran `./gradlew assembleDebug`.
+- **Result:** `BUILD SUCCESSFUL`.
 
 ### Deployment Instructions (For User)
-Please run these commands on your **VPS** to recover the missing funds and apply the fix:
+Please apply these logic updates to your **VPS** to ensure the background sync handles the frequent polls efficiently:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```
 
-## 📋 Summary of Deliverables
-1. **One Single Wallet:** No more fragmented balances.
-2. **Instant Money Recovery:** The migration script heals all previously affected accounts.
-3. **Audit Trail:** All old transaction history is preserved and moved to the unified ledger.
+## 📋 Summary of Testing
+1. **Verification Loop:** Finish an identity scan. App now advances to Vehicle/Bank steps automatically within seconds.
+2. **Dashboard Approval:** Submit for review. Keep app open on dashboard. Approve in admin panel. Dashboard now unlocks and shows the "Go Online" switch automatically.
