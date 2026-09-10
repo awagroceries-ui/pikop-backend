@@ -19,16 +19,16 @@ const getFinancialOverview = async (req, res) => {
         }
 
         // Map UI range to valid Postgres interval keywords
-        const intervalUnitMap = {
+        const unitMap = {
             'daily': 'day',
             'weekly': 'week',
             'monthly': 'month',
             'annual': 'year'
         };
-        const unit = intervalUnitMap[range] || 'day';
+        const unit = unitMap[range] || 'day';
 
         // PostgreSQL compatible interval string
-        const baseTime = `(DATE_TRUNC('${truncate}', NOW() AT TIME ZONE 'Africa/Lagos') - (INTERVAL '1' ${unit} * ${numericOffset}))`;
+        const baseTime = `(DATE_TRUNC('${truncate}', NOW() AT TIME ZONE 'Africa/Lagos') - (INTERVAL '1 ${unit}' * $1))`;
         const startTime = `${baseTime}`;
         const endTime = `(${baseTime} + INTERVAL '${interval}')`;
 
@@ -42,7 +42,7 @@ const getFinancialOverview = async (req, res) => {
                 COALESCE(SUM(amount) FILTER (WHERE purpose = 'COMMISSION'), 0) as commission,
                 COALESCE(SUM(amount) FILTER (WHERE purpose = 'SECURE_PAY_FEE'), 0) as platform_fees,
                 COALESCE(SUM(amount) FILTER (WHERE purpose = 'SMS_CHARGE'), 0) as sms_earnings,
-                COALESCE(SUM(amount) FILTER (WHERE purpose = 'SETTLEMENT' AND wallet_id IN (SELECT id FROM wallets WHERE owner_type = 'USER')), 0) as fulfiller_earnings
+                COALESCE(SUM(amount) FILTER (WHERE purpose = 'SETTLEMENT' AND EXISTS (SELECT 1 FROM wallets w WHERE w.id = wallet_id AND w.owner_type = 'USER')), 0) as fulfiller_earnings
             FROM wallet_ledger_entries
             WHERE created_at >= ${start} AND created_at < ${end}
         `;
@@ -56,10 +56,10 @@ const getFinancialOverview = async (req, res) => {
         `;
 
         const [currMetrics, prevMetrics, currCod, prevCod] = await Promise.all([
-            db.query(metricsQuery(startTime, endTime)),
-            db.query(metricsQuery(prevStartTime, prevEndTime)),
-            db.query(codQuery(startTime, endTime)),
-            db.query(codQuery(prevStartTime, prevEndTime))
+            db.query(metricsQuery(startTime, endTime), [numericOffset]),
+            db.query(metricsQuery(prevStartTime, prevEndTime), [numericOffset]),
+            db.query(codQuery(startTime, endTime), [numericOffset]),
+            db.query(codQuery(prevStartTime, prevEndTime), [numericOffset])
         ]);
 
         const c = currMetrics.rows[0];
@@ -84,7 +84,7 @@ const getFinancialOverview = async (req, res) => {
             WHERE created_at >= ${startTime} AND created_at < ${endTime}
             GROUP BY 1 ORDER BY period ASC
         `;
-        const trend = await db.query(trendQuery);
+        const trend = await db.query(trendQuery, [numericOffset]);
 
         const data = {
             range,
