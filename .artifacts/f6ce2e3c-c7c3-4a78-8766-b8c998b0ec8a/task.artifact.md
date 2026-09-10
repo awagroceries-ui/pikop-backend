@@ -1,8 +1,9 @@
-# Task List - Fix COD Billing Responsibility
+# Task List - Prioritize SMS OTP
 
-- [ ] Backend: Update `getQuote` for Seller-pays-zero logic and `recipient_total`
-- [ ] Backend: Update `createOrder` to handle `AWAITING_PAYMENT` status
-- [ ] Backend: Create `guest_checkout.ejs` public payment page
-- [ ] Backend: Update `paymentController.js` to activate missions after guest payment
-- [ ] Android: Update `amountToCharge` logic and button text in `OrderQuoteScreen.kt`
+- [ ] Backend: Refactor `signup` to only send SMS OTP initially
+- [ ] Backend: Implement `requestEmailOtp` fallback controller
+- [ ] Backend: Register fallback route in `authRoutes.js`
+- [ ] Android: Add `requestEmailOtp` to `ApiService.kt`
+- [ ] Android: Refactor `EmailOtpScreen.kt` UI to focus on Phone first and add Email Fallback
+- [ ] Verification: Build and verify end-to-end OTP flow
 - [ ] Verification: Git automation (Commit and Push)

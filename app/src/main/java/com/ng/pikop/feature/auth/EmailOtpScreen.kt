@@ -29,6 +29,7 @@ fun EmailOtpScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var resendCooldown by remember { mutableStateOf(0) }
     var isRateLimited by remember { mutableStateOf(false) }
+    var lastSentChannel by remember { mutableStateOf("Phone") }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -54,7 +55,7 @@ fun EmailOtpScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Verify Your Email",
+                text = "Account Verification",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -62,9 +63,12 @@ fun EmailOtpScreen(
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "Enter the 6-digit code sent to $email",
+                text = if (lastSentChannel == "Phone") 
+                    "Enter the 6-digit code sent to your phone" 
+                    else "Enter the 6-digit code sent to $email",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -86,7 +90,8 @@ fun EmailOtpScreen(
                 Text(
                     text = errorMessage!!,
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
 
@@ -138,6 +143,30 @@ fun EmailOtpScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Fallback to Email Button
+            if (lastSentChannel == "Phone" && resendCooldown == 0) {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            isLoading = true
+                            try {
+                                val response = apiService.requestEmailOtp(mapOf("email" to email))
+                                Toast.makeText(context, response.message ?: "Code sent to email!", Toast.LENGTH_SHORT).show()
+                                lastSentChannel = "Email"
+                                resendCooldown = 60
+                            } catch (e: Exception) {
+                                errorMessage = ErrorUtils.parseError(e)
+                            } finally {
+                                isLoading = false
+                            }
+                        }
+                    },
+                    enabled = !isLoading
+                ) {
+                    Text("Didn't get an SMS? Send to Email instead")
+                }
+            }
+
             TextButton(
                 onClick = {
                     if (resendCooldown > 0 || isLoading || isRateLimited) return@TextButton
@@ -145,7 +174,8 @@ fun EmailOtpScreen(
                         isLoading = true
                         try {
                             val response = apiService.resendOtp(mapOf("email" to email))
-                            Toast.makeText(context, response.message ?: "New code sent!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, response.message ?: "New code sent via SMS!", Toast.LENGTH_SHORT).show()
+                            lastSentChannel = "Phone"
                             resendCooldown = 30
                         } catch (e: Exception) {
                             val error = ErrorUtils.parseError(e)
@@ -162,8 +192,8 @@ fun EmailOtpScreen(
             ) {
                 Text(
                     text = if (isRateLimited) "Too many attempts — try again later"
-                          else if (resendCooldown > 0) "Resend code in ${resendCooldown}s" 
-                          else "Didn't receive a code? Resend",
+                          else if (resendCooldown > 0) "Resend available in ${resendCooldown}s" 
+                          else "Resend Code (SMS)",
                     color = if (resendCooldown > 0 || isRateLimited) Color.Gray else MaterialTheme.colorScheme.primary
                 )
             }

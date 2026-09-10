@@ -48,18 +48,8 @@ const signup = async (req, res) => {
 
     await client.query('COMMIT');
 
-    // 6. Send OTP Email (Async)
-    const subject = `Verify your Pikop Account: ${otp}`;
-    const html = `
-        <h2 class="greeting">Welcome to Pikop!</h2>
-        <p class="text">We're excited to have you on board. To complete your registration and secure your account, please use the following verification code:</p>
-        <div class="cta-container">
-            <span class="otp-code">${otp}</span>
-        </div>
-        <p style="text-align: center;">We've also sent a verification code to your phone ${phone}.</p>
-        <p class="text" style="text-align: center;">This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
-    `;
-    emailService.sendMail(email, subject, html).catch(err => console.error('[Auth] Initial OTP fail:', err.message));
+    // 6. DEFERRED: Email OTP is now a fallback. Only Welcome email is sent after verification.
+    console.log(`[Auth] Signup success for ${email}. SMS OTP triggered. Email OTP deferred as fallback.`);
 
     res.status(201).json({
       success: true,
@@ -192,38 +182,79 @@ const login = async (req, res) => {
  * Resends OTP with cooldown protection.
  */
 const resendOtp = async (req, res) => {
-  const { email } = req.body;
+    const { email } = req.body;
 
-  try {
-    const userRes = await db.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (userRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Account not found' });
-    const user = userRes.rows[0];
+    try {
+        const userRes = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+        if (userRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Account not found' });
+        const user = userRes.rows[0];
 
-    // COOLDOWN: 60 seconds
-    const lastOtp = await db.query("SELECT created_at FROM otp_verifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [user.id]);
-    if (lastOtp.rows.length > 0) {
-        const timeSinceLast = Date.now() - new Date(lastOtp.rows[0].created_at).getTime();
-        if (timeSinceLast < 60000) {
-            return res.status(429).json({ success: false, message: `Please wait ${Math.ceil((60000 - timeSinceLast)/1000)}s before requesting another code.` });
+        // COOLDOWN: 60 seconds
+        const lastOtp = await db.query("SELECT created_at FROM otp_verifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [user.id]);
+        if (lastOtp.rows.length > 0) {
+            const timeSinceLast = Date.now() - new Date(lastOtp.rows[0].created_at).getTime();
+            if (timeSinceLast < 60000) {
+                return res.status(429).json({ success: false, message: `Please wait ${Math.ceil((60000 - timeSinceLast)/1000)}s before requesting another code.` });
+            }
         }
+
+        // 1. Refresh Internal OTP (in case user switches to email fallback after resend)
+        await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [user.id]);
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        await db.query("INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)", [user.id, otp, new Date(Date.now() + 10 * 60000)]);
+
+        // 2. Primarily trigger Termii SMS OTP
+        const smsOtpRes = await smsService.sendOtp(user.phone);
+        if (smsOtpRes.success) {
+            await db.query("UPDATE users SET kyc_provider_ref = $1 WHERE id = $2", [smsOtpRes.pinId, user.id]);
+        }
+
+        res.status(200).json({ success: true, message: 'New verification code sent via SMS.' });
+    } catch (error) {
+        throw error;
     }
+};
 
-    // 1. Internal Email OTP
-    await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [user.id]);
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await db.query("INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)", [user.id, otp, new Date(Date.now() + 10 * 60000)]);
-    emailService.sendMail(email, `New Code: ${otp}`, `<p>Your code is <b>${otp}</b></p>`).catch(() => {});
+/**
+ * Fallback: Sends the current valid OTP to the user's email if SMS was missed.
+ */
+const requestEmailOtp = async (req, res) => {
+    const { email } = req.body;
 
-    // 2. Termii SMS OTP
-    const smsOtpRes = await smsService.sendOtp(user.phone);
-    if (smsOtpRes.success) {
-        await db.query("UPDATE users SET kyc_provider_ref = $1 WHERE id = $2", [smsOtpRes.pinId, user.id]);
+    try {
+        const { rows } = await db.query("SELECT id, full_name FROM users WHERE email = $1", [email]);
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Account not found' });
+        const user = rows[0];
+
+        // Fetch the most recent valid OTP
+        const otpRes = await db.query(
+            "SELECT otp_code FROM otp_verifications WHERE user_id = $1 AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC LIMIT 1",
+            [user.id]
+        );
+
+        if (otpRes.rows.length === 0) {
+            return res.status(400).json({ success: false, message: 'No active verification code found. Please use Resend instead.' });
+        }
+
+        const otp = otpRes.rows[0].otp_code;
+
+        // Send Email
+        const subject = `Your Pikop Verification Code: ${otp}`;
+        const html = `
+            <h2 class="greeting">Email Verification Fallback</h2>
+            <p class="text">You requested to receive your verification code via email. Please use the code below to activate your account:</p>
+            <div class="cta-container" style="text-align: center; margin: 30px 0;">
+                <span class="otp-code" style="font-size: 32px; font-weight: 800; color: #008751; letter-spacing: 5px; border: 2px dashed #008751; padding: 10px 20px; border-radius: 8px;">${otp}</span>
+            </div>
+            <p class="text">This code is valid for 10 minutes. If you did not request this, please secure your account.</p>
+        `;
+
+        await emailService.sendMail(email, subject, html);
+
+        res.status(200).json({ success: true, message: 'Verification code sent to your email.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    res.status(200).json({ success: true, message: 'Verification code resent via email and SMS.' });
-  } catch (error) {
-    throw error;
-  }
 };
 
 /**
@@ -332,6 +363,7 @@ module.exports = {
   verifyOtp,
   login,
   resendOtp,
+  requestEmailOtp,
   refresh,
   updateFCMToken,
   changePassword,

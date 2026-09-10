@@ -568,6 +568,9 @@ interface ApiService {
     @POST("api/v1/auth/resend-otp")
     suspend fun resendOtp(@Body request: Map<String, String>): AuthResponse
 
+    @POST("api/v1/auth/request-email-otp")
+    suspend fun requestEmailOtp(@Body request: Map<String, String>): AuthResponse
+
     @POST("api/v1/auth/fcm-token")
     suspend fun updateFCMToken(@Body request: Map<String, String>): AuthResponse
 
