@@ -1,9 +1,8 @@
-# Task List - Admin Dashboard Full KYC Visibility
+# Task List - Comprehensive Merchant & Seller Portal
 
-- [ ] Backend: Update `kyc_review.ejs` to display vehicle details and ID images from `kyc_details`
-- [ ] Backend: Add document image previews to `kyc_review.ejs`
-- [ ] Android: Add `uploadKycDocument` to `ApiService.kt`
-- [ ] Android: Implement new `OperationalDocumentsStep` in `KycUploadScreen.kt`
-- [ ] Android: Insert document upload step into onboarding flow and update step logic
-- [ ] Verification: Build and verify end-to-end KYC data visibility
+- [ ] Backend: Implement `getSellerDashboard` in `merchantController.js`
+- [ ] Backend: Register dashboard route in `merchantRoutes.js`
+- [ ] Android: Add `getMerchantDashboard` and models to `ApiService.kt`
+- [ ] Android: Refactor `MerchantPortalScreen.kt` with Tab interface and enhanced data views
+- [ ] Android: Implement robust empty and error states in the portal
 - [ ] Verification: Git automation (Commit and Push)

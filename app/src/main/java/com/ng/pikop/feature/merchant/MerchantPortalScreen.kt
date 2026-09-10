@@ -1,8 +1,10 @@
 package com.ng.pikop.feature.merchant
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -15,8 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.datastore.TokenManager
-import com.ng.pikop.core.network.ApiService
-import com.ng.pikop.core.network.MerchantBatch
+import com.ng.pikop.core.network.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,55 +26,183 @@ fun MerchantPortalScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
+    val scope = rememberCoroutineScope()
     
-    var batches by remember { mutableStateOf<List<MerchantBatch>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    val dashboardData = remember { mutableStateOf<MerchantDashboardData?>(null) }
+    val isLoading = remember { mutableStateOf(true) }
+    val errorMessage = remember { mutableStateOf<String?>(null) }
+    val selectedTab = remember { mutableIntStateOf(0) }
+
+    fun fetchDashboard() {
+        isLoading.value = true
+        errorMessage.value = null
+        scope.launch {
+            try {
+                val response = apiService.getMerchantDashboard()
+                dashboardData.value = response.data
+            } catch (e: Exception) {
+                errorMessage.value = "Failed to load dashboard: ${e.message}"
+                android.util.Log.e("MerchantUI", "Load error", e)
+            } finally {
+                isLoading.value = false
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
-        try {
-            val response = apiService.getMerchantBatches()
-            batches = response.data
-        } catch (e: Exception) {
-            android.util.Log.e("MerchantUI", "Failed to load batches", e)
-        } finally {
-            isLoading = false
-        }
+        fetchDashboard()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Merchant Portal") },
+                title = { Text("Seller Center") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
                 },
                 actions = {
-                    IconButton(onClick = { /* Refresh */ }) { Icon(Icons.Default.Refresh, null) }
+                    IconButton(onClick = { fetchDashboard() }) { Icon(Icons.Default.Refresh, null) }
                 }
             )
         }
     ) { padding ->
-        if (isLoading) {
+        if (isLoading.value) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-        } else {
-            Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-                Text("Bulk Mission Batches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        } else if (errorMessage.value != null) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.ErrorOutline, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.height(16.dp))
+                Text(errorMessage.value!!, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(onClick = { fetchDashboard() }) { Text("Retry") }
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                TabRow(selectedTabIndex = selectedTab.intValue) {
+                    Tab(selected = selectedTab.intValue == 0, onClick = { selectedTab.intValue = 0 }, text = { Text("My Sales") })
+                    Tab(selected = selectedTab.intValue == 1, onClick = { selectedTab.intValue = 1 }, text = { Text("Listings") })
+                    Tab(selected = selectedTab.intValue == 2, onClick = { selectedTab.intValue = 2 }, text = { Text("Bulk") })
+                }
 
-                if (batches.isEmpty()) {
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text("No bulk batches found.", color = Color.Gray)
-                    }
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(batches) { batch ->
-                            BatchItem(batch)
-                        }
-                    }
+                when (selectedTab.intValue) {
+                    0 -> SalesTabContent(dashboardData.value?.sales ?: emptyList())
+                    1 -> ListingsTabContent(dashboardData.value?.products ?: emptyList())
+                    2 -> BulkTabContent(dashboardData.value?.batches ?: emptyList())
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SalesTabContent(sales: List<OrderDetailsResponse>) {
+    if (sales.isEmpty()) {
+        EmptyStateView(
+            icon = Icons.Default.Inventory2,
+            title = "No Sales Yet",
+            description = "Start using Secure Pay when selling items to track your orders here."
+        )
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(sales) { sale ->
+                SaleItem(sale)
+            }
+        }
+    }
+}
+
+@Composable
+fun ListingsTabContent(products: List<Product>) {
+    if (products.isEmpty()) {
+        EmptyStateView(
+            icon = Icons.Default.Storefront,
+            title = "No Marketplace Listings",
+            description = "Register as a vendor and list your products on the Pikop Marketplace."
+        )
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(products) { product ->
+                ProductItem(product)
+            }
+        }
+    }
+}
+
+@Composable
+fun BulkTabContent(batches: List<MerchantBatch>) {
+    if (batches.isEmpty()) {
+        EmptyStateView(
+            icon = Icons.Default.Layers,
+            title = "No Bulk Batches",
+            description = "Create high-volume delivery batches using our Merchant API."
+        )
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(batches) { batch ->
+                BatchItem(batch)
+            }
+        }
+    }
+}
+
+@Composable
+fun SaleItem(order: OrderDetailsResponse) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "Order #${order.id?.takeLast(8)?.uppercase() ?: ""}", fontWeight = FontWeight.Bold)
+                val statusColor = when(order.status) {
+                    "DELIVERED" -> Color(0xFF4CAF50)
+                    "RELEASED" -> Color(0xFF2196F3)
+                    "DISPUTED" -> Color.Red
+                    else -> MaterialTheme.colorScheme.primary
+                }
+                Badge(containerColor = statusColor) { Text(order.status?.replace("_", " ")?.uppercase() ?: "", color = Color.White) }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = order.item_description ?: "Secure Pay Item", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Price: ₦${"%,.2f".format(order.item_price ?: 0.0)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+            
+            if (order.escrow_status != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "Payment: ${order.escrow_status.uppercase()}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            }
+        }
+    }
+}
+
+@Composable
+fun ProductItem(product: Product) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(50.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Image, null, tint = Color.Gray)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = product.name, fontWeight = FontWeight.Bold)
+                Text(text = "₦${"%,.2f".format(product.price)}", style = MaterialTheme.typography.bodySmall)
+            }
+            Text(text = "Qty: ${product.stock_quantity}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun EmptyStateView(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, description: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(80.dp), tint = Color.LightGray)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(description, style = MaterialTheme.typography.bodySmall, color = Color.Gray, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }

@@ -133,6 +133,7 @@ data class FulfillerPublicProfile(
 data class OrderDetailsResponse(
     @SerializedName("id") val id: String? = null,
     @SerializedName("status") val status: String? = null,
+    @SerializedName("item_description") val item_description: String? = null,
     @SerializedName("total_fare") val total_fare: Double? = null,
     @SerializedName("pickup_address") val pickup_address: String? = null,
     @SerializedName("delivery_address") val delivery_address: String? = null,
@@ -494,6 +495,30 @@ data class BatchDetailsResponse(
     val data: BatchDetails
 )
 
+data class Product(
+    val id: String,
+    val vendor_id: Int,
+    val name: String,
+    val price: Double,
+    val stock_quantity: Int,
+    val description: String? = null,
+    val category: String? = null,
+    val photo_url: String? = null,
+    val active: Boolean = true,
+    val created_at: String
+)
+
+data class MerchantDashboardData(
+    val sales: List<OrderDetailsResponse> = emptyList(),
+    val products: List<Product> = emptyList(),
+    val batches: List<MerchantBatch> = emptyList()
+)
+
+data class MerchantDashboardResponse(
+    val success: Boolean,
+    val data: MerchantDashboardData
+)
+
 data class PaymentInitializationRequest(
     val amount: Double, // in Naira
     val email: String,
@@ -716,6 +741,9 @@ interface ApiService {
 
     @GET("api/v1/growth/stats")
     suspend fun getGrowthStats(): GrowthStatsResponse
+
+    @GET("api/v1/merchants/dashboard")
+    suspend fun getMerchantDashboard(): MerchantDashboardResponse
 
     @GET("api/v1/merchants/my-batches")
     suspend fun getMerchantBatches(): MerchantBatchesResponse

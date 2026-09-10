@@ -181,10 +181,61 @@ const getMyBatches = async (req, res) => {
     }
 };
 
+/**
+ * Returns a unified dashboard for the seller/merchant.
+ */
+const getSellerDashboard = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        // 1. Fetch Sales (Missions where user is the seller)
+        const { rows: sales } = await db.query(`
+            SELECT o.*,
+            ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
+            ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng
+            FROM orders o
+            WHERE o.seller_id = $1
+            ORDER BY o.created_at DESC
+            LIMIT 50
+        `, [userId]);
+
+        // 2. Fetch Marketplace Products (if any)
+        const { rows: products } = await db.query(`
+            SELECT p.*
+            FROM products p
+            JOIN vendors v ON v.id = p.vendor_id
+            WHERE v.user_id = $1
+            ORDER BY p.created_at DESC
+        `, [userId]);
+
+        // 3. Fetch Bulk Batches
+        const { rows: batches } = await db.query(`
+            SELECT b.*
+            FROM order_batches b
+            JOIN merchant_accounts ma ON ma.id = b.merchant_account_id
+            JOIN merchant_sub_accounts msa ON msa.merchant_account_id = ma.id
+            WHERE msa.user_id = $1
+            ORDER BY b.created_at DESC
+        `, [userId]);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                sales,
+                products,
+                batches
+            }
+        });
+    } catch (error) {
+        console.error('[Merchant] Dashboard Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   registerMerchant,
   createBulkOrders,
   getBatches,
   getBatchStatus,
-  getMyBatches
+  getMyBatches,
+  getSellerDashboard
 };
