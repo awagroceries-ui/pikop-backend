@@ -27,8 +27,7 @@ const getFinancialOverview = async (req, res) => {
         };
         const unit = intervalUnitMap[range] || 'day';
 
-        // Use parameterized values for the interval to avoid injection/syntax issues
-        const baseTime = `(DATE_TRUNC('${truncate}', NOW() AT TIME ZONE 'Africa/Lagos') - ($1 || ' ${unit}')::interval)`;
+        const baseTime = `(DATE_TRUNC('${truncate}', NOW() AT TIME ZONE 'Africa/Lagos') - INTERVAL '${numericOffset} ${unit}')`;
         const startTime = `${baseTime}`;
         const endTime = `(${baseTime} + INTERVAL '${interval}')`;
 
@@ -56,10 +55,10 @@ const getFinancialOverview = async (req, res) => {
         `;
 
         const [currMetrics, prevMetrics, currCod, prevCod] = await Promise.all([
-            db.query(metricsQuery(startTime, endTime), [numericOffset]),
-            db.query(metricsQuery(prevStartTime, prevEndTime), [numericOffset]),
-            db.query(codQuery(startTime, endTime), [numericOffset]),
-            db.query(codQuery(prevStartTime, prevEndTime), [numericOffset])
+            db.query(metricsQuery(startTime, endTime)),
+            db.query(metricsQuery(prevStartTime, prevEndTime)),
+            db.query(codQuery(startTime, endTime)),
+            db.query(codQuery(prevStartTime, prevEndTime))
         ]);
 
         const c = currMetrics.rows[0];
@@ -85,7 +84,7 @@ const getFinancialOverview = async (req, res) => {
             WHERE created_at >= ${startTime} AND created_at < ${endTime}
             GROUP BY 1 ORDER BY period ASC
         `;
-        const trend = await db.query(trendQuery, [numericOffset]);
+        const trend = await db.query(trendQuery);
 
         const data = {
             range,
