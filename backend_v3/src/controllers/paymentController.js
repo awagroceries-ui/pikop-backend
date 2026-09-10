@@ -271,12 +271,38 @@ const handleWebhook = async (req, res) => {
     const { reference, metadata, channel } = data;
     const m = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
 
+    // 1. Handle COD Collection (Remittance)
     if (m?.collection_type === 'COD') {
         await db.query("UPDATE orders SET collection_status = 'collected', payment_status = 'PAID' WHERE id = $1", [m.order_id]);
         await walletService.processCoDRemittance(m.order_id).catch(() => {});
         return res.sendStatus(200);
     }
 
+    // 2. Handle Guest Payment for Awaiting Mission (Seller-initiated Secure Pay)
+    if (m?.order_id) {
+        const { rows: pending } = await db.query("SELECT id, status, item_price, seller_id FROM orders WHERE id = $1", [m.order_id]);
+        if (pending.length > 0 && pending[0].status === 'AWAITING_PAYMENT') {
+            const order = pending[0];
+            await db.query(
+                "UPDATE orders SET status = 'SEARCHING', payment_status = 'PAID', payment_reference = $1, payment_channel = $2 WHERE id = $3",
+                [reference, channel, m.order_id]
+            );
+
+            // Set up Escrow if item price > 0
+            if (parseFloat(order.item_price) > 0 && order.seller_id) {
+                const client = await db.pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    const walletId = await walletService.ensureWalletExists(client, 'USER', order.seller_id);
+                    await walletService.recordEntry(client, walletId, 'CREDIT', parseFloat(order.item_price), 'ESCROW_HOLD', `Order #${order.id}`, order.id, 'pending');
+                    await client.query('COMMIT');
+                } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
+            }
+            return res.sendStatus(200);
+        }
+    }
+
+    // 3. Handle Wallet Top-up
     if (m?.type === 'TOPUP') {
         const client = await db.pool.connect();
         try {

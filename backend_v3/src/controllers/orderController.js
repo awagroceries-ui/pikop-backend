@@ -138,12 +138,22 @@ const getQuote = async (req, res) => {
   const sms_charge_amount = (recipient_type === 'GUEST') ? 50 : 0;
 
   // 5.2 Calculate UPFRONT Total (What the initiator pays NOW)
-  // If initiator is PAYER, they pay Item + Delivery + Fee.
-  // If initiator is SELLER, they pay only Delivery.
+  // FIXED: For COD missions, Buyer pays EVERYTHING. Seller pays 0.
   const isPayerInitiator = initiator_role === 'PAYER';
-  const total_payable = (isPayerInitiator ? parseFloat(item_price) + platform_fee_amount : 0) + delivery_fee + sms_charge_amount;
+  const isSecurePay = parseFloat(item_price) > 0;
 
-  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Upfront: ${total_payable} | Recipient: ${recipient_type} | Fee Rate: ${codFeeRate}`);
+  let total_payable;
+  if (isSecurePay) {
+      total_payable = isPayerInitiator ? (parseFloat(item_price) + platform_fee_amount + delivery_fee + sms_charge_amount) : 0;
+  } else {
+      // Non-COD: Initiator always pays delivery
+      total_payable = delivery_fee + sms_charge_amount;
+  }
+
+  // 5.3 Calculate Recipient Total (For Seller-initiated COD)
+  const recipient_total = (isSecurePay && !isPayerInitiator) ? (parseFloat(item_price) + platform_fee_amount + delivery_fee + sms_charge_amount) : 0;
+
+  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Upfront: ${total_payable} | Recipient Pays: ${recipient_total}`);
 
   // 6. Save Quote
     const quoteRes = await db.query(
@@ -166,6 +176,7 @@ const getQuote = async (req, res) => {
     traffic_multiplier: trafficMultiplier,
     fee_payer,
     total_fare: total_payable,
+    recipient_payable: recipient_total,
     required_fulfiller_classes: requiredClasses,
     payer_info: {
         type: recipient_type, // Map back to UI expectations
@@ -496,7 +507,7 @@ const createOrder = async (req, res) => {
             promo_id, payment_reference,
             pickup_lat, pickup_lng, delivery_lat, delivery_lng,
             item_price, delivery_fee, platform_fee_amount, sms_charge_amount, fee_payer, initiator_role,
-            payer_id, pickup_state
+            payer_id, pickup_state, recipient_payable
         } = req.body;
     const userId = req.user.id;
 
@@ -580,7 +591,7 @@ const createOrder = async (req, res) => {
             [
                 userId, // $1
                 q.id,   // $2
-                'PAYMENT_CAPTURED', // $3
+                finalFare === 0 ? 'AWAITING_PAYMENT' : 'PAYMENT_CAPTURED', // $3
                 q.item_description, // $4
                 q.size_tier, // $5
                 q.pickup_address, // $6
@@ -590,7 +601,7 @@ const createOrder = async (req, res) => {
                 dLng, // $10
                 dLat, // $11
                 finalFare, // $12
-                'PAID', // $13
+                finalFare === 0 ? 'pending' : 'PAID', // $13
                 payment_method || 'card', // $14
                 refToSave, // $15
                 payment_method || 'card', // $16 (payment_channel)
@@ -632,9 +643,9 @@ const createOrder = async (req, res) => {
         // Outreach for Secure Pay
         if (item_price > 0) {
             if (payer_id) {
-                fcmService.sendNotification(payer_id, "Secure Pay Request", `A Secure Pay request for ₦${item_price} is waiting for your payment.`, { type: "SECURE_PAY_REQUEST", order_id: orderRes.rows[0].id.toString() });
+                fcmService.sendNotification(payer_id, "Secure Pay Request", `A Secure Pay request for ₦${recipient_payable || item_price} is waiting for your payment.`, { type: "SECURE_PAY_REQUEST", order_id: orderRes.rows[0].id.toString() });
             } else {
-                smsService.sendSecurePaySms(recipient_phone, item_price, orderRes.rows[0].id).catch(e => {});
+                smsService.sendSecurePaySms(recipient_phone, recipient_payable || item_price, orderRes.rows[0].id).catch(e => {});
             }
         }
 
@@ -1240,6 +1251,52 @@ const grantConsent = async (req, res) => {
     }
 };
 
+/**
+ * Public endpoint to view order breakdown and pay (Secure Pay Recipient).
+ */
+const getGuestCheckout = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        const { rows } = await db.query(`
+            SELECT o.*,
+            u.full_name as initiator_name
+            FROM orders o
+            JOIN users u ON u.id = o.user_id
+            WHERE o.id = $1`, [orderId]);
+
+        if (rows.length === 0) return res.status(404).send("Mission not found.");
+        const order = rows[0];
+
+        if (order.payment_status === 'PAID') {
+            return res.send(`
+                <html>
+                    <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center;">
+                        <div>
+                            <h2 style="color: #008751;">Payment Already Completed</h2>
+                            <p>This mission has already been activated. Thank you!</p>
+                        </div>
+                    </body>
+                </html>
+            `);
+        }
+
+        // Calculate breakdown for display
+        const itemTotal = parseFloat(order.item_price) + parseFloat(order.platform_fee_amount);
+        const logisticsTotal = parseFloat(order.delivery_fee) + parseFloat(order.sms_charge_amount);
+        const grandTotal = itemTotal + logisticsTotal;
+
+        res.render('guest_checkout', {
+            order,
+            itemTotal,
+            logisticsTotal,
+            grandTotal,
+            layout: false
+        });
+    } catch (e) {
+        res.status(500).send("Checkout unavailable.");
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -1263,5 +1320,6 @@ module.exports = {
   failDelivery,
   requestConsent,
   getConsentPage,
-  grantConsent
+  grantConsent,
+  getGuestCheckout
 };

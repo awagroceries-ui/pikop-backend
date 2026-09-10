@@ -1,8 +1,8 @@
-# Task List - Fix COD Platform Fee Consistency
+# Task List - Fix COD Billing Responsibility
 
-- [ ] Backend: Update `roundFee` in `PlatformConfig.js` for minimum ₦1
-- [ ] Backend: Update `getQuote` logic in `orderController.js` for role-based billing
-- [ ] Android: Fix `amountToCharge` calculation in `OrderQuoteScreen.kt`
-- [ ] Android: Enhance Order Summary UI with "Paid by You" vs "Recipient" breakdown
-- [ ] Verification: Build and test both Buyer/Seller initiator flows
+- [ ] Backend: Update `getQuote` for Seller-pays-zero logic and `recipient_total`
+- [ ] Backend: Update `createOrder` to handle `AWAITING_PAYMENT` status
+- [ ] Backend: Create `guest_checkout.ejs` public payment page
+- [ ] Backend: Update `paymentController.js` to activate missions after guest payment
+- [ ] Android: Update `amountToCharge` logic and button text in `OrderQuoteScreen.kt`
 - [ ] Verification: Git automation (Commit and Push)

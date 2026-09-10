@@ -82,6 +82,7 @@ data class QuoteResponse(
     val sms_charge_amount: Double? = null,
     val weather_multiplier: Double? = null,
     val traffic_multiplier: Double? = null,
+    val recipient_payable: Double? = null,
     val payer_info: PayerInfo? = null,
     val expires_at: String? = null
 )
@@ -115,7 +116,8 @@ data class CreateOrderRequest(
     val item_price: Double? = null,
     val delivery_fee: Double? = null,
     val seller_phone: String? = null,
-    val pickup_state: String? = null
+    val pickup_state: String? = null,
+    val recipient_payable: Double? = null
 )
 
 data class OrderResponse(

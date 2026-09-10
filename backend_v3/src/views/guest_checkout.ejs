@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pikop | Secure Pay Checkout</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #F3F4F6; margin: 0; padding: 20px; color: #111827; }
+        .container { max-width: 500px; margin: 40px auto; background: white; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .header { background: #008751; color: white; padding: 32px; text-align: center; }
+        .logo { height: 40px; margin-bottom: 16px; }
+        .title { font-weight: 800; font-size: 24px; margin: 0; }
+        .content { padding: 32px; }
+        .section { margin-bottom: 24px; border-bottom: 1px solid #F3F4F6; padding-bottom: 16px; }
+        .section:last-child { border: none; }
+        .label { font-size: 12px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .row { display: flex; justify-content: space-between; margin-top: 8px; }
+        .value { font-weight: 600; }
+        .total-row { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 24px; border-top: 2px solid #F3F4F6; }
+        .total-label { font-weight: 800; font-size: 20px; }
+        .total-value { font-weight: 800; font-size: 24px; color: #008751; }
+        .btn-pay { display: block; width: 100%; background: #008751; color: white; border: none; border-radius: 16px; padding: 20px; font-weight: 700; font-size: 18px; cursor: pointer; transition: 0.2s; margin-top: 32px; }
+        .btn-pay:hover { background: #007041; }
+        .secure-badge { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: #6B7280; margin-top: 16px; }
+        .lock-icon { width: 14px; height: 14px; fill: currentColor; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="/public/assets/logo_white.png" alt="Pikop" class="logo">
+            <div class="title">Secure Pay Checkout</div>
+        </div>
+        <div class="content">
+            <div class="section">
+                <div class="label">Mission Details</div>
+                <div class="row">
+                    <span>Sender</span>
+                    <span class="value"><%= order.initiator_name %></span>
+                </div>
+                <div class="row">
+                    <span>Item</span>
+                    <span class="value"><%= order.item_description %></span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="label">Item & Protection</div>
+                <div class="row">
+                    <span>Item Price</span>
+                    <span class="value">₦<%= parseFloat(order.item_price).toLocaleString() %></span>
+                </div>
+                <div class="row">
+                    <span>Platform Fee (10%)</span>
+                    <span class="value">₦<%= parseFloat(order.platform_fee_amount).toLocaleString() %></span>
+                </div>
+                <div class="row" style="margin-top: 12px; font-weight: 700;">
+                    <span>Item Subtotal</span>
+                    <span>₦<%= itemTotal.toLocaleString() %></span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="label">Logistics</div>
+                <div class="row">
+                    <span>Delivery Fee</span>
+                    <span class="value">₦<%= parseFloat(order.delivery_fee).toLocaleString() %></span>
+                </div>
+                <div class="row">
+                    <span>SMS Processing</span>
+                    <span class="value">₦<%= parseFloat(order.sms_charge_amount).toLocaleString() %></span>
+                </div>
+                <div class="row" style="margin-top: 12px; font-weight: 700;">
+                    <span>Logistics Subtotal</span>
+                    <span>₦<%= logisticsTotal.toLocaleString() %></span>
+                </div>
+            </div>
+
+            <div class="total-row">
+                <div class="total-label">Total to Pay</div>
+                <div class="total-value">₦<%= grandTotal.toLocaleString() %></div>
+            </div>
+
+            <button class="btn-pay" onclick="payWithPaystack()">ACTIVATE DELIVERY</button>
+
+            <div class="secure-badge">
+                <svg class="lock-icon" viewBox="0 0 20 20"><path d="M10 2a4 4 0 00-4 4v2h8V6a4 4 0 00-4-4zm6 6V6a6 6 0 10-12 0v2H3v10h14V8h-1z"/></svg>
+                Secure Escrow Protection by Paystack
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function payWithPaystack() {
+            // NOTE: In a real V3 implementation, this would call our initializePayment API
+            // but for the guest checkout proof-of-concept, we'll use inline Paystack.
+            const handler = PaystackPop.setup({
+                key: 'pk_live_xxxx', // Should be injected via env or fetched from server
+                email: 'buyer@guest.pikop.ng',
+                amount: <%= Math.round(grandTotal * 100) %>,
+                currency: "NGN",
+                ref: 'GUEST_' + Date.now() + '_<%= order.id %>',
+                metadata: {
+                    order_id: "<%= order.id %>",
+                    custom_fields: [{ display_name: "Order ID", variable_name: "order_id", value: "<%= order.id %>" }]
+                },
+                callback: function(response) {
+                    window.location.href = "/api/v1/payments/webhook?reference=" + response.reference;
+                },
+                onClose: function() {
+                    alert('Transaction cancelled.');
+                }
+            });
+            handler.openIframe();
+        }
+    </script>
+</body>
+</html>

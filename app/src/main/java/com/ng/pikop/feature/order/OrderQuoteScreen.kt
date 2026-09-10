@@ -422,9 +422,9 @@ fun OrderQuoteScreen(
                     val platformFee = result.platform_fee_amount ?: 0.0
                     val smsCharge = result.sms_charge_amount ?: 0.0
                     
-                    // Logic: If user is Buyer, they pay everything. If Seller, they pay only Delivery + SMS.
+                    // Logic: If user is Buyer, they pay everything. If Seller, they pay 0.
                     val isBuyer = initiatorRole == "PAYER"
-                    val amountToCharge = (if (isBuyer) itemPriceNum + platformFee else 0.0) + (deliveryFee - discount) + smsCharge
+                    val amountToCharge = if (isBuyer) itemPriceNum + platformFee + (deliveryFee - discount) + smsCharge else 0.0
 
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Order Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -437,7 +437,7 @@ fun OrderQuoteScreen(
                             SummaryLine("Platform fee (Buyer pays)", "₦$platformFee")
                             
                             val subtotal = itemPriceNum + platformFee
-                            SummaryLine(if (isBuyer) "Subtotal (You pay)" else "Subtotal (Recipient pays)", "₦$subtotal", fontWeight = FontWeight.Bold)
+                            SummaryLine(if (isBuyer) "Item Subtotal (You pay)" else "Item Subtotal (Recipient pays)", "₦$subtotal", fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(12.dp))
                         }
 
@@ -464,18 +464,20 @@ fun OrderQuoteScreen(
                             SummaryLine("Guest SMS charge", "₦$smsChargeVal")
                         }
 
-                        SummaryLine("Delivery total", "₦${deliveryFee - discount + smsChargeVal}")
+                        val logisticsTotal = (deliveryFee - discount) + smsChargeVal
+                        SummaryLine(if (isBuyer) "Logistics Subtotal (You pay)" else "Logistics Subtotal (Recipient pays)", "₦$logisticsTotal", fontWeight = FontWeight.Bold)
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
                         
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Total Payable", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                            Text("Total Upfront", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                             Text("₦$amountToCharge", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                         }
 
-                        if (isSecurePay && result.fee_payer == "SELLER") {
+                        if (isSecurePay && !isBuyer) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Platform fee (₦${result.platform_fee_amount}) will be deducted from Seller's payout.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                            val grandTotal = itemPriceNum + platformFee + logisticsTotal
+                            Text("Note: You are paying ₦0 now. The Recipient will receive an SMS to pay ₦$grandTotal to activate this mission.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                         }
 
                         if (isSecurePay && result.payer_info?.type == "GUEST") {
@@ -554,6 +556,7 @@ fun OrderQuoteScreen(
                     }
                 }
             } else {
+                val isZeroUpfront = quoteResult?.total_fare == 0.0
                 Button(
                     onClick = {
                         coroutineScope.launch {
@@ -602,20 +605,22 @@ fun OrderQuoteScreen(
                                     
                                     val discount = minOf(calculatedDiscount, deliveryFee)
                                     val itemPriceNum = result.item_price ?: 0.0
-                                    val platformFee = if (result.fee_payer == "PAYER") result.platform_fee_amount ?: 0.0 else 0.0
+                                    val platformFee = result.platform_fee_amount ?: 0.0
                                     val smsCharge = result.sms_charge_amount ?: 0.0
                                     
-                                    val amountToCharge = itemPriceNum + (deliveryFee - discount) + platformFee + smsCharge
+                                    // Logic: If user is Buyer, they pay everything. If Seller, they pay 0.
+                                    val isBuyer = initiatorRole == "PAYER"
+                                    val amountToCharge = if (isBuyer) itemPriceNum + platformFee + (deliveryFee - discount) + smsCharge else 0.0
 
-                                    // 100% DISCOUNT BYPASS
+                                    // ZERO UPFRONT BYPASS (Seller-initiated COD or 100% Promo)
                                     if (amountToCharge <= 0) {
-                                        val freePaymentRef = "FREE_${java.util.UUID.randomUUID()}"
+                                        val freePaymentRef = if (isZeroUpfront) "REQUEST_${java.util.UUID.randomUUID()}" else "FREE_${java.util.UUID.randomUUID()}"
                                         try {
                                             val request = CreateOrderRequest(
                                                 quote_id = qId, 
                                                 corporate_account_id = null, 
                                                 promo_id = activePromo?.promo_id, 
-                                                payment_method = "promo", 
+                                                payment_method = if (isZeroUpfront) "secure_pay_request" else "promo", 
                                                 recipient_name = recipientName, 
                                                 recipient_phone = recipientPhone, 
                                                 notes = notes, 
@@ -630,18 +635,19 @@ fun OrderQuoteScreen(
                                                 item_price = result.item_price,
                                                 delivery_fee = result.delivery_fee,
                                                 seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null,
-                                                pickup_state = pickupState
+                                                pickup_state = pickupState,
+                                                recipient_payable = result.recipient_payable
                                             )
                                             val response = apiService.createOrder(request)
-                                            if (response.status == "SEARCHING" || response.status == "MATCHED" || response.status == "QUEUED" || response.status == "PAYMENT_CAPTURED") {
-                                                Toast.makeText(context, "Mission Activated Successfully!", Toast.LENGTH_LONG).show()
+                                            if (response.status == "SEARCHING" || response.status == "AWAITING_PAYMENT" || response.status == "PAYMENT_CAPTURED") {
+                                                Toast.makeText(context, if (isZeroUpfront) "Mission Created! Recipient will pay to activate." else "Mission Activated Successfully!", Toast.LENGTH_LONG).show()
                                                 onOrderComplete("FREE")
                                             } else {
-                                                Toast.makeText(context, "Server Error: Could not activate free mission", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, "Server Error: Could not process mission", Toast.LENGTH_LONG).show()
                                             }
                                         } catch (e: Exception) {
                                             val detail = ErrorUtils.parseError(e)
-                                            Toast.makeText(context, "Failed to activate free mission: $detail", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, "Failed to create mission: $detail", Toast.LENGTH_LONG).show()
                                         }
                                         isLoading = false
                                         return@launch
@@ -709,7 +715,7 @@ fun OrderQuoteScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text("Pay & Deploy Mission", fontWeight = FontWeight.Bold)
+                        Text(if (isZeroUpfront) "Deploy & Request Payment" else "Pay & Deploy Mission", fontWeight = FontWeight.Bold)
                     }
                 }
             }

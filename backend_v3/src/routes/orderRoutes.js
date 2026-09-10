@@ -21,6 +21,7 @@ const upload = multer({ storage });
 router.post('/quote', authenticateToken, orderController.getQuote);
 router.get('/by-quote/:quoteId', authenticateToken, orderController.getOrderByQuote);
 router.get('/guest/:orderId', orderController.getGuestTracking); // PUBLIC
+router.get('/guest/checkout/:orderId', orderController.getGuestCheckout); // PUBLIC
 router.get('/consent/:orderId', orderController.getConsentPage); // PUBLIC
 router.post('/consent/:orderId/grant', orderController.grantConsent); // PUBLIC
 router.get('/', authenticateToken, orderController.getUserOrders);
