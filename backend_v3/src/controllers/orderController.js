@@ -34,6 +34,15 @@ const getQuote = async (req, res) => {
 
   // 2. Classify Size via Gemini v3
   const aiResult = await geminiService.classifyItemSize(item_description);
+  const sizeTier = aiResult.size_tier || 'MEDIUM';
+
+  // 2.1 Determine Eligible Fulfiller Classes based on Size
+  const sizeToClassMap = {
+    'SMALL': ['agent', 'rider'],
+    'MEDIUM': ['rider', 'driver'],
+    'LARGE': ['driver']
+  };
+  const requiredClasses = sizeToClassMap[sizeTier] || ['rider', 'driver'];
 
   // 3. Apply Dynamic Pricing Dynamics (v3.5.1 Settings-Linked)
   let baseFees = { 'SMALL': 400, 'MEDIUM': 800, 'LARGE': 1500 };
@@ -87,16 +96,16 @@ const getQuote = async (req, res) => {
 
   // 6. Save Quote
     const quoteRes = await db.query(
-    `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state, sms_charge_amount)
-     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, $12)
+    `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state, sms_charge_amount, required_fulfiller_classes)
+     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, $12, $13)
      RETURNING id, expires_at`,
-    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, aiResult.size_tier, total_payable, pickup_state, sms_charge_amount]
+    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, sizeTier, total_payable, pickup_state, sms_charge_amount, requiredClasses]
   );
 
   res.status(200).json({
     success: true,
     quote_id: quoteRes.rows[0].id,
-    size_tier: aiResult.size_tier,
+    size_tier: sizeTier,
     distance_km: distanceKm.toFixed(2),
     item_price,
     delivery_fee,
@@ -104,6 +113,7 @@ const getQuote = async (req, res) => {
     sms_charge_amount,
     fee_payer,
     total_fare: total_payable,
+    required_fulfiller_classes: requiredClasses,
     payer_info: {
         type: recipient_type, // Map back to UI expectations
         user_id: recipient_user_id
@@ -502,7 +512,7 @@ const createOrder = async (req, res) => {
                 pickup_code_hash, delivery_code_hash, pickup_code, delivery_code, coupon_id,
                 item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
                 escrow_status, payer_id, original_delivery_fee, original_total_fare, pickup_state,
-                sms_charge_amount
+                sms_charge_amount, required_fulfiller_classes
             ) VALUES (
                 'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
                 ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -512,7 +522,7 @@ const createOrder = async (req, res) => {
                 $23, $24, $25, $26, $27::uuid,
                 $28, $29, $30, $31, $32,
                 $33, $34, $35, $36, $37,
-                $38
+                $38, $39
             ) RETURNING id`,
             [
                 userId, // $1
@@ -552,7 +562,8 @@ const createOrder = async (req, res) => {
                 parseFloat(q.delivery_fee), // $35
                 parseFloat(q.total_fare), // $36
                 pickup_state || q.pickup_state, // $37
-                parseFloat(sms_charge_amount || 0) // $38
+                parseFloat(sms_charge_amount || 0), // $38
+                q.required_fulfiller_classes // $39
             ]
         );
 

@@ -389,6 +389,7 @@ const getAvailableOffers = async (req, res) => {
 
     // Fetch active SEARCHING or PAYMENT_CAPTURED orders (unassigned or queued for this fulfiller)
     // CRITICAL: Filter by Same State, 20km Radius, and exclude stale fulfillers.
+    // ADDED: Size-based Class Eligibility and Zone-based Okada restrictions.
     const { rows } = await db.query(
       `SELECT o.id, o.pickup_address, o.delivery_address, o.total_fare, o.item_photo_url, o.created_at,
        o.collect_on_delivery_amount,
@@ -397,12 +398,20 @@ const getAvailableOffers = async (req, res) => {
        ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng
        FROM orders o
        CROSS JOIN fulfillers f
+       LEFT JOIN zones z ON ST_Intersects(o.pickup_location::geometry, z.boundary::geometry)
        WHERE f.id = $1
        AND o.status IN ('SEARCHING', 'PAYMENT_CAPTURED')
        AND (o.fulfiller_id IS NULL OR o.queued_for_fulfiller_id = $1)
        AND o.pickup_state = f.current_state
        AND ST_DWithin(f.current_location::geography, o.pickup_location::geography, 20000)
        AND f.last_ping_at > NOW() - interval '30 minutes'
+
+       -- Class-based Eligibility (from Size Tier)
+       AND f.primary_class = ANY(o.required_fulfiller_classes)
+
+       -- Zone-based Restrictions (e.g. No Okada in certain Lagos LGAs)
+       AND (z.id IS NULL OR f.primary_class = ANY(z.allowed_fulfiller_classes))
+
        ORDER BY o.created_at DESC
        LIMIT 20`,
       [fulfillerId]

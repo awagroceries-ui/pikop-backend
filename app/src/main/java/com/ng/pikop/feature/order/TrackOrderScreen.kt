@@ -564,13 +564,25 @@ fun SecurePayDisputeDialog(onDismiss: () -> Unit, onConfirm: (String, String) ->
 
 @Composable
 fun FulfillerCard(profile: FulfillerPublicProfile) {
-    val context = LocalContext.current
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
+    Card(
+        modifier = Modifier.fillMaxWidth(), 
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(modifier = Modifier.size(48.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
-                Box(contentAlignment = Alignment.Center) { Text((profile.full_name ?: "A").take(1), color = Color.Black, fontWeight = FontWeight.Bold) }
+            // Profile Photo or Initial
+            Surface(modifier = Modifier.size(56.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (!profile.profile_photo_url.isNullOrBlank()) {
+                        // Use a fallback for the photo if needed, or just initial for now
+                        Text((profile.full_name ?: "A").take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                    } else {
+                        Text((profile.full_name ?: "A").take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                    }
+                }
             }
+            
             Spacer(modifier = Modifier.width(16.dp))
+            
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = profile.full_name ?: "Agent", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -583,15 +595,39 @@ fun FulfillerCard(profile: FulfillerPublicProfile) {
                         )
                     }
                 }
+                
+                // Tier Badge
+                val tierInfo = when(profile.tier?.lowercase()) {
+                    "gold" -> Pair("GOLD AGENT", Color(0xFFFFD700))
+                    "silver" -> Pair("SILVER AGENT", Color(0xFFC0C0C0))
+                    else -> Pair("BRONZE AGENT", Color(0xFFCD7F32))
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val tierColor = when(profile.tier) { "gold" -> Color(0xFFFFD700); "silver" -> Color(0xFFC0C0C0); else -> Color(0xFFCD7F32) }
-                    Icon(Icons.Default.Stars, contentDescription = null, modifier = Modifier.size(14.dp), tint = tierColor)
-                    Text(text = " ${(profile.tier ?: "bronze").uppercase()} AGENT", style = MaterialTheme.typography.labelSmall, color = tierColor)
+                    Icon(Icons.Default.Stars, contentDescription = null, modifier = Modifier.size(14.dp), tint = tierInfo.second)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = tierInfo.first, style = MaterialTheme.typography.labelSmall, color = tierInfo.second, fontWeight = FontWeight.Bold)
+                }
+
+                // Vehicle Details (Conditional)
+                if (profile.primary_class?.lowercase() != "agent") {
+                    profile.vehicle_registration_number?.let { reg ->
+                        Text(
+                            text = "${profile.make ?: ""} • $reg", 
+                            style = MaterialTheme.typography.labelSmall, 
+                            color = Color.Gray,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }
             }
+            
             Column(horizontalAlignment = Alignment.End) {
-                profile.vehicle_registration_number?.let { Text(text = it, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary) }
-                Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFF9F0A)); Text(text = " ${profile.rating_avg ?: 0.0}", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
+                Row(verticalAlignment = Alignment.CenterVertically) { 
+                    Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFF9F0A))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = String.format("%.1f", profile.rating_avg ?: 5.0), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) 
+                }
+                Text(text = "${profile.rating_count ?: 0} reviews", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
         }
     }

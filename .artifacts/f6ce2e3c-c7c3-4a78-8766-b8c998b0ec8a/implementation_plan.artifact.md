@@ -1,50 +1,53 @@
-# Implementation Plan - Comprehensive Merchant & Seller Portal
+# Implementation Plan - Logistics Hardening & Admin Refinements
 
-This plan transforms the currently empty "Merchant Portal" into a comprehensive "Seller Center" that surfaces all selling activity, including Secure Pay sales, marketplace listings, and bulk mission batches.
+This plan outlines the systematic implementation of missing logistics features, including crowdsourced landmarks, Okada zoning, weather/traffic surcharges, and comprehensive failed-delivery handling.
 
-## Problem Description
-1.  **Limited Scope:** The current Merchant Portal only queries for "Bulk Mission Batches". Since most users are not high-volume programmatic merchants, the screen appears empty.
-2.  **Missing Seller Data:** Activity from Secure Pay (where a user acts as a seller) and Marketplace listings are not shown anywhere for the customer, leading to a "data gap".
-3.  **UI Feedback:** The portal lacks encouraging empty states or a way to distinguish between "No data yet" and "Failed to load".
+## Phased Approach
 
-## Proposed Changes
+### Phase 1: Dispatch & Eligibility Hardening
+Enforce strict rules on which fulfillers see which orders based on size and regional restrictions.
 
-### Backend (`backend_v3`)
+- **Class-Based Eligibility:** Update `getQuote` and dispatch logic to map `small`/`medium`/`large` sizes to `agent`/`rider`/`driver`.
+- **Okada (Rider) Zoning:** Intersect size eligibility with the pickup zone's `allowed_fulfiller_classes` to respect Lagos LGA restrictions.
+- **Android Match UI:** Update the match card to show the full `FulfillerPublicProfile` (Photo, Name, Tier Badge, Rating).
 
-#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
-- **`getSellerDashboard` [NEW]**: A unified endpoint that aggregates:
-    - **My Sales:** Missions where `seller_id = current_user_id`.
-    - **My Products:** Items listed in the marketplace (via `vendors` table).
-    - **Bulk Batches:** Existing order batches.
-- **`getMyBatches`**: Deprecate or keep for legacy, but pivot the app to the new unified dashboard.
+### Phase 2: Landmarks & Geocoding accuracy
+Improve "cold-arrival" accuracy by requiring and crowdsourcing landmarks.
 
-#### [MODIFY] [merchantRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/merchantRoutes.js)
-- Register `GET /api/v1/merchants/dashboard` endpoint.
+- **Automated Suggestions:** Implement backend logic to auto-approve landmarks and increment submission counts based on proximity (~200m).
+- **Landmark Content Check:** Add a basic profanity/abuse filter for new landmark submissions.
+- **Android Landmark Entry:** Make `landmark_description` a required field in order creation and saved addresses with real-time autocomplete suggestions.
 
----
+### Phase 3: Failed Delivery & Consent Flow
+Formalize the "Plan B" for when a recipient isn't present or reachable.
 
-### Android App
+- **Compensation Rule:** Implement the 10-minute timeout at drop-off. If unreachable, Fulfiller can mark as "Failed".
+- **Settlement:** The mission fare is settled using the **standard 75/25 split** (Fulfiller gets 75%, Platform takes 25% commission). This ensures the Fulfiller is compensated for the full trip distance even if the recipient is unavailable.
+- **Delivery Consent:** Add the "Request Consent" flow where a recipient approves a "leave at door" action via a public web link, replacing the delivery code with a metadata-rich photo.
+- **Return Flow:** Prompt the User to pay for a return mission (at 50% fare) or abandon the item.
 
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Add `getMerchantDashboard()` method and its corresponding data models (`MerchantDashboardResponse`, `Product`, etc.).
+### Phase 4: Dynamic Adjustments (Weather & Traffic)
+Implement automated and manual surcharges for environmental conditions.
 
-#### [MODIFY] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
-- **Multi-Tab Interface:** Add tabs for **"Sales"**, **"Listings"**, and **"Bulk Batches"**.
-- **Sales Tab:** Display a list of orders where the user is the seller. Show status (Held, Released, Disputed).
-- **Listings Tab:** Show items the user has added to the marketplace.
-- **Enhanced Empty States:** Add helpful illustrations/messages like "You haven't sold anything yet. Use Secure Pay to sell items safely!" or "Start selling on the Marketplace!"
-- **Loading/Error States:** Clearly show a full-screen error with a "Retry" button if the API fails.
+- **Traffic Corridors:** Implement multiplier logic for known congestion axes (e.g., Third Mainland Bridge) during rush hours.
+- **Weather Surcharges:** Set up a 15-minute polling job using Google Weather API to apply multipliers to flood-prone zones during alerts.
+- **Ops Overrides:** Allow admin to manually pause dispatch in specific zones or override weather multipliers.
 
----
+### Phase 5: Admin Dashboard Refinements
+Build the operational interfaces to manage all the above.
+
+- **Landmark Suggestions Screen:** Searchable list of crowdsourced landmarks for spot-checks.
+- **Traffic/Zone Controls:** UI to edit traffic corridors and per-zone Fulfiller class toggles.
+- **Financial Audit:** Ensure traffic and weather adjustments are visible as separate line items in the admin ledger.
 
 ## Verification Plan
 
 ### Automated Tests
 - Build Android app: `./gradlew assembleDebug`.
-- Syntax check backend: `node -c ...`.
+- Syntax check backend logic.
 
 ### Manual Verification
-1.  **The "Active Seller" Test:** Create a Secure Pay mission where the test user is the seller. Verify the mission appears in the "Sales" tab of the Merchant Portal.
-2.  **The "Vendor" Test:** Register as a vendor and add a product. Verify the product appears in the "Listings" tab.
-3.  **Empty State Test:** Log in with a brand new account. Verify the portal shows friendly "Get Started" messages instead of a blank screen.
-4.  **Error Handling:** Temporarily disable the network and verify the "Failed to load / Retry" UI appears.
+1. **Dispatch:** Verify a Driver never receives a "Small" (Agent/Rider) offer.
+2. **Zoning:** Seed a zone to disallow Riders; verify Riders in that zone see zero offers.
+3. **Landmarks:** Enter a new landmark in the app; verify it becomes an autocomplete option for a different user in the same area.
+4. **Compensation:** Simulate a 10-minute timeout and verify the 50% wallet credit to the Fulfiller.
