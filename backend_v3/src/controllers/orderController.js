@@ -194,6 +194,10 @@ const getOrderDetails = async (req, res) => {
   const userId = req.user.id;
   const userRole = req.user.role;
 
+  // Ensure orderId is numeric to prevent SQL errors
+  const numericId = parseInt(orderId);
+  if (isNaN(numericId)) return res.status(400).json({ success: false, message: 'Invalid mission ID' });
+
   try {
     const { rows } = await db.query(
       `SELECT o.*,
@@ -205,7 +209,7 @@ const getOrderDetails = async (req, res) => {
        FROM orders o
        LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
        WHERE o.id = $1`,
-      [orderId]
+      [numericId]
     );
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Mission not found' });
 
@@ -226,14 +230,16 @@ const getOrderDetails = async (req, res) => {
     } : null;
 
     // Security: Only return plain codes to the customer who created the order or admin
-    if (order.user_id !== userId && userRole !== 'ADMIN') {
+    // Cast user_id to string for reliable comparison
+    if (order.user_id.toString() !== userId.toString() && userRole !== 'ADMIN') {
         delete order.pickup_code;
         delete order.delivery_code;
     }
 
     res.status(200).json(order);
   } catch (error) {
-    throw error;
+    console.error('[GetOrderDetails] FATAL:', error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

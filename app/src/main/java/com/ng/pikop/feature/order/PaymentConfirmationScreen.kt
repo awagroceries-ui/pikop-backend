@@ -38,7 +38,10 @@ fun PaymentConfirmationScreen(
             try {
                 val res = apiService.verifyPayment(reference)
                 if (res["success"] == true) {
-                    orderId = res["order_id"]?.toString()
+                    val rawId = res["order_id"]
+                    // Handle Gson numeric parsing (comes back as Double)
+                    orderId = if (rawId is Double) rawId.toInt().toString() else rawId?.toString()
+                    
                     status = "success"
                     delay(1500)
                     onConfirmed(orderId ?: "")
