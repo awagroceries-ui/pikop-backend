@@ -638,7 +638,8 @@ fun MainAppScaffold(
             composable("home") {
                 if (userRole == "FULFILLER") {
                     FulfillerDashboardScreen(
-                        userEmail = userEmail,
+                        userEmail = userEmail ?: "",
+                        kycStatus = kycStatus ?: "NOT_STARTED",
                         onAcceptOffer = { id -> navController.navigate("active_order/$id") },
                         onGoToWallet = { nestedNavController.navigate("wallet") },
                         onGoToKyc = { navController.navigate("kyc_upload") },

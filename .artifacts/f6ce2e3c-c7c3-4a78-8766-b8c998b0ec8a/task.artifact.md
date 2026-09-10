@@ -1,8 +1,7 @@
-# Task List - Fix Payment Success without Mission Creation
+# Task List - Fix Fulfiller Dashboard Verification Status
 
-- [x] Backend: Fix `ReferenceError` in `activatePaidMission` (`pLng` -> `q.p_lng`)
-- [x] Backend: Update `verifyPayment` to return `order_id`
-- [x] Android: Create `PaymentConfirmationScreen.kt` for robust verification
-- [x] Android: Update `MainActivity.kt` to handle confirmation route and deep link
-- [x] Verification: Build and Compile
-- [x] Verification: Git automation (Commit and Push)
+- [ ] Android: Update `FulfillerDashboardScreen.kt` signature and remove local state
+- [ ] Android: Refactor `FulfillerDashboardScreen.kt` UI to handle `PENDING_REVIEW` state
+- [ ] Android: Pass `kycStatus` from `MainActivity.kt` to `FulfillerDashboardScreen`
+- [ ] Verification: Build and verify status updates
+- [ ] Verification: Git automation (Commit and Push)

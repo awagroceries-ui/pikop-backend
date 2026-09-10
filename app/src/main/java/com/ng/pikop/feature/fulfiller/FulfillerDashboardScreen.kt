@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.Pending
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +38,7 @@ import kotlinx.coroutines.tasks.await
 @Composable
 fun FulfillerDashboardScreen(
     userEmail: String,
+    kycStatus: String,
     onAcceptOffer: (String) -> Unit, 
     onGoToWallet: () -> Unit,
     onGoToKyc: () -> Unit,
@@ -48,7 +51,6 @@ fun FulfillerDashboardScreen(
     var isLoading by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf<List<FulfillerOrderResponse>>(emptyList()) }
     var walletBalance by remember { mutableStateOf(0.0) }
-    var kycStatus by remember { mutableStateOf("PENDING") }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -56,8 +58,18 @@ fun FulfillerDashboardScreen(
     val apiService = remember { ApiService.create(tokenManager) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-    // Initial Fetch
-    // ... (existing fetch)
+    // Initial Fetch: Sync Wallet & History
+    LaunchedEffect(Unit) {
+        try {
+            isLoading = true
+            val wallet = apiService.getWalletInfo()
+            walletBalance = wallet.balance ?: 0.0
+            history = apiService.getFulfillerOrders()
+        } catch (_: Exception) {
+        } finally {
+            isLoading = false
+        }
+    }
 
     // Polling & Background Pings
     LaunchedEffect(isOnline) {
@@ -150,26 +162,40 @@ fun FulfillerDashboardScreen(
                     }
                 }
 
-                // KYC Warning
+                // KYC Status Card
                 if (kycStatus != "VERIFIED") {
+                    val isPending = kycStatus == "PENDING_REVIEW"
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isPending) Color(0xFFFFF3E0) else MaterialTheme.colorScheme.errorContainer
+                        ),
                         onClick = onGoToKyc
                     ) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(id = R.drawable.pikop_badge),
+                            Icon(
+                                imageVector = if (isPending) Icons.Default.Pending else Icons.Default.Warning,
                                 contentDescription = null,
-                                modifier = Modifier.size(80.dp)
+                                tint = if (isPending) Color(0xFFFF9800) else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(48.dp)
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Account Not Verified", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
-                                Text("Complete verification to start earning.", style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    text = if (isPending) "Verification Under Review" else "Account Not Verified",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = if (isPending) Color(0xFFE65100) else MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text(
+                                    text = if (isPending) "We are reviewing your details. This usually takes 24 hours." else "Complete verification to start earning.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isPending) Color(0xFFE65100).copy(alpha = 0.8f) else MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                                )
                             }
-                            TextButton(onClick = onGoToKyc) {
-                                Text("Verify Now")
+                            if (!isPending) {
+                                TextButton(onClick = onGoToKyc) {
+                                    Text("Verify Now")
+                                }
                             }
                         }
                     }
