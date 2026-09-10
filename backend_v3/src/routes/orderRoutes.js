@@ -21,6 +21,8 @@ const upload = multer({ storage });
 router.post('/quote', authenticateToken, orderController.getQuote);
 router.get('/by-quote/:quoteId', authenticateToken, orderController.getOrderByQuote);
 router.get('/guest/:orderId', orderController.getGuestTracking); // PUBLIC
+router.get('/consent/:orderId', orderController.getConsentPage); // PUBLIC
+router.post('/consent/:orderId/grant', orderController.grantConsent); // PUBLIC
 router.get('/', authenticateToken, orderController.getUserOrders);
 router.post('/', authenticateToken, orderController.createOrder);
 router.get('/:orderId', authenticateToken, orderController.getOrderDetails);
@@ -29,6 +31,8 @@ router.patch('/:orderId/status', authenticateToken, orderController.updateStatus
 router.post('/:orderId/accept', authenticateToken, orderController.acceptOrder);
 router.post('/:orderId/pickup', authenticateToken, orderController.verifyPickup);
 router.post('/:orderId/deliver', authenticateToken, orderController.verifyDelivery);
+router.post('/:orderId/request-consent', authenticateToken, orderController.requestConsent);
+router.post('/:orderId/fail', authenticateToken, orderController.failDelivery);
 router.post('/:orderId/confirm-receipt', authenticateToken, orderController.confirmReceipt);
 router.post('/:orderId/dispute', authenticateToken, orderController.reportProblem);
 router.post('/:orderId/rate-fulfiller', authenticateToken, orderController.rateFulfiller);

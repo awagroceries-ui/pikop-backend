@@ -33,6 +33,9 @@ socketService.init(server);
 const escrowWorker = require('./jobs/escrowWorker');
 escrowWorker.startEscrowWorker(15); // Run every 15 mins
 
+const weatherService = require('./services/weatherService');
+weatherService.startWeatherJob(15);
+
 // 1. Basic Middleware
 app.use(compression()); // Optimize payload size
 app.use(helmet({ contentSecurityPolicy: false }));

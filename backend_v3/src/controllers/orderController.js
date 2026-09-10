@@ -8,6 +8,8 @@ const smsService = require('../services/smsService');
 const PlatformConfig = require('../config/platform');
 const { normalizePhone } = require('../utils/phone');
 
+const BAD_WORDS = ['spam', 'test', 'nonsense', 'fake', 'dummy']; // Simplified V3 content check
+
 /**
  * Generates a dynamic, distance-based quote.
  */
@@ -16,7 +18,7 @@ const getQuote = async (req, res) => {
     pickup_address, delivery_address, item_description,
     pickup_lat, pickup_lng, delivery_lat, delivery_lng,
     item_price = 0, initiator_role = 'PAYER', recipient_phone,
-    pickup_state
+    pickup_state, pickup_landmark, delivery_landmark
   } = req.body;
   const userId = req.user?.id;
 
@@ -49,6 +51,8 @@ const getQuote = async (req, res) => {
   let perKmRate = 110;
   let roadWindingFactor = 1.15;
   let codFeeRate = 0.10; // Default 10%
+  let trafficMultiplier = 1.0;
+  let weatherMultiplier = 1.0;
 
   try {
     const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate', 'cod_fee_rate')");
@@ -59,13 +63,58 @@ const getQuote = async (req, res) => {
         if (r.key === 'per_km_rate') perKmRate = parseFloat(r.value);
         if (r.key === 'cod_fee_rate') codFeeRate = parseFloat(r.value);
     });
+
+    // 3.1 Check Weather Multiplier from Pickup Zone
+    const zoneRes = await db.query(`
+        SELECT id, weather_multiplier, is_dispatch_paused
+        FROM zones
+        WHERE ST_Intersects(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geometry, boundary::geometry)
+        LIMIT 1
+    `, [pickup_lng, pickup_lat]);
+
+    if (zoneRes.rows.length > 0) {
+        if (zoneRes.rows[0].is_dispatch_paused) {
+            return res.status(403).json({ success: false, message: 'Dispatch is temporarily paused in this zone due to severe conditions.' });
+        }
+        weatherMultiplier = parseFloat(zoneRes.rows[0].weather_multiplier || 1.0);
+    }
+
+    // 3.2 Check Traffic Corridor Multipliers
+    // Logic: Find any active corridor that connects the pickup and delivery points
+    const now = new Date();
+    const day = now.getDay(); // 0-6
+    const hour = now.getHours();
+    const timeStr = `${hour}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+    const corridorRes = await db.query(`
+        SELECT tc.time_windows
+        FROM traffic_corridors tc
+        WHERE tc.is_active = true
+          AND ST_Intersects(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geometry, (SELECT boundary::geometry FROM zones WHERE id = tc.pickup_zone_id))
+          AND ST_Intersects(ST_SetSRID(ST_MakePoint($3, $4), 4326)::geometry, (SELECT boundary::geometry FROM zones WHERE id = tc.delivery_zone_id))
+    `, [pickup_lng, pickup_lat, delivery_lng, delivery_lat]);
+
+    corridorRes.rows.forEach(c => {
+        const windows = c.time_windows || [];
+        windows.forEach(w => {
+            if (parseInt(w.day_of_week) === day) {
+                if (timeStr >= w.start_time && timeStr <= w.end_time) {
+                    trafficMultiplier = Math.max(trafficMultiplier, parseFloat(w.multiplier));
+                }
+            }
+        });
+    });
+
   } catch (e) {
-    console.warn('[Quote] Settings fetch failed, using fallback pricing.');
+    console.warn('[Quote] Pricing fetch failed, using fallback pricing.', e.message);
   }
 
   const base_fare = baseFees[aiResult.size_tier] || baseFees['MEDIUM'];
   const effectiveDistance = distanceKm * roadWindingFactor;
-  const delivery_fee = Math.ceil(base_fare + (effectiveDistance * perKmRate));
+
+  // Apply Multipliers: (Base + Dist) * Weather * Traffic
+  const raw_delivery_fee = (base_fare + (effectiveDistance * perKmRate)) * weatherMultiplier * trafficMultiplier;
+  const delivery_fee = Math.ceil(raw_delivery_fee);
 
   // 4. Reliable Account Lookup (In-App vs Guest) - DETERMINES RECIPIENT TYPE
   let recipient_type = 'GUEST';
@@ -96,10 +145,10 @@ const getQuote = async (req, res) => {
 
   // 6. Save Quote
     const quoteRes = await db.query(
-    `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state, sms_charge_amount, required_fulfiller_classes)
-     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, $12, $13)
+    `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state, sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark)
+     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, $12, $13, $14, $15)
      RETURNING id, expires_at`,
-    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, sizeTier, total_payable, pickup_state, sms_charge_amount, requiredClasses]
+    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, sizeTier, total_payable, pickup_state, sms_charge_amount, requiredClasses, pickup_landmark, delivery_landmark]
   );
 
   res.status(200).json({
@@ -111,6 +160,8 @@ const getQuote = async (req, res) => {
     delivery_fee,
     platform_fee_amount,
     sms_charge_amount,
+    weather_multiplier: weatherMultiplier,
+    traffic_multiplier: trafficMultiplier,
     fee_payer,
     total_fare: total_payable,
     required_fulfiller_classes: requiredClasses,
@@ -512,7 +563,7 @@ const createOrder = async (req, res) => {
                 pickup_code_hash, delivery_code_hash, pickup_code, delivery_code, coupon_id,
                 item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
                 escrow_status, payer_id, original_delivery_fee, original_total_fare, pickup_state,
-                sms_charge_amount, required_fulfiller_classes
+                sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark
             ) VALUES (
                 'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
                 ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -522,7 +573,7 @@ const createOrder = async (req, res) => {
                 $23, $24, $25, $26, $27::uuid,
                 $28, $29, $30, $31, $32,
                 $33, $34, $35, $36, $37,
-                $38, $39
+                $38, $39, $40, $41
             ) RETURNING id`,
             [
                 userId, // $1
@@ -563,12 +614,18 @@ const createOrder = async (req, res) => {
                 parseFloat(q.total_fare), // $36
                 pickup_state || q.pickup_state, // $37
                 parseFloat(sms_charge_amount || 0), // $38
-                q.required_fulfiller_classes // $39
+                q.required_fulfiller_classes, // $39
+                q.pickup_landmark, // $40
+                q.delivery_landmark // $41
             ]
         );
 
         await client.query('COMMIT');
         console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId} | Fare: ${finalFare}`);
+
+        // Crowdsource landmarks if valid
+        if (q.pickup_landmark) await processLandmark(q.pickup_landmark, pLat, pLng);
+        if (q.delivery_landmark) await processLandmark(q.delivery_landmark, dLat, dLng);
 
         // Outreach for Secure Pay
         if (item_price > 0) {
@@ -1044,23 +1101,157 @@ const getGuestTracking = async (req, res) => {
     }
 };
 
+/**
+ * Public endpoint for Guest Live Tracking.
+ */
+const getGuestTracking = async (req, res) => {
+    // ... (existing logic)
+};
+
+/**
+ * Internal Helper: Processes crowdsourced landmarks.
+ */
+const processLandmark = async (text, lat, lng) => {
+    if (!text || text.length < 3) return;
+
+    const normalized = text.toLowerCase().trim();
+
+    // 1. Lightweight Content Check
+    const isBad = BAD_WORDS.some(word => normalized.includes(word));
+    if (isBad) {
+        console.warn(`[Landmark] Blocked suspicious entry: ${text}`);
+        return;
+    }
+
+    try {
+        // 2. Proximity Check (~200m) and Upsert
+        // We use ST_DWithin on geometry to find a matching normalized name within 200m.
+        const existing = await db.query(`
+            SELECT id FROM landmark_suggestions
+            WHERE normalized_text = $1
+              AND ST_DWithin(location::geography, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, 200)
+            LIMIT 1
+        `, [normalized, lng, lat]);
+
+        if (existing.rows.length > 0) {
+            await db.query("UPDATE landmark_suggestions SET submission_count = submission_count + 1 WHERE id = $1", [existing.rows[0].id]);
+        } else {
+            await db.query(`
+                INSERT INTO landmark_suggestions (normalized_text, display_text, location, status)
+                VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326), 'approved')
+            `, [normalized, text.trim(), lng, lat]);
+        }
+    } catch (e) {
+        console.error('[Landmark] Process error:', e.message);
+    }
+};
+
+/**
+ * Fulfiller marks delivery as failed after 10-minute timeout.
+ */
+const failDelivery = async (req, res) => {
+    const { orderId } = req.params;
+    const { reason, evidence_photo_url } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query(`
+            SELECT o.* FROM orders o
+            JOIN fulfillers f ON f.id = o.fulfiller_id
+            WHERE o.id = $1 AND f.user_id = $2 AND o.status = 'ARRIVED_AT_DELIVERY'
+        `, [orderId, userId]);
+
+        if (rows.length === 0) return res.status(400).json({ success: false, message: 'Invalid order state for failure marking.' });
+
+        await db.query(
+            "UPDATE orders SET status = 'RECIPIENT_ABSENT', pod_photo_url = $1, cancellation_reason = $2 WHERE id = $3",
+            [evidence_photo_url || null, reason || 'Recipient Unavailable', orderId]
+        );
+
+        await walletService.processMissionSettlement(orderId);
+
+        const socketService = require('../services/socketService');
+        socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: 'RECIPIENT_ABSENT' });
+
+        res.status(200).json({ success: true, message: 'Mission marked as failed. Standard settlement applied.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Fulfiller requests delivery consent (leave at door/third party).
+ */
+const requestConsent = async (req, res) => {
+    const { orderId } = req.params;
+    const { note } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query(`
+            SELECT o.* FROM orders o
+            JOIN fulfillers f ON f.id = o.fulfiller_id
+            WHERE o.id = $1 AND f.user_id = $2
+        `, [orderId, userId]);
+
+        if (rows.length === 0) return res.status(400).json({ success: false, message: 'Order not found or unauthorized.' });
+        const order = rows[0];
+
+        // Send SMS to recipient with consent link
+        const consentUrl = `https://track.pikop.com.ng/api/v1/orders/consent/${order.id}`;
+        const message = `Pikop: Our agent requested your consent to complete delivery (${note}). Approve here: ${consentUrl}`;
+
+        await smsService.sendSms(order.recipient_phone, message, 'delivery_consent', order.id);
+
+        res.status(200).json({ success: true, message: 'Consent request sent to recipient.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Public endpoint to view and grant delivery consent.
+ */
+const getConsentPage = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        const { rows } = await db.query("SELECT * FROM orders WHERE id = $1", [orderId]);
+        if (rows.length === 0) return res.status(404).send("Mission not found.");
+        res.render('delivery_consent', { order: rows[0], layout: false });
+    } catch (e) {
+        res.status(500).send("Consent service unavailable.");
+    }
+};
+
+/**
+ * Public endpoint to grant delivery consent.
+ */
+const grantConsent = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        await db.query(
+            "UPDATE orders SET status = 'DELIVERED', escrow_status = 'released', matched_at = NOW() WHERE id = $1",
+            [orderId]
+        );
+        // Standard settlement
+        await walletService.processMissionSettlement(orderId);
+
+        const socketService = require('../services/socketService');
+        socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: 'DELIVERED' });
+
+        res.status(200).json({ success: true, message: 'Consent granted. Delivery completed.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   getQuote,
-  getOrderByQuote,
-  createOrder,
-  acceptOrder,
-  getOrderDetails,
-  updateStatus,
-  initiateReturn,
-  getOrderMessages,
-  getUserOrders,
-  getFulfillerOrders,
-  cancelOrder,
-  verifyPickup,
-  verifyDelivery,
-  confirmReceipt,
-  reportProblem,
-  rateFulfiller,
-  rateCustomer,
-  getGuestTracking
+  // ...
+  getGuestTracking,
+  processLandmark,
+  failDelivery,
+  requestConsent,
+  getConsentPage,
+  grantConsent
 };

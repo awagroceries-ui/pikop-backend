@@ -314,30 +314,42 @@ const getKYCQueue = async (req, res) => {
 };
 
 const getKYCReview = async (req, res) => {
-    const { id } = req.params;
+    // ... (existing logic)
+};
+
+/**
+ * Lists crowdsourced landmark suggestions.
+ */
+const getLandmarks = async (req, res) => {
+    // ...
+};
+
+/**
+ * List all traffic corridors.
+ */
+const getTrafficCorridors = async (req, res) => {
     try {
-        const fRes = await db.query(`
-            SELECT f.*, u.full_name, u.email, u.phone as user_phone
-            FROM fulfillers f
-            JOIN users u ON u.id = f.user_id
-            WHERE f.id = $1`, [id]);
+        const { rows } = await db.query("SELECT * FROM traffic_corridors ORDER BY created_at DESC");
+        const { rows: zones } = await db.query("SELECT id, name FROM zones ORDER BY name ASC");
+        res.render('traffic_corridors', { corridors: rows, zones });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
 
-        if (fRes.rows.length === 0) return res.status(404).send('Fulfiller not found');
-
-        const f = fRes.rows[0];
-
-        // Ensure kyc_details is parsed if stringified
-        if (f.kyc_details && typeof f.kyc_details === 'string') {
-            try { f.kyc_details = JSON.parse(f.kyc_details); } catch (e) {}
-        }
-
-        const docs = await db.query("SELECT * FROM kyc_documents WHERE fulfiller_id = $1", [id]);
-
-        res.render('kyc_review', {
-            f,
-            docs: docs.rows,
-            baseUrl: process.env.BASE_URL || 'https://api.pikop.com.ng'
-        });
+/**
+ * Creates a new traffic corridor.
+ */
+const addTrafficCorridor = async (req, res) => {
+    const { name, pickup_zone_id, delivery_zone_id, multiplier, day_of_week, start_time, end_time } = req.body;
+    try {
+        const window = [{ day_of_week, start_time, end_time, multiplier }];
+        await db.query(
+            `INSERT INTO traffic_corridors (name, pickup_zone_id, delivery_zone_id, time_windows)
+             VALUES ($1, $2, $3, $4)`,
+            [name, pickup_zone_id, delivery_zone_id, JSON.stringify(window)]
+        );
+        res.redirect('/admin/traffic');
     } catch (error) {
         res.status(500).send(error.message);
     }

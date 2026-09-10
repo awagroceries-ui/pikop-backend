@@ -56,8 +56,33 @@ const deleteAddress = async (req, res) => {
     }
 };
 
+/**
+ * Returns approved LandmarkSuggestion entries near a given point.
+ */
+const getLandmarkSuggestions = async (req, res) => {
+    const { lat, lng, radius = 500 } = req.query;
+
+    if (!lat || !lng) return res.status(400).json({ success: false, message: 'Coordinates required' });
+
+    try {
+        const { rows } = await db.query(`
+            SELECT display_text, submission_count
+            FROM landmark_suggestions
+            WHERE status = 'approved'
+              AND ST_DWithin(location::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3)
+            ORDER BY submission_count DESC, created_at DESC
+            LIMIT 10
+        `, [lng, lat, radius]);
+
+        res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     getSavedAddresses,
     saveAddress,
-    deleteAddress
+    deleteAddress,
+    getLandmarkSuggestions
 };

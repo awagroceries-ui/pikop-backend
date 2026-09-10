@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pikop | Delivery Consent Request</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #F3F4F6; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .card { background: white; padding: 32px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 90%; max-width: 400px; text-align: center; }
+        .logo { height: 40px; margin-bottom: 24px; }
+        .title { font-weight: 800; font-size: 20px; margin-bottom: 8px; color: #111827; }
+        .desc { font-size: 14px; color: #6B7280; margin-bottom: 32px; line-height: 1.5; }
+        .btn { display: block; width: 100%; padding: 16px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 16px; }
+        .btn-primary { background: #008751; color: white; margin-bottom: 12px; }
+        .btn-outline { background: white; color: #374151; border: 1px solid #D1D5DB; }
+        .loading { display: none; margin-top: 16px; font-size: 14px; color: #008751; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img src="/public/assets/logo.png" alt="Pikop" class="logo">
+        <div class="title">Delivery Consent</div>
+        <p class="desc">The agent has arrived with your item but requested authorization to complete the delivery without a direct handoff (e.g., leave at door or with security).</p>
+
+        <button id="grantBtn" class="btn btn-primary" onclick="grantConsent()">APPROVE DELIVERY</button>
+        <button class="btn btn-outline" onclick="window.close()">REJECT / CANCEL</button>
+
+        <div id="loading" class="loading">Processing confirmation...</div>
+    </div>
+
+    <script>
+        async function grantConsent() {
+            const btn = document.getElementById('grantBtn');
+            const loading = document.getElementById('loading');
+
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            loading.style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/v1/orders/consent/<%= order.id %>/grant`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const res = await response.json();
+                if (res.success) {
+                    document.body.innerHTML = `
+                        <div class="card">
+                            <div style="font-size: 60px; color: #008751; margin-bottom: 16px;">✓</div>
+                            <div class="title">Delivery Authorized!</div>
+                            <p class="desc">Thank you. The agent has been notified and the mission is now marked as complete.</p>
+                        </div>
+                    `;
+                } else {
+                    alert("Error: " + res.message);
+                }
+            } catch (e) {
+                alert("Failed to connect to server.");
+            } finally {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

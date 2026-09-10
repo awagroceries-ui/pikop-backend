@@ -22,6 +22,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
 import androidx.navigation.NavHostController
 import com.google.android.gms.maps.model.LatLng
 import com.ng.pikop.R
@@ -48,10 +50,12 @@ fun OrderQuoteScreen(
     var pickupLat by rememberSaveable { mutableStateOf(0.0) }
     var pickupLng by rememberSaveable { mutableStateOf(0.0) }
     var pickupState by rememberSaveable { mutableStateOf<String?>(null) }
+    var pickupLandmark by rememberSaveable { mutableStateOf("") }
     
     var deliveryAddress by rememberSaveable { mutableStateOf("") }
     var deliveryLat by rememberSaveable { mutableStateOf(0.0) }
     var deliveryLng by rememberSaveable { mutableStateOf(0.0) }
+    var deliveryLandmark by rememberSaveable { mutableStateOf("") }
 
     val pickupLatLng = if (pickupLat != 0.0) LatLng(pickupLat, pickupLng) else null
     val deliveryLatLng = if (deliveryLat != 0.0) LatLng(deliveryLat, deliveryLng) else null
@@ -172,12 +176,30 @@ fun OrderQuoteScreen(
                 address = pickupAddress,
                 onClick = { navController.navigate("map_address_search/Pickup/pickup") }
             )
+            if (pickupAddress.isNotBlank()) {
+                LandmarkInput(
+                    value = pickupLandmark,
+                    onValueChange = { pickupLandmark = it },
+                    lat = pickupLat,
+                    lng = pickupLng,
+                    apiService = apiService
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
             LocationInput(
                 label = "Delivery Location",
                 address = deliveryAddress,
                 onClick = { navController.navigate("map_address_search/Delivery/delivery") }
             )
+            if (deliveryAddress.isNotBlank()) {
+                LandmarkInput(
+                    value = deliveryLandmark,
+                    onValueChange = { deliveryLandmark = it },
+                    lat = deliveryLat,
+                    lng = deliveryLng,
+                    apiService = apiService
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
@@ -423,6 +445,16 @@ fun OrderQuoteScreen(
                             SummaryLine("Promo discount", "-₦$discount", color = MaterialTheme.colorScheme.primary)
                         }
                         
+                        // Dynamic Adjustments
+                        val weatherMult = result.weather_multiplier ?: 1.0
+                        if (weatherMult > 1.0) {
+                            SummaryLine("Weather adjustment", "x$weatherMult", color = Color(0xFFF57C00))
+                        }
+                        val trafficMult = result.traffic_multiplier ?: 1.0
+                        if (trafficMult > 1.0) {
+                            SummaryLine("Traffic adjustment", "x$trafficMult", color = Color(0xFFD32F2F))
+                        }
+
                         // SMS Charge for Guest (ONLY if > 0)
                         val smsChargeVal = result.sms_charge_amount ?: 0.0
                         if (smsChargeVal > 0) {
@@ -476,6 +508,8 @@ fun OrderQuoteScreen(
                                     QuoteRequest(
                                         pickup_address = pickupAddress, 
                                         delivery_address = deliveryAddress, 
+                                        pickup_landmark = pickupLandmark,
+                                        delivery_landmark = deliveryLandmark,
                                         item_description = description, 
                                         pickup_lat = pickupLatLng?.latitude ?: 0.0, 
                                         pickup_lng = pickupLatLng?.longitude ?: 0.0, 
@@ -500,7 +534,8 @@ fun OrderQuoteScreen(
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    enabled = !isLoading && pickupAddress.isNotBlank() && deliveryAddress.isNotBlank() && itemPhotoUri != null,
+                    enabled = !isLoading && pickupAddress.isNotBlank() && deliveryAddress.isNotBlank() && 
+                              pickupLandmark.length >= 3 && deliveryLandmark.length >= 3 && itemPhotoUri != null,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary, 
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -677,6 +712,64 @@ fun OrderQuoteScreen(
             }
             
             Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+@Composable
+fun LandmarkInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    lat: Double,
+    lng: Double,
+    apiService: ApiService
+) {
+    var suggestions by remember { mutableStateOf<List<LandmarkSuggestion>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(value) {
+        if (value.length >= 2) {
+            try {
+                val res = apiService.getLandmarkSuggestions(lat, lng)
+                suggestions = res.data.filter { it.display_text.contains(value, ignoreCase = true) }
+            } catch (_: Exception) {}
+        } else {
+            suggestions = emptyList()
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text("Landmark / Room / Suite (Required)", fontSize = 12.sp) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Opposite the Blue Bank", fontSize = 14.sp) },
+            leadingIcon = { Icon(Icons.Default.Flag, null, modifier = Modifier.size(18.dp)) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+            )
+        )
+        
+        if (suggestions.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column {
+                    suggestions.forEach { suggestion ->
+                        Text(
+                            text = suggestion.display_text,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onValueChange(suggestion.display_text); suggestions = emptyList() }
+                                .padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -51,6 +51,8 @@ data class VerifyEmailRequest(
 data class QuoteRequest(
     val pickup_address: String,
     val delivery_address: String,
+    val pickup_landmark: String? = null,
+    val delivery_landmark: String? = null,
     val item_description: String,
     val pickup_lat: Double,
     val pickup_lng: Double,
@@ -78,8 +80,20 @@ data class QuoteResponse(
     val fee_payer: String? = null,
     val total_fare: Double? = null,
     val sms_charge_amount: Double? = null,
+    val weather_multiplier: Double? = null,
+    val traffic_multiplier: Double? = null,
     val payer_info: PayerInfo? = null,
     val expires_at: String? = null
+)
+
+data class LandmarkSuggestion(
+    val display_text: String,
+    val submission_count: Int
+)
+
+data class LandmarkSuggestionResponse(
+    val success: Boolean,
+    val data: List<LandmarkSuggestion>
 )
 
 data class CreateOrderRequest(
@@ -658,6 +672,13 @@ interface ApiService {
 
     @GET("api/v1/addresses")
     suspend fun getSavedAddresses(): SavedAddressesResponse
+
+    @GET("api/v1/addresses/landmark-suggestions")
+    suspend fun getLandmarkSuggestions(
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double,
+        @Query("radius") radius: Int? = 500
+    ): LandmarkSuggestionResponse
 
     @POST("api/v1/addresses")
     suspend fun saveAddress(@Body request: SavedAddress): Map<String, Any>

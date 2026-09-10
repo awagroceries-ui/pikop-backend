@@ -49,6 +49,9 @@ router.post('/customers/:id/status', adminController.updateCustomerStatus);
 
 // Transactions & Ledger Audit
 router.get('/transactions', adminController.getTransactions);
+router.get('/landmarks', adminController.getLandmarks);
+router.get('/traffic', adminController.getTrafficCorridors);
+router.post('/traffic', adminController.addTrafficCorridor);
 
 router.get('/kyc', adminController.getKYCQueue);
 router.get('/kyc/:id', adminController.getKYCReview);

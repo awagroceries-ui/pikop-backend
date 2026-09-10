@@ -171,7 +171,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id,
             original_delivery_fee, original_total_fare, pickup_code_hash, delivery_code_hash,
             pickup_code, delivery_code, coupon_id, pickup_state, sms_charge_amount,
-            required_fulfiller_classes
+            required_fulfiller_classes, pickup_landmark, delivery_landmark
         ) VALUES (
             'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
             ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -180,7 +180,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             $17, $18, $19, $20, $21, $22,
             $23, $24, $25, $26, $27, $28,
             $29, $30, $31, $32,
-            $33, $34, $35::uuid, $36, $37, $38
+            $33, $34, $35::uuid, $36, $37, $38, $39, $40
         ) RETURNING id`,
         [
             m.user_id, // $1
@@ -220,11 +220,18 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             m.promo_id || null, // $35
             m.pickup_state || q.pickup_state, // $36
             parseFloat(smsCharge), // $37
-            q.required_fulfiller_classes // $38
+            q.required_fulfiller_classes, // $38
+            q.pickup_landmark, // $39
+            q.delivery_landmark // $40
         ]
     );
 
     const orderId = orderRes.rows[0].id;
+
+    // Crowdsource landmarks if valid
+    const orderController = require('./orderController');
+    if (q.pickup_landmark) await orderController.processLandmark(q.pickup_landmark, q.p_lat, q.p_lng);
+    if (q.delivery_landmark) await orderController.processLandmark(q.delivery_landmark, q.d_lat, q.d_lng);
 
     // 5. Ledger & Notifications (Non-blocking)
     if (parseFloat(m.item_price || 0) > 0) {

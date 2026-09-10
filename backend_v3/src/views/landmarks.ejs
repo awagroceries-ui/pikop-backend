@@ -1,0 +1,48 @@
+<div class="mb-5">
+    <h4 class="fw-bold mb-1 text-black">Landmark Hub</h4>
+    <p class="text-muted small mb-0">Manage crowdsourced points of interest to improve address accuracy.</p>
+</div>
+
+<div class="card-pikop">
+    <% if (landmarks.length === 0) { %>
+        <div class="p-5 text-center text-muted">No crowdsourced landmarks found yet.</div>
+    <% } else { %>
+        <div class="table-responsive">
+            <table class="table-pikop">
+                <thead>
+                    <tr>
+                        <th>Landmark Name</th>
+                        <th class="text-center">Confirmations</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Added On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% landmarks.forEach(l => { %>
+                        <tr class="align-middle">
+                            <td>
+                                <div class="fw-bold text-black"><%= l.display_text %></div>
+                                <div class="smaller text-muted mono">ID: <%= l.id.take(8) %></div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-black border fw-bold">
+                                    <%= l.submission_count %>x Reported
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-green text-white fw-bold" style="font-size: 10px;">APPROVED</span>
+                            </td>
+                            <td class="text-end smaller text-muted">
+                                <%= new Date(l.created_at).toLocaleDateString() %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</div>
+
+<style>
+    .bg-green { background-color: var(--green) !important; }
+</style>
