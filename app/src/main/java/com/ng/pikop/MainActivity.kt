@@ -183,27 +183,17 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         if (dataUri != null && dataUri.scheme == "pikop") {
             if (dataUri.host == "payment" && dataUri.path == "/success") {
                 val reference = dataUri.getQueryParameter("reference") ?: dataUri.getQueryParameter("trxref")
-                android.util.Log.d("PikopIntent", "Success deep-link detected with ref: $reference. Verifying payment...")
+                android.util.Log.d("PikopIntent", "Success deep-link detected with ref: $reference. Navigating to confirmation...")
                 
                 if (reference != null) {
-                    scope.launch {
-                        try {
-                            val api = ApiService.create(tokenManager)
-                            val verifyRes = api.verifyPayment(reference)
-                            if (verifyRes["success"] == true) {
-                                android.util.Log.d("PikopPayment", "VERIFY SUCCESS via deep-link.")
-                            } else {
-                                android.util.Log.w("PikopPayment", "VERIFY REJECTED: Status=${verifyRes["status"]}")
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("PikopPayment", "Deep-link verify failed: ${e.message}")
-                        }
+                    CheckoutHelper.activeQuote = null
+                    navController.navigate("confirm_payment/$reference") {
+                        popUpTo(0) { inclusive = true }
                     }
-                }
-                
-                CheckoutHelper.activeQuote = null
-                navController.navigate("main") {
-                    popUpTo(0) { inclusive = true }
+                } else {
+                    navController.navigate("main") {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
                 return@LaunchedEffect
             }
@@ -415,6 +405,28 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         composable("track_order/{orderId}") { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
             TrackOrderScreen(orderId = orderId)
+        }
+        composable("confirm_payment/{reference}") { backStackEntry ->
+            val reference = backStackEntry.arguments?.getString("reference") ?: ""
+            PaymentConfirmationScreen(
+                reference = reference,
+                onConfirmed = { orderId ->
+                    if (orderId.isNotBlank()) {
+                        navController.navigate("track_order/$orderId") {
+                            popUpTo("main") { inclusive = false }
+                        }
+                    } else {
+                        navController.navigate("main") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                },
+                onFailed = { _ ->
+                    navController.navigate("main") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
         composable("order_quote") {
             OrderQuoteScreen(

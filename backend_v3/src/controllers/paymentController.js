@@ -108,7 +108,12 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
     const m = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
     const qId = m.quote_id;
 
-    console.log(`[Activation] Starting for Quote: ${qId} | Ref: ${reference}`);
+    console.log(`[Activation] Starting for Quote: ${qId} | Ref: ${reference} | User: ${m.user_id}`);
+
+    if (!qId) {
+        console.error('[Activation] FATAL: quote_id missing in metadata:', JSON.stringify(m));
+        throw new Error('quote_id missing in payment metadata');
+    }
 
     // 2. Fetch Quote Coordinates
     const quoteRes = await client.query(
@@ -116,7 +121,10 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
                    ST_Y(delivery_location::geometry) as d_lat, ST_X(delivery_location::geometry) as d_lng
          FROM quotes WHERE id = $1`, [qId]
     );
-    if (quoteRes.rows.length === 0) throw new Error(`Quote ${qId} not found`);
+    if (quoteRes.rows.length === 0) {
+        console.error(`[Activation] FATAL: Quote ${qId} not found in DB.`);
+        throw new Error(`Quote ${qId} not found`);
+    }
     const q = quoteRes.rows[0];
 
     // 3. Calculate Restricted Discount (Promo only applies to Delivery Fee)
@@ -181,10 +189,10 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             q.size_tier, // $5
             q.pickup_address, // $6
             q.delivery_address, // $7
-            pLng, // $8
-            pLat, // $9
-            dLng, // $10
-            dLat, // $11
+            q.p_lng, // $8
+            q.p_lat, // $9
+            q.d_lng, // $10
+            q.d_lat, // $11
             finalTotal, // $12 (Final Total)
             'PAID', // $13
             channel, // $14 (payment_method)
@@ -327,16 +335,25 @@ const verifyPayment = async (req, res) => {
         const tx = response.data.data;
         if (tx.status === 'success') {
             const client = await db.pool.connect();
+            let orderId;
             try {
                 await client.query('BEGIN');
                 const existing = await client.query("SELECT id FROM orders WHERE payment_reference = $1", [reference]);
-                if (existing.rows.length === 0) await activatePaidMission(client, tx.metadata, reference, tx.channel);
+                if (existing.rows.length === 0) {
+                    orderId = await activatePaidMission(client, tx.metadata, reference, tx.channel);
+                } else {
+                    orderId = existing.rows[0].id;
+                }
                 await client.query('COMMIT');
-            } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
-            return res.status(200).json({ success: true, status: 'PAID' });
+            } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+
+            return res.status(200).json({ success: true, status: 'PAID', order_id: orderId });
         }
         res.status(200).json({ success: false, status: tx.status });
-    } catch (e) { res.status(500).json({ success: false, message: 'Verify failed' }); }
+    } catch (e) {
+        console.error('[VerifyPayment] Error:', e.message);
+        res.status(500).json({ success: false, message: 'Verify failed' });
+    }
 };
 
 module.exports = { initializePayment, initializeCoDPayment, handleWebhook, handleWebhookGET, verifyPayment };

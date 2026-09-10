@@ -1,8 +1,8 @@
-# Task List - Admin Financial Overview Dashboard
+# Task List - Fix Payment Success without Mission Creation
 
-- [x] Backend: Implement `SMS_CHARGE` ledger recording in `walletService.js`
-- [x] Backend: Create `financialController.js` with aggregation logic
-- [x] Backend: Implement `financialRoutes.js` and register in `app.js`
-- [x] Admin UI: Create `financial_overview.ejs` with Chart.js visualization
-- [x] Admin UI: Add "Financial Board" link to `layout.ejs`
+- [x] Backend: Fix `ReferenceError` in `activatePaidMission` (`pLng` -> `q.p_lng`)
+- [x] Backend: Update `verifyPayment` to return `order_id`
+- [x] Android: Create `PaymentConfirmationScreen.kt` for robust verification
+- [x] Android: Update `MainActivity.kt` to handle confirmation route and deep link
+- [x] Verification: Build and Compile
 - [x] Verification: Git automation (Commit and Push)
