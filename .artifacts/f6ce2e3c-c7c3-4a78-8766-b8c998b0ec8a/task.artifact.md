@@ -1,11 +1,7 @@
-# Task List - Fix Order Transmission & Audible Pings
+# Task List - Fix Fulfiller Visibility & Toggle Stability
 
-- [ ] Backend: Update `fcmService.js` for audible pings (Notification + Data)
-- [ ] Backend: Harden `dispatchService.js` filters (Class + Zone + State)
-- [ ] Backend: Trigger Active Dispatch in `orderController.js` and `paymentController.js`
-- [ ] Backend: Implement `dispatchReminderJob.js` and start in `app.js`
-- [ ] Android: Wire `SocketManager` in `MainActivity.kt`
-- [ ] Android: Add socket listener in `FulfillerDashboardScreen.kt` for instant offers
-- [ ] Android: Harden `PikopMessagingService.kt` for high-importance sound
-- [ ] Verification: Build and verify instant transmission and reminders
+- [ ] Backend: Update `getAvailableOffers` in `fulfillerController.js` for resilient state matching
+- [ ] Android: Initialize `isOnline` from server status in `FulfillerDashboardScreen.kt`
+- [ ] Android: Harden toggle error handling and loading states
+- [ ] Verification: Build and verify mission visibility and toggle stability
 - [ ] Verification: Git automation (Commit and Push)

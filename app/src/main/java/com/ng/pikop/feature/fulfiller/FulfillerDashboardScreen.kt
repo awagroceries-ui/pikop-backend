@@ -48,6 +48,7 @@ fun FulfillerDashboardScreen(
 ) {
     var isOnline by remember { mutableStateOf(false) }
     var offers by remember { mutableStateOf<List<OfferResponse>>(emptyList()) }
+    var isStatusLoading by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf<List<FulfillerOrderResponse>>(emptyList()) }
     var walletBalance by remember { mutableStateOf(0.0) }
@@ -72,17 +73,32 @@ fun FulfillerDashboardScreen(
         }
     }
 
-    // Initial Fetch: Sync Wallet & History
-    LaunchedEffect(Unit) {
-        try {
-            isLoading = true
-            val wallet = apiService.getWalletInfo()
-            walletBalance = wallet.balance ?: 0.0
-            history = apiService.getFulfillerOrders()
-        } catch (_: Exception) {
-        } finally {
-            isLoading = false
+    val fetchDashboardData = {
+        coroutineScope.launch {
+            try {
+                isLoading = true
+                // 1. Fetch Profile to set correct Online State
+                val profile = apiService.getFulfillerProfile()
+                isOnline = profile.data?.online_status == "ONLINE"
+                
+                // 2. Sync Wallet & History
+                val wallet = apiService.getWalletInfo()
+                walletBalance = wallet.balance ?: 0.0
+                history = apiService.getFulfillerOrders()
+                
+                // 3. Manual fetch for offers
+                offers = apiService.getOffers()
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardRefresh", "Fetch failed: ${e.message}")
+            } finally {
+                isLoading = false
+            }
         }
+    }
+
+    // Initial Fetch: Sync Status, Wallet & History
+    LaunchedEffect(Unit) {
+        fetchDashboardData()
     }
 
     // Polling & Background Pings
@@ -143,7 +159,7 @@ fun FulfillerDashboardScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* Refresh */ }) {
+                    IconButton(onClick = { fetchDashboardData() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
@@ -265,7 +281,7 @@ fun FulfillerDashboardScreen(
                             onCheckedChange = { checked ->
                                 val targetStatus = if (checked) "ONLINE" else "OFFLINE"
                                 coroutineScope.launch {
-                                    isLoading = true
+                                    isStatusLoading = true
                                     try {
                                         android.util.Log.d("FleetStatus", "Updating status to: $targetStatus")
                                         
@@ -296,11 +312,11 @@ fun FulfillerDashboardScreen(
                                         android.util.Log.e("FleetStatus", "Update failed: $errorMsg", e)
                                         android.widget.Toast.makeText(context, "Failed to update status: $errorMsg", android.widget.Toast.LENGTH_LONG).show()
                                     } finally {
-                                        isLoading = false
+                                        isStatusLoading = false
                                     }
                                 }
                             },
-                            enabled = !isLoading && kycStatus == "VERIFIED",
+                            enabled = !isStatusLoading && kycStatus == "VERIFIED",
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = MaterialTheme.colorScheme.primary,
                                 checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
