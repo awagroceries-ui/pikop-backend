@@ -339,7 +339,26 @@ fun FulfillerDashboardScreen(
                             items(offers) { offer ->
                                 IncomingOfferComponent(
                                     offer = offer,
-                                    onAccept = { onAcceptOffer(offer.id ?: "") },
+                                    onAccept = {
+                                        coroutineScope.launch {
+                                            try {
+                                                isLoading = true
+                                                val response = apiService.acceptOrder(offer.id ?: "", emptyMap())
+                                                if (response.status == "MATCHED" || response.status == "QUEUED") {
+                                                    onAcceptOffer(offer.id ?: "")
+                                                } else {
+                                                    android.widget.Toast.makeText(context, "Mission no longer available", android.widget.Toast.LENGTH_SHORT).show()
+                                                    fetchDashboardData()
+                                                }
+                                            } catch (e: Exception) {
+                                                val error = com.ng.pikop.core.network.ErrorUtils.parseError(e)
+                                                android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+                                                fetchDashboardData()
+                                            } finally {
+                                                isLoading = false
+                                            }
+                                        }
+                                    },
                                     onDecline = { offers = offers.filter { it.id != offer.id } }
                                 )
                             }

@@ -1,7 +1,8 @@
-# Task List - Fix Fulfiller Visibility & Toggle Stability
+# Task List - Fix Fulfiller Mission Acceptance & Back Navigation
 
-- [ ] Backend: Update `getAvailableOffers` in `fulfillerController.js` for resilient state matching
-- [ ] Android: Initialize `isOnline` from server status in `FulfillerDashboardScreen.kt`
-- [ ] Android: Harden toggle error handling and loading states
-- [ ] Verification: Build and verify mission visibility and toggle stability
+- [ ] Android: Implement `handleAcceptMission` in `FulfillerDashboardScreen.kt`
+- [ ] Android: Update `IncomingOfferComponent` to use the new acceptance handler
+- [ ] Android: Add `TopAppBar` with Back button to `ActiveOrderScreen.kt`
+- [ ] Android: Update `MainActivity.kt` to handle `onBack` for Active Mission
+- [ ] Verification: Build and verify persistence of accepted missions
 - [ ] Verification: Git automation (Commit and Push)

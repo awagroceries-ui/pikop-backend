@@ -418,6 +418,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             ActiveOrderScreen(
                 orderId = orderId, 
                 onOrderCompleted = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
                 onNavigateToChat = { id -> navController.navigate("order_chat/$id") }
             )
         }

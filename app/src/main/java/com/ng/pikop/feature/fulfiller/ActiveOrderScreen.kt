@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.AddAPhoto
@@ -20,6 +21,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.ReportProblem
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -50,9 +54,18 @@ import org.json.JSONObject
 import java.io.File
 import com.ng.pikop.core.ui.SignaturePad
 import android.graphics.Bitmap
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateToChat: (String) -> Unit) {
+fun ActiveOrderScreen(
+    orderId: String, 
+    onOrderCompleted: () -> Unit, 
+    onBack: () -> Unit,
+    onNavigateToChat: (String) -> Unit
+) {
     var orderDetails by remember { mutableStateOf<OrderDetailsResponse?>(null) }
     var orderStatus by remember { mutableStateOf("MATCHED") }
     var fulfillerLocation by remember { mutableStateOf<LatLng?>(null) }
@@ -211,235 +224,140 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Map Section (Top 40%)
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .weight(0.4f)) {
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState,
-                    uiSettings = MapUiSettings(zoomControlsEnabled = false)
-                ) {
-                    fulfillerLocation?.let {
-                        Marker(
-                            state = MarkerState(position = it),
-                            title = "Your Location",
-                            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
-                        )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Mission Tracking", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                    
-            if (orderDetails != null) {
-                val normStatus = orderStatus.uppercase()
-                val targetLatLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PAYMENT_CAPTURED", "PAYMENT_PENDING")) {
-                    LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0)
-                } else {
-                    LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
-                }
-                        
-                        Marker(
-                            state = MarkerState(position = targetLatLng),
-                            title = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) "Pickup" else "Delivery",
-                            icon = BitmapDescriptorFactory.defaultMarker(
-                                if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
-                            )
-                        )
-                    }
-                }
-                
-                IconButton(
-                    onClick = { showIncidentDialog = true },
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).padding(top = 64.dp),
-                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                ) {
-                    Icon(Icons.Default.ReportProblem, contentDescription = "Report Incident", tint = MaterialTheme.colorScheme.error)
-                }
-
-                // Chat Button
-                IconButton(
-                    onClick = { onNavigateToChat(orderId) },
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
-                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat", tint = MaterialTheme.colorScheme.primary)
-                }
-            }
-
-            // Details Section (Bottom 60%)
-            Column(modifier = Modifier.padding(16.dp)) {
-                val isCod = (orderDetails?.item_price ?: 0.0) > 0
-                if (isCod) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50)),
-                        modifier = Modifier.padding(bottom = 12.dp)
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
+            )
+        }
+    ) { padding ->
+        Surface(
+            modifier = Modifier.padding(padding).fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Map Section (Top 40%)
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.4f)) {
+                    GoogleMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraPositionState = cameraPositionState,
+                        uiSettings = MapUiSettings(zoomControlsEnabled = false)
                     ) {
-                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Payments, null, modifier = Modifier.size(14.dp), tint = Color.White)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Delivery + COD (Escrow Protected)", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
+                        fulfillerLocation?.let {
+                            Marker(
+                                state = MarkerState(position = it),
+                                title = "Your Location",
+                                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                            )
+                        }
+                        
+                        if (orderDetails != null) {
+                            val normStatus = orderStatus.uppercase()
+                            val targetLatLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PAYMENT_CAPTURED", "PAYMENT_PENDING")) {
+                                LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0)
+                            } else {
+                                LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
+                            }
+                            
+                            Marker(
+                                state = MarkerState(position = targetLatLng),
+                                title = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) "Pickup" else "Delivery",
+                                icon = BitmapDescriptorFactory.defaultMarker(
+                                    if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
+                                )
+                            )
                         }
                     }
-                }
-                
-                Text(text = "Active Mission", style = MaterialTheme.typography.headlineMedium)
-                Text(text = "Order ID: #$orderId", style = MaterialTheme.typography.bodySmall)
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (isFetchingDetails) {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Loading mission details...", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-                } else {
-                    val normalizedStatus = orderStatus.uppercase()
                     
-                    val isPickupPhase = normalizedStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PENDING", "PAID", "PAYMENT_CAPTURED", "PAYMENT_PENDING")
-                    val isDeliveryPhase = normalizedStatus in listOf("PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY")
-                    val isAwaitingRelease = normalizedStatus == "DELIVERED_PENDING_CONFIRMATION"
-                    val isQueued = normalizedStatus == "QUEUED"
+                    IconButton(
+                        onClick = { showIncidentDialog = true },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).padding(top = 64.dp),
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    ) {
+                        Icon(Icons.Default.ReportProblem, contentDescription = "Report Incident", tint = MaterialTheme.colorScheme.error)
+                    }
 
-                    if (isPickupPhase) {
-                        PhaseCard(
-                            title = "Phase 1: Pickup",
-                            address = orderDetails?.pickup_address ?: "Address unavailable",
-                            recipientName = orderDetails?.recipient_name,
-                            recipientPhone = orderDetails?.recipient_phone,
-                            buttonText = "Navigate to Pickup",
-                            onNavigate = { 
-                                navigateToLocation(
-                                    context, 
-                                    orderDetails?.pickup_address ?: "",
-                                    orderDetails?.pickup_lat,
-                                    orderDetails?.pickup_lng
-                                ) 
-                            },
-                            onCallRecipient = {
-                                orderDetails?.recipient_phone?.let { phone -> callPhone(context, phone) }
-                            }
-                        )
+                    // Chat Button
+                    IconButton(
+                        onClick = { onNavigateToChat(orderId) },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        OutlinedTextField(
-                            value = pickupCode,
-                            onValueChange = { pickupCode = it },
-                            label = { Text("Enter 4-digit Pickup Code") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    isLoading = true
-                                    try {
-                                        apiService.verifyPickup(orderId, VerifyCodeRequest(pickupCode))
-                                        orderStatus = "PICKED_UP"
-                                        Toast.makeText(context, "Pickup Verified!", Toast.LENGTH_SHORT).show()
-                                        queueCandidates = apiService.getQueueCandidates()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
-                                    } finally {
-                                        isLoading = false
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isLoading && pickupCode.length == 4
+                // Details Section (Bottom 60%)
+                Column(modifier = Modifier.padding(16.dp).weight(0.6f).verticalScroll(rememberScrollState())) {
+                    val isCod = (orderDetails?.item_price ?: 0.0) > 0
+                    if (isCod) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50)),
+                            modifier = Modifier.padding(bottom = 12.dp)
                         ) {
-                            Text("Verify Pickup")
-                        }
-                    } else if (isDeliveryPhase) {
-                        PhaseCard(
-                            title = "Phase 2: Delivery",
-                            address = orderDetails?.delivery_address ?: "Address unavailable",
-                            recipientName = orderDetails?.recipient_name,
-                            recipientPhone = orderDetails?.recipient_phone,
-                            buttonText = "Navigate to Delivery",
-                            onNavigate = { 
-                                navigateToLocation(
-                                    context, 
-                                    orderDetails?.delivery_address ?: "",
-                                    orderDetails?.delivery_lat,
-                                    orderDetails?.delivery_lng
-                                ) 
-                            },
-                            onCallRecipient = {
-                                orderDetails?.recipient_phone?.let { phone -> callPhone(context, phone) }
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        if (normalizedStatus != "ARRIVED_AT_DELIVERY") {
-                            Button(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        isLoading = true
-                                        try {
-                                            apiService.updateOrderStatus(orderId, mapOf("status" to "ARRIVED_AT_DELIVERY"))
-                                            orderStatus = "ARRIVED_AT_DELIVERY"
-                                            Toast.makeText(context, "Delivery Protocol Initiated", Toast.LENGTH_SHORT).show()
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
-                                        } finally { isLoading = false }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Confirm Arrival at Destination")
+                            Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Payments, null, modifier = Modifier.size(14.dp), tint = Color.White)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Delivery + COD (Escrow Protected)", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
+                    }
+                    
+                    Text(text = "Active Mission", style = MaterialTheme.typography.headlineMedium)
+                    Text(text = "Order ID: #$orderId", style = MaterialTheme.typography.bodySmall)
 
-                        if (normalizedStatus == "ARRIVED_AT_DELIVERY") {
-                            Card(
-                                onClick = { 
-                                    val hasCameraPerm = androidx.core.content.ContextCompat.checkSelfPermission(
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (isFetchingDetails) {
+                        Spacer(modifier = Modifier.height(32.dp))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Loading mission details...", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                    } else {
+                        val normalizedStatus = orderStatus.uppercase()
+                        
+                        val isPickupPhase = normalizedStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PENDING", "PAID", "PAYMENT_CAPTURED", "PAYMENT_PENDING")
+                        val isDeliveryPhase = normalizedStatus in listOf("PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY")
+                        val isAwaitingRelease = normalizedStatus == "DELIVERED_PENDING_CONFIRMATION"
+                        val isQueued = normalizedStatus == "QUEUED"
+
+                        if (isPickupPhase) {
+                            PhaseCard(
+                                title = "Phase 1: Pickup",
+                                address = orderDetails?.pickup_address ?: "Address unavailable",
+                                recipientName = orderDetails?.recipient_name,
+                                recipientPhone = orderDetails?.recipient_phone,
+                                buttonText = "Navigate to Pickup",
+                                onNavigate = { 
+                                    navigateToLocation(
                                         context, 
-                                        android.Manifest.permission.CAMERA
-                                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                                    
-                                    if (hasCameraPerm) {
-                                        podUri?.let { cameraLauncher.launch(it) }
-                                            ?: Toast.makeText(context, "Storage error: Cannot launch camera", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-                                    }
+                                        orderDetails?.pickup_address ?: "",
+                                        orderDetails?.pickup_lat,
+                                        orderDetails?.pickup_lng
+                                    ) 
                                 },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = if (deliveryPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.AddAPhoto, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(if (deliveryPhotoUri != null) "Photo Captured ✅" else "Capture Proof of Delivery")
+                                onCallRecipient = {
+                                    orderDetails?.recipient_phone?.let { phone -> callPhone(context, phone) }
                                 }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Text("Recipient Signature", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.Start))
-                            SignaturePad(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
-                                    .height(150.dp)
-                                    .background(Color.White, shape = MaterialTheme.shapes.small),
-                                onSignatureCaptured = { /* We will capture on complete */ }
                             )
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             OutlinedTextField(
-                                value = deliveryCode,
-                                onValueChange = { deliveryCode = it },
-                                label = { Text("Enter 4-digit Delivery Code") },
+                                value = pickupCode,
+                                onValueChange = { pickupCode = it },
+                                label = { Text("Enter 4-digit Pickup Code") },
                                 modifier = Modifier.fillMaxWidth()
                             )
 
@@ -450,123 +368,235 @@ fun ActiveOrderScreen(orderId: String, onOrderCompleted: () -> Unit, onNavigateT
                                     coroutineScope.launch {
                                         isLoading = true
                                         try {
-                                            val location = try {
-                                                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                                            } catch (e: SecurityException) { null }
-                                            
-                                            if (podFile.exists()) {
-                                                val compressedFile = ImageUtils.compressFile(context, podFile)
-                                                val requestFile = compressedFile.asRequestBody("image/*".toMediaTypeOrNull())
-                                                val body = MultipartBody.Part.createFormData("file", compressedFile.name, requestFile)
-                                                val uploadRes = apiService.uploadOrderPhoto(body)
-                                                val photoUrl = uploadRes["url"] ?: ""
-
-                                                try {
-                                                    apiService.verifyDelivery(
-                                                        orderId, 
-                                                        VerifyCodeRequest(
-                                                            code = deliveryCode, 
-                                                            delivery_photo_url = photoUrl,
-                                                            lat = location?.latitude,
-                                                            lng = location?.longitude,
-                                                            device_timestamp = System.currentTimeMillis()
-                                                        )
-                                                    )
-                                                } catch (e: Throwable) {
-                                                    // Robust Fallback: Check if backend already marked as delivered (avoids 500/timeout confusion)
-                                                    val checkRes = apiService.getOrderDetails(orderId)
-                                                    if (checkRes.status?.uppercase() != "DELIVERED") {
-                                                        throw e
-                                                    }
-                                                }
-                                                
-                                                orderStatus = "DELIVERED"
-                                                showRatingDialog = true
-                                            } else {
-                                                Toast.makeText(context, "Please capture a proof photo first.", Toast.LENGTH_SHORT).show()
-                                            }
-                                        } catch (e: Throwable) {
-                                            android.util.Log.e("ActiveOrder", "Complete Mission Failed", e)
-                                            val errorMessage = com.ng.pikop.core.network.ErrorUtils.parseError(e as? Exception ?: Exception(e.message))
-                                            Toast.makeText(context, "Process Failure: $errorMessage", Toast.LENGTH_LONG).show()
+                                            apiService.verifyPickup(orderId, VerifyCodeRequest(pickupCode))
+                                            orderStatus = "PICKED_UP"
+                                            Toast.makeText(context, "Pickup Verified!", Toast.LENGTH_SHORT).show()
+                                            queueCandidates = apiService.getQueueCandidates()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
                                         } finally {
                                             isLoading = false
                                         }
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !isLoading && deliveryCode.length == 4 && deliveryPhotoUri != null
+                                enabled = !isLoading && pickupCode.length == 4
                             ) {
-                                Text("Complete Mission")
+                                Text("Verify Pickup")
                             }
-                        }
-                    } else if (isAwaitingRelease) {
-                        val earningAmount = ((orderDetails?.delivery_fee ?: 0.0) * 0.75).toInt()
-                        val isSeller = userId == orderDetails?.seller_id?.toString()
-                        
-                        Card(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                        ) {
-                            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(48.dp), tint = Color(0xFF4CAF50))
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Mission Successfully Completed!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                
+                        } else if (isDeliveryPhase) {
+                            PhaseCard(
+                                title = "Phase 2: Delivery",
+                                address = orderDetails?.delivery_address ?: "Address unavailable",
+                                recipientName = orderDetails?.recipient_name,
+                                recipientPhone = orderDetails?.recipient_phone,
+                                buttonText = "Navigate to Delivery",
+                                onNavigate = { 
+                                    navigateToLocation(
+                                        context, 
+                                        orderDetails?.delivery_address ?: "",
+                                        orderDetails?.delivery_lat,
+                                        orderDetails?.delivery_lng
+                                    ) 
+                                },
+                                onCallRecipient = {
+                                    orderDetails?.recipient_phone?.let { phone -> callPhone(context, phone) }
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            if (normalizedStatus != "ARRIVED_AT_DELIVERY") {
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isLoading = true
+                                            try {
+                                                apiService.updateOrderStatus(orderId, mapOf("status" to "ARRIVED_AT_DELIVERY"))
+                                                orderStatus = "ARRIVED_AT_DELIVERY"
+                                                Toast.makeText(context, "Delivery Protocol Initiated", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
+                                            } finally { isLoading = false }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Confirm Arrival at Destination")
+                                }
+                            }
+
+                            if (normalizedStatus == "ARRIVED_AT_DELIVERY") {
+                                Card(
+                                    onClick = { 
+                                        val hasCameraPerm = androidx.core.content.ContextCompat.checkSelfPermission(
+                                            context, 
+                                            android.Manifest.permission.CAMERA
+                                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                        
+                                        if (hasCameraPerm) {
+                                            podUri?.let { cameraLauncher.launch(it) }
+                                                ?: Toast.makeText(context, "Storage error: Cannot launch camera", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = if (deliveryPhotoUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.AddAPhoto, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(if (deliveryPhotoUri != null) "Photo Captured ✅" else "Capture Proof of Delivery")
+                                    }
+                                }
+
                                 Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = "₦$earningAmount has been credited to your available balance for this delivery.",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF388E3C),
-                                    textAlign = TextAlign.Center
+
+                                Text("Recipient Signature", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.Start))
+                                SignaturePad(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
+                                        .height(150.dp)
+                                        .background(Color.White, shape = MaterialTheme.shapes.small),
+                                    onSignatureCaptured = { /* We will capture on complete */ }
                                 )
 
-                                if (isSeller) {
-                                    val fee = if (orderDetails?.fee_payer == "SELLER") orderDetails?.platform_fee_amount ?: 0.0 else 0.0
-                                    val netPayout = (orderDetails?.item_price ?: 0.0) - fee
-                                    
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text(
-                                        "The item payment (₦${netPayout}) is pending customer confirmation. It will be released to your wallet shortly.",
-                                        textAlign = TextAlign.Center,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    if (fee > 0.0) {
-                                        Text(
-                                            "(₦$fee platform fee deducted from total ₦${orderDetails?.item_price})",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color.Gray,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                } else if ((orderDetails?.item_price ?: 0.0) > 0) {
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text(
-                                        "The item payment will be released to the seller once the customer confirms receipt.",
-                                        textAlign = TextAlign.Center,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color.Gray
-                                    )
-                                }
+                                Spacer(modifier = Modifier.height(12.dp))
 
-                                Spacer(modifier = Modifier.height(24.dp))
-                                Button(onClick = onOrderCompleted, modifier = Modifier.fillMaxWidth()) {
-                                    Text("Back to Dashboard")
+                                OutlinedTextField(
+                                    value = deliveryCode,
+                                    onValueChange = { deliveryCode = it },
+                                    label = { Text("Enter 4-digit Delivery Code") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isLoading = true
+                                            try {
+                                                val location = try {
+                                                    fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                                                } catch (e: SecurityException) { null }
+                                                
+                                                if (podFile.exists()) {
+                                                    val compressedFile = ImageUtils.compressFile(context, podFile)
+                                                    val requestFile = compressedFile.asRequestBody("image/*".toMediaTypeOrNull())
+                                                    val body = MultipartBody.Part.createFormData("file", compressedFile.name, requestFile)
+                                                    val uploadRes = apiService.uploadOrderPhoto(body)
+                                                    val photoUrl = uploadRes["url"] ?: ""
+
+                                                    try {
+                                                        apiService.verifyDelivery(
+                                                            orderId, 
+                                                            VerifyCodeRequest(
+                                                                code = deliveryCode, 
+                                                                delivery_photo_url = photoUrl,
+                                                                lat = location?.latitude,
+                                                                lng = location?.longitude,
+                                                                device_timestamp = System.currentTimeMillis()
+                                                            )
+                                                        )
+                                                    } catch (e: Throwable) {
+                                                        // Robust Fallback: Check if backend already marked as delivered (avoids 500/timeout confusion)
+                                                        val checkRes = apiService.getOrderDetails(orderId)
+                                                        if (checkRes.status?.uppercase() != "DELIVERED") {
+                                                            throw e
+                                                        }
+                                                    }
+                                                    
+                                                    orderStatus = "DELIVERED"
+                                                    showRatingDialog = true
+                                                } else {
+                                                    Toast.makeText(context, "Please capture a proof photo first.", Toast.LENGTH_SHORT).show()
+                                                }
+                                            } catch (e: Throwable) {
+                                                android.util.Log.e("ActiveOrder", "Complete Mission Failed", e)
+                                                val errorMessage = com.ng.pikop.core.network.ErrorUtils.parseError(e as? Exception ?: Exception(e.message))
+                                                Toast.makeText(context, "Process Failure: $errorMessage", Toast.LENGTH_LONG).show()
+                                            } finally {
+                                                isLoading = false
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isLoading && deliveryCode.length == 4 && deliveryPhotoUri != null
+                                ) {
+                                    Text("Complete Mission")
                                 }
                             }
-                        }
-                    } else if (isQueued) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                        ) {
-                            Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.AssignmentTurnedIn, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary)
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text("Mission Queued", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("You have another active mission in progress. This mission will begin as soon as your current mission is completed.", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium)
+                        } else if (isAwaitingRelease) {
+                            val earningAmount = ((orderDetails?.delivery_fee ?: 0.0) * 0.75).toInt()
+                            val isSeller = userId == orderDetails?.seller_id?.toString()
+                            
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                            ) {
+                                Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(48.dp), tint = Color(0xFF4CAF50))
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text("Mission Successfully Completed!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                    
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "₦$earningAmount has been credited to your available balance for this delivery.",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF388E3C),
+                                        textAlign = TextAlign.Center
+                                    )
+
+                                    if (isSeller) {
+                                        val fee = if (orderDetails?.fee_payer == "SELLER") orderDetails?.platform_fee_amount ?: 0.0 else 0.0
+                                        val netPayout = (orderDetails?.item_price ?: 0.0) - fee
+                                        
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text(
+                                            "The item payment (₦${netPayout}) is pending customer confirmation. It will be released to your wallet shortly.",
+                                            textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        if (fee > 0.0) {
+                                            Text(
+                                                "(₦$fee platform fee deducted from total ₦${orderDetails?.item_price})",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color.Gray,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    } else if ((orderDetails?.item_price ?: 0.0) > 0) {
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text(
+                                            "The item payment will be released to the seller once the customer confirms receipt.",
+                                            textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.Gray
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Button(onClick = onOrderCompleted, modifier = Modifier.fillMaxWidth()) {
+                                        Text("Back to Dashboard")
+                                    }
+                                }
+                            }
+                        } else if (isQueued) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                            ) {
+                                Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.AssignmentTurnedIn, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text("Mission Queued", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("You have another active mission in progress. This mission will begin as soon as your current mission is completed.", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium)
+                                }
                             }
                         }
                     }
