@@ -4,8 +4,10 @@ const { formatForTermii } = require('../utils/phone');
 require('dotenv').config();
 
 const TERMII_API_KEY = (process.env.TERMII_API_KEY || 'tlv_vNooxh-VZNQ4yFmywjNwA5DxC1KdgDkLZYRXOHqtkys').trim();
-const TERMII_SENDER_ID = (process.env.TERMII_SENDER_ID || 'Pikop').trim();
+const TERMII_SENDER_ID = (process.env.TERMII_SENDER_ID || 'N-Alert').trim(); // Default to N-Alert while 'Pikop' is pending
 const TERMII_BASE_URL = 'https://api.ng.termii.com/api';
+
+console.log(`[SMS] Service Initialized. Sender ID: ${TERMII_SENDER_ID}`);
 
 /**
  * Common headers for Termii API requests.
