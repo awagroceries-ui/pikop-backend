@@ -43,7 +43,10 @@ const signup = async (req, res) => {
     // 5. Trigger Termii SMS OTP (External)
     const smsOtpRes = await smsService.sendOtp(normalizedPhone);
     if (smsOtpRes.success) {
+        console.log(`[Auth] SMS OTP successfully triggered for ${user.email}`);
         await client.query("UPDATE users SET kyc_provider_ref = $1 WHERE id = $2", [smsOtpRes.pinId, user.id]);
+    } else {
+        console.warn(`[Auth] SMS OTP failed to trigger for ${user.email}. Error: ${smsOtpRes.error}`);
     }
 
     await client.query('COMMIT');

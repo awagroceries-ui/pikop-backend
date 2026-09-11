@@ -3,9 +3,17 @@ const db = require('../config/db');
 const { formatForTermii } = require('../utils/phone');
 require('dotenv').config();
 
-const TERMII_API_KEY = process.env.TERMII_API_KEY || 'tlv_vNooxh-VZNQ4yFmywjNwA5DxC1KdgDkLZYRXOHqtkys';
-const TERMII_SENDER_ID = process.env.TERMII_SENDER_ID || 'Pikop';
+const TERMII_API_KEY = (process.env.TERMII_API_KEY || 'tlv_vNooxh-VZNQ4yFmywjNwA5DxC1KdgDkLZYRXOHqtkys').trim();
+const TERMII_SENDER_ID = (process.env.TERMII_SENDER_ID || 'Pikop').trim();
 const TERMII_BASE_URL = 'https://api.ng.termii.com/api';
+
+/**
+ * Common headers for Termii API requests.
+ */
+const TERMII_HEADERS = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+};
 
 /**
  * Logs every SMS for audit and cost tracking.
@@ -38,18 +46,18 @@ const sendSms = async (to, message, purpose = 'generic', orderId = null) => {
             api_key: TERMII_API_KEY
         };
 
-        const response = await axios.post(`${TERMII_BASE_URL}/sms/send`, payload);
+        const response = await axios.post(`${TERMII_BASE_URL}/sms/send`, payload, { headers: TERMII_HEADERS });
         const ref = response.data.message_id;
 
         await logSms(to, message, purpose, orderId, ref, 'sent');
-        console.log(`[Termii] SMS sent to ${to}. Ref: ${ref}`);
+        console.log(`[Termii] SMS success for ${to}. Ref: ${ref} | Msg: ${response.data.message}`);
 
         return { success: true, ref };
     } catch (error) {
         const errorData = error.response?.data || error.message;
-        console.error(`[Termii] Failed to send to ${to}:`, JSON.stringify(errorData));
+        console.error(`[Termii] CRITICAL FAILURE for ${to}:`, JSON.stringify(errorData));
         await logSms(to, message, purpose, orderId, null, 'failed');
-        return { success: false, error: error.message };
+        return { success: false, error: JSON.stringify(errorData) };
     }
 };
 
@@ -72,17 +80,23 @@ const sendOtp = async (to) => {
             message_text: "Your Pikop verification code is < 1234 >. Valid for 10 minutes."
         };
 
-        const response = await axios.post(`${TERMII_BASE_URL}/sms/otp/send`, payload);
-        const pinId = response.data.pinId;
+        const response = await axios.post(`${TERMII_BASE_URL}/sms/otp/send`, payload, { headers: TERMII_HEADERS });
 
-        await logSms(to, "OTP_HIDDEN", "signup_otp", null, pinId, 'sent');
-        console.log(`[Termii] OTP generated for ${to}. pinId: ${pinId}`);
+        // Termii response format check
+        if (response.data.pinId || response.data.status === 200 || response.data.message === "Successfully Sent") {
+            const pinId = response.data.pinId || "manual_v3_ref";
+            await logSms(to, "OTP_HIDDEN", "signup_otp", null, pinId, 'sent');
+            console.log(`[Termii] OTP success for ${to}. pinId: ${pinId}`);
+            return { success: true, pinId };
+        } else {
+            console.error(`[Termii] OTP unexpected response body:`, JSON.stringify(response.data));
+            return { success: false, error: response.data.message };
+        }
 
-        return { success: true, pinId };
     } catch (error) {
         const errorData = error.response?.data || error.message;
-        console.error(`[Termii] OTP fail for ${to}:`, JSON.stringify(errorData));
-        return { success: false, error: error.message };
+        console.error(`[Termii] OTP API FAILURE for ${to}:`, JSON.stringify(errorData));
+        return { success: false, error: JSON.stringify(errorData) };
     }
 };
 

@@ -1,7 +1,7 @@
-# Task List - Map Tracking Refinements
+# Task List - SMS Service Diagnostic & Hardening
 
-- [x] Audit: Verify current implementation status on Android and Web
-- [ ] Refine: Add smooth CSS glide animation to `admin_track.ejs`
-- [ ] Refine: Add smooth CSS glide animation to `guest_tracking.ejs`
-- [ ] Verification: Test gliding motion on Admin and Guest maps
+- [ ] Backend: Harden configuration and headers in `smsService.js`
+- [ ] Backend: Enhance error reporting in `smsService.js` to log full API responses
+- [ ] Backend: Add diagnostic logs to `authController.js` signup flow
 - [ ] Verification: Git automation (Commit and Push)
+- [ ] Manual Action: Check VPS logs for detailed Termii error response
