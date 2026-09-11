@@ -1,7 +1,7 @@
-# Task List - VPS Stability & System Hardening
+# Task List - SMS Resilient Delivery Fallback
 
-- [x] Backend: Fix `FOR UPDATE` join syntax in `walletService.js`
-- [x] Backend: Update Gemini model names and fallbacks in `geminiService.js`
-- [x] Backend: Add specific Termii "Country Inactive" diagnostic log
-- [x] Verification: Git automation (Commit and Push)
-- [ ] Manual Action: Activate Nigeria (+234) in Termii Dashboard
+- [ ] Backend: Implement `TERMII_CHANNEL` override in `smsService.js`
+- [ ] Backend: Implement automatic `generic` channel fallback in `sendOtp`
+- [ ] Backend: Implement automatic `generic` channel fallback in `sendSms`
+- [ ] Verification: Git automation (Commit and Push)
+- [ ] Manual Action: Deploy to VPS and check logs for fallback triggers

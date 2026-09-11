@@ -6,8 +6,9 @@ require('dotenv').config();
 const TERMII_API_KEY = (process.env.TERMII_API_KEY || 'tlv_vNooxh-VZNQ4yFmywjNwA5DxC1KdgDkLZYRXOHqtkys').trim();
 const TERMII_SENDER_ID = (process.env.TERMII_SENDER_ID || 'N-Alert').trim(); // Default to N-Alert while 'Pikop' is pending
 const TERMII_BASE_URL = 'https://api.ng.termii.com/api';
+const DEFAULT_CHANNEL = process.env.TERMII_CHANNEL || 'dnd';
 
-console.log(`[SMS] Service Initialized. Sender ID: ${TERMII_SENDER_ID}`);
+console.log(`[SMS] Service Initialized. Sender: ${TERMII_SENDER_ID} | Channel: ${DEFAULT_CHANNEL}`);
 
 /**
  * Common headers for Termii API requests.
@@ -36,15 +37,16 @@ const logSms = async (recipient, content, purpose, orderId = null, ref = null, s
 /**
  * Generic SMS Send via Termii.
  */
-const sendSms = async (to, message, purpose = 'generic', orderId = null) => {
+const sendSms = async (to, message, purpose = 'generic', orderId = null, forceChannel = null) => {
     const termiiPhone = formatForTermii(to);
+    const channel = forceChannel || DEFAULT_CHANNEL;
     try {
         const payload = {
             to: termiiPhone,
             from: TERMII_SENDER_ID,
             sms: message,
             type: "plain",
-            channel: "dnd", // Use DND for better reliability in Nigeria
+            channel: channel,
             api_key: TERMII_API_KEY
         };
 
@@ -52,35 +54,38 @@ const sendSms = async (to, message, purpose = 'generic', orderId = null) => {
         const ref = response.data.message_id;
 
         await logSms(to, message, purpose, orderId, ref, 'sent');
-        console.log(`[Termii] SMS success for ${to}. Ref: ${ref} | Msg: ${response.data.message}`);
+        console.log(`[Termii] SMS success (${channel}) for ${to}. Ref: ${ref}`);
 
         return { success: true, ref };
     } catch (error) {
         const errorData = error.response?.data || error.message;
-        console.error(`[Termii] CRITICAL FAILURE for ${to}:`, JSON.stringify(errorData));
+        const errorStr = JSON.stringify(errorData);
+        console.error(`[Termii] SMS fail (${channel}) for ${to}:`, errorStr);
 
-        // ACTIONABLE DIAGNOSTIC for Admin
-        if (JSON.stringify(errorData).includes("Country Inactive")) {
-            console.error("🚨 PIKOP SYSTEM ALERT: Termii account has not activated SMS delivery to Nigeria (+234) for this route. Please visit your Termii Dashboard -> Coverage to activate.");
+        // AUTO-FALLBACK: If primary channel is inactive, try 'generic'
+        if (channel !== 'generic' && (errorStr.includes("Country Inactive") || errorStr.includes("Route"))) {
+            console.warn(`[Termii] Triggering fallback to generic channel for ${to}...`);
+            return await sendSms(to, message, purpose, orderId, 'generic');
         }
 
         await logSms(to, message, purpose, orderId, null, 'failed');
-        return { success: false, error: JSON.stringify(errorData) };
+        return { success: false, error: errorStr };
     }
 };
 
 /**
  * Sends and Manages OTP via Termii.
  */
-const sendOtp = async (to) => {
+const sendOtp = async (to, forceChannel = null) => {
     const termiiPhone = formatForTermii(to);
+    const channel = forceChannel || DEFAULT_CHANNEL;
     try {
         const payload = {
             api_key: TERMII_API_KEY,
             message_type: "NUMERIC",
             to: termiiPhone,
             from: TERMII_SENDER_ID,
-            channel: "dnd", // Use DND for reliable OTP delivery
+            channel: channel,
             pin_attempts: 3,
             pin_time_to_live: 10, // 10 minutes
             pin_length: 6,
@@ -90,21 +95,28 @@ const sendOtp = async (to) => {
 
         const response = await axios.post(`${TERMII_BASE_URL}/sms/otp/send`, payload, { headers: TERMII_HEADERS });
 
-        // Termii response format check
         if (response.data.pinId || response.data.status === 200 || response.data.message === "Successfully Sent") {
             const pinId = response.data.pinId || "manual_v3_ref";
             await logSms(to, "OTP_HIDDEN", "signup_otp", null, pinId, 'sent');
-            console.log(`[Termii] OTP success for ${to}. pinId: ${pinId}`);
+            console.log(`[Termii] OTP success (${channel}) for ${to}. pinId: ${pinId}`);
             return { success: true, pinId };
         } else {
-            console.error(`[Termii] OTP unexpected response body:`, JSON.stringify(response.data));
+            console.error(`[Termii] OTP error body:`, JSON.stringify(response.data));
             return { success: false, error: response.data.message };
         }
 
     } catch (error) {
         const errorData = error.response?.data || error.message;
-        console.error(`[Termii] OTP API FAILURE for ${to}:`, JSON.stringify(errorData));
-        return { success: false, error: JSON.stringify(errorData) };
+        const errorStr = JSON.stringify(errorData);
+        console.error(`[Termii] OTP fail (${channel}) for ${to}:`, errorStr);
+
+        // AUTO-FALLBACK
+        if (channel !== 'generic' && (errorStr.includes("Country Inactive") || errorStr.includes("Route"))) {
+            console.warn(`[Termii] Triggering OTP fallback to generic channel for ${to}...`);
+            return await sendOtp(to, 'generic');
+        }
+
+        return { success: false, error: errorStr };
     }
 };
 
