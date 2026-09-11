@@ -1076,17 +1076,24 @@ const getFulfillerOrders = async (req, res) => {
     const { filter = 'all' } = req.query;
 
     try {
-        const { rows: fulfiller } = await db.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
-        if (fulfiller.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller not found' });
+        // 1. Fetch fulfiller profile to get the internal DB ID
+        // Robust check: Ensure userId is treated as integer
+        const { rows: fulfiller } = await db.query("SELECT id FROM fulfillers WHERE user_id = $1::integer", [userId]);
+        if (fulfiller.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller profile not found' });
 
         const fId = fulfiller[0].id;
+
+        // 2. Prepare Status Filter
         let statusFilter = "";
-        if (filter === 'active') {
+        const f = filter.toLowerCase();
+        if (f === 'active') {
             statusFilter = "AND o.status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED')";
-        } else if (filter === 'completed') {
+        } else if (f === 'completed') {
             statusFilter = "AND o.status IN ('DELIVERED', 'RELEASED')";
         }
 
+        // 3. Query all missions for this agent
+        // Calculation: 75% share for agent (from the original delivery fee)
         const { rows } = await db.query(
             `SELECT o.*,
              ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
@@ -1099,11 +1106,12 @@ const getFulfillerOrders = async (req, res) => {
             [fId]
         );
 
-        console.log(`[FulfillerOrders] Query for Fulfiller ID: ${fId} yielded ${rows.length} results.`);
+        console.log(`[FulfillerOrders] Agent ${fId} (User: ${userId}) | Filter: ${filter} | Found: ${rows.length}`);
 
         res.status(200).json(rows);
     } catch (error) {
-        throw error;
+        console.error('[FulfillerOrders] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const fulfillerController = require('../controllers/fulfillerController');
+const orderController = require('../controllers/orderController');
 const { authenticateToken } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const path = require('path');
@@ -31,7 +32,7 @@ router.get('/profile', authenticateToken, fulfillerController.getProfile);
 router.patch('/profile', authenticateToken, fulfillerController.updateFulfillerProfile);
 router.post('/profile-photo', authenticateToken, upload.single('photo'), fulfillerController.uploadProfilePhoto);
 router.patch('/status', authenticateToken, fulfillerController.updateStatus);
-router.get('/orders', authenticateToken, fulfillerController.getFulfillerOrders);
+router.get('/orders', authenticateToken, orderController.getFulfillerOrders);
 router.get('/offers', authenticateToken, fulfillerController.getAvailableOffers);
 router.post('/submit-application', authenticateToken, fulfillerController.submitApplication);
 
