@@ -56,6 +56,12 @@ const sendSms = async (to, message, purpose = 'generic', orderId = null) => {
     } catch (error) {
         const errorData = error.response?.data || error.message;
         console.error(`[Termii] CRITICAL FAILURE for ${to}:`, JSON.stringify(errorData));
+
+        // ACTIONABLE DIAGNOSTIC for Admin
+        if (JSON.stringify(errorData).includes("Country Inactive")) {
+            console.error("🚨 PIKOP SYSTEM ALERT: Termii account has not activated SMS delivery to Nigeria (+234) for this route. Please visit your Termii Dashboard -> Coverage to activate.");
+        }
+
         await logSms(to, message, purpose, orderId, null, 'failed');
         return { success: false, error: JSON.stringify(errorData) };
     }

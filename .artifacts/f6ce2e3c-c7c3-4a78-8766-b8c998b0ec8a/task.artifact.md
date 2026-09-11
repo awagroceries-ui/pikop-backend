@@ -1,7 +1,7 @@
-# Task List - SMS Service Diagnostic & Hardening
+# Task List - VPS Stability & System Hardening
 
-- [ ] Backend: Harden configuration and headers in `smsService.js`
-- [ ] Backend: Enhance error reporting in `smsService.js` to log full API responses
-- [ ] Backend: Add diagnostic logs to `authController.js` signup flow
+- [ ] Backend: Fix `FOR UPDATE` join syntax in `walletService.js`
+- [ ] Backend: Update Gemini model names and fallbacks in `geminiService.js`
+- [ ] Backend: Add specific Termii "Country Inactive" diagnostic log
 - [ ] Verification: Git automation (Commit and Push)
-- [ ] Manual Action: Check VPS logs for detailed Termii error response
+- [ ] Manual Action: Activate Nigeria (+234) in Termii Dashboard

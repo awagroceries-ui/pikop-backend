@@ -36,7 +36,7 @@ const classifyItemSize = async (description) => {
   `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     const jsonMatch = text.match(/\{.*\}/);
@@ -44,14 +44,23 @@ const classifyItemSize = async (description) => {
   } catch (error) {
     console.warn('[Gemini] Primary model failed, attempting fallback:', error.message);
     try {
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
       const result = await fallbackModel.generateContent(prompt);
       const text = result.response.text();
       const jsonMatch = text.match(/\{.*\}/);
       return JSON.parse(jsonMatch[0]);
     } catch (fallbackError) {
-      console.error('[Gemini] All AI models failed. Defaulting to MEDIUM:', fallbackError.message);
-      return { size_tier: 'MEDIUM', confidence: 0.5 };
+      console.warn('[Gemini] Flash/Pro latest failed, trying stable legacy pro:', fallbackError.message);
+      try {
+        const legacyModel = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const result = await legacyModel.generateContent(prompt);
+        const text = result.response.text();
+        const jsonMatch = text.match(/\{.*\}/);
+        return JSON.parse(jsonMatch[0]);
+      } catch (finalError) {
+        console.error('[Gemini] All AI models failed. Defaulting to MEDIUM:', finalError.message);
+        return { size_tier: 'MEDIUM', confidence: 0.5 };
+      }
     }
   }
 };
