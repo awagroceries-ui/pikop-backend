@@ -1,7 +1,7 @@
 # Task List - VPS Stability & System Hardening
 
-- [ ] Backend: Fix `FOR UPDATE` join syntax in `walletService.js`
-- [ ] Backend: Update Gemini model names and fallbacks in `geminiService.js`
-- [ ] Backend: Add specific Termii "Country Inactive" diagnostic log
-- [ ] Verification: Git automation (Commit and Push)
+- [x] Backend: Fix `FOR UPDATE` join syntax in `walletService.js`
+- [x] Backend: Update Gemini model names and fallbacks in `geminiService.js`
+- [x] Backend: Add specific Termii "Country Inactive" diagnostic log
+- [x] Verification: Git automation (Commit and Push)
 - [ ] Manual Action: Activate Nigeria (+234) in Termii Dashboard

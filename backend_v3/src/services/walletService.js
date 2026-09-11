@@ -161,14 +161,16 @@ const releaseEscrow = async (orderId, providedClient = null) => {
   try {
     if (shouldRelease) await client.query('BEGIN');
 
-    // 1. Fetch order details with fee info
-    // FIX: Lock ONLY the order table to avoid join errors (FOR UPDATE OF o)
+    // 1. Lock the order row first (prevents race conditions)
+    await client.query("SELECT id FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
+
+    // 2. Fetch order details with fulfiller info
     const orderRes = await client.query(
       `SELECT o.id, o.fulfiller_id, o.item_price, o.platform_fee_amount, o.fee_payer, o.user_id, o.seller_id,
               o.escrow_status, f.user_id as fulfiller_user_id
        FROM orders o
        LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
-       WHERE o.id = $1 FOR UPDATE OF o`,
+       WHERE o.id = $1`,
       [orderId]
     );
     const order = orderRes.rows[0];
@@ -230,12 +232,15 @@ const refundEscrow = async (orderId, providedClient = null) => {
     try {
         if (shouldRelease) await client.query('BEGIN');
 
-        // FIX: Lock ONLY the order table to avoid join errors (FOR UPDATE OF o)
+        // 1. Lock the order row first
+        await client.query("SELECT id FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
+
+        // 2. Fetch details
         const { rows } = await client.query(
             `SELECT o.id, o.fulfiller_id, o.seller_id, o.item_price, o.escrow_status, f.user_id as fulfiller_user_id
              FROM orders o
              LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
-             WHERE o.id = $1 FOR UPDATE OF o`,
+             WHERE o.id = $1`,
             [orderId]
         );
         const order = rows[0];
