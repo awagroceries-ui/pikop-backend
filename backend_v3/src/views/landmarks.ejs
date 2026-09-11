@@ -22,7 +22,7 @@
                         <tr class="align-middle">
                             <td>
                                 <div class="fw-bold text-black"><%= l.display_text %></div>
-                                <div class="smaller text-muted mono">ID: <%= l.id.take(8) %></div>
+                                <div class="smaller text-muted mono">ID: <%= l.id.toString().substring(0, 8) %></div>
                             </td>
                             <td class="text-center">
                                 <span class="badge bg-light text-black border fw-bold">

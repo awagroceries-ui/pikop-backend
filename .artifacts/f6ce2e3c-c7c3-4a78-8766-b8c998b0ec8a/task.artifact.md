@@ -1,6 +1,6 @@
-# Task List - Fix Fulfiller Mission History
+# Task List - Fix Admin Real-Time Tracking
 
-- [ ] Backend: Refactor `getFulfillerOrders` in `orderController.js` with comprehensive SQL
-- [ ] Backend: Update `fulfillerRoutes.js` to point to `orderController.getFulfillerOrders`
-- [ ] Backend: Remove redundant `getFulfillerOrders` from `fulfillerController.js`
+- [ ] Backend: Update `admin_track.ejs` socket event listeners for location and status
+- [ ] Backend: Polish agent details display in `admin_track.ejs`
+- [ ] Verification: Test end-to-end mission lifecycle on Admin Dashboard
 - [ ] Verification: Git automation (Commit and Push)

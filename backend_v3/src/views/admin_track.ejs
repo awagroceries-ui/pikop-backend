@@ -7,19 +7,29 @@
         <a href="/admin/orders" class="btn btn-sm btn-outline-secondary mb-4">← Back to Board</a>
 
         <h4 class="fw-bold mb-1">Mission #<%= order.id.toString().slice(-8).toUpperCase() %></h4>
-        <span class="badge bg-success mb-4"><%= order.status %></span>
+        <div class="d-flex align-items-center gap-2 mb-4">
+            <span class="badge bg-success text-uppercase"><%= order.status.replace(/_/g, ' ') %></span>
+            <% if (order.agent_name) { %>
+                <span class="smaller text-muted fw-bold">| AGENT ASSIGNED</span>
+            <% } %>
+        </div>
 
         <div class="mb-4">
-            <label class="text-muted smaller fw-bold uppercase d-block mb-1">Customer</label>
-            <div class="fw-bold"><%= order.customer_name %></div>
+            <label class="text-muted smaller fw-bold uppercase d-block mb-1">Customer (Payer)</label>
+            <div class="fw-bold text-black"><%= order.customer_name %></div>
             <div class="small text-muted"><%= order.customer_phone %></div>
         </div>
 
         <div class="mb-4 border-top pt-3">
             <label class="text-muted smaller fw-bold uppercase d-block mb-1">Active Agent</label>
             <% if (order.agent_name) { %>
-                <div class="fw-bold text-primary"><%= order.agent_name %> <span class="text-muted small">#<%= order.agent_db_id %></span></div>
-                <div class="smaller text-muted text-uppercase mb-2"><%= order.primary_class %> - <%= order.tier %> Agent</div>
+                <div class="fw-bold text-primary">
+                    Agent: <%= order.agent_name %>
+                    <span class="text-muted small">(#F<%= order.agent_db_id %>)</span>
+                </div>
+                <div class="smaller text-muted text-uppercase mb-2">
+                    <%= order.primary_class %> &bull; <%= order.tier %> Agent
+                </div>
                 <div class="small text-muted"><%= order.agent_phone %></div>
                 <div class="mt-2">
                     <a href="/admin/fulfillers/<%= order.agent_db_id %>" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size: 10px;">MANAGE AGENT</a>
@@ -103,9 +113,9 @@
 </div>
 
 <script>
-    const pickup = [<%= order.pickup_lat %>, <%= order.pickup_lng %>];
-    const delivery = [<%= order.delivery_lat %>, <%= order.delivery_lng %>];
-    const initialAgent = <%= order.agent_lat ? `[${order.agent_lat}, ${order.agent_lng}]` : 'null' %>;
+    const pickup = [<%= order.pickup_lat || 0 %>, <%= order.pickup_lng || 0 %>];
+    const delivery = [<%= order.delivery_lat || 0 %>, <%= order.delivery_lng || 0 %>];
+    const initialAgent = <%= (order.agent_lat && order.agent_lng) ? `[${order.agent_lat}, ${order.agent_lng}]` : 'null' %>;
 
     // Initialize Map
     const map = L.map('map').setView(pickup, 13);
@@ -153,7 +163,7 @@
     // Live Socket Updates
     socket.emit('join_order', { orderId: "<%= order.id %>" });
 
-    socket.on('location_changed', (data) => {
+    socket.on('location_updated', (data) => {
         console.log('[Live] Agent location update:', data);
         const newPos = [data.lat, data.lng];
 
@@ -167,9 +177,9 @@
     });
 
     socket.on('status_updated', (data) => {
-        if (data.status === 'DELIVERED' || data.status === 'CANCELLED') {
-            window.location.reload();
-        }
+        console.log('[Live] Status change detected:', data.status);
+        // Reload for ANY status update to refresh agent info and sidebar data
+        window.location.reload();
     });
 </script>
 

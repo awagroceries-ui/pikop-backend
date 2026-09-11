@@ -209,7 +209,7 @@ const releaseEscrow = async (orderId, providedClient = null) => {
     );
 
     if (shouldRelease) await client.query('COMMIT');
-    console.log(`[Wallet] Escrow Released for Order #${orderId}. Seller Payout: ${sellerPayout} to ${ownerType} ${ownerId}`);
+    console.log(`[Wallet] Escrow Released for Order #${orderId}. Seller Payout: ${sellerPayout} to User ${targetUserId}`);
   } catch (error) {
     if (shouldRelease) await client.query('ROLLBACK');
     console.error('[Wallet] Escrow Release Failed:', error.message);
@@ -257,7 +257,7 @@ const refundEscrow = async (orderId, providedClient = null) => {
         );
 
         if (shouldRelease) await client.query('COMMIT');
-        console.log(`[Wallet] Escrow Refunded for Order #${orderId}. Amount: ${itemPrice} from ${ownerType} ${ownerId}`);
+        console.log(`[Wallet] Escrow Refunded for Order #${orderId}. Amount: ${itemPrice} from User ${targetUserId}`);
     } catch (error) {
         if (shouldRelease) await client.query('ROLLBACK');
         console.error('[Wallet] Escrow Refund Failed:', error.message);
