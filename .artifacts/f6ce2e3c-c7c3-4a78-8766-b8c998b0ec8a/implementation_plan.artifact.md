@@ -1,28 +1,37 @@
-# Implementation Plan - Fix Admin Real-Time Mission Tracking
+# Implementation Plan - Refine Live Map Animated Motion Tracking
 
-This plan fixes the issue where the admin dashboard tracking screen fails to update mission status and agent details in real-time, appearing "stuck."
+This plan confirms the current tracking status and adds a final refinement to ensure "animated motion tracking" is perfectly smooth on both mobile and web surfaces.
 
-## Diagnostic Findings
-1.  **Event Name Mismatch:** The backend (`socketService.js`) emits `location_updated`, but the admin tracking page (`admin_track.ejs`) was listening for `location_changed`. This broke live GPS tracking for admins.
-2.  **Selective Status Updates:** The tracking page only reloaded on `DELIVERED` or `CANCELLED` events. It ignored intermediate status changes like `MATCHED` (Agent accepted) or `PICKED_UP`, which are critical for displaying who the active agent is.
-3.  **Static Agent Section:** The agent details (Name, ID, Phone) are only rendered on the initial server-side page load. Without a reload or a complex real-time UI update, this section remains empty even after an agent accepts the mission.
+## Current Status Confirmation
 
-## Proposed Changes
+### Android App (User)
+- **Status:** ✅ Fully Implemented and Functional.
+- **Details:** Uses Compose `Animatable` for smooth interpolation. Markers are mobility-aware (walking, bike, car).
 
-### Backend (`backend_v3`)
+### Admin Dashboard & Guest Tracking
+- **Status:** ⚠️ Partially Functional (Real-time but jumpy).
+- **Details:** Position updates instantly via `setLatLng`, causing the marker to "teleport" instead of glide.
+
+## Proposed Refinements
+
+### Web Surfaces (Admin & Guest)
 
 #### [MODIFY] [admin_track.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/admin_track.ejs)
-- **Unified Location Listener:** Change the socket listener from `location_changed` to `location_updated` to match the V3 backend and other tracking surfaces.
-- **Universal Status Sync:** Update the `status_updated` listener to trigger a `window.location.reload()` for **any** status change.
-    - **Rationale:** This ensures the entire sidebar—including the "Active Agent" details, "Order Ledger," and "Status Badge"—is updated with the latest authoritative data from the database immediately upon any mission event.
-- **UI Refinement:** Ensure the "Active Agent" header and agent ID are prominent and follow the requested format: "Agent Name (#ID)".
+#### [MODIFY] [guest_tracking.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/guest_tracking.ejs)
+- **Smooth Glide Animation:** Add a global CSS style to the Leaflet marker icons.
+    ```css
+    .leaflet-marker-icon {
+        transition: transform 5s linear; /* Matches the typical location ping interval */
+    }
+    ```
+- **Rationale:** This CSS transition allows the browser to handle the interpolation between the old and new `lat/lng` positions. When the fulfiller sends a location update, the marker will glide smoothly across the map instead of jumping.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Acceptance Sync:** Open the admin tracking screen for a "SEARCHING" mission. Accept the mission as a fulfiller. Verify the admin screen reloads automatically and displays the agent's name and ID.
-2.  **Live GPS:** Move the fulfiller's location (via emulator or real device). Verify the agent marker moves on the admin map.
-3.  **Full Lifecycle:** Progress the mission through "Picked Up" and "Arrived." Verify the status badge updates on the admin screen at each stage.
-4.  **Final Closure:** Complete the mission. Verify the admin screen reloads to the final "DELIVERED" state.
+1. **Android Tracking:** Confirm the agent marker moves smoothly as the agent travels.
+2. **Admin Map:** Open a mission in "In Transit" status. Confirm the marker glides across the map during location updates.
+3. **Guest Tracking:** Confirm the public tracking link provides the same smooth gliding experience for the recipient.
+4. **Marker Accuracy:** Verify the car icon shows for car drivers and the bike icon shows for riders on all three screens.

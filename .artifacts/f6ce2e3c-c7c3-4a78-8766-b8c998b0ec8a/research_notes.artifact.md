@@ -1,48 +1,24 @@
-# Research Notes - Wallet Top-Up Discrepancy
+# Research Notes - Animated Agent Motion Tracking
 
-I have performed a deep dive into the wallet and payment logic. Here are the evidenced findings regarding the "missing money" issue.
+I have verified the implementation of real-time agent tracking and custom markers across the platform.
 
-## 1. The Fulfiller/User Wallet Split (Root Cause for Agents)
-The system currently fragment's a single person's money into two separate wallets based on their active role:
-- **`owner_type = 'USER'`**: Used for **Top-ups**, **Secure Pay Escrow Holds**, and **Referral Bonuses**.
-- **`owner_type = 'FULFILLER'`**: Used for **Mission Settlement (75% share)** and **Withdrawals**.
+## 1. Android App Implementation (TrackOrderScreen.kt)
+- **Custom Markers:** ✅ Implemented. The app uses specific drawable resources (`marker_walking`, `marker_bicycle`, `marker_bike`, `marker_car`) based on the `mobility_type` of the fulfiller.
+- **Animated Motion:** ✅ Implemented. The app uses `Animatable` (interpolatedLat/interpolatedLng) with a 2-second `tween` animation. This ensures that when a new location arrives via socket, the marker slides smoothly to the new position instead of jumping.
+- **Socket Integration:** ✅ Implemented. Listens for `location_updated` and `location_changed` events.
 
-### The Discrepancy:
-- In `walletController.js`, when a user is logged in as a `FULFILLER`, the app is forced to look at the `FULFILLER` wallet.
-- However, `initializeTopup` and the Paystack Webhook always credit the `USER` wallet.
-- **Result:** An agent can top up ₦10,000, see "Success" in the admin dashboard (which lists all transactions), but their app balance remains ₦0 because they are looking at their empty earnings wallet instead of their funded user wallet.
+## 2. Admin Dashboard Implementation (admin_track.ejs)
+- **Custom Markers:** ✅ Implemented. Uses a `markerMap` to select between `marker_agent.png`, `marker_rider.png`, `marker_bike.png`, and `marker_driver.png`.
+- **Animated Motion:** ⚠️ Partially Functional. While the marker updates its position in real-time, it currently uses `agentMarker.setLatLng(newPos)`, which results in an instantaneous "jump".
+- **Refinement Needed:** To meet the "animated" requirement, a CSS transition should be added to the Leaflet marker icon or a simple JS interpolation loop should be used.
 
-## 2. Evidence from Source Code
+## 3. Guest Tracking Implementation (guest_tracking.ejs)
+- **Custom Markers:** ✅ Implemented. Similar to admin, it uses mobility-aware icons.
+- **Animated Motion:** ⚠️ Partially Functional. Same jumpy behavior as the admin dashboard.
 
-### The Write Side (Webhook):
-Always uses `'USER'` role for top-ups:
-```javascript
-// paymentController.js
-const walletId = await walletService.ensureWalletExists(client, 'USER', m.user_id);
-```
+## 4. Marker Asset Verification
+- **Android Drawables:** Verified exist in `app/src/main/res/drawable/`.
+- **Backend Assets:** Verified exist in `backend_v3/public/assets/`.
 
-### The Read Side (App API):
-Switches to `'FULFILLER'` role if the user has that role:
-```javascript
-// walletController.js
-if (userRole === 'FULFILLER') {
-    const fRes = await db.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
-    if (fRes.rows.length > 0) {
-        ownerType = 'FULFILLER';
-        ownerId = fRes.rows[0].id; // Fulfiller ID, NOT User ID
-    }
-}
-```
-
-## 3. Why the previous fix failed
-The previous fix likely focused on refreshing the UI or checking field names, but it didn't address the fact that the money is being stored under a different "Owner ID" entirely.
-
-## 4. Proposed Unification
-To resolve this permanently and prevent future "missing money" reports, we must **unify the wallet system**:
-- A single wallet per `user_id`.
-- `owner_type` should always be `'USER'`.
-- All mission settlements, top-ups, and escrow releases should target this single wallet.
-- Payouts should be allowed for any user with a balance, provided they have linked bank details (which we already unlocked for fulfillers).
-
-## 5. Affected Transactions Check
-The "top-up from several days ago" is likely sitting in the user's `USER` wallet, while they are checking their `FULFILLER` wallet. Unifying the wallets will automatically "reveal" this missing money.
+## Conclusion
+The core functionality is accurately implemented and functional. The Android app provides a high-quality animated experience. The web-based tracking (Admin/Guest) is functional but would benefit from a small refinement to make the marker movement smooth rather than jumpy.

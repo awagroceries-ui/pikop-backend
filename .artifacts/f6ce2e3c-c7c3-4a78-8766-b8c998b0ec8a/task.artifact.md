@@ -1,6 +1,7 @@
-# Task List - Fix Admin Real-Time Tracking
+# Task List - Map Tracking Refinements
 
-- [ ] Backend: Update `admin_track.ejs` socket event listeners for location and status
-- [ ] Backend: Polish agent details display in `admin_track.ejs`
-- [ ] Verification: Test end-to-end mission lifecycle on Admin Dashboard
+- [x] Audit: Verify current implementation status on Android and Web
+- [ ] Refine: Add smooth CSS glide animation to `admin_track.ejs`
+- [ ] Refine: Add smooth CSS glide animation to `guest_tracking.ejs`
+- [ ] Verification: Test gliding motion on Admin and Guest maps
 - [ ] Verification: Git automation (Commit and Push)
