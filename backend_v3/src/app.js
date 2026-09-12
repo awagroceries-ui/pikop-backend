@@ -39,6 +39,9 @@ weatherService.startWeatherJob(15);
 const dispatchReminderJob = require('./jobs/dispatchReminderJob');
 dispatchReminderJob.startReminderJob(3); // Every 3 mins
 
+const acknowledgmentReminderJob = require('./jobs/acknowledgmentReminderJob');
+acknowledgmentReminderJob.startAcknowledgmentJob(15);
+
 // 1. Basic Middleware
 app.use(compression()); // Optimize payload size
 app.use(helmet({ contentSecurityPolicy: false }));

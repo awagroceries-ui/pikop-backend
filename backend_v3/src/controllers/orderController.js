@@ -601,7 +601,12 @@ const createOrder = async (req, res) => {
 
         const finalFare = itemPriceNum + deliveryFee + platformFeeNum;
 
-        // 4. Create Order (DEFINITIVE ALIGNMENT WITH WEBHOOK)
+        // 4. Determine Initial Status
+        // Rule: If receiver is an app user, require acknowledgment before fulfiller search.
+        const isReceiverAppUser = q.payer_info?.type === 'APP_USER' || recipient_payable > 0; // Simplified check or based on quote
+        const initialStatus = isReceiverAppUser ? 'PENDING_ACKNOWLEDGMENT' : (finalFare === 0 ? 'AWAITING_PAYMENT' : 'PAYMENT_CAPTURED');
+
+        // 4.1 Create Order (DEFINITIVE ALIGNMENT WITH WEBHOOK)
         // Extract coordinates from body (preferred) or quote fallback
         const pLat = pickup_lat || 0;
         const pLng = pickup_lng || 0;
@@ -609,7 +614,7 @@ const createOrder = async (req, res) => {
         const dLng = delivery_lng || 0;
 
         const refToSave = payment_reference || `FREE_${q.id.substring(0,8)}_${Date.now()}`;
-        console.log(`[ManualOrder] PRE-FLIGHT: Quote: ${q.id} | User: ${userId} | Fare: ${finalFare} | Ref: ${refToSave} | Coupon: ${couponId}`);
+        console.log(`[ManualOrder] PRE-FLIGHT: Quote: ${q.id} | User: ${userId} | Fare: ${finalFare} | Ref: ${refToSave} | Status: ${initialStatus}`);
 
         const pCode = Math.floor(1000 + Math.random() * 9000).toString();
         const dCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -625,7 +630,8 @@ const createOrder = async (req, res) => {
                 pickup_code_hash, delivery_code_hash, pickup_code, delivery_code, coupon_id,
                 item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
                 escrow_status, payer_id, original_delivery_fee, original_total_fare, pickup_state,
-                sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark
+                sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark,
+                recipient_user_id
             ) VALUES (
                 'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
                 ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -635,12 +641,13 @@ const createOrder = async (req, res) => {
                 $23, $24, $25, $26, $27::uuid,
                 $28, $29, $30, $31, $32,
                 $33, $34, $35, $36, $37,
-                $38, $39, $40, $41
+                $38, $39, $40, $41,
+                $42
             ) RETURNING id`,
             [
                 userId, // $1
                 q.id,   // $2
-                finalFare === 0 ? 'AWAITING_PAYMENT' : 'PAYMENT_CAPTURED', // $3
+                initialStatus, // $3
                 q.item_description, // $4
                 q.size_tier, // $5
                 q.pickup_address, // $6
@@ -678,39 +685,38 @@ const createOrder = async (req, res) => {
                 parseFloat(sms_charge_amount || 0), // $38
                 q.required_fulfiller_classes, // $39
                 q.pickup_landmark, // $40
-                q.delivery_landmark // $41
+                q.delivery_landmark, // $41
+                q.payer_info?.user_id // $42 (recipient_user_id)
             ]
         );
 
         await client.query('COMMIT');
-        console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId} | Fare: ${finalFare}`);
+        console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId} | Status: ${initialStatus}`);
 
-        // Active Dispatch: Notify nearby fulfillers immediately
-        if (orderRes.rows[0].status === 'SEARCHING' || orderRes.rows[0].status === 'PAYMENT_CAPTURED') {
-            const fulfillers = await dispatchService.findNearbyFulfillers(orderRes.rows[0]);
-            if (fulfillers.length > 0) {
-                dispatchService.broadcastOffer(orderRes.rows[0], fulfillers).catch(() => {});
+        // 5. In-App Outreach (Skip SMS if App User)
+        if (initialStatus === 'PENDING_ACKNOWLEDGMENT' && q.payer_info?.user_id) {
+            fcmService.sendNotification(
+                q.payer_info.user_id,
+                "New Delivery for You! 📦",
+                `${q.initiator_name || 'A user'} wants to send you an item. Tap to confirm your delivery address.`,
+                { type: "ACKNOWLEDGMENT_REQUEST", order_id: orderRes.rows[0].id.toString() }
+            );
+        } else {
+            // 5.1 Active Dispatch (Immediate for Guest/Prepaid)
+            if (orderRes.rows[0].status === 'SEARCHING' || orderRes.rows[0].status === 'PAYMENT_CAPTURED') {
+                const fulfillers = await dispatchService.findNearbyFulfillers(orderRes.rows[0]);
+                if (fulfillers.length > 0) {
+                    dispatchService.broadcastOffer(orderRes.rows[0], fulfillers).catch(() => {});
+                }
             }
-        }
 
-        // Crowdsource landmarks if valid
-        if (q.pickup_landmark) await processLandmark(q.pickup_landmark, pLat, pLng);
-        if (q.delivery_landmark) await processLandmark(q.delivery_landmark, dLat, dLng);
-
-        // Active Dispatch: Broadcast to nearby fulfillers immediately
-        if (orderRes.rows[0].status === 'SEARCHING' || orderRes.rows[0].status === 'PAYMENT_CAPTURED') {
-            const fulfillers = await dispatchService.findNearbyFulfillers(orderRes.rows[0]);
-            if (fulfillers.length > 0) {
-                dispatchService.broadcastOffer(orderRes.rows[0], fulfillers).catch(() => {});
-            }
-        }
-
-        // Outreach for Secure Pay
-        if (item_price > 0) {
-            if (payer_id) {
-                fcmService.sendNotification(payer_id, "Secure Pay Request", `A Secure Pay request for ₦${recipient_payable || item_price} is waiting for your payment.`, { type: "SECURE_PAY_REQUEST", order_id: orderRes.rows[0].id.toString() });
-            } else {
-                smsService.sendSecurePaySms(recipient_phone, recipient_payable || item_price, orderRes.rows[0].id).catch(e => {});
+            // 5.2 Outreach for Secure Pay (Guest)
+            if (item_price > 0) {
+                if (payer_id) {
+                    fcmService.sendNotification(payer_id, "Secure Pay Request", `A Secure Pay request for ₦${recipient_payable || item_price} is waiting for your payment.`, { type: "SECURE_PAY_REQUEST", order_id: orderRes.rows[0].id.toString() });
+                } else if (recipient_phone && recipient_type === 'GUEST') {
+                    smsService.sendSecurePaySms(recipient_phone, recipient_payable || item_price, orderRes.rows[0].id).catch(e => {});
+                }
             }
         }
 
@@ -1370,6 +1376,97 @@ const getGuestCheckout = async (req, res) => {
     }
 };
 
+/**
+ * Receiver acknowledges an incoming mission.
+ */
+const acknowledgeOrder = async (req, res) => {
+    const { orderId } = req.params;
+    const { action, corrected_address, lat, lng } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query(
+            "SELECT id, status, user_id, recipient_user_id FROM orders WHERE id = $1 AND recipient_user_id = $2 FOR UPDATE",
+            [orderId, userId]
+        );
+
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Incoming delivery not found' });
+        const order = rows[0];
+
+        if (order.status !== 'PENDING_ACKNOWLEDGMENT') {
+            return res.status(400).json({ success: false, message: 'Order is not awaiting acknowledgment' });
+        }
+
+        if (action === 'decline') {
+            await db.query("UPDATE orders SET status = 'CANCELLED', cancellation_reason = 'Receiver declined' WHERE id = $1", [orderId]);
+            fcmService.sendNotification(order.user_id, "Delivery Declined", "The receiver has declined your delivery request. Any prepaid funds will be credited to your wallet.", { type: "ORDER_UPDATE", order_id: orderId.toString() });
+            return res.status(200).json({ success: true, message: 'Delivery declined' });
+        }
+
+        // Action: Confirm
+        const updateQuery = `
+            UPDATE orders
+            SET status = 'SEARCHING',
+                delivery_address = COALESCE($1, delivery_address),
+                delivery_location = CASE WHEN $2 IS NOT NULL THEN ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography ELSE delivery_location END
+            WHERE id = $4
+        `;
+        await db.query(updateQuery, [corrected_address || null, lat || null, lng || null, orderId]);
+
+        // Start Fulfiller Search
+        const updatedOrder = (await db.query("SELECT * FROM orders WHERE id = $1", [orderId])).rows[0];
+        const fulfillers = await dispatchService.findNearbyFulfillers(updatedOrder);
+        if (fulfillers.length > 0) {
+            dispatchService.broadcastOffer(updatedOrder, fulfillers).catch(() => {});
+        }
+
+        fcmService.sendNotification(order.user_id, "Delivery Acknowledged!", "The receiver has confirmed the delivery. We are now matching an agent.", { type: "ORDER_UPDATE", order_id: orderId.toString() });
+
+        res.status(200).json({ success: true, message: 'Delivery acknowledged and dispatched' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Sender decides next steps after acknowledgment timeout.
+ */
+const handleAcknowledgmentTimeoutChoice = async (req, res) => {
+    const { orderId } = req.params;
+    const { choice } = req.body; // proceed, cancel
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query(
+            "SELECT id, status, user_id FROM orders WHERE id = $1 AND user_id = $2 FOR UPDATE",
+            [orderId, userId]
+        );
+
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Mission not found' });
+        const order = rows[0];
+
+        if (order.status !== 'PENDING_ACKNOWLEDGMENT') return res.status(400).json({ success: false, message: 'Mission is no longer in timeout state' });
+
+        if (choice === 'cancel') {
+            await db.query("UPDATE orders SET status = 'CANCELLED', cancellation_reason = 'Timeout - Sender cancelled' WHERE id = $1", [orderId]);
+            return res.status(200).json({ success: true, message: 'Mission cancelled' });
+        }
+
+        // Choice: Proceed
+        await db.query("UPDATE orders SET status = 'SEARCHING' WHERE id = $1", [orderId]);
+
+        const updatedOrder = (await db.query("SELECT * FROM orders WHERE id = $1", [orderId])).rows[0];
+        const fulfillers = await dispatchService.findNearbyFulfillers(updatedOrder);
+        if (fulfillers.length > 0) {
+            dispatchService.broadcastOffer(updatedOrder, fulfillers).catch(() => {});
+        }
+
+        res.status(200).json({ success: true, message: 'Mission dispatched' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -1381,6 +1478,8 @@ module.exports = {
   getOrderMessages,
   getUserOrders,
   getFulfillerOrders,
+  acknowledgeOrder,
+  handleAcknowledgmentTimeoutChoice,
   cancelOrder,
   verifyPickup,
   verifyDelivery,

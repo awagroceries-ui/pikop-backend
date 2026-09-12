@@ -27,6 +27,8 @@ router.post('/consent/:orderId/grant', orderController.grantConsent); // PUBLIC
 router.get('/', authenticateToken, orderController.getUserOrders);
 router.post('/', authenticateToken, orderController.createOrder);
 router.get('/:orderId', authenticateToken, orderController.getOrderDetails);
+router.post('/:orderId/acknowledge', authenticateToken, orderController.acknowledgeOrder);
+router.post('/:orderId/timeout-choice', authenticateToken, orderController.handleAcknowledgmentTimeoutChoice);
 router.post('/:orderId/cancel', authenticateToken, orderController.cancelOrder);
 router.patch('/:orderId/status', authenticateToken, orderController.updateStatus);
 router.post('/:orderId/accept', authenticateToken, orderController.acceptOrder);

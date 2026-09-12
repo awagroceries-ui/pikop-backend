@@ -177,6 +177,7 @@ data class OrderDetailsResponse(
     @SerializedName("pickup_state") val pickup_state: String? = null,
     @SerializedName("fulfiller_profile") val fulfiller_profile: FulfillerPublicProfile? = null,
     @SerializedName("history") val history: List<StatusHistoryItem>? = null,
+    @SerializedName("user_name") val user_name: String? = null,
     @SerializedName("data") val data: OrderDetailsResponse? = null
 )
 
@@ -650,6 +651,9 @@ interface ApiService {
 
     @POST("api/v1/orders/{id}/deliver")
     suspend fun verifyDelivery(@retrofit2.http.Path("id") id: String, @Body request: VerifyCodeRequest): OrderResponse
+
+    @POST("api/v1/orders/{id}/acknowledge")
+    suspend fun acknowledgeOrder(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): Map<String, Any>
 
     @POST("api/v1/orders/{id}/confirm-receipt")
     suspend fun confirmReceipt(@retrofit2.http.Path("id") id: String): Map<String, Any>

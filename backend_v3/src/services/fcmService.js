@@ -113,8 +113,21 @@ const sendPayoutAlert = async (userId, amount) => {
     );
 };
 
+/**
+ * High-priority alert for Receiver Acknowledgment.
+ */
+const sendAcknowledgmentRequest = async (userId, orderId) => {
+    return sendNotification(
+        userId,
+        "New Delivery for You! 📦",
+        "A user wants to send you an item. Tap to confirm your delivery address.",
+        { type: "ACKNOWLEDGMENT_REQUEST", order_id: orderId.toString() }
+    );
+};
+
 module.exports = {
   sendNotification,
   sendSecurePayReminder,
-  sendPayoutAlert
+  sendPayoutAlert,
+  sendAcknowledgmentRequest
 };

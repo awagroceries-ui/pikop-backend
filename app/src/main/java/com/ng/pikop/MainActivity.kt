@@ -239,6 +239,10 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 "MISSION_OFFER" -> {
                     navController.navigate("main")
                 }
+                "ACKNOWLEDGMENT_REQUEST" -> {
+                    if (orderId != null) navController.navigate("order_acknowledgment/$orderId")
+                    else navController.navigate("main")
+                }
                 "ORDER_UPDATE" -> {
                     if (orderId != null) {
                         if (userRole == "FULFILLER") navController.navigate("active_order/$orderId")
@@ -420,6 +424,14 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 onOrderCompleted = { navController.popBackStack() },
                 onBack = { navController.popBackStack() },
                 onNavigateToChat = { id -> navController.navigate("order_chat/$id") }
+            )
+        }
+        composable("order_acknowledgment/{orderId}") { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+            OrderAcknowledgmentScreen(
+                orderId = orderId,
+                onSuccess = { navController.navigate("main") { popUpTo(0) { inclusive = true } } },
+                onBack = { navController.popBackStack() }
             )
         }
         composable("track_order/{orderId}") { backStackEntry ->
@@ -673,6 +685,7 @@ fun MainAppScaffold(
                         userName = userName,
                         onNewDelivery = { navController.navigate("order_quote") },
                         onTrackOrder = { id -> navController.navigate("track_order/$id") },
+                        onNavigateToAcknowledgment = { id -> navController.navigate("order_acknowledgment/$id") },
                         onNavigateToWallet = { nestedNavController.navigate("wallet") },
                         onNavigateToAddresses = { nestedNavController.navigate("account") },
                         onNavigateToSupport = { navController.navigate("support_hub") }

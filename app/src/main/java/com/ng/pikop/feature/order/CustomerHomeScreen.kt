@@ -31,11 +31,13 @@ fun CustomerHomeScreen(
     userName: String,
     onNewDelivery: () -> Unit,
     onTrackOrder: (String) -> Unit,
+    onNavigateToAcknowledgment: (String) -> Unit,
     onNavigateToWallet: () -> Unit,
     onNavigateToAddresses: () -> Unit,
     onNavigateToSupport: () -> Unit
 ) {
     var activeOrders by remember { mutableStateOf<List<OrderDetailsResponse>>(emptyList()) }
+    var incomingOrders by remember { mutableStateOf<List<OrderDetailsResponse>>(emptyList()) }
     var walletBalance by remember { mutableStateOf(0.0) }
     var isLoading by remember { mutableStateOf(false) }
 
@@ -44,18 +46,29 @@ fun CustomerHomeScreen(
     val apiService = remember { ApiService.create(tokenManager) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        isLoading = true
-        try {
-            val orders = apiService.getUserOrders()
-            activeOrders = orders.filter { it.status != "DELIVERED" && it.status != "CANCELLED" }
-            
-            val wallet = apiService.getWalletInfo()
-            walletBalance = wallet.balance ?: 0.0
-        } catch (_: Exception) {
-        } finally {
-            isLoading = false
+    val fetchDashboard = {
+        scope.launch {
+            isLoading = true
+            try {
+                val orders = apiService.getUserOrders()
+                activeOrders = orders.filter { it.status != "DELIVERED" && it.status != "CANCELLED" && it.status != "RECIPIENT_ABSENT" && it.status != "RELEASED" }
+                
+                // Fetch Incoming (for Acknowledgment)
+                // Note: We reuse getUserOrders for now or add a specific getIncomingOrders if needed.
+                // Assuming getUserOrders returns both sent and received for v3.
+                incomingOrders = orders.filter { it.status == "PENDING_ACKNOWLEDGMENT" }
+
+                val wallet = apiService.getWalletInfo()
+                walletBalance = wallet.balance ?: 0.0
+            } catch (_: Exception) {
+            } finally {
+                isLoading = false
+            }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        fetchDashboard()
     }
 
     Scaffold(
@@ -73,18 +86,7 @@ fun CustomerHomeScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        scope.launch {
-                            isLoading = true
-                            try {
-                                val orders = apiService.getUserOrders()
-                                activeOrders = orders.filter { it.status != "DELIVERED" && it.status != "CANCELLED" }
-                                val wallet = apiService.getWalletInfo()
-                                walletBalance = wallet.balance ?: 0.0
-                            } catch (_: Exception) {}
-                            isLoading = false
-                        }
-                    }) {
+                    IconButton(onClick = { fetchDashboard() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
@@ -112,6 +114,30 @@ fun CustomerHomeScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Incoming Deliveries Alert
+            if (incomingOrders.isNotEmpty()) {
+                val incoming = incomingOrders.first()
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    onClick = { onNavigateToAcknowledgment(incoming.id ?: "") }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Inventory, null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Incoming Delivery!", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Tap to confirm your address.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f))
+                        }
+                    }
+                }
+            }
 
             // Active Mission Banner (Priority)
             if (activeOrders.isNotEmpty()) {
