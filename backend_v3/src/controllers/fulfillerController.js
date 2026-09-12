@@ -319,20 +319,60 @@ const updateStatus = async (req, res) => {
 };
 
 /**
- * Fetches the fulfiller's own profile and stats.
+ * Fetches the fulfiller's own profile and performance stats (v3.9.5).
  */
 const getProfile = async (req, res) => {
   const userId = req.user.id;
   try {
-    const { rows } = await db.query(
+    const { rows: fRows } = await db.query(
         "SELECT * FROM fulfillers WHERE user_id = $1",
         [userId]
     );
-    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Profile not found' });
+    if (fRows.length === 0) return res.status(404).json({ success: false, message: 'Profile not found' });
+    const f = fRows[0];
 
-    res.status(200).json({ success: true, data: rows[0] });
+    // 1. Calculate Performance Metrics
+    const statsRes = await db.query(`
+        SELECT
+            COUNT(*) FILTER (WHERE status = 'DELIVERED') as total_completed,
+            COUNT(*) FILTER (WHERE status = 'CANCELLED') as total_cancelled,
+            COALESCE(SUM(total_fare * 0.75) FILTER (WHERE status = 'DELIVERED'), 0) as lifetime_earnings,
+            COALESCE(SUM(total_fare * 0.75) FILTER (WHERE status = 'DELIVERED' AND created_at >= DATE_TRUNC('month', CURRENT_DATE)), 0) as mtd_earnings
+        FROM orders
+        WHERE fulfiller_id = $1
+    `, [f.id]);
+
+    const stats = statsRes.rows[0];
+    const totalMissions = parseInt(stats.total_completed) + parseInt(stats.total_cancelled);
+    const completionRate = totalMissions > 0 ? (parseInt(stats.total_completed) / totalMissions) * 100 : 100;
+
+    // 2. Fetch 7-Day Earnings Trend
+    const trendRes = await db.query(`
+        SELECT
+            TO_CHAR(created_at, 'Dy') as day,
+            COALESCE(SUM(total_fare * 0.75), 0) as earnings
+        FROM orders
+        WHERE fulfiller_id = $1 AND status = 'DELIVERED' AND created_at >= NOW() - interval '7 days'
+        GROUP BY day, DATE_TRUNC('day', created_at)
+        ORDER BY DATE_TRUNC('day', created_at) ASC
+    `, [f.id]);
+
+    res.status(200).json({
+        success: true,
+        data: {
+            ...f,
+            stats: {
+                lifetime_earnings: parseFloat(stats.lifetime_earnings),
+                mtd_earnings: parseFloat(stats.mtd_earnings),
+                completion_rate: Math.round(completionRate),
+                total_completed: parseInt(stats.total_completed),
+                earnings_trend: trendRes.rows
+            }
+        }
+    });
   } catch (error) {
-    throw error;
+    console.error('[FulfillerProfile] Error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

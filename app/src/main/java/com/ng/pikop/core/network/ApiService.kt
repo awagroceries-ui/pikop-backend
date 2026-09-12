@@ -181,6 +181,14 @@ data class OrderDetailsResponse(
     @SerializedName("data") val data: OrderDetailsResponse? = null
 )
 
+data class FulfillerStats(
+    val lifetime_earnings: Double = 0.0,
+    val mtd_earnings: Double = 0.0,
+    val completion_rate: Int = 100,
+    val total_completed: Int = 0,
+    val earnings_trend: List<Map<String, Any>> = emptyList()
+)
+
 data class FulfillerProfileResponse(
     val id: Int? = null,
     val online_status: String? = null,
@@ -203,6 +211,7 @@ data class FulfillerProfileResponse(
     val account_number: String? = null,
     val bank_code: String? = null,
     val account_name: String? = null,
+    val stats: FulfillerStats? = null,
     @SerializedName("data") val data: FulfillerProfileResponse? = null
 )
 
