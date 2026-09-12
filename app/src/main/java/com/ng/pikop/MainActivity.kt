@@ -36,6 +36,7 @@ import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.chat.*
+import com.ng.pikop.feature.commerce.CommerceCheckoutScreen
 import com.ng.pikop.feature.commerce.StorefrontScreen
 import com.ng.pikop.feature.fulfiller.*
 import com.ng.pikop.feature.merchant.AddEditProductScreen
@@ -750,9 +751,27 @@ fun MainAppScaffold(
             composable("storefront") {
                 StorefrontScreen(
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
-                        // Phase 4: Navigate to Details
-                        android.widget.Toast.makeText(context, "Clicked: ${item.name}", android.widget.Toast.LENGTH_SHORT).show()
+                        navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
                     }
+                )
+            }
+            composable(
+                route = "commerce_checkout/{itemId}/{itemType}",
+                arguments = listOf(
+                    navArgument("itemId") { type = NavType.StringType },
+                    navArgument("itemType") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val itemId = backStackEntry.arguments?.getString("itemId") ?: ""
+                val itemType = backStackEntry.arguments?.getString("itemType") ?: "product"
+                CommerceCheckoutScreen(
+                    itemId = itemId,
+                    itemType = itemType,
+                    navController = navController,
+                    onSuccess = { 
+                        navController.navigate("main") { popUpTo(0) { inclusive = true } } 
+                    },
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable("history") {

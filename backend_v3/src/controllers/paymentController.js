@@ -268,7 +268,7 @@ const handleWebhook = async (req, res) => {
   const event = req.body;
   const data = event.data;
 
-  if (event.event === 'charge.success') {
+    if (event.event === 'charge.success') {
     const { reference, metadata, channel } = data;
     const m = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
 
@@ -280,7 +280,7 @@ const handleWebhook = async (req, res) => {
     }
 
     // 2. Handle Guest Payment for Awaiting Mission (Seller-initiated Secure Pay)
-    if (m?.order_id) {
+    if (m?.order_id && !m?.type) {
         const { rows: pending } = await db.query("SELECT id, status, item_price, seller_id FROM orders WHERE id = $1", [m.order_id]);
         if (pending.length > 0 && pending[0].status === 'AWAITING_PAYMENT') {
             const order = pending[0];
@@ -320,6 +320,55 @@ const handleWebhook = async (req, res) => {
             await client.query('COMMIT');
         } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
         return res.sendStatus(200);
+    }
+
+    // 4. Handle Commerce Order (Marketplace/Kitchen)
+    if (m?.type === 'COMMERCE_ORDER') {
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const addrRes = await client.query("SELECT * FROM addresses WHERE id = $1", [m.pickup_address_id]);
+            const pAddr = addrRes.rows[0];
+
+            const orderRes = await client.query(
+                `INSERT INTO orders (
+                    order_type, user_id, status, item_description,
+                    pickup_address, delivery_address, pickup_location, delivery_location,
+                    total_fare, item_price, delivery_fee, platform_fee_amount,
+                    payment_status, payment_reference, payment_channel,
+                    seller_id, product_id, menu_item_id, escrow_status
+                ) VALUES (
+                    'pickup_delivery', $1, 'SEARCHING', $2,
+                    $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
+                    $9, $10, $11, $12,
+                    'PAID', $13, $14,
+                    $15, $16, $17, 'held'
+                ) RETURNING id`,
+                [
+                    m.user_id, m.item_description,
+                    pAddr.formatted_address, m.delivery_address, pAddr.lng, pAddr.lat, m.delivery_lng, m.delivery_lat,
+                    (m.item_price + m.delivery_fee + m.platform_fee_amount), m.item_price, m.delivery_fee, m.platform_fee_amount,
+                    reference, channel,
+                    m.merchant_user_id, (m.item_type === 'product' ? m.item_id : null), (m.item_type === 'meal' ? m.item_id : null)
+                ]
+            );
+
+            const walletId = await walletService.ensureWalletExists(client, 'USER', m.merchant_user_id);
+            await walletService.recordEntry(client, walletId, 'CREDIT', m.item_price, 'ESCROW_HOLD', `Marketplace Sale: ${m.item_description}`, orderRes.rows[0].id, 'pending');
+
+            await client.query('COMMIT');
+
+            const updatedOrder = (await db.query("SELECT * FROM orders WHERE id = $1", [orderRes.rows[0].id])).rows[0];
+            const fulfillers = await dispatchService.findNearbyFulfillers(updatedOrder);
+            if (fulfillers.length > 0) dispatchService.broadcastOffer(updatedOrder, fulfillers).catch(() => {});
+
+            return res.sendStatus(200);
+        } catch (e) {
+            await client.query('ROLLBACK');
+            console.error('❌ Commerce Activation FAILED:', e.message);
+            return res.sendStatus(500);
+        } finally { client.release(); }
     }
 
     const client = await db.pool.connect();

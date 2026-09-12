@@ -661,6 +661,15 @@ data class DiscoveryResponse(
     val data: List<DiscoveryItem> = emptyList()
 )
 
+data class CommerceOrderRequest(
+    val item_id: String,
+    val item_type: String, // product, meal
+    val delivery_address: String,
+    val lat: Double,
+    val lng: Double,
+    val city: String? = "Port Harcourt"
+)
+
 data class PaymentInitializationRequest(
     val amount: Double, // in Naira
     val email: String,
@@ -958,6 +967,9 @@ interface ApiService {
         @Query("category") category: String? = null,
         @Query("query") query: String? = null
     ): DiscoveryResponse
+
+    @POST("api/v1/commerce/checkout/initialize")
+    suspend fun initializeCommerceOrder(@Body request: CommerceOrderRequest): PaymentInitializationResponse
 
     @GET("api/v1/settings/profile")
     suspend fun getUserProfile(): UserProfileResponse
