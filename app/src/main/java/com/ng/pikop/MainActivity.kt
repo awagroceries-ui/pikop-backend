@@ -37,6 +37,7 @@ import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.chat.*
 import com.ng.pikop.feature.fulfiller.*
+import com.ng.pikop.feature.merchant.AddEditProductScreen
 import com.ng.pikop.feature.merchant.MerchantPortalScreen
 import com.ng.pikop.feature.merchant.MerchantRegistrationScreen
 import com.ng.pikop.feature.order.*
@@ -522,7 +523,37 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
         composable("profile_edit") { ProfileEditScreen(onBack = { navController.popBackStack() }) }
         composable("growth_rewards") { GrowthRewardsScreen(onBack = { navController.popBackStack() }) }
-        composable("merchant_portal") { MerchantPortalScreen(onBack = { navController.popBackStack() }) }
+        composable("merchant_portal") {
+            MerchantPortalScreen(
+                onAddItem = { type, id -> navController.navigate("add_edit_product/$type/$id") },
+                onEditItem = { type, mId, pId -> navController.navigate("add_edit_product/$type/$mId?productId=$pId") },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "add_edit_product/{merchantType}/{merchantId}?productId={productId}",
+            arguments = listOf(
+                navArgument("merchantType") { type = NavType.StringType },
+                navArgument("merchantId") { type = NavType.StringType },
+                navArgument("productId") { 
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null 
+                }
+            )
+        ) { backStackEntry ->
+            val mType = backStackEntry.arguments?.getString("merchantType") ?: "vendor"
+            val mId = backStackEntry.arguments?.getString("merchantId") ?: ""
+            val pId = backStackEntry.arguments?.getString("productId")
+            
+            AddEditProductScreen(
+                merchantType = mType,
+                merchantId = mId,
+                productId = pId,
+                onSuccess = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
+            )
+        }
         composable("merchant_registration") { 
             MerchantRegistrationScreen(
                 navController = navController,

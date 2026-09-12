@@ -7,6 +7,7 @@ const { authenticateMerchantKey } = require('../middleware/merchantAuth');
 // Account Registration (User session)
 router.post('/register', authenticateToken, merchantController.registerMerchant);
 router.get('/dashboard', authenticateToken, merchantController.getSellerDashboard);
+router.get('/profile', authenticateToken, merchantController.getMerchantProfile);
 router.get('/my-batches', authenticateToken, merchantController.getMyBatches);
 router.get('/my-batches/:batchId', authenticateToken, merchantController.getBatchStatus);
 

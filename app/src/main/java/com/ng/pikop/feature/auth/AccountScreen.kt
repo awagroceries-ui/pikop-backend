@@ -203,7 +203,20 @@ fun AccountScreen(
                 AccountOption(
                     label = "Merchant Portal",
                     icon = Icons.Default.Inventory,
-                    onClick = onNavigateToMerchant
+                    onClick = {
+                        scope.launch {
+                            try {
+                                val profile = apiService.getMerchantProfile()
+                                if (profile.data != null) {
+                                    onNavigateToMerchant()
+                                } else {
+                                    onNavigateToMerchantRegistration()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Could not verify merchant status", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                 )
 
                 AccountOption(

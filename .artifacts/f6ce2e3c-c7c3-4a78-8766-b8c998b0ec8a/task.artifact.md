@@ -1,19 +1,17 @@
-# Task List - Pikop Commerce (Marketplace & Kitchens)
+# Task List - Pikop Commerce Phase 2: Inventory Management
 
-- [ ] **Phase 1: Merchant Onboarding**
-    - [ ] Android: Create `MerchantRegistrationScreen.kt` with Business & Bank forms
-    - [ ] Android: Implement business type selection (Marketplace vs Kitchen)
-    - [ ] Android: Integrate server-side registration API
-- [ ] **Phase 2: Inventory Management**
-    - [ ] Android: Create `ProductManagementScreen.kt` for adding items/meals
-    - [ ] Android: Implement image upload for products
-    - [ ] Backend: Harden product/menu creation endpoints
-- [ ] **Phase 3: Customer Storefront**
-    - [ ] Android: Create `StorefrontScreen.kt` Discovery Hub
-    - [ ] Android: Implement category filtering and proximity-based search
-    - [ ] Backend: Implement unified commerce search API
-- [ ] **Phase 4: Unified Checkout**
-    - [ ] Android: Wire Storefront items to a new "Commerce Checkout" flow
-    - [ ] Android: Implement auto-calculation of delivery from Vendor to User
-    - [ ] Verification: Test end-to-end purchase and auto-dispatch
-    - [ ] Verification: Git automation (Commit and Push)
+- [ ] **Backend: Merchant Management**
+    - [ ] Implement `getMerchantProfile` in `merchantController.js`
+    - [ ] Implement Update/Delete endpoints for Products
+    - [ ] Implement Update/Delete endpoints for Menu Items
+- [ ] **Android: ApiService Expansion**
+    - [ ] Add inventory management Retrofit methods to `ApiService.kt`
+- [ ] **Android: Inventory UI**
+    - [ ] Create `AddEditProductScreen.kt` with dynamic fields (Vendor vs Kitchen)
+    - [ ] Implement product image selection and upload
+    - [ ] Add Edit/Delete actions and FAB to `MerchantPortalScreen.kt`
+- [ ] **Android: Navigation Logic**
+    - [ ] Implement smart redirection (Portal vs Registration) in `MainActivity.kt`
+- [ ] **Verification**
+    - [ ] Build and verify full inventory lifecycle
+    - [ ] Git automation (Commit and Push)

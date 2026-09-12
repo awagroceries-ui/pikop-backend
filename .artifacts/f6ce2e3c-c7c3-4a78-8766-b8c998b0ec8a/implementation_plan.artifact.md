@@ -1,52 +1,60 @@
-# Implementation Plan - Pikop Commerce (Marketplace & Kitchens)
+# Implementation Plan - Pikop Commerce Phase 2: Inventory Management
 
-This module transforms Pikop from a courier service into a full-scale commerce ecosystem, allowing businesses to sell products/food and customers to purchase them directly within the app.
+This phase focuses on empowering registered merchants (Vendors and Kitchens) to manage their product catalogs and menus directly within the Pikop app.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Unified Checkout:** When a user buys a product from the marketplace, the system will automatically calculate the delivery fare from the Vendor's location to the Customer's location. The user will pay for both the **item** and the **delivery** in a single Paystack transaction.
->
-> **Merchant Payouts:** Funds for items sold will be held in the platform escrow and released to the Merchant's wallet only after the customer confirms receipt in the app.
+> **Unified Inventory UI:** I will implement a single, smart "Add/Edit Item" screen that adapts its fields based on whether the user is a General Vendor (Marketplace) or a Cloud Kitchen (Food).
+> - **Vendors:** See fields for "Unit" (e.g., kg, pack) and "NAFDAC Number" (optional).
+> - **Kitchens:** See fields for "Prep Time" and "Modifiers" (e.g., Extra Spicy).
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [MODIFY] [marketplaceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/marketplaceController.js)
-#### [MODIFY] [kitchenController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/kitchenController.js)
-- **Profile Integrity:** Ensure `getVendorDetails` and `getKitchenDetails` return the owner's status and linked `pickup_address` for delivery calculations.
-- **Photo Storage:** Ensure product/menu item photo uploads are handled via the unified `/uploads` service.
+#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
+- **`getMerchantProfile` [NEW]**: Endpoint to return the user's active merchant profile (Vendor or Kitchen), status, and linked ID. This allows the app to know if it should show the "Registration" or "Portal" flow.
+- **`getMerchantDashboard`**: Update to include basic stats like "Total Products" and "Active Orders count."
 
-#### [NEW] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
-- **Storefront Search:** Implement a unified search endpoint that queries both Products and Menu Items based on proximity to the user.
+#### [MODIFY] [marketplaceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/marketplaceController.js)
+- **`updateProduct` [NEW]**: Allow vendors to edit price, stock, and descriptions.
+- **`deleteProduct` [NEW]**: Soft-delete or remove products from the marketplace.
+
+#### [MODIFY] [kitchenController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/kitchenController.js)
+- **`updateMenuItem` [NEW]**: Allow kitchens to edit prices, availability, and prep times.
+- **`deleteMenuItem` [NEW]**: Remove items from the kitchen menu.
 
 ---
 
 ### Android App
 
-#### [NEW] [feature/merchant] [MerchantRegistrationScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantRegistrationScreen.kt)
-- **Form:** Business Name, CAC Number, Contact Email, Bank Account (Name/Number/Code).
-- **Type Selection:** Toggle between "Marketplace Vendor" (Items) or "Cloud Kitchen" (Food).
-- **Location:** Integrated address picker to set the business's permanent pickup point.
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Add endpoints for `updateProduct`, `deleteProduct`, `updateMenuItem`, and `deleteMenuItem`.
+- Add `getMerchantProfile()` to fetch ownership details.
 
-#### [NEW] [feature/merchant] [ProductManagementScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/ProductManagementScreen.kt)
-- Interface for adding items/meals with price, description, and photo capture.
+#### [NEW] [feature/merchant] [AddEditProductScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/AddEditProductScreen.kt)
+- **Dynamic Form:**
+    - Basic: Name, Price, Category, Description.
+    - Image: Camera/Gallery integration for product photos.
+    - Specialized: Unit/NAFDAC (Vendor) vs. Prep Time (Kitchen).
+- **Actions:** "Create Listing" or "Save Changes."
 
-#### [NEW] [feature/order] [StorefrontScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/StorefrontScreen.kt)
-- **Discovery Hub:** Categories (Electronics, Fashion, Food, etc.).
-- **Listings:** Scrollable grid of products and nearby kitchens.
+#### [MODIFY] [feature/merchant] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
+- Add a floating action button (FAB) "+" to open the `AddEditProductScreen`.
+- Add "Edit" and "Delete" icons to product cards.
+- Implement pull-to-refresh for the listings tab.
 
 #### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Register routes for `merchant_registration`, `product_mgmt`, and `storefront`.
-- Add a **"Shop & Eat"** tab to the main navigation bar.
+- Register the `add_edit_product` route.
+- Add logic to redirect "Merchant Portal" clicks to "Registration" if the user hasn't applied yet.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Onboarding:** Register a test business as a "Kitchen." Verify the application appears as "Pending" in the database.
-2.  **Listing:** Add a "Jollof Rice" menu item with a photo. Verify it appears in the database and is linked to the kitchen.
-3.  **Discovery:** As a customer, open the Storefront. Verify the "Jollof Rice" item is visible and shows the correct price and vendor.
-4.  **Integrated Order:** Select an item -> Checkout. Verify the total price includes the item cost + delivery fee to the user's current location.
+1.  **Identity Check:** Log in with a regular account. Click "Merchant Portal." Verify it redirects to the Registration form.
+2.  **Creation Flow:** As an approved merchant, click "+" in the portal. Add a new product with a photo. Verify it appears in the "Listings" tab immediately.
+3.  **Update Flow:** Change the price of a listed item. Verify the change is reflected in the UI and database.
+4.  **Specialization:** Verify that a "Kitchen" merchant sees the "Prep Time" field while a "Vendor" merchant sees the "Unit" field.

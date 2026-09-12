@@ -231,11 +231,35 @@ const getSellerDashboard = async (req, res) => {
     }
 };
 
+/**
+ * Returns the user's active merchant profile (Vendor or Kitchen).
+ */
+const getMerchantProfile = async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+        const [vendorRes, kitchenRes] = await Promise.all([
+            db.query("SELECT id, business_name, status, 'vendor' as type FROM vendors WHERE user_id = $1", [userId]),
+            db.query("SELECT id, business_name, status, 'kitchen' as type FROM kitchens WHERE user_id = $1", [userId])
+        ]);
+
+        const profile = vendorRes.rows[0] || kitchenRes.rows[0] || null;
+
+        res.status(200).json({
+            success: true,
+            data: profile
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   registerMerchant,
   createBulkOrders,
   getBatches,
   getBatchStatus,
   getMyBatches,
-  getSellerDashboard
+  getSellerDashboard,
+  getMerchantProfile
 };

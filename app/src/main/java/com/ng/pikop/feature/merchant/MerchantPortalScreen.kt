@@ -16,18 +16,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MerchantPortalScreen(onBack: () -> Unit) {
+fun MerchantPortalScreen(
+    onAddItem: (String, String) -> Unit, // merchantType, merchantId
+    onEditItem: (String, String, String) -> Unit, // merchantType, merchantId, productId
+    onBack: () -> Unit
+) {
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
     val scope = rememberCoroutineScope()
     
+    val merchantProfile = remember { mutableStateOf<MerchantProfile?>(null) }
     val dashboardData = remember { mutableStateOf<MerchantDashboardData?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
@@ -38,6 +44,9 @@ fun MerchantPortalScreen(onBack: () -> Unit) {
         errorMessage.value = null
         scope.launch {
             try {
+                val profileRes = apiService.getMerchantProfile()
+                merchantProfile.value = profileRes.data
+                
                 val response = apiService.getMerchantDashboard()
                 dashboardData.value = response.data
             } catch (e: Exception) {
@@ -53,6 +62,18 @@ fun MerchantPortalScreen(onBack: () -> Unit) {
         fetchDashboard()
     }
 
+    fun handleDeleteItem(type: String, id: String) {
+        scope.launch {
+            try {
+                if (type == "vendor") apiService.deleteProduct(id)
+                else apiService.deleteMenuItem(id)
+                fetchDashboard()
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(context, "Delete failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -64,6 +85,18 @@ fun MerchantPortalScreen(onBack: () -> Unit) {
                     IconButton(onClick = { fetchDashboard() }) { Icon(Icons.Default.Refresh, null) }
                 }
             )
+        },
+        floatingActionButton = {
+            if (selectedTab.intValue == 1 && merchantProfile.value != null) {
+                FloatingActionButton(
+                    onClick = { 
+                        onAddItem(merchantProfile.value!!.type, merchantProfile.value!!.id) 
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.Add, "Add Item")
+                }
+            }
         }
     ) { padding ->
         if (isLoading.value) {
@@ -92,7 +125,12 @@ fun MerchantPortalScreen(onBack: () -> Unit) {
 
                 when (selectedTab.intValue) {
                     0 -> SalesTabContent(dashboardData.value?.sales ?: emptyList())
-                    1 -> ListingsTabContent(dashboardData.value?.products ?: emptyList())
+                    1 -> ListingsTabContent(
+                        profile = merchantProfile.value,
+                        products = dashboardData.value?.products ?: emptyList(),
+                        onEdit = onEditItem,
+                        onDelete = { type, id -> handleDeleteItem(type, id) }
+                    )
                     2 -> BulkTabContent(dashboardData.value?.batches ?: emptyList())
                 }
             }
@@ -118,7 +156,12 @@ fun SalesTabContent(sales: List<OrderDetailsResponse>) {
 }
 
 @Composable
-fun ListingsTabContent(products: List<Product>) {
+fun ListingsTabContent(
+    profile: MerchantProfile?,
+    products: List<Product>,
+    onEdit: (String, String, String) -> Unit,
+    onDelete: (String, String) -> Unit
+) {
     if (products.isEmpty()) {
         EmptyStateView(
             icon = Icons.Default.Storefront,
@@ -128,7 +171,13 @@ fun ListingsTabContent(products: List<Product>) {
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(products) { product ->
-                ProductItem(product)
+                ProductItem(
+                    product = product,
+                    onEdit = { 
+                        if (profile != null) onEdit(profile.type, profile.id, product.id) 
+                    },
+                    onDelete = { onDelete(profile?.type ?: "vendor", product.id) }
+                )
             }
         }
     }
@@ -178,7 +227,11 @@ fun SaleItem(order: OrderDetailsResponse) {
 }
 
 @Composable
-fun ProductItem(product: Product) {
+fun ProductItem(
+    product: Product,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(50.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
@@ -189,7 +242,10 @@ fun ProductItem(product: Product) {
                 Text(text = product.name, fontWeight = FontWeight.Bold)
                 Text(text = "₦${"%,.2f".format(product.price)}", style = MaterialTheme.typography.bodySmall)
             }
-            Text(text = "Qty: ${product.stock_quantity}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Row {
+                IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Edit", tint = MaterialTheme.colorScheme.primary) }
+                IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error) }
+            }
         }
     }
 }

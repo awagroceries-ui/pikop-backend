@@ -110,9 +110,74 @@ const getVendorDetails = async (req, res) => {
     }
 };
 
+/**
+ * Updates an existing product.
+ */
+const updateProduct = async (req, res) => {
+  const { id } = req.params;
+  const { name, price, stock_quantity, description, category, unit, nafdac_number, photo_url, active } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // Ownership check
+    const check = await db.query(`
+      SELECT p.id FROM products p
+      JOIN vendors v ON v.id = p.vendor_id
+      WHERE p.id = $1 AND v.user_id = $2
+    `, [id, userId]);
+
+    if (check.rows.length === 0) return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+    const { rows } = await db.query(
+      `UPDATE products
+       SET name = COALESCE($1, name),
+           price = COALESCE($2, price),
+           stock_quantity = COALESCE($3, stock_quantity),
+           description = COALESCE($4, description),
+           category = COALESCE($5, category),
+           unit = COALESCE($6, unit),
+           nafdac_number = COALESCE($7, nafdac_number),
+           photo_url = COALESCE($8, photo_url),
+           active = COALESCE($9, active)
+       WHERE id = $10
+       RETURNING *`,
+      [name, price, stock_quantity, description, category, unit, nafdac_number, photo_url, active, id]
+    );
+
+    res.status(200).json({ success: true, data: rows[0] });
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Deletes a product.
+ */
+const deleteProduct = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const check = await db.query(`
+      SELECT p.id FROM products p
+      JOIN vendors v ON v.id = p.vendor_id
+      WHERE p.id = $1 AND v.user_id = $2
+    `, [id, userId]);
+
+    if (check.rows.length === 0) return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+    await db.query("DELETE FROM products WHERE id = $1", [id]);
+    res.status(200).json({ success: true, message: 'Product removed' });
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   registerVendor,
   addProduct,
+  updateProduct,
+  deleteProduct,
   getMarketplace,
   getVendorDetails
 };

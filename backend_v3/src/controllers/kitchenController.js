@@ -110,9 +110,72 @@ const getKitchenDetails = async (req, res) => {
   }
 };
 
+/**
+ * Updates a menu item.
+ */
+const updateMenuItem = async (req, res) => {
+  const { id } = req.params;
+  const { name, price, description, category, photo_url, prep_time_minutes, modifiers, available } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const check = await db.query(`
+      SELECT m.id FROM menu_items m
+      JOIN kitchens k ON k.id = m.kitchen_id
+      WHERE m.id = $1 AND k.user_id = $2
+    `, [id, userId]);
+
+    if (check.rows.length === 0) return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+    const { rows } = await db.query(
+      `UPDATE menu_items
+       SET name = COALESCE($1, name),
+           price = COALESCE($2, price),
+           description = COALESCE($3, description),
+           category = COALESCE($4, category),
+           photo_url = COALESCE($5, photo_url),
+           prep_time_minutes = COALESCE($6, prep_time_minutes),
+           modifiers = COALESCE($7, modifiers),
+           available = COALESCE($8, available)
+       WHERE id = $9
+       RETURNING *`,
+      [name, price, description, category, photo_url, prep_time_minutes, modifiers, available, id]
+    );
+
+    res.status(200).json({ success: true, data: rows[0] });
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Deletes a menu item.
+ */
+const deleteMenuItem = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const check = await db.query(`
+      SELECT m.id FROM menu_items m
+      JOIN kitchens k ON k.id = m.kitchen_id
+      WHERE m.id = $1 AND k.user_id = $2
+    `, [id, userId]);
+
+    if (check.rows.length === 0) return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+    await db.query("DELETE FROM menu_items WHERE id = $1", [id]);
+    res.status(200).json({ success: true, message: 'Item removed' });
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   registerKitchen,
   addMenuItem,
+  updateMenuItem,
+  deleteMenuItem,
   getKitchens,
   getKitchenDetails
 };

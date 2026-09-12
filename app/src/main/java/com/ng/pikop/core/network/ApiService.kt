@@ -509,6 +509,41 @@ data class KitchenRegistrationRequest(
     val pickup_address_id: Int? = null
 )
 
+data class ProductUpdateRequest(
+    val name: String? = null,
+    val price: Double? = null,
+    val stock_quantity: Int? = null,
+    val description: String? = null,
+    val category: String? = null,
+    val unit: String? = null,
+    val nafdac_number: String? = null,
+    val photo_url: String? = null,
+    val active: Boolean? = null
+)
+
+data class MenuItemUpdateRequest(
+    val name: String? = null,
+    val price: Double? = null,
+    val description: String? = null,
+    val category: String? = null,
+    val photo_url: String? = null,
+    val prep_time_minutes: Int? = null,
+    val modifiers: List<Map<String, Any>>? = null,
+    val available: Boolean? = null
+)
+
+data class MerchantProfile(
+    val id: String,
+    val business_name: String,
+    val status: String,
+    val type: String // vendor, kitchen
+)
+
+data class MerchantProfileResponse(
+    val success: Boolean,
+    val data: MerchantProfile? = null
+)
+
 data class MerchantBatch(
     val id: String,
     val name: String? = null,
@@ -547,6 +582,8 @@ data class Product(
     val description: String? = null,
     val category: String? = null,
     val photo_url: String? = null,
+    val unit: String? = null,
+    val nafdac_number: String? = null,
     val active: Boolean = true,
     val created_at: String
 )
@@ -560,6 +597,47 @@ data class MerchantDashboardData(
 data class MerchantDashboardResponse(
     val success: Boolean,
     val data: MerchantDashboardData
+)
+
+data class VendorDetails(
+    val id: String,
+    val business_name: String,
+    val status: String,
+    val city: String,
+    val description: String?,
+    val products: List<Product> = emptyList()
+)
+
+data class VendorDetailsResponse(
+    val success: Boolean,
+    val data: VendorDetails? = null
+)
+
+data class MenuItem(
+    val id: String,
+    val kitchen_id: String,
+    val name: String,
+    val price: Double,
+    val available: Boolean,
+    val description: String? = null,
+    val photo_url: String? = null,
+    val category: String? = null,
+    val prep_time_minutes: Int = 30
+)
+
+data class KitchenDetails(
+    val id: String,
+    val business_name: String,
+    val status: String,
+    val city: String,
+    val cuisine_type: String?,
+    val description: String?,
+    val menu: List<MenuItem> = emptyList()
+)
+
+data class KitchenDetailsResponse(
+    val success: Boolean,
+    val data: KitchenDetails? = null
 )
 
 data class PaymentInitializationRequest(
@@ -813,17 +891,44 @@ interface ApiService {
     @GET("api/v1/merchants/dashboard")
     suspend fun getMerchantDashboard(): MerchantDashboardResponse
 
+    @GET("api/v1/merchants/profile")
+    suspend fun getMerchantProfile(): MerchantProfileResponse
+
     @GET("api/v1/merchants/my-batches")
     suspend fun getMerchantBatches(): MerchantBatchesResponse
 
     @GET("api/v1/merchants/my-batches/{id}")
     suspend fun getBatchDetails(@retrofit2.http.Path("id") id: String): BatchDetailsResponse
 
+    @GET("api/v1/marketplace/vendors/{id}")
+    suspend fun getVendorDetails(@retrofit2.http.Path("id") id: String): VendorDetailsResponse
+
+    @GET("api/v1/kitchens/{id}")
+    suspend fun getKitchenDetails(@retrofit2.http.Path("id") id: String): KitchenDetailsResponse
+
     @POST("api/v1/marketplace/vendors/register")
     suspend fun registerVendor(@Body request: VendorRegistrationRequest): AuthResponse
 
+    @POST("api/v1/marketplace/products")
+    suspend fun addProduct(@Body request: Map<String, Any>): Map<String, Any>
+
+    @PATCH("api/v1/marketplace/products/{id}")
+    suspend fun updateProduct(@retrofit2.http.Path("id") id: String, @Body request: ProductUpdateRequest): Map<String, Any>
+
+    @DELETE("api/v1/marketplace/products/{id}")
+    suspend fun deleteProduct(@retrofit2.http.Path("id") id: String): AuthResponse
+
     @POST("api/v1/kitchens/register")
     suspend fun registerKitchen(@Body request: KitchenRegistrationRequest): AuthResponse
+
+    @POST("api/v1/kitchens/menu-items")
+    suspend fun addMenuItem(@Body request: Map<String, Any>): Map<String, Any>
+
+    @PATCH("api/v1/kitchens/menu-items/{id}")
+    suspend fun updateMenuItem(@retrofit2.http.Path("id") id: String, @Body request: MenuItemUpdateRequest): Map<String, Any>
+
+    @DELETE("api/v1/kitchens/menu-items/{id}")
+    suspend fun deleteMenuItem(@retrofit2.http.Path("id") id: String): AuthResponse
 
     @GET("api/v1/settings/profile")
     suspend fun getUserProfile(): UserProfileResponse
