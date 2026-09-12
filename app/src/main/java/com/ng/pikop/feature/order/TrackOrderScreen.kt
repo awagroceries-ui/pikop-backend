@@ -324,9 +324,57 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
             Box(modifier = Modifier.width(40.dp).height(4.dp).background(Color.LightGray, CircleShape).align(Alignment.CenterHorizontally))
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Status & Secure Pay Banner
             val currentStatus = orderDetails?.status?.uppercase() ?: ""
             val isPendingConfirmation = currentStatus == "DELIVERED_PENDING_CONFIRMATION"
+
+            if (currentStatus == "PENDING_ACKNOWLEDGMENT") {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Receiver Not Responding", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                        Text("You can choose to proceed with dispatch anyway or abort this request.", style = MaterialTheme.typography.bodySmall)
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            apiService.resolveTimeout(orderId, mapOf("choice" to "proceed"))
+                                            android.widget.Toast.makeText(context, "Proceeding with dispatch...", android.widget.Toast.LENGTH_SHORT).show()
+                                            onRefresh()
+                                        } catch (e: Exception) {
+                                            android.widget.Toast.makeText(context, ErrorUtils.parseError(e), android.widget.Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Proceed", fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            apiService.resolveTimeout(orderId, mapOf("choice" to "cancel"))
+                                            android.widget.Toast.makeText(context, "Mission Aborted", android.widget.Toast.LENGTH_SHORT).show()
+                                            onRefresh()
+                                        } catch (e: Exception) {
+                                            android.widget.Toast.makeText(context, ErrorUtils.parseError(e), android.widget.Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
+                            ) {
+                                Text("Abort", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {

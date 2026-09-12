@@ -655,8 +655,17 @@ interface ApiService {
     @POST("api/v1/orders/{id}/acknowledge")
     suspend fun acknowledgeOrder(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): Map<String, Any>
 
+    @POST("api/v1/orders/{id}/timeout-choice")
+    suspend fun resolveTimeout(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): Map<String, Any>
+
     @POST("api/v1/orders/{id}/confirm-receipt")
     suspend fun confirmReceipt(@retrofit2.http.Path("id") id: String): Map<String, Any>
+
+    @POST("api/v1/orders/{id}/request-consent")
+    suspend fun requestConsent(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): Map<String, Any>
+
+    @POST("api/v1/orders/{id}/fail")
+    suspend fun failDelivery(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): Map<String, Any>
 
     @POST("api/v1/orders/{id}/dispute")
     suspend fun reportProblem(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): Map<String, Any>

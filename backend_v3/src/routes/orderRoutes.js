@@ -39,6 +39,7 @@ router.post('/:orderId/fail', authenticateToken, orderController.failDelivery);
 router.post('/:orderId/confirm-receipt', authenticateToken, orderController.confirmReceipt);
 router.post('/:orderId/dispute', authenticateToken, orderController.reportProblem);
 router.post('/:orderId/rate-fulfiller', authenticateToken, orderController.rateFulfiller);
+router.post('/:orderId/incident', authenticateToken, orderController.fileIncident);
 router.post('/:orderId/return', authenticateToken, orderController.initiateReturn);
 router.get('/:orderId/messages', authenticateToken, orderController.getOrderMessages);
 router.post('/upload', authenticateToken, upload.single('file'), (req, res) => {

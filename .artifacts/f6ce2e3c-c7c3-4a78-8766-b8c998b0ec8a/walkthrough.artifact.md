@@ -1,44 +1,48 @@
-# Walkthrough - Ultra-Comprehensive Legal Framework
+# Walkthrough - Dispatch Module Completion (Hardening Sprint)
 
-I have successfully implemented a high-standard, ultra-comprehensive legal framework for Pikop, mirroring the depth and protection seen in industry leaders like Bolt and Uber.
+I have successfully completed the **Hardening Sprint**, closing all identified gaps in the Dispatch Module. The system now handles complex field operations, receiver delays, and smart agent discovery.
 
-## Legal Overhaul Summary
+## Field Operations (Fulfiller App)
 
-### 1. 12-Section Terms & Conditions
-- **Standardized Structure:** Replaced the brief summaries with a professional, numbered legal contract.
-- **Key Protective Clauses:**
-    - **Commercial Agent Model:** Defines Pikop as a technology intermediary for independent third-party fulfillers.
-    - **Intellectual Property:** Protects the platform's brand, software, and designs.
-    - **Force Majeure:** Protects the company against failures caused by "Acts of God" or external telecommunications outages.
-    - **Severability:** Ensures that if one part of the contract is found invalid, the rest remains legally binding.
+### 1. Mandatory 10-Minute Failure Protocol
+- **The Problem:** Agents could previously mark a mission as "Failed" immediately upon arrival, leading to disputes.
+- **The Fix:** Implemented a live **10-minute countdown timer** in `ActiveOrderScreen.kt` that starts when the agent clicks "Confirm Arrival."
+- **Enforcement:** The "Mark Failed" button is disabled until the timer hits zero. Agents are also **forced to capture a photo** of the location as evidence of their attempt before the status can be changed to `RECIPIENT_ABSENT`.
 
-### 2. Powerful Enforcement (Prohibited Items)
-- **Zero Tolerance:** Explicitly states that any discovery of illegal goods will be reported to the police along with sender details.
-- **Instant Disposal:** *"Prohibited items will be discarded or surrendered to authorities immediately without any liability, refund, or compensation to the sender."*
+### 2. Leave-at-Door Consent
+- **New Feature:** Added a **"Request Consent"** button for agents. This allows them to ask the receiver for permission to leave the item with security or at the door.
+- **Verification:** Once clicked, the receiver gets a secure link to authorize the drop-off, which then allows the agent to close the mission normally.
 
-### 3. Hardened Hold Harmless Clause
-- **Indemnification:** Users and Agents agree to defend and hold Awa Foods & Groceries harmless against all claims, losses, and legal fees.
-- **Liability Cap:** Industry-standard cap limiting Pikop's total liability to the last 3 months of platform fees.
+## Dispatch Intelligence (Backend)
 
-### 4. NDPA-Aligned Privacy Policy
-- **Transparency:** Clear 6-section policy detailing data collection (GPS, KYC, Logs), legal basis for processing, and specific data sharing protocols.
-- **Compliance:** Fully aligned with the **Nigeria Data Protection Act (NDPA)**.
+### 1. Smart Radius Expansion
+- **The Problem:** Dispatch was limited to a strict 20km radius, which failed in remote areas.
+- **The Fix:** Refactored `dispatchService.js` to implement an **Automated 3-Step Expansion**. If no agents are found within 20km, the engine automatically tries 40km, then 60km.
 
-### 5. Clear Regional Jurisdiction
-- **Local Focus:** Standardized all governing law to the Federal Republic of Nigeria, with the courts of **Port Harcourt, Rivers State** as the exclusive jurisdiction.
+### 2. Incident Reporting (Fixed)
+- **The Problem:** The app feature to report breakdowns or safety risks was returning a 404 error.
+- **The Fix:** Implemented the `fileIncident` controller and registered the `POST /api/v1/orders/:id/incident` route on the server.
+
+## Sender Experience (Customer App)
+
+### 1. Timeout Resolution
+- **New Interface:** Added a "Receiver Not Responding" resolution card to the `TrackOrderScreen.kt`.
+- **Options:** If a receiver ignores a request for over 2 hours, the sender can now choose to **"Proceed anyway"** (forcing dispatch) or **"Abort Mission."**
 
 ## Verification Results
 
-### Backend Implementation
-- Updated `legalController.js` with high-quality HTML templates.
+### Backend
+- Verified syntax for all new routes and controllers.
+- Verified automated radius expansion logs.
 - **Result:** `PASS`.
 
-### Android Build
-- Refined `WebView` rendering and confirmed live sync from the server.
+### Android App
+- Verified timer activation and button states.
+- Verified camera integration for the "Mark Failed" flow.
 - **Result:** `BUILD SUCCESSFUL`.
 
 ## Deployment Instructions (VPS)
-Please apply this deep legal overhaul to your **VPS**:
+Please apply these final module updates to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3

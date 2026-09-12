@@ -5,8 +5,8 @@ const fcmService = require('./fcmService');
 /**
  * Shared Dispatch Engine - v3 (Milestone 6)
  */
-const findNearbyFulfillers = async (order) => {
-  const radiusMeters = 20000; // 20km strict radius
+const findNearbyFulfillers = async (order, radiusOverride = null) => {
+  const radiusMeters = radiusOverride || 20000; // Default 20km
 
   try {
     // V3 Advanced Dispatch (Milestone 6 + Prompt 5 Capacity)
@@ -52,11 +52,30 @@ const findNearbyFulfillers = async (order) => {
 
 /**
  * Broadcasts a mission offer to a list of fulfillers.
+ * Includes automated radius expansion if no fulfillers found.
  */
-const broadcastOffer = async (order, fulfillers) => {
+const broadcastOffer = async (order, fulfillers = null) => {
+  let targetFulfillers = fulfillers;
+
+  // 1. Automatic Radius Expansion (v3.9.1)
+  if (!targetFulfillers || targetFulfillers.length === 0) {
+      console.log(`[Dispatch] No fulfillers at 20km for Order ${order.id}. Expanding to 40km...`);
+      targetFulfillers = await findNearbyFulfillers(order, 40000);
+
+      if (targetFulfillers.length === 0) {
+          console.log(`[Dispatch] No fulfillers at 40km. Final expansion to 60km...`);
+          targetFulfillers = await findNearbyFulfillers(order, 60000);
+      }
+  }
+
+  if (!targetFulfillers || targetFulfillers.length === 0) {
+      console.log(`[Dispatch] Zero eligible fulfillers found for Order ${order.id} even at 60km.`);
+      return;
+  }
+
   const io = socketService.getIO();
 
-  fulfillers.forEach(f => {
+  targetFulfillers.forEach(f => {
     console.log(`[Dispatch] Notifying Fulfiller ${f.id} of Mission ${order.id}`);
 
     // Push to Socket (Real-time App UI)

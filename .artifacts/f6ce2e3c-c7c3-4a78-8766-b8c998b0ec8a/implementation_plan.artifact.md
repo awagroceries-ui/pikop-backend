@@ -1,60 +1,49 @@
-# Implementation Plan - Fully In-App User-to-User Dispatch Flow
+# Implementation Plan - Dispatch Module Hardening Sprint
 
-This plan implements a professional, secure, and fully in-app dispatch flow for missions between two registered Pikop users, ensuring explicit receiver acknowledgment before any fulfiller is dispatched.
+This plan addresses the final 15% of the Dispatch Module by implementing critical field operations for agents, timeout recovery for senders, and fixing the broken incident reporting pipeline.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Dispatch Gating:** Missions between two app users will now enter a `PENDING_ACKNOWLEDGMENT` status. They will **not** be visible to fulfillers until the receiver explicitly confirms they are expecting the item and verifies the delivery address.
->
-> **No-Response Resolution:** If a receiver ignores the request for 2 hours, the sender will be given the choice to "Proceed anyway," "Keep waiting," or "Cancel."
+> **Fulfiller Failure Protocol:** Agents will now be able to mark a mission as "Failed - Recipient Absent" directly from the app.
+> - **Requirement:** This button only becomes active after the agent has been at the destination for at least **10 minutes** (verified by the "Arrived" timestamp).
+> - **Evidence:** Agents must capture a photo of the delivery location as proof of their attempt before the "Fail" action is processed.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
 #### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **`createOrder`**:
-    - Detect if `recipient_user_id` is present.
-    - If so, set initial status to `PENDING_ACKNOWLEDGMENT` instead of `SEARCHING`.
-    - Skip all SMS/Guest triggers.
-    - Call `fcmService.sendAcknowledgmentRequest(recipient_user_id, orderId)`.
-- **`acknowledgeOrder` [NEW]**:
-    - Endpoint for User B to `confirm` (moves to `SEARCHING` or `PAYMENT_CAPTURED`) or `decline` (moves to `CANCELLED`).
-    - Allows User B to provide a `corrected_address` during confirmation.
-- **`handleAcknowledgmentTimeout` [NEW]**:
-    - Logic for User A to decide next steps after the 2-hour timeout.
+- **`fileIncident` [NEW]**: Implement the logic to record agent-reported incidents (breakdowns, safety risks) into the `disputes` or a new `incidents` table.
+- **`dispatchService.js`**: Update `findNearbyFulfillers` to accept a radius parameter and implement an automated 3-step expansion (20km -> 40km -> 60km) if no agents are found initially.
 
-#### [NEW] [acknowledgmentReminderJob.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/jobs/acknowledgmentReminderJob.js)
-- Background worker running every 15 minutes.
-- Sends a "Gentle Reminder" push to User B if unacknowledged for > 30 mins.
-- Sends a "Timeout Choice" push to User A if unacknowledged for > 2 hours.
-
-#### [MODIFY] [fcmService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/fcmService.js)
-- Add `sendAcknowledgmentRequest`: High-priority alert for User B.
-- Add `sendAcknowledgmentTimeoutAlert`: Prompt for User A choice.
+#### [MODIFY] [orderRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/orderRoutes.js)
+- Register `POST /api/v1/orders/:id/incident` to fix the current 404 error in the Fulfiller app.
 
 ---
 
 ### Android App
 
-#### [NEW] [OrderAcknowledgmentScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderAcknowledgmentScreen.kt)
-- Screen for User B to view incoming request details.
-- **Actions:** "Confirm & Verify Address," "Change Delivery Address," "I wasn't expecting this."
+#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
+- **Logistics Tools:**
+    - Add a **"Request Leave-at-Door Consent"** button. This triggers the SMS/Push link to the receiver.
+    - Add a **"Mark Failed (Recipient Absent)"** button.
+    - **Timer Logic:** Implement a 10-minute countdown that starts when the agent clicks "Confirm Arrival." The "Mark Failed" button remains disabled until this timer hits zero.
+    - **Evidence Capture:** Integrate the camera for the "Failed" flow to ensure the agent provides proof of the attempt.
 
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Add `ACKNOWLEDGMENT_REQUEST` to the `navigateTo` intent handler.
-- Register the new `order_acknowledgment/{orderId}` route.
-
-#### [MODIFY] [CustomerHomeScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/CustomerHomeScreen.kt)
-- Add an "Incoming Deliveries" section or badge to alert the user of pending acknowledgments.
+#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt)
+- **Timeout Resolution:**
+    - Detect if the mission is in `ACKNOWLEDGMENT_TIMEOUT` state (sent via deep-link or status update).
+    - Show a high-priority banner or dialog with two choices:
+        1. **"Proceed Anyway":** Force dispatch using the original address.
+        2. **"Abort Mission":** Cancel the request (standard cancellation policy applies).
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Direct Flow:** User A sends to User B. Verify **zero SMS** are sent. Verify User B receives a push notification.
-2.  **Acknowledgment Gate:** Verify the mission remains `PENDING_ACKNOWLEDGMENT` and is **invisible to fulfillers** until User B clicks "Confirm."
-3.  **Address Correction:** User B changes the delivery address during acknowledgment. Verify the mission updates and fulfillers see the *new* address.
-4.  **Timeout Handling:** Wait 2 hours (or simulate). Verify User A is prompted to "Proceed anyway" and can force the mission into the fulfiller queue.
+1.  **Incident Test:** Report a "Breakdown" as an agent. Verify the server returns 200 and the incident appears in the Admin Panel.
+2.  **Consent Test:** Arrive at destination. Request consent. Verify the receiver gets the link and the mission updates to "Delivered" once they approve.
+3.  **Timeout Choice:** Simulate a 2-hour receiver silence. As the sender, click "Proceed Anyway" and verify the mission moves to the fulfiller search queue.
+4.  **Radius Expansion:** Create a mission in a remote area. Observe the logs to see the dispatch engine expanding from 20km to 60km.

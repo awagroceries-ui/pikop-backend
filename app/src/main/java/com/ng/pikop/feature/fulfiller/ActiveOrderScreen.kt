@@ -57,6 +57,7 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
+import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +80,19 @@ fun ActiveOrderScreen(
     var isLoading by remember { mutableStateOf(false) }
     var showRatingDialog by remember { mutableStateOf(false) }
     var showIncidentDialog by remember { mutableStateOf(false) }
+    
+    // Timer for "Mark Failed" (10-minute wait)
+    var secondsAtDestination by remember { mutableStateOf(0) }
+    var isArrived by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isArrived) {
+        if (isArrived) {
+            while (true) {
+                delay(1000)
+                secondsAtDestination++
+            }
+        }
+    }
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -413,8 +427,9 @@ fun ActiveOrderScreen(
                                             isLoading = true
                                             try {
                                                 apiService.updateOrderStatus(orderId, mapOf("status" to "ARRIVED_AT_DELIVERY"))
-                                                orderStatus = "ARRIVED_AT_DELIVERY"
-                                                Toast.makeText(context, "Delivery Protocol Initiated", Toast.LENGTH_SHORT).show()
+                                            orderStatus = "ARRIVED_AT_DELIVERY"
+                                            isArrived = true
+                                            Toast.makeText(context, "Delivery Protocol Initiated. Please wait for recipient.", Toast.LENGTH_SHORT).show()
                                             } catch (e: Exception) {
                                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
                                             } finally { isLoading = false }
@@ -427,7 +442,64 @@ fun ActiveOrderScreen(
                             }
 
                             if (normalizedStatus == "ARRIVED_AT_DELIVERY") {
-                                Card(
+                            // Logistics Edge Case Tools (v3.9.1)
+                            val remainingWait = max(0, 600 - secondsAtDestination)
+                            val isWaitComplete = remainingWait == 0
+                            
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            try {
+                                                apiService.requestConsent(orderId, mapOf("note" to "Arrived at destination"))
+                                                Toast.makeText(context, "Consent link sent to recipient.", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                ) {
+                                    Text("Request Consent", fontSize = 12.sp)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isLoading = true
+                                            try {
+                                                // Fail flow requires photo as evidence
+                                                if (deliveryPhotoUri != null) {
+                                                    val compressedFile = ImageUtils.compressFile(context, podFile)
+                                                    val requestFile = compressedFile.asRequestBody("image/*".toMediaTypeOrNull())
+                                                    val body = MultipartBody.Part.createFormData("file", compressedFile.name, requestFile)
+                                                    val uploadRes = apiService.uploadOrderPhoto(body)
+                                                    val photoUrl = uploadRes["url"] ?: ""
+                                                    
+                                                    apiService.failDelivery(orderId, mapOf("reason" to "Recipient Absent", "evidence_photo_url" to photoUrl))
+                                                    orderStatus = "RECIPIENT_ABSENT"
+                                                    Toast.makeText(context, "Mission Failed - Recipient Absent", Toast.LENGTH_LONG).show()
+                                                } else {
+                                                    Toast.makeText(context, "Please capture a photo of the location as evidence.", Toast.LENGTH_LONG).show()
+                                                }
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                                            } finally { isLoading = false }
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = isWaitComplete && !isLoading,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    if (isWaitComplete) Text("Mark Failed", fontSize = 12.sp)
+                                    else Text("Wait ${remainingWait}s", fontSize = 12.sp)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Card(
                                     onClick = { 
                                         val hasCameraPerm = androidx.core.content.ContextCompat.checkSelfPermission(
                                             context, 

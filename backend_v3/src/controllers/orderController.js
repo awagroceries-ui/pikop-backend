@@ -1467,6 +1467,42 @@ const handleAcknowledgmentTimeoutChoice = async (req, res) => {
     }
 };
 
+/**
+ * Fulfiller reports an incident (breakdown, security, etc.)
+ */
+const fileIncident = async (req, res) => {
+    const { orderId } = req.params;
+    const { category, notes, resolution_requested } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // 1. Verify reporter is the assigned fulfiller
+        const { rows: fRes } = await db.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
+        if (fRes.length === 0) return res.status(403).json({ success: false, message: 'Fulfiller profile not found' });
+        const fulfillerId = fRes[0].id;
+
+        const { rows: oRes } = await db.query("SELECT id FROM orders WHERE id = $1 AND fulfiller_id = $2", [orderId, fulfillerId]);
+        if (oRes.length === 0) return res.status(404).json({ success: false, message: 'Active mission not found for this agent' });
+
+        // 2. Record as a Dispute/Incident
+        await db.query(
+            "INSERT INTO disputes (order_id, reporter_id, reason, status) VALUES ($1, $2, $3, 'OPEN')",
+            [orderId, req.user.id, `AGENT_REPORT [${category.toUpperCase()}]: ${notes}. Requested: ${resolution_requested}`]
+        );
+
+        // 3. Notify Admins via Socket
+        const socketService = require('../services/socketService');
+        socketService.getIO().to('admins').emit("new_order_chat_alert", {
+            orderId,
+            body: `INCIDENT: ${category}`
+        });
+
+        res.status(200).json({ success: true, message: 'Incident reported. Support will contact you shortly.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -1493,5 +1529,6 @@ module.exports = {
   requestConsent,
   getConsentPage,
   grantConsent,
-  getGuestCheckout
+  getGuestCheckout,
+  fileIncident
 };
