@@ -1,13 +1,16 @@
-# Task List - Professional Legal Framework
+# Task List - Ultra-Comprehensive Legal Framework
 
-- [x] **Backend: T&C Overhaul**
-    - [x] Draft and implement standardized Terms in `legalController.js`
-    - [x] Implement Liability Limitation and Commercial Agent clauses
-    - [x] Implement "Refund as Credit" policy text
-- [x] **Backend: Privacy Policy Overhaul**
-    - [x] Update Privacy Policy in `legalController.js` to match professional standards (NDPA alignment)
-- [x] **Backend: Email Updates**
-    - [x] Synchronize policy summary in `emailService.js` with new standardized language
-- [x] **Verification**
-    - [x] Confirm app live sync and HTML rendering
-    - [x] Git automation (Commit and Push)
+- [ ] **Backend: Terms & Conditions Deep-Overhaul**
+    - [ ] Draft 12-section standardized T&C in `legalController.js`
+    - [ ] Implement robust IP, Force Majeure, and Termination clauses
+    - [ ] Ensure heavy-duty Hold Harmless and Jurisdiction language
+- [ ] **Backend: Privacy Policy Deep-Overhaul**
+    - [ ] Draft 7-section NDPA-aligned Privacy Policy
+    - [ ] Detail data sharing and retention protocols
+- [ ] **Android: UX Hardening**
+    - [ ] Refine `WebView` styling in `TermsScreen.kt` for long-form text
+    - [ ] Refine `WebView` styling in `PrivacyPolicyScreen.kt`
+- [ ] **Verification**
+    - [ ] Verify HTML flow on mobile and web
+    - [ ] Confirm automatic retry mechanism works
+    - [ ] Git automation (Commit and Push)
