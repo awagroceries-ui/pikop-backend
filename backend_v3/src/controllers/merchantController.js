@@ -254,9 +254,113 @@ const getMerchantProfile = async (req, res) => {
     }
 };
 
+/**
+ * Handles bulk mission creation for an authenticated user session (v3.9.9).
+ */
+const createBulkOrdersSession = async (req, res) => {
+    const { orders, batch_name } = req.body; // Array of order objects
+    const userId = req.user.id;
+
+    if (!Array.isArray(orders) || orders.length === 0) {
+        return res.status(400).json({ success: false, message: 'Invalid payload: orders array required' });
+    }
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Verify User owns a Merchant Account
+        const merchantRes = await client.query(`
+            SELECT ma.id FROM merchant_accounts ma
+            JOIN merchant_sub_accounts msa ON msa.merchant_account_id = ma.id
+            WHERE msa.user_id = $1 AND msa.role = 'admin'
+            LIMIT 1
+        `, [userId]);
+
+        if (merchantRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ success: false, message: 'Merchant account required for bulk dispatch' });
+        }
+        const merchantId = merchantRes.rows[0].id;
+
+        // 2. Calculate Total Batch Cost
+        let totalBatchCost = 0;
+        orders.forEach(o => { totalBatchCost += parseFloat(o.total_fare || 1500); });
+
+        // 3. Verify and Debit Wallet
+        const walletId = await walletService.ensureWalletExists(client, 'USER', userId);
+        const { rows: wallet } = await client.query("SELECT balance FROM wallets WHERE id = $1 FOR UPDATE", [walletId]);
+
+        if (parseFloat(wallet[0].balance) < totalBatchCost) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: `Insufficient balance. Total required: ₦${totalBatchCost.toLocaleString()}. Current balance: ₦${parseFloat(wallet[0].balance).toLocaleString()}` });
+        }
+
+        await walletService.recordEntry(client, walletId, 'DEBIT', totalBatchCost, 'BULK_DISPATCH', `Payment for batch: ${batch_name || 'In-App Bulk'}`);
+
+        // 4. Create Batch Record
+        const batchId = crypto.randomUUID();
+        await client.query(
+            "INSERT INTO order_batches (id, merchant_account_id, name, total_orders, status) VALUES ($1, $2, $3, $4, 'processing')",
+            [batchId, merchantId, batch_name || `App_Bulk_${new Date().toISOString()}`, orders.length]
+        );
+
+        // 5. Insert Orders
+        for (const order of orders) {
+            const pCode = Math.floor(1000 + Math.random() * 9000).toString();
+            const dCode = Math.floor(1000 + Math.random() * 9000).toString();
+            const pHash = await bcrypt.hash(pCode, 10);
+            const dHash = await bcrypt.hash(dCode, 10);
+
+            await client.query(
+                `INSERT INTO orders (
+                    order_type, user_id, merchant_account_id, batch_id, status,
+                    pickup_address, delivery_address,
+                    pickup_location, delivery_location,
+                    total_fare, item_description, payment_status,
+                    pickup_code, delivery_code, pickup_code_hash, delivery_code_hash
+                ) VALUES (
+                    'pickup_delivery', $1, $2, $3, 'SEARCHING',
+                    $4, $5,
+                    ST_SetSRID(ST_MakePoint($6, $7), 4326), ST_SetSRID(ST_MakePoint($8, $9), 4326),
+                    $10, $11, 'PAID',
+                    $12, $13, $14, $15
+                )`,
+                [
+                    userId, merchantId, batchId,
+                    order.pickup_address, order.delivery_address,
+                    order.pickup_lng || 0, order.pickup_lat || 0, order.delivery_lng || 0, order.delivery_lat || 0,
+                    order.total_fare || 1500,
+                    order.item_description || 'Bulk Dispatch Item',
+                    pCode, dCode, pHash, dHash
+                ]
+            );
+        }
+
+        // 6. Finalize Batch
+        await client.query("UPDATE order_batches SET status = 'completed', processed_orders = total_orders WHERE id = $1", [batchId]);
+
+        await client.query('COMMIT');
+
+        res.status(201).json({
+            success: true,
+            message: 'Bulk batch activated successfully.',
+            data: { batch_id: batchId, count: orders.length, total_cost: totalBatchCost }
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[Merchant] Bulk Session Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   registerMerchant,
   createBulkOrders,
+  createBulkOrdersSession,
   getBatches,
   getBatchStatus,
   getMyBatches,

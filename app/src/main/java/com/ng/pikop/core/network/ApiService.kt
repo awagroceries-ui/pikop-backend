@@ -582,6 +582,24 @@ data class BatchDetailsResponse(
     val data: BatchDetails
 )
 
+data class BulkOrderMission(
+    val recipient_name: String,
+    val recipient_phone: String,
+    val item_description: String,
+    val pickup_address: String,
+    val delivery_address: String,
+    val pickup_lat: Double,
+    val pickup_lng: Double,
+    val delivery_lat: Double,
+    val delivery_lng: Double,
+    val total_fare: Double
+)
+
+data class BulkOrderRequest(
+    val batch_name: String? = null,
+    val orders: List<BulkOrderMission>
+)
+
 data class Product(
     val id: String,
     val vendor_id: Int,
@@ -938,6 +956,9 @@ interface ApiService {
 
     @GET("api/v1/merchants/my-batches/{id}")
     suspend fun getBatchDetails(@retrofit2.http.Path("id") id: String): BatchDetailsResponse
+
+    @POST("api/v1/merchants/orders/bulk-session")
+    suspend fun createBulkOrders(@Body request: BulkOrderRequest): Map<String, Any>
 
     @GET("api/v1/marketplace/vendors/{id}")
     suspend fun getVendorDetails(@retrofit2.http.Path("id") id: String): VendorDetailsResponse

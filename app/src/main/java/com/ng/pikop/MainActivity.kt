@@ -40,6 +40,7 @@ import com.ng.pikop.feature.commerce.CommerceCheckoutScreen
 import com.ng.pikop.feature.commerce.StorefrontScreen
 import com.ng.pikop.feature.fulfiller.*
 import com.ng.pikop.feature.merchant.AddEditProductScreen
+import com.ng.pikop.feature.merchant.BulkDispatchScreen
 import com.ng.pikop.feature.merchant.MerchantPortalScreen
 import com.ng.pikop.feature.merchant.MerchantRegistrationScreen
 import com.ng.pikop.feature.order.*
@@ -530,6 +531,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             MerchantPortalScreen(
                 onAddItem = { type, id -> navController.navigate("add_edit_product/$type/$id") },
                 onEditItem = { type, mId, pId -> navController.navigate("add_edit_product/$type/$mId?productId=$pId") },
+                onCreateBatch = { navController.navigate("bulk_dispatch") },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -553,6 +555,13 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 merchantType = mType,
                 merchantId = mId,
                 productId = pId,
+                onSuccess = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("bulk_dispatch") {
+            BulkDispatchScreen(
+                navController = navController,
                 onSuccess = { navController.popBackStack() },
                 onBack = { navController.popBackStack() }
             )

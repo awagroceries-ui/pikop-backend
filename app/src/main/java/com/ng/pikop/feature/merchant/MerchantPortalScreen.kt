@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 fun MerchantPortalScreen(
     onAddItem: (String, String) -> Unit, // merchantType, merchantId
     onEditItem: (String, String, String) -> Unit, // merchantType, merchantId, productId
+    onCreateBatch: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -87,14 +88,17 @@ fun MerchantPortalScreen(
             )
         },
         floatingActionButton = {
-            if (selectedTab.intValue == 1 && merchantProfile.value != null) {
-                FloatingActionButton(
-                    onClick = { 
-                        onAddItem(merchantProfile.value!!.type, merchantProfile.value!!.id) 
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(Icons.Default.Add, "Add Item")
+            if (merchantProfile.value != null) {
+                if (selectedTab.intValue == 1) {
+                    FloatingActionButton(
+                        onClick = { onAddItem(merchantProfile.value!!.type, merchantProfile.value!!.id) },
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ) { Icon(Icons.Default.Add, "Add Item") }
+                } else if (selectedTab.intValue == 2) {
+                    FloatingActionButton(
+                        onClick = onCreateBatch,
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    ) { Icon(Icons.Default.Layers, "Create Batch") }
                 }
             }
         }

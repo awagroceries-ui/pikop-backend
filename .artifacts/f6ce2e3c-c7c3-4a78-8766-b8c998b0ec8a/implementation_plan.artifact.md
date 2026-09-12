@@ -1,53 +1,54 @@
-# Implementation Plan - Fleet Performance & Automated Payouts
+# Implementation Plan - Merchant Growth: In-App Bulk Dispatch
 
-This module matures the operational side of Pikop by automating fulfiller payouts and providing agents with professional performance tracking tools.
+This module empowers high-volume business users to create and manage large batches of delivery missions directly from the mobile app, significantly increasing operational efficiency for merchants.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Instant Payout Threshold:** I am setting a default minimum withdrawal amount of **₦1,000**. This can be adjusted in the backend settings later.
+> **Single Payment for Batches:** To ensure a smooth experience, merchants will be able to pay for an entire batch of missions in one go. If their wallet balance is insufficient, they will be prompted to top up the exact total amount required for the batch.
 >
-> **Automatic Tiering:** Fulfiller tiers (Bronze, Silver, Gold) will now be automatically calculated based on their last 30 days of performance (Completion Rate and Avg Rating). High-tier agents will receive priority in the dispatch queue.
+> **Background Processing:** Large batches (e.g., 50+ orders) will be processed in the background. The app will show a live progress bar as each mission is activated and broadcasted to fulfillers.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
-- **`getProfile`**: Update to calculate and return "Active Tier" and "Month-to-Date Earnings."
-- **`requestWithdrawal`**:
-    - Check if the fulfiller has a `paystack_recipient_code`.
-    - If not, use `paystackService` to create one using their bank details on file.
-    - If the amount is below a certain "Instant" threshold, automatically call `paystackService.initiateTransfer`.
+#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
+- **`createBulkOrdersSession` [NEW]**: A new endpoint that works with `authenticateToken` (User Session) rather than an API key.
+    - It will validate that the user owns a merchant account.
+    - It will calculate the total cost for all missions in the batch.
+    - It will automatically debit the merchant's wallet and create the missions.
 
-#### [NEW] [fleetJob.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/jobs/fleetJob.js)
-- **Daily Performance Audit:** A job that runs every night to:
-    1.  Calculate completion rates for all active agents.
-    2.  Update tiers (e.g., Gold = >95% completion + >4.5 stars).
-    3.  Flag underperforming agents for admin review.
+#### [MODIFY] [merchantRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/merchantRoutes.js)
+- Register `POST /api/v1/merchants/orders/bulk-session`.
 
 ---
 
 ### Android App
 
-#### [MODIFY] [InsightsScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/InsightsScreen.kt)
-- **Enhanced Stats:** Add cards for "Completion Rate %" and "Current Tier Status."
-- **Earnings Graph:** Implement a simple bar chart (using Compose Canvas or a library if already present) to show earnings over the last 7 days.
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Add `createBulkOrders(request: BulkOrderRequest): Map<String, Any>`.
+- Define `BulkOrderRequest` and `BulkOrderMission` data classes.
 
-#### [NEW] [feature/wallet] [WithdrawalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/wallet/WithdrawalScreen.kt)
-- **Input:** Amount to withdraw.
-- **Validation:** Ensure amount is within balance and above minimum threshold.
-- **Confirmation:** Show linked bank account details for verification before submitting.
+#### [NEW] [feature/merchant] [BulkDispatchScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/BulkDispatchScreen.kt)
+- **Draft List:** A list view where merchants can add delivery rows (Recipient Name, Phone, Address, Description).
+- **Location Picker:** Reuse the `MapAddressSearchScreen` for each row's delivery point.
+- **Batch Summary:** Displays the total mission count and total cost.
+- **Action:** "Pay & Dispatch Batch."
+
+#### [MODIFY] [feature/merchant] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
+- Update the "Bulk" tab to include a **"Create New Batch"** button.
+- Implement live progress monitoring for active batches using the `processed_orders` vs `total_orders` stats.
 
 #### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Register the `withdrawal` route.
+- Register the `bulk_dispatch` route.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Payout Flow:** As an agent with ₦5,000 balance, request a withdrawal of ₦2,000. Verify the backend creates a Paystack Transfer and the wallet is debited instantly.
-2.  **Tier Test:** Manually update an agent's completion stats in the DB. Verify the "Insights" screen correctly reflects their new "Gold" or "Silver" status.
-3.  **MTD Earnings:** Complete a mission. Verify the "Month-to-Date" earnings stat on the profile and insights screens updates correctly.
-4.  **Security:** Try to withdraw more than the available balance. Verify the app and backend both block the transaction with a clear error.
+1.  **Batch Creation:** Create a batch with 3 missions. Verify the total price is the sum of all individual mission fares.
+2.  **Wallet Integration:** Attempt to dispatch with ₦0 balance. Verify the app redirects to the Wallet top-up screen.
+3.  **Activation:** Dispatch a valid batch. Verify all 3 missions appear in the "History" tab and are broadcasted to nearby agents.
+4.  **Progress Tracking:** Watch the "Bulk" tab in the portal. Verify the progress bar moves from 0% to 100% as the batch processes.
