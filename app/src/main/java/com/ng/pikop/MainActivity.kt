@@ -46,6 +46,7 @@ import com.ng.pikop.feature.order.*
 import com.ng.pikop.feature.growth.GrowthRewardsScreen
 import com.ng.pikop.feature.merchant.MerchantPortalScreen
 import com.ng.pikop.feature.wallet.WalletScreen
+import com.ng.pikop.feature.wallet.WithdrawalScreen
 import com.ng.pikop.ui.theme.PikopTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
@@ -785,7 +786,17 @@ fun MainAppScaffold(
                 }
             }
             composable("wallet") {
-                WalletScreen(onBack = { nestedNavController.popBackStack() }, isFulfiller = userRole == "FULFILLER")
+                WalletScreen(
+                    onBack = { nestedNavController.popBackStack() }, 
+                    isFulfiller = userRole == "FULFILLER",
+                    onNavigateToWithdrawal = { navController.navigate("withdrawal") }
+                )
+            }
+            composable("withdrawal") {
+                WithdrawalScreen(
+                    onSuccess = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable("account") {
                 AccountScreen(

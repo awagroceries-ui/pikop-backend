@@ -1,60 +1,53 @@
-# Implementation Plan - Pikop Commerce Phase 4: Unified Checkout
+# Implementation Plan - Fleet Performance & Automated Payouts
 
-This final phase integrates the storefront with the platform's payment and dispatch engines, enabling a seamless "Buy and Deliver" experience for users.
+This module matures the operational side of Pikop by automating fulfiller payouts and providing agents with professional performance tracking tools.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Automated Logistics:** When a commerce order is placed, the system will automatically create a delivery mission from the **Merchant's pickup point** to the **Customer's delivery address**. Fulfillers will be dispatched the moment the payment is confirmed.
+> **Instant Payout Threshold:** I am setting a default minimum withdrawal amount of **₦1,000**. This can be adjusted in the backend settings later.
 >
-> **Escrow Protection:** The item cost will be held by Pikop and only released to the Merchant after the customer confirms receipt in the app.
+> **Automatic Tiering:** Fulfiller tiers (Bronze, Silver, Gold) will now be automatically calculated based on their last 30 days of performance (Completion Rate and Avg Rating). High-tier agents will receive priority in the dispatch queue.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [NEW] [Migration: link_orders_to_commerce.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725630000000_link_orders_to_commerce.js)
-- Add the following columns to the `orders` table:
-    - `vendor_id` (UUID)
-    - `kitchen_id` (UUID)
-    - `product_id` (Int)
-    - `menu_item_id` (Int)
-- This ensures every commerce order remains linked to its source listing and merchant for audit purposes.
+#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
+- **`getProfile`**: Update to calculate and return "Active Tier" and "Month-to-Date Earnings."
+- **`requestWithdrawal`**:
+    - Check if the fulfiller has a `paystack_recipient_code`.
+    - If not, use `paystackService` to create one using their bank details on file.
+    - If the amount is below a certain "Instant" threshold, automatically call `paystackService.initiateTransfer`.
 
-#### [MODIFY] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
-- **`initializeCommerceOrder` [NEW]**:
-    - Calculates the total cost: `Item Price` + `Automated Delivery Fee` + `Platform Fees`.
-    - Returns a Paystack authorization URL.
-    - Includes `commerce_data` in the payment metadata (item ID, type, address info).
-
-#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
-- Update the webhook handler to detect `type: 'COMMERCE_ORDER'`.
-- Automatically creates a `pickup_delivery` mission once the payment is successful.
-- Credits the item price to the platform escrow, marked for the specific merchant.
+#### [NEW] [fleetJob.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/jobs/fleetJob.js)
+- **Daily Performance Audit:** A job that runs every night to:
+    1.  Calculate completion rates for all active agents.
+    2.  Update tiers (e.g., Gold = >95% completion + >4.5 stars).
+    3.  Flag underperforming agents for admin review.
 
 ---
 
 ### Android App
 
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Add `initializeCommerceOrder(request: CommerceOrderRequest): PaymentInitializationResponse`.
+#### [MODIFY] [InsightsScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/InsightsScreen.kt)
+- **Enhanced Stats:** Add cards for "Completion Rate %" and "Current Tier Status."
+- **Earnings Graph:** Implement a simple bar chart (using Compose Canvas or a library if already present) to show earnings over the last 7 days.
 
-#### [NEW] [feature/commerce] [CommerceCheckoutScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/CommerceCheckoutScreen.kt)
-- **Order Summary:** Item photo, name, and quantity.
-- **Delivery Selection:** Integrated address picker (Saved Addresses or Map).
-- **Price Breakdown:** Clear view of Item Cost vs. Delivery Fee.
-- **Payment:** Direct link to Paystack WebView.
+#### [NEW] [feature/wallet] [WithdrawalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/wallet/WithdrawalScreen.kt)
+- **Input:** Amount to withdraw.
+- **Validation:** Ensure amount is within balance and above minimum threshold.
+- **Confirmation:** Show linked bank account details for verification before submitting.
 
 #### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Register the `commerce_checkout` route.
-- Connect `StorefrontScreen` clicks to the new checkout flow.
+- Register the `withdrawal` route.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Price Check:** Select a ₦5,000 item. Select a delivery address 10km away. Verify the checkout total correctly shows ₦5,000 + the distance-based delivery fee.
-2.  **Purchase Flow:** Complete a test payment via Paystack.
-3.  **Auto-Dispatch:** Verify that a new delivery mission is **automatically created** and appears on the nearby Agent's dashboard.
-4.  **Escrow Release:** Confirm the delivery in the app. Verify the Merchant's wallet is credited the item price (minus fees).
+1.  **Payout Flow:** As an agent with ₦5,000 balance, request a withdrawal of ₦2,000. Verify the backend creates a Paystack Transfer and the wallet is debited instantly.
+2.  **Tier Test:** Manually update an agent's completion stats in the DB. Verify the "Insights" screen correctly reflects their new "Gold" or "Silver" status.
+3.  **MTD Earnings:** Complete a mission. Verify the "Month-to-Date" earnings stat on the profile and insights screens updates correctly.
+4.  **Security:** Try to withdraw more than the available balance. Verify the app and backend both block the transaction with a clear error.

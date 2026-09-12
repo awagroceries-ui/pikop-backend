@@ -1,42 +1,45 @@
-# Walkthrough - Pikop Commerce Phase 3: Customer Storefront
+# Walkthrough - Pikop Commerce Phase 4: Unified Checkout
 
-I have successfully implemented the **Customer Storefront** phase of the Pikop Commerce module. Users can now discover, browse, and search for products and meals from nearby vendors and kitchens within the app.
+I have successfully implemented the final phase of the Pikop Commerce module. Users can now purchase marketplace products or kitchen meals and have them automatically dispatched for delivery in a single, seamless transaction.
 
 ## New Capabilities
 
-### 1. Unified "Shop & Eat" Discovery Hub
-- **The Screen:** Created `StorefrontScreen.kt`, a beautiful and functional discovery center.
-- **Smart Sorting:** Items are automatically sorted by their **live distance** from the user, ensuring the most relevant nearby shops appear first.
-- **Visual Feedback:** Each item card displays a high-quality photo, price, vendor name, and exact distance in kilometers.
+### 1. Seamless "Buy & Deliver" Experience
+- **The Flow:** When a user clicks an item in the Storefront, they are taken to a new `CommerceCheckoutScreen.kt`.
+- **Integrated Addresses:** Users can select a delivery address from their saved locations or use the map.
+- **Auto-Pricing:** The system automatically calculates the delivery fare from the **Merchant's shop** to the **User's house** based on distance.
 
-### 2. Powerful Search & Filtering
-- **Keyword Search:** Users can search for specific products (e.g., "iPhone"), meals (e.g., "Rice"), or business names directly from the header.
-- **Category Chips:** Added a horizontal scrolling filter for quick navigation between Food, Groceries, Electronics, and more.
-- **Real-Time Updates:** The feed refreshes instantly as users toggle categories or type in the search bar.
+### 2. Unified Paystack Transaction
+- **Single Payment:** Users pay for both the **item cost** and the **delivery fee** in one Paystack session.
+- **Financial Audit:** The backend correctly splits the payment:
+    - **Item Price:** Held in escrow for the Merchant.
+    - **Delivery Fee:** Held for the Agent (75%) and Platform (25%).
 
-### 3. Integrated Navigation
-- **New Tab:** Added a dedicated **"Shop & Eat"** tab to the main bottom navigation bar for instant access.
-- **Home Integration:** Updated the main app scaffold to host the new commerce experience alongside the existing home and mission history.
+### 3. Automated Dispatch Engine
+- **Instant Activation:** The moment a commerce payment is confirmed via webhook, the system **automatically creates a delivery mission**.
+- **Agent Discovery:** The mission is instantly broadcasted to nearby agents, who see it as a high-priority "Marketplace Delivery" offer.
 
-### 4. Unified Backend Commerce Engine
-- **Proximity Search API:** Implemented a new `commerceController.js` that performs a high-performance PostGIS distance calculation to find items near the user.
-- **Aggregated Results:** The API now pulls data from both the `products` (Marketplace) and `menu_items` (Kitchens) tables into a single, unified discovery stream.
+### 4. Merchant Protection & Escrow
+- **Safe Sales:** Funds for the item are secured by the platform.
+- **Release Terms:** Payment is only credited to the Merchant's withdrawable balance once the customer confirms they have received the item.
 
 ## Verification Results
 
 ### Backend Integrity
-- Verified the syntax and route registration for the new Commerce endpoints.
+- Verified the `COMMERCE_ORDER` webhook handler in `paymentController.js`.
+- Verified `initializeCommerceOrder` distance logic in `commerceController.js`.
 - **Result:** `PASS`.
 
 ### Android Build
-- Successfully compiled the new Storefront UI and integrated it with the main navigation.
+- Successfully integrated the Storefront, Checkout, and Address selection.
 - **Result:** `BUILD SUCCESSFUL`.
 
 ## Deployment Instructions (VPS)
-Please apply these storefront and search updates to your **VPS**:
+Please apply this final commerce integration to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```

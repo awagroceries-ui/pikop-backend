@@ -34,12 +34,15 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
+fun WalletScreen(
+    onBack: () -> Unit, 
+    isFulfiller: Boolean = false,
+    onNavigateToWithdrawal: () -> Unit = {}
+) {
     var balance by remember { mutableStateOf(0.0) }
     var pendingBalance by remember { mutableStateOf(0.0) }
     var transactions by remember { mutableStateOf<List<WalletTransaction>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
-    var showWithdrawDialog by remember { mutableStateOf(false) }
     var showTopupDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -125,11 +128,11 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
                                 }
                                 if (isFulfiller && balance > 0) {
                                     Button(
-                                        onClick = { showWithdrawDialog = true },
+                                        onClick = onNavigateToWithdrawal,
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                     ) {
-                                        Text("Payout")
+                                        Text("Withdraw")
                                     }
                                 }
                             }
@@ -147,10 +150,6 @@ fun WalletScreen(onBack: () -> Unit, isFulfiller: Boolean = false) {
             }
         }
     }
-    if (showWithdrawDialog) {
-        WithdrawalDialog(onDismiss = { showWithdrawDialog = false }, onConfirm = { amount, type -> scope.launch { try { apiService.requestWithdrawal(WithdrawalRequest(amount, type)); showWithdrawDialog = false; fetchWallet() } catch (e: Exception) {} } }, maxAmount = balance)
-    }
-
     if (showTopupDialog) {
         TopupDialog(
             onDismiss = { showTopupDialog = false },
@@ -212,11 +211,4 @@ fun TransactionItem(tx: WalletTransaction) {
             Text(text = "${if (isCredit) "+" else "-"}₦${tx.amount ?: 0.0}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = if (isCredit) Color(0xFF388E3C) else Color(0xFFC62828))
         }
     }
-}
-
-@Composable
-fun WithdrawalDialog(onDismiss: () -> Unit, onConfirm: (Double, String) -> Unit, maxAmount: Double) {
-    var amount by remember { mutableStateOf(maxAmount.toString()) }
-    var type by remember { mutableStateOf("INSTANT") }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Request Payout") }, text = { Column { Text("Enter amount to withdraw to your linked bank account.", style = MaterialTheme.typography.bodySmall); Spacer(modifier = Modifier.height(16.dp)); OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (NGN)") }, modifier = Modifier.fillMaxWidth()); Spacer(modifier = Modifier.height(8.dp)); Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = type == "INSTANT", onClick = { type = "INSTANT" }); Text("Instant (Fee applies)"); Spacer(modifier = Modifier.width(16.dp)); RadioButton(selected = type == "STANDARD", onClick = { type = "STANDARD" }); Text("Standard") } } }, confirmButton = { Button(onClick = { val amt = amount.toDoubleOrNull() ?: 0.0; if (amt > 0 && amt <= maxAmount) onConfirm(amt, type) }) { Text("Confirm") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }

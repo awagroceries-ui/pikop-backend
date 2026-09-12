@@ -1,15 +1,15 @@
-# Task List - Pikop Commerce Phase 4: Unified Checkout
+# Task List - Fleet Performance & Automated Payouts
 
-- [ ] **Backend: Commerce Payment Integration**
-    - [ ] Create `link_orders_to_commerce.js` migration
-    - [ ] Implement `initializeCommerceOrder` in `commerceController.js`
-    - [ ] Update `paymentController.js` webhook for commerce order creation
-- [ ] **Android: ApiService Expansion**
-    - [ ] Add `initializeCommerceOrder` Retrofit method and request/response models
-- [ ] **Android: Checkout UI**
-    - [ ] Create `CommerceCheckoutScreen.kt` with Order Summary and Address selection
-    - [ ] Integrate automated price breakdown calculation
-    - [ ] Connect Storefront clicks to Checkout
+- [ ] **Phase 1: Automated Payouts**
+    - [ ] Backend: Implement automatic Paystack Recipient creation in `requestWithdrawal`
+    - [ ] Backend: Finalize automated transfer logic for instant payouts
+    - [ ] Android: Create `WithdrawalScreen.kt` for fulfillers
+- [ ] **Phase 2: Performance Tracking**
+    - [ ] Backend: Update `getProfile` to return completion rates and MTD earnings
+    - [ ] Android: Expand `InsightsScreen.kt` with new performance cards
+- [ ] **Phase 3: Operational Intelligence**
+    - [ ] Backend: Create `fleetJob.js` for daily tier calculations and auto-promotions
+    - [ ] Backend: Start fleet job in `app.js`
 - [ ] **Verification**
-    - [ ] Build and verify full purchase -> auto-dispatch flow
+    - [ ] Test end-to-end payout and insights sync
     - [ ] Git automation (Commit and Push)
