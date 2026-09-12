@@ -85,50 +85,85 @@ const getPrivacyPolicy = (req, res) => {
 };
 
 /**
- * Returns full legal configuration for the mobile app (Industry Standard).
+ * Returns full legal configuration for the mobile app (Ultra-Comprehensive).
  */
 const getLegalConfig = (req, res) => {
+    const termsHtml = `
+        <div style="font-family: sans-serif; line-height: 1.6; color: #333; padding: 15px;">
+            <h2 style="color: #008751; margin-bottom: 5px;">Terms & Conditions</h2>
+            <p style="font-size: 12px; color: #666; margin-bottom: 20px;"><em>Standardized Professional Version 3.8 - Sep 2026</em></p>
+
+            <h3 style="color: #008751; font-size: 16px;">1. DEFINITIONS</h3>
+            <p><strong>"Platform"</strong> means Pikop, including its website and mobile applications, operated by Awa Foods & Groceries.<br>
+            <strong>"User"</strong> means any individual or business entity registered to request logistics services.<br>
+            <strong>"Fulfiller"</strong> means independent third-party service providers (couriers, riders, or drivers).</p>
+
+            <h3 style="color: #008751; font-size: 16px;">2. THE PIKOP SERVICE</h3>
+            <p>Pikop is a technology intermediary connecting Users with Fulfillers. <strong>Awa Foods & Groceries acts as a Commercial Agent for independent Fulfillers.</strong> We do not provide transportation services directly. When a User pays through the Platform, the User’s legal obligation to pay the Fulfiller is satisfied.</p>
+
+            <h3 style="color: #008751; font-size: 16px;">3. USER OBLIGATIONS & CONDUCT</h3>
+            <p>Users must be 18+. You are responsible for account security. You agree not to reverse engineer the app or use the service for illegal purposes.</p>
+
+            <h3 style="color: #008751; font-size: 16px;">4. PROHIBITED ITEMS & DISPOSAL</h3>
+            <p>Transportation of illegal drugs, weapons, explosives, or stolen property is strictly prohibited. <strong>Discovery will result in immediate reporting of the Sender to law enforcement. Such items will be discarded or surrendered immediately without liability, refund, or compensation.</strong></p>
+
+            <h3 style="color: #008751; font-size: 16px;">5. FINANCIAL POLICIES</h3>
+            <ul style="padding-left: 20px;">
+                <li><strong>Fare Split:</strong> Fulfillers receive 75% of the fare.</li>
+                <li><strong>Cancellation Fee:</strong> 25% penalty applies if cancelled after an agent is matched but pre-pickup.</li>
+                <li><strong>No Cancellation:</strong> Prohibited after pickup.</li>
+                <li><strong>Absence:</strong> Fares are non-refundable after 10-minute wait at destination.</li>
+                <li><strong>Returns:</strong> Charged at 75% of original fare.</li>
+                <li><strong>Refunds:</strong> Issued exclusively as Pikop Wallet Credits.</li>
+            </ul>
+
+            <h3 style="color: #008751; font-size: 16px;">6. INTELLECTUAL PROPERTY</h3>
+            <p>All platform software, logos, and designs remain the exclusive property of Awa Foods & Groceries.</p>
+
+            <h3 style="color: #008751; font-size: 16px;">7. LIMITATION OF LIABILITY</h3>
+            <p>Pikop is provided "as is". Total liability is capped at platform fees paid by the User in the last three (3) months.</p>
+
+            <h3 style="color: #008751; font-size: 16px;">8. INDEMNIFICATION (HOLD HARMLESS)</h3>
+            <p><strong>You agree to indemnify and hold Awa Foods & Groceries, its directors, and Fulfillers harmless from any claims, losses, or legal expenses arising from your use of the service or breach of these terms.</strong></p>
+
+            <h3 style="color: #008751; font-size: 16px;">9. FORCE MAJEURE</h3>
+            <p>Pikop is not liable for performance failures due to causes beyond reasonable control (Acts of God, outages, etc.).</p>
+
+            <h3 style="color: #008751; font-size: 16px;">10. GOVERNING LAW</h3>
+            <p>Governed by Nigerian Law. Jurisdiction: Port Harcourt, Rivers State.</p>
+        </div>
+    `;
+
+    const privacyHtml = `
+        <div style="font-family: sans-serif; line-height: 1.6; color: #333; padding: 15px;">
+            <h2 style="color: #008751; margin-bottom: 20px;">Privacy Policy</h2>
+
+            <h3 style="font-size: 16px; color: #008751;">1. DATA CONTROLLER</h3>
+            <p>Awa Foods & Groceries is the data controller for personal info processed via Pikop (NDPA compliant).</p>
+
+            <h3 style="font-size: 16px; color: #008751;">2. DATA WE COLLECT</h3>
+            <ul style="padding-left: 20px;">
+                <li>Registration data (Name, Email, Phone).</li>
+                <li>Real-time GPS location (Essential for tracking).</li>
+                <li>KYC documents (For Fulfillers).</li>
+                <li>Transactional logs.</li>
+            </ul>
+
+            <h3 style="font-size: 16px; color: #008751;">3. DATA SHARING</h3>
+            <p>Data is shared with Fulfillers/Users during active missions. We may share data with authorities if prohibited items are discovered.</p>
+
+            <h3 style="font-size: 16px; color: #008751;">4. YOUR RIGHTS</h3>
+            <p>You may request access or deletion of your data via privacy@awa.name.ng.</p>
+
+            <h3 style="font-size: 16px; color: #008751;">5. SECURITY</h3>
+            <p>We use industry-standard encryption to protect your records.</p>
+        </div>
+    `;
+
     res.status(200).json({
         success: true,
-        terms_html: `
-            <div style="font-family: sans-serif; line-height: 1.5; color: #333; padding: 15px;">
-                <h2 style="color: #008751; margin-bottom: 5px;">Terms & Conditions</h2>
-                <p style="font-size: 12px; color: #666; margin-bottom: 20px;"><em>Standardized Professional Version 3.5 - Sep 2026</em></p>
-
-                <h3 style="color: #008751; font-size: 16px;">1. Operational Model</h3>
-                <p>Pikop is a technology intermediary and <strong>Commercial Agent</strong> for independent fulfillers. Awa Foods does not provide transportation directly.</p>
-
-                <h3 style="color: #008751; font-size: 16px;">2. Prohibited Items & Enforcement</h3>
-                <p>Illegal goods, drugs, and weapons are banned. <strong>Discoveries will be reported to authorities along with sender details. Prohibited items will be discarded immediately without refund or liability.</strong></p>
-
-                <h3 style="color: #008751; font-size: 16px;">3. Fees, Cancellations & Returns</h3>
-                <ul style="padding-left: 20px; margin-bottom: 15px;">
-                    <li><strong>25% Cancellation Fee:</strong> Applied if cancelled after an agent is matched (pre-pickup).</li>
-                    <li><strong>No Cancellation:</strong> Permitted after an item has been picked up.</li>
-                    <li><strong>75% Return Fee:</strong> Applied for failed deliveries needing return to sender.</li>
-                    <li><strong>Refunds:</strong> Issued exclusively as Pikop Wallet Credits.</li>
-                </ul>
-
-                <h3 style="color: #008751; font-size: 16px;">4. Liability & Indemnification</h3>
-                <p>Users agree to indemnify and hold Pikop harmless against any legal claims or losses. Liability is capped at the last 3 months of platform fees.</p>
-
-                <h3 style="color: #008751; font-size: 16px;">5. Governing Law</h3>
-                <p>Jurisdiction: Port Harcourt, Rivers State, Nigeria.</p>
-                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-                <p style="font-size: 11px; color: #999;">By continuing to use this application, you agree to comply with all operational guidelines and financial policies stated above.</p>
-            </div>
-        `,
-        privacy_html: `
-            <div style="font-family: sans-serif; line-height: 1.5; color: #333; padding: 15px;">
-                <h2 style="color: #008751; margin-bottom: 20px;">Privacy Policy</h2>
-                <h3 style="font-size: 15px;">1. Data Collection</h3>
-                <p>We collect GPS data, contact details, and KYC documents to ensure platform security and matching accuracy.</p>
-                <h3 style="font-size: 15px;">2. NDPA Compliance</h3>
-                <p>We process your information in accordance with the Nigeria Data Protection Act (NDPA).</p>
-                <h3 style="font-size: 15px;">3. Security</h3>
-                <p>Your data is protected using industry-standard encryption. We do not sell your personal data to third parties.</p>
-            </div>
-        `
+        terms_html: termsHtml,
+        privacy_html: privacyHtml
     });
 };
 

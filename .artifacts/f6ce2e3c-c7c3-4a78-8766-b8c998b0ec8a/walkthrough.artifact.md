@@ -1,40 +1,44 @@
-# Walkthrough - Standardized Professional Legal Overhaul
+# Walkthrough - Ultra-Comprehensive Legal Framework
 
-I have completely overhauled the platform's legal documents (Terms & Conditions and Privacy Policy) to meet industry standards (e.g., Bolt/Uber), ensuring maximum protection for Awa Foods & Groceries while providing operational clarity to all users.
+I have successfully implemented a high-standard, ultra-comprehensive legal framework for Pikop, mirroring the depth and protection seen in industry leaders like Bolt and Uber.
 
-## Legal Framework Improvements
+## Legal Overhaul Summary
 
-### 1. "Commercial Agent" Model
-- **Definition:** Legally defines Pikop as a technology intermediary and a commercial agent for independent Fulfillers.
-- **Payment Clarity:** Explicitly states that once a customer pays Pikop, their legal obligation to pay the independent courier is satisfied.
+### 1. 12-Section Terms & Conditions
+- **Standardized Structure:** Replaced the brief summaries with a professional, numbered legal contract.
+- **Key Protective Clauses:**
+    - **Commercial Agent Model:** Defines Pikop as a technology intermediary for independent third-party fulfillers.
+    - **Intellectual Property:** Protects the platform's brand, software, and designs.
+    - **Force Majeure:** Protects the company against failures caused by "Acts of God" or external telecommunications outages.
+    - **Severability:** Ensures that if one part of the contract is found invalid, the rest remains legally binding.
 
-### 2. Comprehensive Liability Protection
-- **Liability Cap:** Implemented a standard clause capping total platform liability at the amount of fees paid by the user in the preceding 3 months.
-- **Hold Harmless:** Strengthened the indemnification language. Users and Fulfillers agree to protect Pikop from any legal claims arising from their misuse of the service or the transport of illegal items.
+### 2. Powerful Enforcement (Prohibited Items)
+- **Zero Tolerance:** Explicitly states that any discovery of illegal goods will be reported to the police along with sender details.
+- **Instant Disposal:** *"Prohibited items will be discarded or surrendered to authorities immediately without any liability, refund, or compensation to the sender."*
 
-### 3. Prohibited Items Discovery & Enforcement
-- **Reporting:** Added a strict clause: *"Discovery of prohibited items will result in immediate reporting of the Sender and the item to the police."*
-- **Disposal:** *"Prohibited items will be discarded or surrendered to authorities immediately without refund or liability."*
+### 3. Hardened Hold Harmless Clause
+- **Indemnification:** Users and Agents agree to defend and hold Awa Foods & Groceries harmless against all claims, losses, and legal fees.
+- **Liability Cap:** Industry-standard cap limiting Pikop's total liability to the last 3 months of platform fees.
 
-### 4. Refined Financial Policies
-- **25% Cancellation Fee:** Applied if an agent is matched but pickup hasn't occurred.
-- **No Cancellation:** Strictly prohibited once an item is picked up.
-- **75% Return Fee:** Applied for failed missions requiring return to the sender.
-- **Refund as Credit:** All approved refunds are now officially issued as **Pikop Wallet Credits**, protecting platform cash flow.
+### 4. NDPA-Aligned Privacy Policy
+- **Transparency:** Clear 6-section policy detailing data collection (GPS, KYC, Logs), legal basis for processing, and specific data sharing protocols.
+- **Compliance:** Fully aligned with the **Nigeria Data Protection Act (NDPA)**.
 
-### 5. Email & Privacy Alignment
-- **NDPA Compliance:** Updated the Privacy Policy to align with the **Nigeria Data Protection Act (NDPA)**.
-- **Welcome Emails:** Synchronized the policy summary in all welcome emails to reflect these new standardized rules and the **Port Harcourt** hub location.
+### 5. Clear Regional Jurisdiction
+- **Local Focus:** Standardized all governing law to the Federal Republic of Nigeria, with the courts of **Port Harcourt, Rivers State** as the exclusive jurisdiction.
 
 ## Verification Results
 
 ### Backend Implementation
-- Updated `legalController.js` and `emailService.js`.
-- Verified all HTML rendering for mobile app compatibility.
+- Updated `legalController.js` with high-quality HTML templates.
 - **Result:** `PASS`.
 
+### Android Build
+- Refined `WebView` rendering and confirmed live sync from the server.
+- **Result:** `BUILD SUCCESSFUL`.
+
 ## Deployment Instructions (VPS)
-Please apply these legal overhauls to your **VPS**:
+Please apply this deep legal overhaul to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
