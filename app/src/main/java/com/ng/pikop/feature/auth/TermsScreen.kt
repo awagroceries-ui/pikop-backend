@@ -98,7 +98,7 @@ fun TermsScreen(
                             onCheckedChange = { isChecked = it }
                         )
                         Text(
-                            text = "I have read and agree to the Terms & Conditions of Awa Foods & Groceries",
+                            text = "I have read and agree to the Terms & Conditions and Privacy Policy of Awa Foods & Groceries",
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(start = 4.dp)
                         )

@@ -43,6 +43,7 @@ fun SignupScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var referralCode by remember { mutableStateOf("") }
+    var isAccepted by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
@@ -164,6 +165,24 @@ fun SignupScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Acceptance Checkbox
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Checkbox(
+                    checked = isAccepted,
+                    onCheckedChange = { isAccepted = it }
+                )
+                Text(
+                    text = "I accept the Terms & Conditions and Privacy Policy",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Button(
                 onClick = {
                     coroutineScope.launch {
@@ -190,7 +209,8 @@ fun SignupScreen(
                           email.isNotBlank() && 
                           phone.isNotBlank() && 
                           password.isNotBlank() && 
-                          password == confirmPassword
+                          password == confirmPassword &&
+                          isAccepted
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(

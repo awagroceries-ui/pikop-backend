@@ -710,6 +710,8 @@ fun MainAppScaffold(
                     onNavigateToCorporate = { navController.navigate("corporate_dashboard") },
                     onNavigateToGrowth = { navController.navigate("growth_rewards") },
                     onNavigateToMerchant = { navController.navigate("merchant_portal") },
+                    onNavigateToTerms = { navController.navigate("terms_viewer/false") },
+                    onNavigateToPrivacy = { navController.navigate("privacy_policy") },
                     onLogout = {
                         scope.launch {
                             tokenManager.clearTokens()

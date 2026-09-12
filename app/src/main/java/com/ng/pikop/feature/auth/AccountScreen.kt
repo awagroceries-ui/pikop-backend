@@ -42,6 +42,8 @@ fun AccountScreen(
     onNavigateToCorporate: () -> Unit,
     onNavigateToGrowth: () -> Unit,
     onNavigateToMerchant: () -> Unit,
+    onNavigateToTerms: () -> Unit,
+    onNavigateToPrivacy: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -231,6 +233,18 @@ fun AccountScreen(
                     label = "Support & Help Center",
                     icon = Icons.AutoMirrored.Filled.HelpCenter,
                     onClick = onNavigateToSupport
+                )
+
+                AccountOption(
+                    label = "Terms & Conditions",
+                    icon = Icons.Default.Description,
+                    onClick = onNavigateToTerms
+                )
+
+                AccountOption(
+                    label = "Privacy Policy",
+                    icon = Icons.Default.Shield,
+                    onClick = onNavigateToPrivacy
                 )
 
                 AccountOption(

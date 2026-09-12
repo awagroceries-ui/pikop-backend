@@ -1,13 +1,14 @@
-# Task List - Strict Policy Adjustments
+# Task List - Legal Accessibility & FAQ Population
 
-- [x] **Backend: Policy Enforcement**
-    - [x] Update `initiateReturn` in `orderController.js` to 75% fee
-    - [x] Update `cancelOrder` in `orderController.js` with 25% fee and post-pickup restriction
-    - [x] Update `legalController.js` with new terms and `/legal/config` endpoint
-- [x] **Android: App Alignment**
-    - [x] Update `ApiService.kt` for legal config
-    - [x] Update `TermsScreen.kt` to fetch and render live terms
-    - [x] Update `TrackOrderScreen.kt` cancellation logic
-- [x] **Verification**
-    - [x] Build and verify policy triggers
-    - [x] Git automation (Commit and Push)
+- [ ] **Backend: Content & Seeding**
+    - [ ] Create `seed_kb_faqs.js` migration with structured Navigation, Earnings, and Wallet FAQs
+    - [ ] Update `legalController.js` to serve both T&C and Privacy HTML
+- [ ] **Android: Post-Verification Acceptance**
+    - [ ] Update checkbox text in `TermsScreen.kt` to include Privacy Policy
+- [ ] **Android: Permanent Accessibility**
+    - [ ] Add Legal links to `AccountScreen.kt` menu
+    - [ ] Refactor `PrivacyPolicyScreen.kt` for dynamic server-side loading
+- [ ] **Verification**
+    - [ ] Apply migrations on VPS and verify Help Center categories
+    - [ ] Build and verify legal acceptance and account menu links
+    - [ ] Git automation (Commit and Push)
