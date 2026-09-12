@@ -1,21 +1,19 @@
-# Task List - Fully In-App Dispatch Flow
+# Task List - Pikop Commerce (Marketplace & Kitchens)
 
-- [x] **Backend: Acknowledgment Engine**
-    - [x] Update `createOrder` logic for `PENDING_ACKNOWLEDGMENT` gating
-    - [x] Implement `acknowledgeOrder` and timeout handling endpoints
-    - [x] Create and start `acknowledgmentReminderJob.js`
-- [x] **Backend: Messaging**
-    - [x] Add `sendAcknowledgmentRequest` to `fcmService.js`
-- [x] **Android: Receiver UI**
-    - [x] Create `OrderAcknowledgmentScreen.kt`
-    - [x] Register route and intent handling in `MainActivity.kt`
-- [x] **Android: Feedback UX**
-    - [x] Add "Incoming Deliveries" alert to `CustomerHomeScreen.kt`
-- [x] **Dispatch Hardening Sprint**
-    - [x] Backend: Implement `fileIncident` and fix 404 route
-    - [x] Backend: Implement automated 3-step radius expansion (20km -> 60km)
-    - [x] Android: Add "Request Consent" and "Mark Failed" (10-min timer) to Fulfiller app
-    - [x] Android: Add Timeout resolution UI for Senders
-- [x] **Verification**
-    - [x] Test end-to-end user-to-user flow without SMS
-    - [x] Git automation (Commit and Push)
+- [ ] **Phase 1: Merchant Onboarding**
+    - [ ] Android: Create `MerchantRegistrationScreen.kt` with Business & Bank forms
+    - [ ] Android: Implement business type selection (Marketplace vs Kitchen)
+    - [ ] Android: Integrate server-side registration API
+- [ ] **Phase 2: Inventory Management**
+    - [ ] Android: Create `ProductManagementScreen.kt` for adding items/meals
+    - [ ] Android: Implement image upload for products
+    - [ ] Backend: Harden product/menu creation endpoints
+- [ ] **Phase 3: Customer Storefront**
+    - [ ] Android: Create `StorefrontScreen.kt` Discovery Hub
+    - [ ] Android: Implement category filtering and proximity-based search
+    - [ ] Backend: Implement unified commerce search API
+- [ ] **Phase 4: Unified Checkout**
+    - [ ] Android: Wire Storefront items to a new "Commerce Checkout" flow
+    - [ ] Android: Implement auto-calculation of delivery from Vendor to User
+    - [ ] Verification: Test end-to-end purchase and auto-dispatch
+    - [ ] Verification: Git automation (Commit and Push)

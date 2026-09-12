@@ -1,49 +1,52 @@
-# Implementation Plan - Dispatch Module Hardening Sprint
+# Implementation Plan - Pikop Commerce (Marketplace & Kitchens)
 
-This plan addresses the final 15% of the Dispatch Module by implementing critical field operations for agents, timeout recovery for senders, and fixing the broken incident reporting pipeline.
+This module transforms Pikop from a courier service into a full-scale commerce ecosystem, allowing businesses to sell products/food and customers to purchase them directly within the app.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Fulfiller Failure Protocol:** Agents will now be able to mark a mission as "Failed - Recipient Absent" directly from the app.
-> - **Requirement:** This button only becomes active after the agent has been at the destination for at least **10 minutes** (verified by the "Arrived" timestamp).
-> - **Evidence:** Agents must capture a photo of the delivery location as proof of their attempt before the "Fail" action is processed.
+> **Unified Checkout:** When a user buys a product from the marketplace, the system will automatically calculate the delivery fare from the Vendor's location to the Customer's location. The user will pay for both the **item** and the **delivery** in a single Paystack transaction.
+>
+> **Merchant Payouts:** Funds for items sold will be held in the platform escrow and released to the Merchant's wallet only after the customer confirms receipt in the app.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **`fileIncident` [NEW]**: Implement the logic to record agent-reported incidents (breakdowns, safety risks) into the `disputes` or a new `incidents` table.
-- **`dispatchService.js`**: Update `findNearbyFulfillers` to accept a radius parameter and implement an automated 3-step expansion (20km -> 40km -> 60km) if no agents are found initially.
+#### [MODIFY] [marketplaceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/marketplaceController.js)
+#### [MODIFY] [kitchenController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/kitchenController.js)
+- **Profile Integrity:** Ensure `getVendorDetails` and `getKitchenDetails` return the owner's status and linked `pickup_address` for delivery calculations.
+- **Photo Storage:** Ensure product/menu item photo uploads are handled via the unified `/uploads` service.
 
-#### [MODIFY] [orderRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/orderRoutes.js)
-- Register `POST /api/v1/orders/:id/incident` to fix the current 404 error in the Fulfiller app.
+#### [NEW] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
+- **Storefront Search:** Implement a unified search endpoint that queries both Products and Menu Items based on proximity to the user.
 
 ---
 
 ### Android App
 
-#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
-- **Logistics Tools:**
-    - Add a **"Request Leave-at-Door Consent"** button. This triggers the SMS/Push link to the receiver.
-    - Add a **"Mark Failed (Recipient Absent)"** button.
-    - **Timer Logic:** Implement a 10-minute countdown that starts when the agent clicks "Confirm Arrival." The "Mark Failed" button remains disabled until this timer hits zero.
-    - **Evidence Capture:** Integrate the camera for the "Failed" flow to ensure the agent provides proof of the attempt.
+#### [NEW] [feature/merchant] [MerchantRegistrationScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantRegistrationScreen.kt)
+- **Form:** Business Name, CAC Number, Contact Email, Bank Account (Name/Number/Code).
+- **Type Selection:** Toggle between "Marketplace Vendor" (Items) or "Cloud Kitchen" (Food).
+- **Location:** Integrated address picker to set the business's permanent pickup point.
 
-#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt)
-- **Timeout Resolution:**
-    - Detect if the mission is in `ACKNOWLEDGMENT_TIMEOUT` state (sent via deep-link or status update).
-    - Show a high-priority banner or dialog with two choices:
-        1. **"Proceed Anyway":** Force dispatch using the original address.
-        2. **"Abort Mission":** Cancel the request (standard cancellation policy applies).
+#### [NEW] [feature/merchant] [ProductManagementScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/ProductManagementScreen.kt)
+- Interface for adding items/meals with price, description, and photo capture.
+
+#### [NEW] [feature/order] [StorefrontScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/StorefrontScreen.kt)
+- **Discovery Hub:** Categories (Electronics, Fashion, Food, etc.).
+- **Listings:** Scrollable grid of products and nearby kitchens.
+
+#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
+- Register routes for `merchant_registration`, `product_mgmt`, and `storefront`.
+- Add a **"Shop & Eat"** tab to the main navigation bar.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Incident Test:** Report a "Breakdown" as an agent. Verify the server returns 200 and the incident appears in the Admin Panel.
-2.  **Consent Test:** Arrive at destination. Request consent. Verify the receiver gets the link and the mission updates to "Delivered" once they approve.
-3.  **Timeout Choice:** Simulate a 2-hour receiver silence. As the sender, click "Proceed Anyway" and verify the mission moves to the fulfiller search queue.
-4.  **Radius Expansion:** Create a mission in a remote area. Observe the logs to see the dispatch engine expanding from 20km to 60km.
+1.  **Onboarding:** Register a test business as a "Kitchen." Verify the application appears as "Pending" in the database.
+2.  **Listing:** Add a "Jollof Rice" menu item with a photo. Verify it appears in the database and is linked to the kitchen.
+3.  **Discovery:** As a customer, open the Storefront. Verify the "Jollof Rice" item is visible and shows the correct price and vendor.
+4.  **Integrated Order:** Select an item -> Checkout. Verify the total price includes the item cost + delivery fee to the user's current location.

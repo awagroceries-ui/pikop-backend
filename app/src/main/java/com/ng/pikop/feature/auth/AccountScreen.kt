@@ -42,6 +42,7 @@ fun AccountScreen(
     onNavigateToCorporate: () -> Unit,
     onNavigateToGrowth: () -> Unit,
     onNavigateToMerchant: () -> Unit,
+    onNavigateToMerchantRegistration: () -> Unit,
     onNavigateToTerms: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
     onLogout: () -> Unit
@@ -203,6 +204,12 @@ fun AccountScreen(
                     label = "Merchant Portal",
                     icon = Icons.Default.Inventory,
                     onClick = onNavigateToMerchant
+                )
+
+                AccountOption(
+                    label = "Join as a Merchant",
+                    icon = Icons.Default.AddBusiness,
+                    onClick = onNavigateToMerchantRegistration
                 )
 
                 if (userRole == "CUSTOMER") {
