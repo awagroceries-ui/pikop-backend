@@ -29,13 +29,15 @@ fun TermsScreen(
     var isChecked by remember { mutableStateOf(isViewer) }
     var termsHtml by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var refreshKey by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refreshKey) {
         try {
+            isLoading = true
             val config = apiService.getLegalConfig()
             termsHtml = config["terms_html"]
         } catch (e: Exception) {
-            termsHtml = "<h2>Terms & Conditions</h2><p>Could not load latest terms from server. Please check your internet connection.</p>"
+            termsHtml = "<h2>Terms & Conditions</h2><p>Could not load latest terms from server. Please check your internet connection.</p><p>Error: ${e.message}</p>"
         } finally {
             isLoading = false
         }
@@ -55,19 +57,30 @@ fun TermsScreen(
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 } else {
-                    AndroidView(
-                        factory = { context ->
-                            WebView(context).apply {
-                                webViewClient = WebViewClient()
-                                settings.javaScriptEnabled = false
-                                loadDataWithBaseURL(null, termsHtml ?: "", "text/html", "UTF-8", null)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        AndroidView(
+                            factory = { context ->
+                                WebView(context).apply {
+                                    webViewClient = WebViewClient()
+                                    settings.javaScriptEnabled = false
+                                    loadDataWithBaseURL(null, termsHtml ?: "", "text/html", "UTF-8", null)
+                                }
+                            },
+                            update = { webView ->
+                                webView.loadDataWithBaseURL(null, termsHtml ?: "", "text/html", "UTF-8", null)
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        if (termsHtml?.contains("Could not load") == true) {
+                            Button(
+                                onClick = { refreshKey++ },
+                                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                            ) {
+                                Text("Retry Loading")
                             }
-                        },
-                        update = { webView ->
-                            webView.loadDataWithBaseURL(null, termsHtml ?: "", "text/html", "UTF-8", null)
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                        }
+                    }
                 }
             }
 

@@ -16,6 +16,10 @@ I have successfully updated the Pikop platform's financial policies and synchron
 ### 3. 75% Return Charge
 - **Increased Rate:** Updated the return mission logic. If a delivery fails (e.g., recipient absent), the sender can initiate a return mission at **75% of the original fare** (increased from 50%).
 
+### 4. Branded Communication Update
+- **Welcome Emails:** Updated the welcome email for both Customers and Fulfillers to include a clear summary of the cancellation, absence, and return policies.
+- **Regional Pivot:** Updated the global email footer from "Lagos, Nigeria" to **"Port Harcourt, Nigeria"** to reflect the current operations hub.
+
 ## Technical Improvements
 
 ### 1. Centralized Legal Configuration

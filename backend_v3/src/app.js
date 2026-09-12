@@ -125,8 +125,9 @@ app.use('/api/v1/promo-codes', require('./routes/growthRoutes')); // Legacy Comp
 app.use('/api/v1/places', require('./routes/placesRoutes'));
 app.use('/api/v1/addresses', require('./routes/addressRoutes'));
 app.use('/api/v1/settings', require('./routes/settingsRoutes'));
-app.use('/api/v1/webhooks', require('./routes/webhookRoutes')); // Added for Prembly
-app.use('/legal', require('./routes/legalRoutes'));
+app.use('/api/v1/webhooks', require('./routes/webhookRoutes'));
+app.use('/api/v1/legal', require('./routes/legalRoutes'));
+app.use('/legal', require('./routes/legalRoutes')); // Web-friendly fallback
 
 // 6. Health & Base Routes
 app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date(), version: '3.0.0-core' }));
