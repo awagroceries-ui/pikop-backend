@@ -71,7 +71,7 @@ const sendMail = async (to, subject, html) => {
                     <p class="footer-text">
                         <strong>&copy; 2026 Pikop Logistics Limited.</strong><br>
                         Superior Multi-Platform Logistics Engine.<br>
-                        Lagos, Nigeria.
+                        Port Harcourt, Nigeria.
                     </p>
                     <div class="social-links">
                         <a href="https://pikop.com.ng" class="social-link">Website</a>
@@ -122,6 +122,16 @@ const sendWelcomeEmail = async (to, name, role) => {
         <h1 class="greeting">${title}</h1>
         <p class="text">Hello <strong>${name || 'Valued User'}</strong>,</p>
         <p class="text">Thank you for joining Pikop! Your account email has been successfully verified.</p>
+
+        <div style="background: #F9FAFB; padding: 20px; border-radius: 16px; border: 1px solid #E5E7EB; margin-bottom: 25px;">
+            <strong style="color: #111827;">Key Operational Policies:</strong>
+            <ul style="margin-top: 10px; padding-left: 20px; color: #4B5563; font-size: 14px; line-height: 1.6;">
+                <li><strong>Cancellation:</strong> 25% fee applies if cancelled after an agent is matched. Cancellation is strictly prohibited once the item has been picked up.</li>
+                <li><strong>Recipient Absent:</strong> If our agent arrives but the recipient is absent, the delivery fare is strictly non-refundable.</li>
+                <li><strong>Return Charges:</strong> Return missions are charged at 75% of the original fare.</li>
+            </ul>
+        </div>
+
         ${isFulfiller ? `
             <p class="text">As a Pikop Fulfiller, you are part of our elite delivery network in Nigeria. Please complete your identity and vehicle verification in the app to start accepting mission offers.</p>
             <div style="background: #F0FDF4; padding: 20px; border-radius: 16px; border-left: 4px solid #008751; margin-bottom: 25px;">
@@ -134,7 +144,7 @@ const sendWelcomeEmail = async (to, name, role) => {
                 </ol>
             </div>
         ` : `
-            <p class="text">You can now send packages, track deliveries in real-time, and manage your logistics effortlessly across Lagos and beyond.</p>
+            <p class="text">You can now send packages, track deliveries in real-time, and manage your logistics effortlessly across Port Harcourt and beyond.</p>
         `}
         <p class="text">If you ever need assistance, our support team is available 24/7 in the app Help Center.</p>
     `;
