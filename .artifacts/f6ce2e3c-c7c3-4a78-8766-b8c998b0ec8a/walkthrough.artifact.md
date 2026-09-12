@@ -1,51 +1,43 @@
-# Walkthrough - Legal Compliance & Help Center Population
+# Walkthrough - Standardized Professional Legal Overhaul
 
-I have strengthened the platform's legal compliance and fully populated the Help Center with role-specific FAQs to improve user onboarding and support.
+I have completely overhauled the platform's legal documents (Terms & Conditions and Privacy Policy) to meet industry standards (e.g., Bolt/Uber), ensuring maximum protection for Awa Foods & Groceries while providing operational clarity to all users.
 
-## Key Improvements
+## Legal Framework Improvements
 
-### 1. Mandatory Legal Acceptance
-- **Signup Screen:** Added a mandatory "I accept the Terms & Conditions and Privacy Policy" checkbox to the initial signup form. Users cannot proceed until they explicitly agree.
-- **Verification Screen:** Updated the post-OTP "Terms" screen to also include an explicit combined acceptance checkbox, ensuring compliance at the point of account activation.
+### 1. "Commercial Agent" Model
+- **Definition:** Legally defines Pikop as a technology intermediary and a commercial agent for independent Fulfillers.
+- **Payment Clarity:** Explicitly states that once a customer pays Pikop, their legal obligation to pay the independent courier is satisfied.
 
-### 2. Permanent Policy Accessibility
-- **Account Menu:** Added "Terms & Conditions" and "Privacy Policy" links directly to the **Account/Profile** menu.
-- **Always Available:** Users can now reference the official platform rules at any time without having to sign out.
-- **Dynamic Content:** Refactored the Privacy Policy screen (matching the T&C screen) to load its content live from your server. Any policy updates you make on the backend will instantly reflect in the app.
+### 2. Comprehensive Liability Protection
+- **Liability Cap:** Implemented a standard clause capping total platform liability at the amount of fees paid by the user in the preceding 3 months.
+- **Hold Harmless:** Strengthened the indemnification language. Users and Fulfillers agree to protect Pikop from any legal claims arising from their misuse of the service or the transport of illegal items.
 
-### 3. Populated Help Center (FAQs)
-- **Role-Based Content:** Seeded the database with professional FAQs tailored to the user's account type.
-- **Topics Covered:**
-    - **App Navigation:** How to place orders and how agents go online.
-    - **Earnings:** Clarity on the **75/25 split** for agents.
-    - **Wallet & Withdrawals:** How to fund accounts and how agents can withdraw earnings to their banks.
-    - **Policies:** Simplified explanations of the **25% cancellation penalty** and **75% return fee**.
+### 3. Prohibited Items Discovery & Enforcement
+- **Reporting:** Added a strict clause: *"Discovery of prohibited items will result in immediate reporting of the Sender and the item to the police."*
+- **Disposal:** *"Prohibited items will be discarded or surrendered to authorities immediately without refund or liability."*
 
-### 4. Comprehensive Legal & Protective Framework
-- **Overhauled T&C:** Implemented a professional legal framework with a robust **Hold Harmless (Indemnification)** clause to protect Pikop and its independent agents from liability.
-- **Prohibited Items Discovery:** Added strict language stating that any prohibited items discovered during transit will be reported to the police along with sender details, and the item will be discarded immediately without refund.
-- **Jurisdiction:** Standardized all legal disputes to the courts of **Port Harcourt, Rivers State**.
+### 4. Refined Financial Policies
+- **25% Cancellation Fee:** Applied if an agent is matched but pickup hasn't occurred.
+- **No Cancellation:** Strictly prohibited once an item is picked up.
+- **75% Return Fee:** Applied for failed missions requiring return to the sender.
+- **Refund as Credit:** All approved refunds are now officially issued as **Pikop Wallet Credits**, protecting platform cash flow.
 
-### 5. Branded Communication Update
-- **Welcome Emails:** Updated the welcome email summary to include the 25% cancellation fee, 75% return fee, and the new prohibited items reporting clause.
-- **Regional Hub:** Updated the global email footer from Lagos to **"Port Harcourt, Nigeria"**.
+### 5. Email & Privacy Alignment
+- **NDPA Compliance:** Updated the Privacy Policy to align with the **Nigeria Data Protection Act (NDPA)**.
+- **Welcome Emails:** Synchronized the policy summary in all welcome emails to reflect these new standardized rules and the **Port Harcourt** hub location.
 
-### Backend Updates
-- Created migration `1725610000000_seed_kb_faqs.js`.
-- Verified `legalController.js` serves both T&C and Privacy HTML content.
+## Verification Results
+
+### Backend Implementation
+- Updated `legalController.js` and `emailService.js`.
+- Verified all HTML rendering for mobile app compatibility.
 - **Result:** `PASS`.
 
-### Android Build
-- Integrated new navigation callbacks and refactored UI components.
-- Ran `./gradlew assembleDebug`.
-- **Result:** `BUILD SUCCESSFUL`.
-
 ## Deployment Instructions (VPS)
-Please apply these legal and content updates to your **VPS**:
+Please apply these legal overhauls to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```

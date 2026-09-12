@@ -1,10 +1,13 @@
-# Task List - Comprehensive Legal Framework
+# Task List - Professional Legal Framework
 
-- [x] **Backend: Legal Overhaul**
-    - [x] Draft and implement comprehensive T&C in `legalController.js`
-    - [x] Draft and implement comprehensive Privacy Policy in `legalController.js`
-    - [x] Ensure "Hold Harmless" and "Rivers State Jurisdiction" clauses are included
-    - [x] Expand prohibited items clause to include reporting and disposal
+- [x] **Backend: T&C Overhaul**
+    - [x] Draft and implement standardized Terms in `legalController.js`
+    - [x] Implement Liability Limitation and Commercial Agent clauses
+    - [x] Implement "Refund as Credit" policy text
+- [x] **Backend: Privacy Policy Overhaul**
+    - [x] Update Privacy Policy in `legalController.js` to match professional standards (NDPA alignment)
 - [x] **Backend: Email Updates**
-    - [x] Add policy summary to welcome emails
-    - [x] Update email footer to Port Harcourt
+    - [x] Synchronize policy summary in `emailService.js` with new standardized language
+- [x] **Verification**
+    - [x] Confirm app live sync and HTML rendering
+    - [x] Git automation (Commit and Push)

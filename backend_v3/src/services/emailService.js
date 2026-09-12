@@ -124,12 +124,13 @@ const sendWelcomeEmail = async (to, name, role) => {
         <p class="text">Thank you for joining Pikop! Your account email has been successfully verified.</p>
 
         <div style="background: #F9FAFB; padding: 20px; border-radius: 16px; border: 1px solid #E5E7EB; margin-bottom: 25px;">
-            <strong style="color: #111827;">Key Operational Policies:</strong>
+            <strong style="color: #111827;">Standard Operating Policies:</strong>
             <ul style="margin-top: 10px; padding-left: 20px; color: #4B5563; font-size: 14px; line-height: 1.6;">
-                <li><strong>Prohibited Items:</strong> Illegal goods, drugs, or weapons are strictly banned. Discoveries will be reported to the police along with sender details and the item will be discarded without refund.</li>
-                <li><strong>Cancellation:</strong> 25% fee applies if cancelled after an agent is matched. Cancellation is prohibited after pickup.</li>
-                <li><strong>Recipient Absent:</strong> If our agent arrives but the recipient is absent (after 10 mins wait), the fare is non-refundable.</li>
+                <li><strong>Prohibited Items:</strong> Discovery of illegal goods will result in reporting to police and immediate item disposal without refund.</li>
+                <li><strong>Cancellation:</strong> 25% fee applies once an agent is matched. Cancellation is prohibited after pickup.</li>
+                <li><strong>Recipient Absent:</strong> Fare is non-refundable if agent waits 10 minutes at destination.</li>
                 <li><strong>Return Charges:</strong> Return missions are charged at 75% of the original fare.</li>
+                <li><strong>Refunds:</strong> All approved refunds are issued as Pikop Wallet Credits.</li>
             </ul>
         </div>
 
