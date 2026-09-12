@@ -6,7 +6,8 @@ exports.up = (pgm) => {
     ('What are the cancellation fees?', 'Cancellations are free while we search for an agent. Once an agent is matched, a 25% penalty fee applies. No cancellations are allowed after pickup.', 'Policies', 'CUSTOMER', 9),
     ('What happens if the recipient is absent?', 'If our agent arrives and the recipient is unavailable, the mission is marked as failed. Per policy, the fare is non-refundable.', 'Policies', 'CUSTOMER', 8),
     ('How do I initiate a return?', 'If a delivery fails, you can initiate a return from the mission details. Returns are charged at 75% of the original mission fare.', 'Policies', 'CUSTOMER', 7),
-    ('Can I pay for the item via Pikop?', 'Yes! Use "Secure Pay" (Escrow). You pay upfront, we hold the funds, and release them to the seller only when you confirm receipt.', 'Wallet & Payments', 'CUSTOMER', 6);
+    ('What items are prohibited?', 'Illegal drugs, weapons, explosives, hazardous chemicals, and large amounts of cash are strictly banned. Discovery will result in police reporting and disposal of the item.', 'Policies', 'CUSTOMER', 6),
+    ('Can I pay for the item via Pikop?', 'Yes! Use "Secure Pay" (Escrow). You pay upfront, we hold the funds, and release them to the seller only when you confirm receipt.', 'Wallet & Payments', 'CUSTOMER', 5);
   `);
 
   // Typical FAQs for Agents (Fulfillers)

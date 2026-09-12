@@ -1,48 +1,51 @@
-# Walkthrough - Strict Policy Enforcement & Legal Sync
+# Walkthrough - Legal Compliance & Help Center Population
 
-I have successfully updated the Pikop platform's financial policies and synchronized the legal terms between the backend and Android app.
+I have strengthened the platform's legal compliance and fully populated the Help Center with role-specific FAQs to improve user onboarding and support.
 
-## Policy Adjustments
+## Key Improvements
 
-### 1. 25% Cancellation Fee (Pre-Pickup)
-- **The Problem:** Previously, users could cancel missions for free even after an agent had been matched and was in transit to the pickup point.
-- **The Fix:** Updated `cancelOrder` in the backend. If an agent is already matched, the system now automatically deducts a **25% Cancellation Penalty** from the user's wallet.
-- **Communication:** The Android app now displays a specific warning if an agent is matched: *"An agent is already matched. Cancelling now will incur a 25% penalty fee. Proceed?"*
+### 1. Mandatory Legal Acceptance
+- **Signup Screen:** Added a mandatory "I accept the Terms & Conditions and Privacy Policy" checkbox to the initial signup form. Users cannot proceed until they explicitly agree.
+- **Verification Screen:** Updated the post-OTP "Terms" screen to also include an explicit combined acceptance checkbox, ensuring compliance at the point of account activation.
 
-### 2. No Cancellation After Pickup
-- **Strict Enforcement:** Once a mission status moves to `PICKED_UP`, the "Cancel Delivery" button is now hidden in the app.
-- **Backend Guard:** The server will reject any cancellation attempt for an order that has already been picked up.
+### 2. Permanent Policy Accessibility
+- **Account Menu:** Added "Terms & Conditions" and "Privacy Policy" links directly to the **Account/Profile** menu.
+- **Always Available:** Users can now reference the official platform rules at any time without having to sign out.
+- **Dynamic Content:** Refactored the Privacy Policy screen (matching the T&C screen) to load its content live from your server. Any policy updates you make on the backend will instantly reflect in the app.
 
-### 3. 75% Return Charge
-- **Increased Rate:** Updated the return mission logic. If a delivery fails (e.g., recipient absent), the sender can initiate a return mission at **75% of the original fare** (increased from 50%).
+### 3. Populated Help Center (FAQs)
+- **Role-Based Content:** Seeded the database with professional FAQs tailored to the user's account type.
+- **Topics Covered:**
+    - **App Navigation:** How to place orders and how agents go online.
+    - **Earnings:** Clarity on the **75/25 split** for agents.
+    - **Wallet & Withdrawals:** How to fund accounts and how agents can withdraw earnings to their banks.
+    - **Policies:** Simplified explanations of the **25% cancellation penalty** and **75% return fee**.
 
-### 4. Branded Communication Update
-- **Welcome Emails:** Updated the welcome email for both Customers and Fulfillers to include a clear summary of the cancellation, absence, and return policies.
-- **Regional Pivot:** Updated the global email footer from "Lagos, Nigeria" to **"Port Harcourt, Nigeria"** to reflect the current operations hub.
+### 4. Comprehensive Legal & Protective Framework
+- **Overhauled T&C:** Implemented a professional legal framework with a robust **Hold Harmless (Indemnification)** clause to protect Pikop and its independent agents from liability.
+- **Prohibited Items Discovery:** Added strict language stating that any prohibited items discovered during transit will be reported to the police along with sender details, and the item will be discarded immediately without refund.
+- **Jurisdiction:** Standardized all legal disputes to the courts of **Port Harcourt, Rivers State**.
 
-## Technical Improvements
+### 5. Branded Communication Update
+- **Welcome Emails:** Updated the welcome email summary to include the 25% cancellation fee, 75% return fee, and the new prohibited items reporting clause.
+- **Regional Hub:** Updated the global email footer from Lagos to **"Port Harcourt, Nigeria"**.
 
-### 1. Centralized Legal Configuration
-- **Live Terms:** Created a new `GET /api/v1/legal/config` endpoint that serves the latest Terms & Conditions and Privacy Policy in HTML format.
-- **App Sync:** The Android app now fetches these terms live from the server. Any policy updates made by Awa Foods on the backend will instantly reflect in the app without requiring a store update.
-- **WebView Rendering:** The `TermsScreen.kt` now uses a built-in browser engine to render high-quality, branded legal text.
-
-## Verification Results
-
-### Backend Logic
-- Verified `cancelOrder` penalty triggers only when `fulfiller_id` is present.
-- Verified `initiateReturn` uses the new `0.75` multiplier.
+### Backend Updates
+- Created migration `1725610000000_seed_kb_faqs.js`.
+- Verified `legalController.js` serves both T&C and Privacy HTML content.
 - **Result:** `PASS`.
 
 ### Android Build
+- Integrated new navigation callbacks and refactored UI components.
 - Ran `./gradlew assembleDebug`.
 - **Result:** `BUILD SUCCESSFUL`.
 
 ## Deployment Instructions (VPS)
-Please pull these policy updates to your **VPS**:
+Please apply these legal and content updates to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```

@@ -126,8 +126,9 @@ const sendWelcomeEmail = async (to, name, role) => {
         <div style="background: #F9FAFB; padding: 20px; border-radius: 16px; border: 1px solid #E5E7EB; margin-bottom: 25px;">
             <strong style="color: #111827;">Key Operational Policies:</strong>
             <ul style="margin-top: 10px; padding-left: 20px; color: #4B5563; font-size: 14px; line-height: 1.6;">
-                <li><strong>Cancellation:</strong> 25% fee applies if cancelled after an agent is matched. Cancellation is strictly prohibited once the item has been picked up.</li>
-                <li><strong>Recipient Absent:</strong> If our agent arrives but the recipient is absent, the delivery fare is strictly non-refundable.</li>
+                <li><strong>Prohibited Items:</strong> Illegal goods, drugs, or weapons are strictly banned. Discoveries will be reported to the police along with sender details and the item will be discarded without refund.</li>
+                <li><strong>Cancellation:</strong> 25% fee applies if cancelled after an agent is matched. Cancellation is prohibited after pickup.</li>
+                <li><strong>Recipient Absent:</strong> If our agent arrives but the recipient is absent (after 10 mins wait), the fare is non-refundable.</li>
                 <li><strong>Return Charges:</strong> Return missions are charged at 75% of the original fare.</li>
             </ul>
         </div>

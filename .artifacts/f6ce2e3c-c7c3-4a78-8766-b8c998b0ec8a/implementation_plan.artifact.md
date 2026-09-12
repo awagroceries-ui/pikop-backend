@@ -1,47 +1,37 @@
-# Implementation Plan - Legal Accessibility & FAQ Population
+# Implementation Plan - Comprehensive Legal Framework
 
-This plan ensures that legal documents are permanently accessible, explicitly accepted after verification, and that the help center is auto-populated with role-specific FAQs.
+This plan implements a standard, comprehensive legal framework for Pikop, including a strong "Hold Harmless" clause to protect the company and its affiliates.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Acceptance Flow:** Per your request, the explicit "I accept" checkbox will remain on the **Terms Screen** which appears immediately after a user successfully verifies their account (OTP). I will update the text to ensure both Terms and Privacy Policy are explicitly mentioned.
+> **Legal Protection:** I have added a robust "Indemnification and Limitation of Liability" section. This clause protects Awa Foods & Groceries (Pikop) from legal claims arising from the actions of independent fulfillers, user-provided content, or items being transported.
 >
-> **Dynamic Legal Content:** I will refactor the Privacy Policy screen to fetch its content live from your server. This allows you to update policies once on the server and have them reflected everywhere.
+> **Dispute Resolution:** Standardized the governing law to the Federal Republic of Nigeria, with any legal proceedings directed to the courts of **Rivers State (Port Harcourt)**.
 
 ## Proposed Changes
 
 ### Backend (`backend_v3`)
 
-#### [NEW] [Migration: seed_kb_faqs.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1725610000000_seed_kb_faqs.js)
-- Seed the `knowledge_base` table with structured FAQs covering:
-    - **App Navigation:** How to book, how to go online.
-    - **Earnings (Agents):** Understanding the 75/25 split.
-    - **Wallet & Withdrawals:** How to fund wallet and how to withdraw earnings to a bank.
-    - **Policies:** Cancellation fees (25%) and Return fees (75%).
-
 #### [MODIFY] [legalController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/legalController.js)
-- Ensure the `getLegalConfig` endpoint returns high-quality HTML for both `terms_html` and `privacy_html`.
+- **`getTerms` & `getLegalConfig`**: Overhaul the HTML content with the following sections:
+    - **1. User Obligations:** Accuracy of info, account security.
+    - **2. Prohibited Items:** Drugs, hazardous materials, illegal substances, high-value currency.
+    - **3. Financials:** Detailed breakdown of the 25% cancellation fee, 75% return fee, and non-refundable absence policy.
+    - **4. Indemnification (Hold Harmless):** User agrees to indemnify Pikop against all losses, damages, and legal fees.
+    - **5. Limitation of Liability:** Pikop is not responsible for losses caused by third-party agents or transit delays.
+- **Privacy Policy**: Expand on data categories (KYC, GPS, financial references) and NDPR compliance rights.
 
 ---
 
 ### Android App
-
-#### [MODIFY] [TermsScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/TermsScreen.kt)
-- Update the mandatory checkbox label to: *"I have read and agree to the Terms & Conditions and Privacy Policy of Awa Foods & Groceries."*
-
-#### [MODIFY] [AccountScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/AccountScreen.kt)
-- Add two new options: "Terms & Conditions" and "Privacy Policy" to ensure they are always accessible for reference.
-
-#### [MODIFY] [PrivacyPolicyScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/PrivacyPolicyScreen.kt)
-- Refactor to fetch and render the live policy from the server using a `WebView`, identical to the Terms screen.
+- No changes needed to the app code. The app is already configured to fetch this content live. The new comprehensive text will automatically appear in the `TermsScreen` and `PrivacyPolicyScreen`.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Post-Signup Acceptance:** Complete a signup and OTP verification. Verify the Terms screen appears with the updated "T&C and Privacy Policy" checkbox.
-2.  **Permanent Access:** Go to the Account screen and verify the legal documents open correctly from the menu.
-3.  **FAQ Population:** Open the Help Center. Verify the Navigation, Earnings, and Wallet categories are populated with professional answers.
-4.  **Policy Accuracy:** Confirm the 25% and 75% figures are clearly mentioned in the FAQs and legal text.
+1.  **Content Audit:** Open the app and read through the new Terms. Verify the **Hold Harmless** clause and the **Port Harcourt** jurisdiction are clearly visible.
+2.  **Formatting:** Ensure the long-form content is scrollable and readable in the app's `WebView`.
+3.  **Sync:** Verify that the "Web" version of the terms (accessed via browser) matches the "App" version exactly.
