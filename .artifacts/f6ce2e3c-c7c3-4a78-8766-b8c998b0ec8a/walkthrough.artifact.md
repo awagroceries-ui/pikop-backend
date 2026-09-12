@@ -1,42 +1,42 @@
-# Walkthrough - Fleet Module Phase 1: Automated Payouts
+# Walkthrough - Fleet Module Finalized: Performance & Intelligence
 
-I have successfully implemented the **Automated Payouts** phase of the Fleet module. Pikop fulfillers can now withdraw their earnings directly to their bank accounts with instant processing for smaller amounts.
+I have successfully completed all phases of the **Fleet Performance & Automated Payouts** module. This module provides a professional, scalable foundation for managing and paying your delivery fleet.
 
-## New Capabilities
+## Complete Fleet Ecosystem
 
-### 1. Instant Payout Integration
-- **Automated Transfers:** Integrated the **Paystack Transfer API** into the withdrawal flow.
-- **Instant Processing:** Withdrawals of **₦5,000 or less** are now processed immediately by the system, bypasssing the need for manual admin approval.
-- **Thresholds:** Implemented a minimum withdrawal limit of **₦1,000** to ensure cost-effective processing.
+### 1. Fully Automated Payouts
+- **Instant Funds:** Agents can now request withdrawals directly in the app. Amounts under **₦5,000** are processed instantly via the **Paystack Transfer API**.
+- **Bank Verification:** The app displays the linked bank details before submission, ensuring funds are sent to the correct account.
+- **Zero Config:** The system automatically registers agents as Paystack Recipients on their first withdrawal.
 
-### 2. Dedicated Withdrawal Interface
-- **The Screen:** Created `WithdrawalScreen.kt` in the Android app.
-- **Safety First:** The screen clearly displays the linked bank account details, allowing agents to verify where their money is going before they hit "Submit."
-- **Live Validation:** The "Withdraw" button only activates if the agent has a valid bank account on file and enough balance.
+### 2. Live Performance Insights
+- **KPI Tracking:** Agents now see their **Completion Rate (%)** and **Month-to-Date Earnings** prominently on a new insights dashboard.
+- **Trend Chart:** Added a visual bar graph showing daily earnings over the last 7 days to keep couriers motivated.
+- **History:** A clean feed of the 10 most recent missions and their payout status.
 
-### 3. Automatic Recipient Registration
-- **Zero Configuration:** The first time an agent requests a withdrawal, the system automatically registers them as a "Transfer Recipient" on Paystack using their profile's bank details.
-- **Speed:** Future withdrawals are even faster as the recipient record is reused.
-
-### 4. Hardened Merchant APIs
-- **Ownership Verification:** Added strict checks to the Marketplace and Kitchen controllers to ensure merchants can only modify their own items.
-- **Inventory Cleanup:** Implemented full "Delete" functionality for products and menu items.
+### 3. Automated Tier Engine (Intelligence)
+- **Daily Audit:** Implemented a background engine that runs every night to analyze the last 30 days of each agent's performance.
+- **Smart Promotions:** Agents are automatically promoted to **Silver** or **Gold** based on mission count, high ratings, and reliable completion.
+- **Risk Management:** The system automatically **flags** underperforming agents (e.g., <60% completion) for admin review, protecting your service quality.
 
 ## Verification Results
 
-### Backend Integrity
-- Verified the new `requestWithdrawal` logic and Paystack API mapping.
+### Backend Intelligence
+- Created migration `1725640000000_add_flagging_to_fulfillers.js`.
+- Verified the daily audit job correctly promotes/demotes agents in the database.
 - **Result:** `PASS`.
 
-### Android Build
-- Successfully compiled the new Withdrawal UI and integrated it with the main Wallet navigation.
-- **Result:** `BUILD SUCCESSFUL`.
+### Android Experience
+- Verified the new 4-card stats grid and visual earnings trend chart.
+- Confirmed the withdrawal flow works with balance validation.
+- **Result:** `STABLE`.
 
 ## Deployment Instructions (VPS)
-Please apply these automated payout updates to your **VPS**:
+Please apply the final Fleet module updates to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```

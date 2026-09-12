@@ -42,6 +42,9 @@ dispatchReminderJob.startReminderJob(3); // Every 3 mins
 const acknowledgmentReminderJob = require('./jobs/acknowledgmentReminderJob');
 acknowledgmentReminderJob.startAcknowledgmentJob(15);
 
+const fleetJob = require('./jobs/fleetJob');
+fleetJob.startFleetJob(24); // Daily audit
+
 // 1. Basic Middleware
 app.use(compression()); // Optimize payload size
 app.use(helmet({ contentSecurityPolicy: false }));
