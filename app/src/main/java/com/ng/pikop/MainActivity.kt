@@ -36,6 +36,7 @@ import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.chat.*
+import com.ng.pikop.feature.commerce.StorefrontScreen
 import com.ng.pikop.feature.fulfiller.*
 import com.ng.pikop.feature.merchant.AddEditProductScreen
 import com.ng.pikop.feature.merchant.MerchantPortalScreen
@@ -637,6 +638,7 @@ fun MainAppScaffold(
 ) {
     val nestedNavController = rememberNavController()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     
     Scaffold(
         bottomBar = {
@@ -652,6 +654,19 @@ fun MainAppScaffold(
                     label = { Text("Home") },
                     selected = currentDestination == "home",
                     onClick = { nestedNavController.navigate("home") { launchSingleTop = true } },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                    )
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Storefront, contentDescription = null) },
+                    label = { Text("Shop & Eat") },
+                    selected = currentDestination == "storefront",
+                    onClick = { nestedNavController.navigate("storefront") { launchSingleTop = true } },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.onPrimary,
                         selectedTextColor = MaterialTheme.colorScheme.onPrimary,
@@ -731,6 +746,14 @@ fun MainAppScaffold(
                         onNavigateToSupport = { navController.navigate("support_hub") }
                     )
                 }
+            }
+            composable("storefront") {
+                StorefrontScreen(
+                    onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
+                        // Phase 4: Navigate to Details
+                        android.widget.Toast.makeText(context, "Clicked: ${item.name}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                )
             }
             composable("history") {
                 if (userRole == "FULFILLER") {

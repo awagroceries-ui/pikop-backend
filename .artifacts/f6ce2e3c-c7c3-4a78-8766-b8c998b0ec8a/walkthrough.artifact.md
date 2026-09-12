@@ -1,48 +1,42 @@
-# Walkthrough - Dispatch Module Completion (Hardening Sprint)
+# Walkthrough - Pikop Commerce Phase 2: Inventory Management
 
-I have successfully completed the **Hardening Sprint**, closing all identified gaps in the Dispatch Module. The system now handles complex field operations, receiver delays, and smart agent discovery.
+I have successfully implemented the **Inventory Management** phase of the Pikop Commerce module. Approved merchants (Vendors and Kitchens) can now manage their product catalogs and food menus directly from the app.
 
-## Field Operations (Fulfiller App)
+## New Capabilities
 
-### 1. Mandatory 10-Minute Failure Protocol
-- **The Problem:** Agents could previously mark a mission as "Failed" immediately upon arrival, leading to disputes.
-- **The Fix:** Implemented a live **10-minute countdown timer** in `ActiveOrderScreen.kt` that starts when the agent clicks "Confirm Arrival."
-- **Enforcement:** The "Mark Failed" button is disabled until the timer hits zero. Agents are also **forced to capture a photo** of the location as evidence of their attempt before the status can be changed to `RECIPIENT_ABSENT`.
+### 1. Unified "Add/Edit Item" Interface
+- **Smart Forms:** Created a dynamic `AddEditProductScreen.kt` that automatically adapts based on the merchant type.
+    - **General Vendors:** Can set "Unit" (kg, piece) and optional "NAFDAC Numbers."
+    - **Cloud Kitchens:** Can set "Prep Time" and mark items as "Available/Unavailable."
+- **Image Integration:** Merchants can now select or capture photos of their products, which are automatically uploaded to the Pikop server.
 
-### 2. Leave-at-Door Consent
-- **New Feature:** Added a **"Request Consent"** button for agents. This allows them to ask the receiver for permission to leave the item with security or at the door.
-- **Verification:** Once clicked, the receiver gets a secure link to authorize the drop-off, which then allows the agent to close the mission normally.
+### 2. Enhanced Merchant Portal
+- **Management Tools:** Added "Edit" and "Delete" actions to every item in the "Listings" tab of the Seller Center.
+- **Floating Action Button:** A new "+" button allows merchants to quickly add new listings.
+- **Live Sync:** Pull-to-refresh and automatic updates ensure the catalog is always in sync with the server.
 
-## Dispatch Intelligence (Backend)
+### 3. Smart Merchant Redirection
+- **The Problem:** Previously, users would see the "Seller Center" even if they weren't registered merchants.
+- **The Fix:** Implemented a backend-check in the **Account Menu**.
+    - If you have an active merchant profile, it opens the **Merchant Portal**.
+    - If you haven't registered yet, it automatically redirects you to the **Join as a Merchant** application form.
 
-### 1. Smart Radius Expansion
-- **The Problem:** Dispatch was limited to a strict 20km radius, which failed in remote areas.
-- **The Fix:** Refactored `dispatchService.js` to implement an **Automated 3-Step Expansion**. If no agents are found within 20km, the engine automatically tries 40km, then 60km.
-
-### 2. Incident Reporting (Fixed)
-- **The Problem:** The app feature to report breakdowns or safety risks was returning a 404 error.
-- **The Fix:** Implemented the `fileIncident` controller and registered the `POST /api/v1/orders/:id/incident` route on the server.
-
-## Sender Experience (Customer App)
-
-### 1. Timeout Resolution
-- **New Interface:** Added a "Receiver Not Responding" resolution card to the `TrackOrderScreen.kt`.
-- **Options:** If a receiver ignores a request for over 2 hours, the sender can now choose to **"Proceed anyway"** (forcing dispatch) or **"Abort Mission."**
+### 4. Robust Inventory API
+- **Backend Expansion:** Implemented full CRUD (Create, Read, Update, Delete) support for both Marketplace Products and Kitchen Menu Items.
+- **Security:** Added ownership verification to ensure merchants can only edit or delete their own items.
 
 ## Verification Results
 
-### Backend
-- Verified syntax for all new routes and controllers.
-- Verified automated radius expansion logs.
+### Backend Integrity
+- Verified syntax for `marketplaceController`, `kitchenController`, and `merchantController`.
 - **Result:** `PASS`.
 
-### Android App
-- Verified timer activation and button states.
-- Verified camera integration for the "Mark Failed" flow.
+### Android Build
+- Successfully compiled with the new dynamic UI and image upload logic.
 - **Result:** `BUILD SUCCESSFUL`.
 
 ## Deployment Instructions (VPS)
-Please apply these final module updates to your **VPS**:
+Please apply these commerce and inventory updates to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3

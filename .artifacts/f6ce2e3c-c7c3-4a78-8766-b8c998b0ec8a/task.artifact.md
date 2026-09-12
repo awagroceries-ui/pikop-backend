@@ -1,17 +1,14 @@
-# Task List - Pikop Commerce Phase 2: Inventory Management
+# Task List - Pikop Commerce Phase 3: Customer Storefront
 
-- [ ] **Backend: Merchant Management**
-    - [ ] Implement `getMerchantProfile` in `merchantController.js`
-    - [ ] Implement Update/Delete endpoints for Products
-    - [ ] Implement Update/Delete endpoints for Menu Items
+- [ ] **Backend: Unified Commerce Engine**
+    - [ ] Create `commerceController.js` with `getDiscovery` proximity search
+    - [ ] Register `commerceRoutes.js` in `app.js`
 - [ ] **Android: ApiService Expansion**
-    - [ ] Add inventory management Retrofit methods to `ApiService.kt`
-- [ ] **Android: Inventory UI**
-    - [ ] Create `AddEditProductScreen.kt` with dynamic fields (Vendor vs Kitchen)
-    - [ ] Implement product image selection and upload
-    - [ ] Add Edit/Delete actions and FAB to `MerchantPortalScreen.kt`
-- [ ] **Android: Navigation Logic**
-    - [ ] Implement smart redirection (Portal vs Registration) in `MainActivity.kt`
+    - [ ] Add `getDiscovery` Retrofit method and data classes to `ApiService.kt`
+- [ ] **Android: Discovery UI**
+    - [ ] Create `StorefrontScreen.kt` with Search, Categories, and Item Grid
+    - [ ] Implement category filtering logic
+    - [ ] Add "Shop & Eat" tab to `MainActivity.kt` bottom navigation
 - [ ] **Verification**
-    - [ ] Build and verify full inventory lifecycle
+    - [ ] Build and verify proximity-based browsing and search
     - [ ] Git automation (Commit and Push)

@@ -640,6 +640,27 @@ data class KitchenDetailsResponse(
     val data: KitchenDetails? = null
 )
 
+data class DiscoveryItem(
+    val id: String,
+    val name: String,
+    val price: Double,
+    val photo_url: String?,
+    val category: String,
+    val description: String?,
+    val vendor_name: String,
+    val vendor_id: String,
+    val item_type: String, // product, meal
+    val city: String?,
+    val pickup_address: String?,
+    val distance_km: Double? = null,
+    val created_at: String
+)
+
+data class DiscoveryResponse(
+    val success: Boolean,
+    val data: List<DiscoveryItem> = emptyList()
+)
+
 data class PaymentInitializationRequest(
     val amount: Double, // in Naira
     val email: String,
@@ -929,6 +950,14 @@ interface ApiService {
 
     @DELETE("api/v1/kitchens/menu-items/{id}")
     suspend fun deleteMenuItem(@retrofit2.http.Path("id") id: String): AuthResponse
+
+    @GET("api/v1/commerce/discovery")
+    suspend fun getDiscovery(
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null,
+        @Query("category") category: String? = null,
+        @Query("query") query: String? = null
+    ): DiscoveryResponse
 
     @GET("api/v1/settings/profile")
     suspend fun getUserProfile(): UserProfileResponse

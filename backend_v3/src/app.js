@@ -119,6 +119,7 @@ app.use('/api/v1/orders', require('./routes/orderRoutes'));
 app.use('/api/v1/payments', require('./routes/paymentRoutes'));
 app.use('/api/v1/fulfillers', require('./routes/fulfillerRoutes'));
 app.use('/api/v1/support', require('./routes/supportRoutes'));
+app.use('/api/v1/commerce', require('./routes/commerceRoutes'));
 app.use('/api/v1/marketplace', require('./routes/marketplaceRoutes'));
 app.use('/api/v1/kitchens', require('./routes/kitchenRoutes'));
 app.use('/api/v1/wallets', require('./routes/walletRoutes'));
