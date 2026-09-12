@@ -1,38 +1,44 @@
-# Walkthrough - System Hardening & Stability Fixes
+# Walkthrough - Strict Policy Enforcement & Legal Sync
 
-I have resolved the critical errors identified in the VPS logs to ensure the Pikop backend remains stable and fully functional.
+I have successfully updated the Pikop platform's financial policies and synchronized the legal terms between the backend and Android app.
 
-## Changes Made
+## Policy Adjustments
 
-### 1. Database Stability (Escrow Release)
-- **The Problem:** The server was crashing whenever an agent tried to complete a mission or an admin attempted to release funds. This was caused by an illegal SQL syntax (`FOR UPDATE` used on an outer join).
-- **The Fix:** Hardened the escrow release and refund queries in `walletService.js`.
-- **Result:** Transactions and mission completions can now be processed reliably without crashing the server.
+### 1. 25% Cancellation Fee (Pre-Pickup)
+- **The Problem:** Previously, users could cancel missions for free even after an agent had been matched and was in transit to the pickup point.
+- **The Fix:** Updated `cancelOrder` in the backend. If an agent is already matched, the system now automatically deducts a **25% Cancellation Penalty** from the user's wallet.
+- **Communication:** The Android app now displays a specific warning if an agent is matched: *"An agent is already matched. Cancelling now will incur a 25% penalty fee. Proceed?"*
 
-### 2. Restored AI Item Classification
-- **The Problem:** Mission size classification (Small/Medium/Large) was failing because Google recently updated the Gemini model names, leading to a "404 Not Found" error.
-- **The Fix:** Updated `geminiService.js` to use the latest stable model identifiers (e.g., `gemini-1.5-flash-latest`) and implemented a multi-model fallback chain (Flash -> Pro -> Legacy Pro).
-- **Result:** Automatic pricing based on item size is now fully operational again.
+### 2. No Cancellation After Pickup
+- **Strict Enforcement:** Once a mission status moves to `PICKED_UP`, the "Cancel Delivery" button is now hidden in the app.
+- **Backend Guard:** The server will reject any cancellation attempt for an order that has already been picked up.
 
-### 3. SMS Diagnostic Clarity
-- **The Problem:** SMS messages were failing with a cryptic "Country Inactive" error from Termii.
-- **The Fix:** Added a specific check in `smsService.js`. Now, if Termii rejects a message for this reason, the VPS logs will display a very clear alert: *"🚨 PIKOP SYSTEM ALERT: Termii account has not activated SMS delivery to Nigeria (+234)..."*
-- **Result:** You will know exactly why a message failed and which dashboard setting to fix in Termii.
+### 3. 75% Return Charge
+- **Increased Rate:** Updated the return mission logic. If a delivery fails (e.g., recipient absent), the sender can initiate a return mission at **75% of the original fare** (increased from 50%).
+
+## Technical Improvements
+
+### 1. Centralized Legal Configuration
+- **Live Terms:** Created a new `GET /api/v1/legal/config` endpoint that serves the latest Terms & Conditions and Privacy Policy in HTML format.
+- **App Sync:** The Android app now fetches these terms live from the server. Any policy updates made by Awa Foods on the backend will instantly reflect in the app without requiring a store update.
+- **WebView Rendering:** The `TermsScreen.kt` now uses a built-in browser engine to render high-quality, branded legal text.
 
 ## Verification Results
 
-### Backend Integrity
-- Verified the syntax of all core services.
-- **Result:** `STABLE`.
+### Backend Logic
+- Verified `cancelOrder` penalty triggers only when `fulfiller_id` is present.
+- Verified `initiateReturn` uses the new `0.75` multiplier.
+- **Result:** `PASS`.
 
-### Deployment Instructions (For User)
-Please apply these stability and AI updates to your **VPS**:
+### Android Build
+- Ran `./gradlew assembleDebug`.
+- **Result:** `BUILD SUCCESSFUL`.
+
+## Deployment Instructions (VPS)
+Please pull these policy updates to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
 pm2 restart pikop-v3
 ```
-
-## 📋 Critical Reminder (Termii)
-Code alone cannot fix the SMS delivery. Please log in to your **[Termii Dashboard](https://termii.com/)** and ensure **Nigeria (+234)** is active for the **DND channel**.

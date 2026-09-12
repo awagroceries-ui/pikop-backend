@@ -1,7 +1,13 @@
-# Task List - SMS Resilient Delivery Fallback
+# Task List - Strict Policy Adjustments
 
-- [ ] Backend: Implement `TERMII_CHANNEL` override in `smsService.js`
-- [ ] Backend: Implement automatic `generic` channel fallback in `sendOtp`
-- [ ] Backend: Implement automatic `generic` channel fallback in `sendSms`
-- [ ] Verification: Git automation (Commit and Push)
-- [ ] Manual Action: Deploy to VPS and check logs for fallback triggers
+- [x] **Backend: Policy Enforcement**
+    - [x] Update `initiateReturn` in `orderController.js` to 75% fee
+    - [x] Update `cancelOrder` in `orderController.js` with 25% fee and post-pickup restriction
+    - [x] Update `legalController.js` with new terms and `/legal/config` endpoint
+- [x] **Android: App Alignment**
+    - [x] Update `ApiService.kt` for legal config
+    - [x] Update `TermsScreen.kt` to fetch and render live terms
+    - [x] Update `TrackOrderScreen.kt` cancellation logic
+- [x] **Verification**
+    - [x] Build and verify policy triggers
+    - [x] Git automation (Commit and Push)

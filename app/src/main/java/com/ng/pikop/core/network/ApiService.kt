@@ -574,6 +574,9 @@ interface ApiService {
     @POST("api/v1/auth/fcm-token")
     suspend fun updateFCMToken(@Body request: Map<String, String>): AuthResponse
 
+    @GET("api/v1/legal/config")
+    suspend fun getLegalConfig(): Map<String, String>
+
     @PATCH("api/v1/settings/notifications")
     suspend fun updateNotificationPrefs(@Body request: Map<String, Boolean>): AuthResponse
 

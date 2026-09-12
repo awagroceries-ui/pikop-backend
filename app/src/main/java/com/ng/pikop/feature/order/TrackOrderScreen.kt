@@ -430,24 +430,42 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                     }
                 )
             }
-            val canCancel = history.none { it.status == "PICKED_UP" || it.status == "DELIVERED" || it.status == "CANCELLED" }
+            val isMatched = history.any { it.status == "MATCHED" || it.status == "ACCEPTED" }
+            val hasPickedUp = history.any { it.status == "PICKED_UP" || it.status == "IN_TRANSIT" || it.status == "ARRIVED_AT_DELIVERY" }
+            val isFinal = history.any { it.status == "DELIVERED" || it.status == "CANCELLED" || it.status == "RECIPIENT_ABSENT" || it.status == "RELEASED" }
+            
+            val canCancel = !hasPickedUp && !isFinal
+            
             if (canCancel) {
                 val scope = rememberCoroutineScope()
                 val apiService = remember { ApiService.create(tokenManager) }
                 var showCancelConfirm by remember { mutableStateOf(false) }
-                OutlinedButton(onClick = { showCancelConfirm = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)) { Text("Cancel Delivery") }
+                
+                OutlinedButton(
+                    onClick = { showCancelConfirm = true }, 
+                    modifier = Modifier.fillMaxWidth(), 
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
+                ) { 
+                    Text("Cancel Delivery") 
+                }
+                
                 if (showCancelConfirm) {
                     AlertDialog(
                         onDismissRequest = { showCancelConfirm = false }, 
                         title = { Text("Abort Mission?") }, 
-                        text = { Text("Are you sure you want to cancel this delivery request?") }, 
+                        text = { 
+                            Text(
+                                if (isMatched) "An agent is already matched. Cancelling now will incur a 25% penalty fee. Proceed?"
+                                else "Are you sure you want to cancel this delivery request?"
+                            ) 
+                        }, 
                         confirmButton = { 
                             Button(
                                 onClick = { 
                                     scope.launch { 
                                         try { 
-                                            apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation"))
-                                            android.widget.Toast.makeText(context, "Mission Aborted", android.widget.Toast.LENGTH_SHORT).show()
+                                            val response = apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation"))
+                                            android.widget.Toast.makeText(context, response.message ?: "Mission Aborted", android.widget.Toast.LENGTH_LONG).show()
                                             onRefresh() 
                                         } catch (e: Exception) {
                                             val errorMsg = com.ng.pikop.core.network.ErrorUtils.parseError(e)

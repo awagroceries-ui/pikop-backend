@@ -387,37 +387,82 @@ const updateStatus = async (req, res) => {
 
 /**
  * Cancels an order.
+ * Policy: 25% fee if matched but before pickup. No cancellation after pickup.
  */
 const cancelOrder = async (req, res) => {
     const { orderId } = req.params;
     const { reason } = req.body;
     const userId = req.user.id;
 
+    const client = await db.pool.connect();
     try {
-        const { rows } = await db.query(
-            "UPDATE orders SET status = 'CANCELLED', cancellation_reason = $1 WHERE id = $2 AND user_id = $3 AND status NOT IN ('PICKED_UP', 'DELIVERED', 'CANCELLED') RETURNING id",
-            [reason || 'User cancelled', orderId, userId]
+        await client.query('BEGIN');
+
+        // 1. Lock and fetch current status
+        const { rows } = await client.query(
+            "SELECT id, status, total_fare, fulfiller_id FROM orders WHERE id = $1 AND user_id = $2 FOR UPDATE",
+            [orderId, userId]
         );
 
         if (rows.length === 0) {
-            console.warn(`[Cancel] Unauthorized or invalid state for Order ${orderId} by User ${userId}`);
-            return res.status(400).json({ success: false, message: 'Order cannot be cancelled. It might be already in progress or completed.' });
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Order not found' });
         }
+
+        const order = rows[0];
+
+        // 2. Policy Check: No cancellation after pickup
+        const forbiddenStatuses = ['PICKED_UP', 'IN_TRANSIT', 'ARRIVED_AT_DELIVERY', 'DELIVERED', 'RELEASED', 'RECIPIENT_ABSENT'];
+        if (forbiddenStatuses.includes(order.status)) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ success: false, message: 'Cancellation is strictly prohibited once the item has been picked up.' });
+        }
+
+        if (order.status === 'CANCELLED') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Order is already cancelled' });
+        }
+
+        // 3. Penalty Logic: 25% if matched
+        let penaltyApplied = 0;
+        if (order.fulfiller_id) {
+            penaltyApplied = parseFloat(order.total_fare) * 0.25;
+
+            // Deduct from User Wallet
+            const walletId = await walletService.ensureWalletExists(client, 'USER', userId);
+            await walletService.recordEntry(client, walletId, 'DEBIT', penaltyApplied, 'CANCELLATION_PENALTY', `25% penalty for cancelling active mission #${orderId}`, orderId);
+
+            // Note: In a future iteration, we can credit a portion of this to the agent.
+            console.log(`[Cancel] Charged 25% penalty (₦${penaltyApplied}) to User ${userId} for matched Order ${orderId}`);
+        }
+
+        // 4. Update Status
+        await client.query(
+            "UPDATE orders SET status = 'CANCELLED', cancellation_reason = $1 WHERE id = $2",
+            [reason || 'User cancelled', orderId]
+        );
+
+        await client.query('COMMIT');
 
         // Notify participants
         const socketService = require('../services/socketService');
         socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: 'CANCELLED' });
 
-        console.log(`[Cancel] Mission ${orderId} successfully aborted by User ${userId}`);
-        res.status(200).json({ success: true, message: 'Mission aborted' });
+        res.status(200).json({
+            success: true,
+            message: penaltyApplied > 0 ? `Mission cancelled. A 25% penalty (₦${penaltyApplied.toFixed(2)}) was applied.` : 'Mission aborted'
+        });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error(`[Cancel] Error for Order ${orderId}:`, error.message);
         res.status(500).json({ success: false, message: error.message });
+    } finally {
+        client.release();
     }
 };
 
 /**
- * Initiates a return mission at 50% of the original fare.
+ * Initiates a return mission at 75% of the original fare.
  */
 const initiateReturn = async (req, res) => {
     const { orderId } = req.params;
@@ -432,7 +477,7 @@ const initiateReturn = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Return can only be initiated if recipient was absent' });
         }
 
-        const returnFare = parseFloat(orig.total_fare) * 0.5;
+        const returnFare = parseFloat(orig.total_fare) * 0.75; // Policy: 75% return fee
 
         // Create new mission with reversed addresses
         const returnRes = await db.query(
@@ -440,22 +485,25 @@ const initiateReturn = async (req, res) => {
                 order_type, user_id, parent_order_id, status,
                 pickup_address, delivery_address,
                 pickup_location, delivery_location,
-                total_fare, item_description, payment_status
+                total_fare, item_description, payment_status,
+                original_total_fare, initiator_role
             ) VALUES (
                 $1, $2, $3, 'SEARCHING',
-                $4, $5, $6, $7, $8, $9, 'pending'
+                $4, $5, $6, $7, $8, $9, 'pending',
+                $10, 'PAYER'
             ) RETURNING id`,
             [
                 orig.order_type, userId, orig.id,
                 orig.delivery_address, orig.pickup_address, // Reversed
                 orig.delivery_location, orig.pickup_location, // Reversed
-                returnFare, `RETURN: ${orig.item_description}`
+                returnFare, `RETURN: ${orig.item_description}`,
+                orig.total_fare // Store original for audit
             ]
         );
 
         res.status(201).json({
             success: true,
-            message: 'Return mission created. Please complete payment.',
+            message: 'Return mission created. 75% return fee applied. Please complete payment.',
             data: { return_order_id: returnRes.rows[0].id, amount: returnFare }
         });
     } catch (error) {
