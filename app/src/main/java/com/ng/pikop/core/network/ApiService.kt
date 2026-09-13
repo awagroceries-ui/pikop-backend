@@ -21,7 +21,17 @@ data class SignupRequest(
     val phone: String,
     val password: String,
     val role: String,
-    val referral_code: String? = null
+    val referral_code: String? = null,
+    
+    // Fulfiller specifics
+    val primary_class: String? = null, // e.g. RIDER, DRIVER, FOOT_AGENT
+    val date_of_birth: String? = null,
+    val home_address: String? = null,
+    val gender: String? = null,
+    val registration_number: String? = null,
+    val make: String? = null,
+    val model: String? = null,
+    val color: String? = null
 )
 
 data class AuthResponse(

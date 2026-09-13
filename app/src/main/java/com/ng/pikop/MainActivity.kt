@@ -358,8 +358,14 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             UserTypeSelectionScreen(onRoleSelected = { role ->
                 if (role == "LOGIN") navController.navigate("login")
                 else if (role == "CUSTOMER") navController.navigate("signup_customer")
-                else if (role == "FULFILLER") navController.navigate("signup_fulfiller")
+                else if (role == "FULFILLER") navController.navigate("fulfiller_category_selection")
                 else if (role == "MERCHANT") navController.navigate("signup_merchant")
+            })
+        }
+        
+        composable("fulfiller_category_selection") {
+            FulfillerCategorySelectionScreen(onCategorySelected = { category ->
+                navController.navigate("signup_fulfiller/$category")
             })
         }
 
@@ -385,8 +391,13 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             )
         }
         
-        composable("signup_fulfiller") {
+        composable(
+            route = "signup_fulfiller/{category}",
+            arguments = listOf(navArgument("category") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val category = backStackEntry.arguments?.getString("category") ?: "RIDER"
             SignupFulfillerScreen(
+                category = category,
                 onSignupSuccess = { email, userRole ->
                     navController.navigate("email_otp/$email/$userRole")
                 },

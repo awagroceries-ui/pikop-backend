@@ -9,7 +9,11 @@ const crypto = require('crypto');
  * Handles user registration.
  */
 const signup = async (req, res) => {
-  const { full_name, email, phone, password, role, referral_code } = req.body;
+  const {
+      full_name, email, phone, password, role, referral_code,
+      primary_class, date_of_birth, home_address, gender,
+      registration_number, make, model, color
+  } = req.body;
   const userRole = (role || 'CUSTOMER').toUpperCase();
   const normalizedPhone = normalizePhone(phone);
 
@@ -31,7 +35,23 @@ const signup = async (req, res) => {
     );
     const user = userRes.rows[0];
 
-    // 4. Generate OTP (Internal/Email)
+    // 4. If Fulfiller, create initial fulfiller profile
+    if (userRole === 'FULFILLER') {
+        await client.query(
+            `INSERT INTO fulfillers (
+                user_id, full_name, email, phone, primary_class,
+                date_of_birth, home_address, gender,
+                registration_number, make, model, color
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            [
+                user.id, full_name, email, normalizedPhone, (primary_class || 'RIDER').toUpperCase(),
+                date_of_birth, home_address, gender,
+                registration_number, make, model, color
+            ]
+        );
+    }
+
+    // 5. Generate OTP (Internal/Email)
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
 
