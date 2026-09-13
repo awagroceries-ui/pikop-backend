@@ -30,6 +30,9 @@ fun CustomerHomeScreen(
     userEmail: String,
     userName: String,
     onNewDelivery: () -> Unit,
+    onNavigateToFood: () -> Unit,
+    onNavigateToGroceries: () -> Unit,
+    onNavigateToShop: () -> Unit,
     onTrackOrder: (String) -> Unit,
     onNavigateToAcknowledgment: (String) -> Unit,
     onNavigateToWallet: () -> Unit,
@@ -178,43 +181,47 @@ fun CustomerHomeScreen(
                 }
             }
 
-            // Primary Action: Request Delivery
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                onClick = onNewDelivery
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier
-                            .padding(20.dp)
-                            .align(Alignment.CenterStart)
-                    ) {
-                        Text(
-                            text = "Request a Delivery",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Text(
-                            text = "Send items across the city instantly",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Default.LocalPostOffice,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(100.dp)
-                            .align(Alignment.CenterEnd)
-                            .offset(x = 20.dp)
-                            .graphicsLayer(alpha = 0.1f),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
+            // 2x2 Grid of Primary Modules
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                PrimaryModuleCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Dispatch",
+                    subtitle = "Send parcels",
+                    icon = Icons.Default.DirectionsBike,
+                    backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    onClick = onNewDelivery
+                )
+                PrimaryModuleCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Food",
+                    subtitle = "Order meals",
+                    icon = Icons.Default.Restaurant,
+                    backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    onClick = onNavigateToFood
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                PrimaryModuleCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Groceries",
+                    subtitle = "Fresh & raw",
+                    icon = Icons.Default.LocalGroceryStore,
+                    backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                    iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    onClick = onNavigateToGroceries
+                )
+                PrimaryModuleCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Shop",
+                    subtitle = "General items",
+                    icon = Icons.Default.ShoppingBag,
+                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onNavigateToShop
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -307,6 +314,53 @@ fun ServiceButton(
                 Text(text = title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text(text = subtitle, fontSize = 11.sp, color = Color.Gray)
             }
+        }
+    }
+}
+
+@Composable
+fun PrimaryModuleCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    backgroundColor: Color,
+    iconTint: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.height(140.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        onClick = onClick
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .align(Alignment.TopStart)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Black,
+                    color = iconTint
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = iconTint.copy(alpha = 0.8f)
+                )
+            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(64.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 8.dp, y = 8.dp)
+                    .graphicsLayer(alpha = 0.3f),
+                tint = iconTint
+            )
         }
     }
 }

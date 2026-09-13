@@ -995,7 +995,8 @@ interface ApiService {
         @Query("lat") lat: Double? = null,
         @Query("lng") lng: Double? = null,
         @Query("category") category: String? = null,
-        @Query("query") query: String? = null
+        @Query("query") query: String? = null,
+        @Query("item_type") item_type: String? = null
     ): DiscoveryResponse
 
     @POST("api/v1/commerce/checkout/initialize")

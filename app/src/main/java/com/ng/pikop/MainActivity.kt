@@ -674,19 +674,6 @@ fun MainAppScaffold(
                     )
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Storefront, contentDescription = null) },
-                    label = { Text("Shop & Eat") },
-                    selected = currentDestination == "storefront",
-                    onClick = { nestedNavController.navigate("storefront") { launchSingleTop = true } },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
-                        unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
-                        indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
-                    )
-                )
-                NavigationBarItem(
                     icon = { Icon(Icons.Default.History, contentDescription = null) },
                     label = { Text("Missions") },
                     selected = currentDestination == "history",
@@ -750,6 +737,9 @@ fun MainAppScaffold(
                         userEmail = userEmail,
                         userName = userName,
                         onNewDelivery = { navController.navigate("order_quote") },
+                        onNavigateToFood = { nestedNavController.navigate("storefront_food") },
+                        onNavigateToGroceries = { nestedNavController.navigate("storefront_groceries") },
+                        onNavigateToShop = { nestedNavController.navigate("storefront_shop") },
                         onTrackOrder = { id -> navController.navigate("track_order/$id") },
                         onNavigateToAcknowledgment = { id -> navController.navigate("order_acknowledgment/$id") },
                         onNavigateToWallet = { nestedNavController.navigate("wallet") },
@@ -758,8 +748,22 @@ fun MainAppScaffold(
                     )
                 }
             }
-            composable("storefront") {
-                StorefrontScreen(
+            composable("storefront_food") {
+                com.ng.pikop.feature.commerce.FoodStorefrontScreen(
+                    onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
+                        navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
+                    }
+                )
+            }
+            composable("storefront_groceries") {
+                com.ng.pikop.feature.commerce.GroceryStorefrontScreen(
+                    onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
+                        navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
+                    }
+                )
+            }
+            composable("storefront_shop") {
+                com.ng.pikop.feature.commerce.ShopStorefrontScreen(
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
                         navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
                     }

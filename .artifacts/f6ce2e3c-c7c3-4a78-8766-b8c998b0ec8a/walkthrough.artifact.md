@@ -1,42 +1,42 @@
-# Walkthrough - Fleet Module Finalized: Performance & Intelligence
+# Walkthrough - Merchant Growth: In-App Bulk Dispatch
 
-I have successfully completed all phases of the **Fleet Performance & Automated Payouts** module. This module provides a professional, scalable foundation for managing and paying your delivery fleet.
+I have successfully implemented the **In-App Bulk Dispatch** system, allowing high-volume merchants to create and manage large batches of delivery missions directly from their mobile app.
 
-## Complete Fleet Ecosystem
+## New Capabilities
 
-### 1. Fully Automated Payouts
-- **Instant Funds:** Agents can now request withdrawals directly in the app. Amounts under **₦5,000** are processed instantly via the **Paystack Transfer API**.
-- **Bank Verification:** The app displays the linked bank details before submission, ensuring funds are sent to the correct account.
-- **Zero Config:** The system automatically registers agents as Paystack Recipients on their first withdrawal.
+### 1. Manual Batch Creation Interface
+- **The Screen:** Created `BulkDispatchScreen.kt`, a powerful tool for building delivery lists.
+- **Dynamic Rows:** Merchants can now add multiple recipients, addresses, and item descriptions to a single batch.
+- **Address Integration:** Each row is linked to the standard Map Address Search, ensuring delivery coordinates are accurate.
 
-### 2. Live Performance Insights
-- **KPI Tracking:** Agents now see their **Completion Rate (%)** and **Month-to-Date Earnings** prominently on a new insights dashboard.
-- **Trend Chart:** Added a visual bar graph showing daily earnings over the last 7 days to keep couriers motivated.
-- **History:** A clean feed of the 10 most recent missions and their payout status.
+### 2. Unified Batch Payment & Activation
+- **Single Click Dispatch:** Merchants can calculate the total cost for up to 50 missions and pay for them all at once using their wallet balance.
+- **Automated Debiting:** The system automatically handles the financial ledger, debiting the merchant and activating all missions in the background.
 
-### 3. Automated Tier Engine (Intelligence)
-- **Daily Audit:** Implemented a background engine that runs every night to analyze the last 30 days of each agent's performance.
-- **Smart Promotions:** Agents are automatically promoted to **Silver** or **Gold** based on mission count, high ratings, and reliable completion.
-- **Risk Management:** The system automatically **flags** underperforming agents (e.g., <60% completion) for admin review, protecting your service quality.
+### 3. Real-Time Monitoring in Merchant Portal
+- **"Create Batch" Access:** Added a dedicated action button in the "Bulk" tab of the Seller Center.
+- **Live Progress Tracking:** The portal now displays progress bars for active batches, showing the ratio of `processed` vs `total` orders in real-time.
+
+### 4. Secure Session Bulk API
+- **Direct App Access:** Implemented a new backend endpoint `POST /api/v1/merchants/orders/bulk-session` that works with the existing user login session.
+- **Smart Validation:** The API ensures the user owns the merchant account and has sufficient funds before activating the batch.
 
 ## Verification Results
 
-### Backend Intelligence
-- Created migration `1725640000000_add_flagging_to_fulfillers.js`.
-- Verified the daily audit job correctly promotes/demotes agents in the database.
+### Backend Implementation
+- Verified syntax and route registration for the Bulk Session API.
+- Confirmed wallet debiting logic in `merchantController.js`.
 - **Result:** `PASS`.
 
-### Android Experience
-- Verified the new 4-card stats grid and visual earnings trend chart.
-- Confirmed the withdrawal flow works with balance validation.
-- **Result:** `STABLE`.
+### Android Build
+- Successfully compiled the new Bulk Dispatch UI and integrated it with the Merchant Portal navigation.
+- **Result:** `BUILD SUCCESSFUL`.
 
 ## Deployment Instructions (VPS)
-Please apply the final Fleet module updates to your **VPS**:
+Please apply these bulk dispatch and merchant growth updates to your **VPS**:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```
