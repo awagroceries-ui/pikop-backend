@@ -28,8 +28,7 @@ import com.ng.pikop.core.network.SignupRequest
 import kotlinx.coroutines.launch
 
 @Composable
-fun SignupScreen(
-    role: String,
+fun SignupCustomerScreen(
     onSignupSuccess: (String, String) -> Unit,
     onViewTerms: () -> Unit,
     onViewPrivacy: () -> Unit
@@ -49,8 +48,6 @@ fun SignupScreen(
     
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
-
-    val isFulfiller = role == "FULFILLER"
 
     LaunchedEffect(Unit) {
         tokenManager.clearTokens() // Hard clear on entry to prevent stale session bypass
@@ -77,12 +74,12 @@ fun SignupScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = if (isFulfiller) "Join the Fleet" else "Create Pikop Account",
+                text = "Create Customer Account",
                 style = MaterialTheme.typography.headlineMedium
             )
             
             Text(
-                text = if (isFulfiller) "Start earning by delivering items." else "Send and receive items with ease.",
+                text = "Send and receive items with ease.",
                 style = MaterialTheme.typography.bodySmall,
                 color = androidx.compose.ui.graphics.Color.Gray
             )
@@ -189,10 +186,10 @@ fun SignupScreen(
                         isLoading = true
                         errorMessage = null
                         try {
-                            val request = SignupRequest(fullName, email, phone, password, role, referralCode.ifBlank { null })
+                            val request = SignupRequest(fullName, email, phone, password, "CUSTOMER", referralCode.ifBlank { null })
                             val response = apiService.signup(request)
                             if (response.message?.contains("registered", ignoreCase = true) == true) {
-                                onSignupSuccess(email, role)
+                                onSignupSuccess(email, "CUSTOMER")
                             } else {
                                 errorMessage = response.message
                             }
@@ -218,7 +215,7 @@ fun SignupScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("Sign Up")
+                    Text("Sign Up as Customer")
                 }
             }
 

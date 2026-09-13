@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ElectricBike
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -63,6 +64,13 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     icon = Icons.Default.ElectricBike,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("FULFILLER") }
+                )
+                RoleCard(
+                    title = "I want to Sell",
+                    description = "List products & grow business.",
+                    icon = Icons.Default.Storefront,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onRoleSelected("MERCHANT") }
                 )
             }
             

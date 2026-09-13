@@ -1,19 +1,14 @@
-# Task Checklist: Marketplace Module Restructuring
+# Task Checklist: Distinct Onboarding per User Type
 
-- `[/]` **Part 1: Home Screen Overhaul**
-  - `[ ]` Modify `CustomerHomeScreen.kt` to remove the large "Request a Delivery" card.
-  - `[ ]` Introduce a 2x2 grid of distinct `ModuleCard` components (Dispatch, Food, Groceries, Shop).
-- `[ ]` **Part 2: Dedicated Storefront Screens**
-  - `[ ]` Create `FoodStorefrontScreen.kt`.
-  - `[ ]` Create `GroceryStorefrontScreen.kt`.
-  - `[ ]` Create `ShopStorefrontScreen.kt`.
-- `[ ]` **Part 3: Navigation Updates**
-  - `[ ]` Update `MainActivity.kt` to register the new explicit routes (`storefront_food`, `storefront_groceries`, `storefront_shop`).
-  - `[ ]` Remove the "Shop & Eat" generic bottom navigation item.
-- `[ ]` **Part 4: Backend Updates**
-  - `[ ]` Modify `commerceController.js` `getDiscovery` endpoint to strictly enforce `item_type` query parameters if not already present.
-- `[ ]` **Part 5: Verification**
-  - `[ ]` Build and test the Android client.
-  - `[ ]` Verify visually that the home screen has the 4 boxes and bottom nav is updated.
-  - `[ ]` Verify navigation works without overlapping data.
+- `[/]` **Part 1: Upfront Role Selection**
+  - `[ ]` Modify `UserTypeSelectionScreen.kt` to include 3 options (Customer, Fulfiller, Merchant).
+- `[ ]` **Part 2: Separate Onboarding Flows**
+  - `[ ]` Create `SignupCustomerScreen.kt` (from original SignupScreen logic).
+  - `[ ]` Create `SignupFulfillerScreen.kt` (Base structure, hardcoding `FULFILLER`).
+  - `[ ]` Create `SignupMerchantScreen.kt` (Base structure, hardcoding `MERCHANT`).
+  - `[ ]` Remove monolithic `SignupScreen.kt`.
+- `[ ]` **Part 3: Navigation Routing**
+  - `[ ]` Update `MainActivity.kt` to route explicitly to `signup_customer`, `signup_fulfiller`, and `signup_merchant`.
+- `[ ]` **Part 4: Verification & Git**
+  - `[ ]` Build and verify logic compiles.
   - `[ ]` Git commit and push changes.

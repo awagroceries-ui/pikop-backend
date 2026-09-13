@@ -357,7 +357,9 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         composable("user_type_selection") {
             UserTypeSelectionScreen(onRoleSelected = { role ->
                 if (role == "LOGIN") navController.navigate("login")
-                else navController.navigate("signup/$role")
+                else if (role == "CUSTOMER") navController.navigate("signup_customer")
+                else if (role == "FULFILLER") navController.navigate("signup_fulfiller")
+                else if (role == "MERCHANT") navController.navigate("signup_merchant")
             })
         }
 
@@ -373,14 +375,32 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             )
         }
 
-        composable("signup/{role}") { backStackEntry ->
-            val role = backStackEntry.arguments?.getString("role") ?: "CUSTOMER"
-            SignupScreen(
-                role = role,
+        composable("signup_customer") {
+            SignupCustomerScreen(
                 onSignupSuccess = { email, userRole ->
                     navController.navigate("email_otp/$email/$userRole")
                 },
-                onViewTerms = { navController.navigate("terms_viewer/${role == "FULFILLER"}") },
+                onViewTerms = { navController.navigate("terms_viewer/false") },
+                onViewPrivacy = { navController.navigate("privacy_policy") }
+            )
+        }
+        
+        composable("signup_fulfiller") {
+            SignupFulfillerScreen(
+                onSignupSuccess = { email, userRole ->
+                    navController.navigate("email_otp/$email/$userRole")
+                },
+                onViewTerms = { navController.navigate("terms_viewer/true") },
+                onViewPrivacy = { navController.navigate("privacy_policy") }
+            )
+        }
+        
+        composable("signup_merchant") {
+            SignupMerchantScreen(
+                onSignupSuccess = { email, userRole ->
+                    navController.navigate("email_otp/$email/$userRole")
+                },
+                onViewTerms = { navController.navigate("terms_viewer/false") },
                 onViewPrivacy = { navController.navigate("privacy_policy") }
             )
         }
