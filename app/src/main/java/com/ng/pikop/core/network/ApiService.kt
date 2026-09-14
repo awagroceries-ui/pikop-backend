@@ -978,6 +978,12 @@ interface ApiService {
 
     @POST("api/v1/merchants/setup")
     suspend fun setupMerchantProfile(@Body request: SetupMerchantRequest): SetupMerchantResponse
+    
+    @GET("api/v1/merchants/orders")
+    suspend fun getMerchantIncomingOrders(): List<OrderDetailsResponse>
+    
+    @PATCH("api/v1/merchants/orders/{id}/status")
+    suspend fun updateMerchantOrderStatus(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): AuthResponse
 
     @GET("api/v1/merchants/my-batches")
     suspend fun getMerchantBatches(): MerchantBatchesResponse

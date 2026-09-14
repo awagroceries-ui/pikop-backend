@@ -427,6 +427,77 @@ const createBulkOrdersSession = async (req, res) => {
     }
 };
 
+/**
+ * Fetches incoming orders for the merchant.
+ */
+const getIncomingOrders = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        // Fetch the merchant account
+        const mRes = await db.query(
+            `SELECT id FROM vendors WHERE user_id = $1
+             UNION
+             SELECT id FROM kitchens WHERE user_id = $1`,
+            [userId]
+        );
+
+        if (mRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Merchant not found' });
+        const merchantId = mRes.rows[0].id;
+
+        // Fetch orders linked to this merchant (via product or menu_item)
+        const { rows } = await db.query(
+            `SELECT o.*
+             FROM orders o
+             WHERE o.merchant_account_id = $1
+             ORDER BY o.created_at DESC`,
+            [merchantId]
+        );
+
+        res.status(200).json(rows);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Updates order status by the merchant.
+ */
+const updateOrderStatus = async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // Validate ownership
+        const oRes = await db.query(
+            `SELECT o.id, o.merchant_account_id
+             FROM orders o
+             JOIN vendors v ON v.id = o.merchant_account_id AND v.user_id = $2
+             WHERE o.id = $1
+             UNION
+             SELECT o.id, o.merchant_account_id
+             FROM orders o
+             JOIN kitchens k ON k.id = o.merchant_account_id AND k.user_id = $2
+             WHERE o.id = $1`,
+            [id, userId]
+        );
+
+        if (oRes.rows.length === 0) return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+        await db.query("UPDATE orders SET status = $1 WHERE id = $2", [status, id]);
+
+        // Broadcast socket alert
+        try {
+            const socketService = require('../services/socketService');
+            socketService.getIO().emit(`order_update_${id}`, { status });
+        } catch (e) {}
+
+        res.status(200).json({ success: true, message: 'Order status updated' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   registerMerchant,
   createBulkOrders,
@@ -436,5 +507,7 @@ module.exports = {
   getMyBatches,
   getSellerDashboard,
   getMerchantProfile,
-  setupMerchantProfile
+  setupMerchantProfile,
+  getIncomingOrders,
+  updateOrderStatus
 };

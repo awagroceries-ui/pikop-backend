@@ -13,6 +13,9 @@ router.get('/my-batches', authenticateToken, merchantController.getMyBatches);
 router.get('/my-batches/:batchId', authenticateToken, merchantController.getBatchStatus);
 router.post('/orders/bulk-session', authenticateToken, merchantController.createBulkOrdersSession);
 
+router.get('/orders', authenticateToken, merchantController.getIncomingOrders);
+router.patch('/orders/:id/status', authenticateToken, merchantController.updateOrderStatus);
+
 // Programmatic Bulk Operations (API Key)
 router.post('/orders/bulk', authenticateMerchantKey, merchantController.createBulkOrders);
 router.get('/batches', authenticateMerchantKey, merchantController.getBatches);

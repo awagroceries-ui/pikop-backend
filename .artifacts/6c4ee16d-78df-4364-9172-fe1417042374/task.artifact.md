@@ -1,17 +1,13 @@
-# Task Checklist: Merchant Onboarding & NAFDAC
+# Task Checklist: Dedicated Merchant Module Separation
 
-- `[/]` **Part 1: Stage 1 (Contact Person)**
-  - `[ ]` Update `SignupMerchantScreen.kt` (Refine labels to Contact Person, Role, etc.).
-- `[ ]` **Part 2: Stage 2 (Business Verification)**
-  - `[ ]` Create `MerchantBusinessSetupScreen.kt` (Business Name, Category, CAC, conditional NAFDAC, Bank details).
-  - `[ ]` Update `MainActivity.kt` to route merchants from OTP to `merchant_business_setup`.
-- `[ ]` **Part 3: Backend Logic**
-  - `[ ]` Add `setupMerchantProfile` in `merchantController.js`.
-  - `[ ]` Add route in `merchantRoutes.js`.
-  - `[ ]` Update `addProduct` and `updateProduct` in `merchantController.js` to accept `nafdac_number`.
-- `[ ]` **Part 4: Product-level NAFDAC (User Addition)**
-  - `[ ]` Update `ApiService.kt` to support `nafdac_number` in `ProductRequest`.
-  - `[ ]` Update `AddEditProductScreen.kt` to include an optional NAFDAC field.
-- `[ ]` **Part 5: Verification & Git**
-  - `[ ]` Build and verify logic compiles.
+- `[/]` **Part 1: Separate Merchant Navigation**
+  - `[ ]` Create `MerchantAppScaffold.kt` with a dedicated bottom navigation bar.
+  - `[ ]` Update `MainActivity.kt` `MainAppScaffold` routing to direct `MERCHANT` role to the new scaffold.
+- `[ ]` **Part 2: Refactoring Merchant Portal Components**
+  - `[ ]` Adapt `MerchantPortalScreen.kt` content into distinct tabs (Dashboard, Inventory, Orders, Wallet).
+- `[ ]` **Part 3: Backend Order Management**
+  - `[ ]` Add/verify `getIncomingOrders` endpoint for merchants.
+  - `[ ]` Add/verify `updateOrderStatus` endpoint for merchants (`PREPARING`, `READY_FOR_PICKUP`).
+- `[ ]` **Part 4: Verification & Git**
+  - `[ ]` Compile and test navigation boundaries.
   - `[ ]` Git commit and push changes.

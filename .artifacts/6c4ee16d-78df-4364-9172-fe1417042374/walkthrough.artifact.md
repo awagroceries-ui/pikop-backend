@@ -1,21 +1,20 @@
-# Walkthrough: Fulfiller Category Split
+# Walkthrough: Merchant Onboarding (Contact Person + Business Verification)
 
 ## Changes Made
-1. **Category Selection Screen**:
-   - Built a dedicated `FulfillerCategorySelectionScreen.kt` that presents 3 distinct choices: **Foot Agent/Cyclist**, **Rider**, and **Driver**.
-   - This screen intercepts the Fulfiller onboarding flow before capturing any data.
-2. **Dynamic Onboarding Form (`SignupFulfillerScreen.kt`)**:
-   - The form now accepts the chosen category via the navigation route (`signup_fulfiller/{category}`).
-   - **Foot Agent / Cyclist**: Only sees Personal Details (Name, Phone, DOB, Gender, Operating City, Home Address).
-   - **Rider & Driver**: Vehicle Details unlock (Plate Number, Make, Model, Color).
-   - **Port Harcourt Warning**: If a Rider enters "Port Harcourt" or "PH" as their operating city, a dynamic red warning text surfaces underneath the required documents list, stating: *"This permit is required for riders operating in Port Harcourt — you may be asked to provide this before being approved to accept missions there"*. The form itself remains submittable without it.
-3. **Backend Support (`authController.js`)**:
-   - Updated the generic `/signup` API in Node.js to accept `primary_class`, `make`, `model`, `color`, `registration_number`, etc.
-   - When a `FULFILLER` signs up, the backend automatically inserts these values into the `fulfillers` database table upfront, removing the need for a secondary API call before they are officially onboarded.
-4. **Verification Separation**:
-   - Confirmed that Identity Verification (Prembly) is distinctly isolated from Vehicle Document checks. Fulfillers verify identity via the 3rd-party widget, while Licenses/Permits are uploaded into the `kyc_documents` table for manual admin verification, per the established Pikop backend architecture.
+1. **Stage 1 (Contact Person)**:
+   - Modified `SignupMerchantScreen.kt` to clearly ask for "Contact Person Details" instead of mixing business info. It collects Name, Role (Owner/Manager), Email, and Phone.
+   - Upon OTP verification, `MainActivity.kt` now routes `MERCHANT` roles directly to Stage 2 (`merchant_business_setup`).
+2. **Stage 2 (Business Details)**:
+   - Created a brand new screen: `MerchantBusinessSetupScreen.kt`.
+   - Collects Business Name, Category (Food/Groceries/Shop), Address, Bank Details, and CAC Number.
+   - **Conditional NAFDAC**: A dynamic NAFDAC Number field appears *only* if the category is "Food" or "Groceries". If "Shop" is selected, it hides.
+3. **Backend Support (`merchantController.js`)**:
+   - Added a new endpoint (`POST /api/v1/merchants/setup`) that inserts the business into the appropriate table (`kitchens` or `vendors`) based on the selected category.
+   - Automatically sets the status to `pending_business_verification`.
+   - **KYC Pipeline Integration**: CAC and NAFDAC strings are inserted directly into the `kyc_documents` table (`doc_type='CAC'` or `doc_type='NAFDAC'`) for manual admin dashboard review, bypassing the Prembly identity provider seamlessly!
+4. **Product-Level NAFDAC**:
+   - As requested, I investigated the product creation flow (`AddEditProductScreen.kt` and `marketplaceController.js`). Good news: **this functionality was already built in seamlessly!** The `nafdac_number` property is already an optional field natively supported when merchants create/edit a generic marketplace product!
 
 ## Build and Testing Status
-- The Android UI logic successfully handles conditional field injection depending on the selected Fulfiller Category without breaking.
-- Build succeeded (`:app:assembleDebug`).
-- All files committed and pushed to `main`!
+- The Android project logic compiles flawlessly (`:app:assembleDebug`).
+- Changes are fully committed and pushed to your `main` repository!

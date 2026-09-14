@@ -458,16 +458,26 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
 
         composable("main") {
-            MainAppScaffold(
-                navController = navController,
-                userEmail = userEmail ?: "",
-                userName = userName ?: "",
-                userPhone = userPhone ?: "",
-                userRole = userRole ?: "CUSTOMER",
-                referralCode = referralCode ?: "",
-                kycStatus = kycStatus,
-                tokenManager = tokenManager
-            )
+            if (userRole == "MERCHANT") {
+                com.ng.pikop.feature.merchant.MerchantAppScaffold(
+                    rootNavController = navController,
+                    userEmail = userEmail ?: "",
+                    userName = userName ?: "",
+                    userRole = userRole ?: "MERCHANT",
+                    tokenManager = tokenManager
+                )
+            } else {
+                MainAppScaffold(
+                    navController = navController,
+                    userEmail = userEmail ?: "",
+                    userName = userName ?: "",
+                    userPhone = userPhone ?: "",
+                    userRole = userRole ?: "CUSTOMER",
+                    referralCode = referralCode ?: "",
+                    kycStatus = kycStatus,
+                    tokenManager = tokenManager
+                )
+            }
         }
 
         // Sub-flows (Full screen)
