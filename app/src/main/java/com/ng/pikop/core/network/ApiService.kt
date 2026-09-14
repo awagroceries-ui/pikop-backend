@@ -558,6 +558,21 @@ data class MerchantProfile(
     val type: String // vendor, kitchen
 )
 
+data class SetupMerchantRequest(
+    val business_name: String,
+    val category: String,
+    val address: String,
+    val cac_number: String? = null,
+    val nafdac_number: String? = null,
+    val bank_name: String,
+    val account_number: String
+)
+
+data class SetupMerchantResponse(
+    val success: Boolean? = false,
+    val message: String? = null
+)
+
 data class MerchantProfileResponse(
     val success: Boolean,
     val data: MerchantProfile? = null
@@ -960,6 +975,9 @@ interface ApiService {
 
     @GET("api/v1/merchants/profile")
     suspend fun getMerchantProfile(): MerchantProfileResponse
+
+    @POST("api/v1/merchants/setup")
+    suspend fun setupMerchantProfile(@Body request: SetupMerchantRequest): SetupMerchantResponse
 
     @GET("api/v1/merchants/my-batches")
     suspend fun getMerchantBatches(): MerchantBatchesResponse

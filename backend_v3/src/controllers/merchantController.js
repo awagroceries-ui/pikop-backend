@@ -2,6 +2,76 @@ const db = require('../config/db');
 const crypto = require('crypto');
 
 /**
+ * Sets up a new Merchant Profile (Stage 2 of Onboarding).
+ */
+const setupMerchantProfile = async (req, res) => {
+    const userId = req.user.id;
+    const { business_name, category, address, cac_number, nafdac_number, bank_name, account_number } = req.body;
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        let profileId;
+        const initialStatus = 'pending_business_verification';
+
+        // Check if profile already exists
+        const [vendorRes, kitchenRes] = await Promise.all([
+            client.query("SELECT id FROM vendors WHERE user_id = $1", [userId]),
+            client.query("SELECT id FROM kitchens WHERE user_id = $1", [userId])
+        ]);
+
+        if (vendorRes.rows.length > 0 || kitchenRes.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Merchant profile already exists.' });
+        }
+
+        // We assume category dictates table logic for simplicity
+        if (category === 'Food') {
+            const result = await client.query(
+                `INSERT INTO kitchens (user_id, business_name, status)
+                 VALUES ($1, $2, $3) RETURNING id`,
+                [userId, business_name, initialStatus]
+            );
+            profileId = result.rows[0].id;
+        } else {
+            const result = await client.query(
+                `INSERT INTO vendors (user_id, business_name, status)
+                 VALUES ($1, $2, $3) RETURNING id`,
+                [userId, business_name, initialStatus]
+            );
+            profileId = result.rows[0].id;
+        }
+
+        // Store docs manually in kyc_documents if provided
+        if (cac_number) {
+            await client.query(
+                `INSERT INTO kyc_documents (user_id, doc_type, file_url, status)
+                 VALUES ($1, 'CAC', $2, 'PENDING')`,
+                [userId, cac_number]
+            );
+        }
+
+        if (nafdac_number) {
+            await client.query(
+                `INSERT INTO kyc_documents (user_id, doc_type, file_url, status)
+                 VALUES ($1, 'NAFDAC', $2, 'PENDING')`,
+                [userId, nafdac_number]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ success: true, message: 'Business setup submitted successfully.' });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error(error);
+        res.status(500).json({ success: false, message: error.message });
+    } finally {
+        client.release();
+    }
+};
+
+/**
  * Registers a new Merchant Account and generates an API key.
  */
 const registerMerchant = async (req, res) => {
@@ -365,5 +435,6 @@ module.exports = {
   getBatchStatus,
   getMyBatches,
   getSellerDashboard,
-  getMerchantProfile
+  getMerchantProfile,
+  setupMerchantProfile
 };

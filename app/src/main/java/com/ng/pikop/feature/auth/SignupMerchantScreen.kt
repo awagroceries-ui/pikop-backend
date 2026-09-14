@@ -37,6 +37,7 @@ fun SignupMerchantScreen(
     val tokenManager = remember { TokenManager(context) }
     
     var fullName by remember { mutableStateOf("") }
+    var businessRole by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -74,12 +75,12 @@ fun SignupMerchantScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Become a Merchant",
+                text = "Contact Person Details",
                 style = MaterialTheme.typography.headlineMedium
             )
             
             Text(
-                text = "List products & grow your business.",
+                text = "Step 1: Set up your merchant account manager.",
                 style = MaterialTheme.typography.bodySmall,
                 color = androidx.compose.ui.graphics.Color.Gray
             )
@@ -90,6 +91,15 @@ fun SignupMerchantScreen(
                 value = fullName,
                 onValueChange = { fullName = it },
                 label = { Text("Contact Person Name") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = businessRole,
+                onValueChange = { businessRole = it },
+                label = { Text("Role (e.g. Owner, Manager)") },
                 modifier = Modifier.fillMaxWidth()
             )
 

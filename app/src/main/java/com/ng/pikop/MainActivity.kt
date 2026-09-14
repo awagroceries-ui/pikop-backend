@@ -421,7 +421,15 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             val role = backStackEntry.arguments?.getString("role") ?: "CUSTOMER"
             EmailOtpScreen(
                 email = email, 
-                onVerificationSuccess = { navController.navigate("terms/$role") },
+                onVerificationSuccess = { 
+                    if (role == "MERCHANT") {
+                        navController.navigate("merchant_business_setup") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate("terms/$role")
+                    }
+                },
                 onLogout = {
                     scope.launch {
                         tokenManager.clearTokens()
@@ -438,6 +446,14 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             TermsScreen(
                 onAccept = { navController.navigate("main") { popUpTo("user_type_selection") { inclusive = true } } },
                 showFulfillerTerms = role == "FULFILLER"
+            )
+        }
+        
+        composable("merchant_business_setup") {
+            com.ng.pikop.feature.auth.MerchantBusinessSetupScreen(
+                onSetupSuccess = {
+                    navController.navigate("terms/MERCHANT")
+                }
             )
         }
 
