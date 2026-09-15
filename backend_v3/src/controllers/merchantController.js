@@ -29,16 +29,16 @@ const setupMerchantProfile = async (req, res) => {
         // We assume category dictates table logic for simplicity
         if (category === 'Food') {
             const result = await client.query(
-                `INSERT INTO kitchens (user_id, business_name, status, accepts_cod)
-                 VALUES ($1, $2, $3, $4) RETURNING id`,
-                [userId, business_name, initialStatus, accepts_cod]
+                `INSERT INTO kitchens (user_id, business_name, status, accepts_cod, category)
+                 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                [userId, business_name, initialStatus, accepts_cod, category]
             );
             profileId = result.rows[0].id;
         } else {
             const result = await client.query(
-                `INSERT INTO vendors (user_id, business_name, status, accepts_cod)
-                 VALUES ($1, $2, $3, $4) RETURNING id`,
-                [userId, business_name, initialStatus, accepts_cod]
+                `INSERT INTO vendors (user_id, business_name, status, accepts_cod, category)
+                 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                [userId, business_name, initialStatus, accepts_cod, category]
             );
             profileId = result.rows[0].id;
         }

@@ -1,24 +1,34 @@
-# Walkthrough: Marketplace Commission
+# Walkthrough: Merchant COD Opt-In/Opt-Out
 
 ## Changes Made
-1. **Configurable Commission Variables**:
-   - Updated `backend_v3/src/config/platform.js`. Left the original COD escrow config untouched, but added a new `COMMISSION` object holding the exact rates: Food 10%, Groceries 5%, and Shop 10%.
-2. **Order Creation Ledger Tracking**:
-   - Added a new database migration (`1726400000000_add_merchant_commission.js`) to add `merchant_commission_amount DECIMAL(12,2)` to the `orders` table.
-   - Updated the `initializeCommerceOrder` function in `commerceController.js`. It now checks the `item_type` and `category` to calculate the `merchantCommissionAmount` using the configured percentages.
-   - **Crucially**, it still treats the COD platform fee separately (calculated on top, only if COD is selected). Both are stored gracefully on the order!
-3. **Escrow Settlement Deductions**:
-   - Updated `walletService.releaseEscrow()`. Previously, it credited the seller the full `itemPrice` (minus the escrow fee if the seller strangely opted to pay it). Now, it explicitly deducts the `marketplaceCommission` from the `itemPrice` before crediting the merchant's `available` wallet!
-   - This ensures absolute financial accuracy when the fulfiller delivers the order.
-4. **Transparent Merchant UI**:
-   - Modified both `MerchantOrdersScreen.kt` (for live incoming orders) and `MerchantPortalScreen.kt` (for historical completed sales).
-   - Instead of a single "Price" string, the merchant now sees a structured breakdown:
-     - **Item Price:** `₦10,000`
-     - **Marketplace Commission:** `-₦1,000` (in red text)
-     - **Your Net Payout:** `₦9,000` (in bold primary color)
-   - This creates total transparency without bothering the buyer's receipt.
 
-## Build and Testing Status
-- The Android project compiles smoothly (`:app:assembleDebug`).
-- The backend API and DB migrations are stable.
-- All code has been successfully committed to version control and pushed to your `main` repository!
+### 1. Database & Schema
+- Added a new migration `1726410000000_add_merchant_cod_toggle.js` which adds the `accepts_cod` BOOLEAN column to both `vendors` and `kitchens` tables.
+- Defaulted the value to `true` for all existing and new records.
+
+### 2. Onboarding Update
+- Updated `MerchantBusinessSetupScreen.kt` (Stage 2 of onboarding) to include a visual toggle for "Accept COD Orders".
+- Included a helpful description explaining that funds are held in escrow and released after delivery, and that the platform fee is customer-borne.
+
+### 3. Business Settings
+- Added a fourth tab "Settings" to the `MerchantPortalScreen.kt`.
+- Merchants can now toggle their COD preference at any time from within their dedicated module.
+- Implemented `PATCH /api/v1/merchants/settings` on the backend to handle these updates.
+
+### 4. Checkout Enforcement
+- Updated the `getDiscovery` API in `commerceController.js` to return the `accepts_cod` flag for every product and meal.
+- Updated `CommerceCheckoutScreen.kt` to inspect this flag. If a merchant has disabled COD, the "Pay on Delivery" option is automatically hidden from the customer, leaving only "Pay Now" as a valid choice.
+
+## Verification Results
+- **Android Build**: Successfully compiled (`:app:assembleDebug`).
+- **Data Integrity**: Verified that the `SetupMerchantRequest` and `MerchantProfile` DTOs correctly sync the `accepts_cod` value between the app and the server.
+- **Git State**: All changes committed and pushed to `main`.
+
+## Deployment Instructions
+To apply these changes to your production VPS:
+```bash
+cd /var/www/pikop-api/backend_v3/backend_v3
+git pull origin main
+npm run migrate:up
+pm2 restart pikop-v3
+```

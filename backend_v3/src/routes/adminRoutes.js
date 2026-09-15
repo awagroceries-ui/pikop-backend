@@ -56,6 +56,7 @@ router.post('/traffic', adminController.addTrafficCorridor);
 router.get('/kyc', adminController.getKYCQueue);
 router.get('/kyc/:id', adminController.getKYCReview);
 router.post('/kyc/:id/status', adminController.updateKYCStatus);
+router.post('/merchants/:type/:id/status', adminController.updateMerchantKYCStatus);
 
 // Partners
 router.get('/vendors', adminController.getVendors);

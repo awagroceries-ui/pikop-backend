@@ -407,16 +407,68 @@ const updateKYCStatus = async (req, res) => {
         // Fetch user email to send KYC status notification
         try {
             const { rows: fUser } = await db.query(
-                "SELECT u.email, u.full_name FROM fulfillers f JOIN users u ON u.id = f.user_id WHERE f.id = $1",
+                "SELECT u.email, u.full_name, f.primary_class FROM fulfillers f JOIN users u ON u.id = f.user_id WHERE f.id = $1",
                 [id]
             );
             if (fUser.length > 0) {
-                emailService.sendKycStatusEmail(fUser[0].email, fUser[0].full_name, status, note)
-                    .catch(e => console.error('[KycEmail] Error:', e.message));
+                if (status === 'VERIFIED') {
+                    // Send Customized Welcome Email for Fulfiller
+                    await emailService.sendWelcomeEmail(fUser[0].email, fUser[0].full_name, 'FULFILLER', {
+                        category: fUser[0].primary_class
+                    });
+                } else {
+                    // Send Rejection Email
+                    emailService.sendKycStatusEmail(fUser[0].email, fUser[0].full_name, status, note)
+                        .catch(e => console.error('[KycEmail] Error:', e.message));
+                }
             }
         } catch (e) {}
 
         res.redirect('/admin/kyc');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Updates Merchant Business Verification Status.
+ */
+const updateMerchantKYCStatus = async (req, res) => {
+    const { type, id } = req.params; // type: vendor, kitchen
+    const { status, note } = req.body; // status: VERIFIED, REJECTED
+    try {
+        const table = type === 'kitchen' ? 'kitchens' : 'vendors';
+        const newStatus = status === 'VERIFIED' ? 'active' : 'suspended';
+
+        await db.query(
+            `UPDATE ${table} SET status = $1, approved_at = CASE WHEN $2 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $3`,
+            [newStatus, status, id]
+        );
+
+        // Audit log
+        await db.query(
+            "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+            [req.session.adminId, 'UPDATE_MERCHANT_KYC', type, id, JSON.stringify({ status, note })]
+        );
+
+        // Fetch merchant/user info for welcome email
+        try {
+            const { rows: mUser } = await db.query(
+                `SELECT u.email, u.full_name, m.category, m.accepts_cod
+                 FROM ${table} m JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
+                [id]
+            );
+            if (mUser.length > 0 && status === 'VERIFIED') {
+                await emailService.sendWelcomeEmail(mUser[0].email, mUser[0].full_name, 'MERCHANT', {
+                    category: mUser[0].category,
+                    accepts_cod: mUser[0].accepts_cod
+                });
+            }
+        } catch (e) {
+            console.error('[MerchantWelcomeEmail] Error:', e.message);
+        }
+
+        res.redirect(`/admin/${type}s`);
     } catch (error) {
         res.status(500).send(error.message);
     }
@@ -882,6 +934,7 @@ module.exports = {
   getKYCQueue,
   getKYCReview,
   updateKYCStatus,
+  updateMerchantKYCStatus,
   getVendors,
   getKitchens,
   getAdminUsers,

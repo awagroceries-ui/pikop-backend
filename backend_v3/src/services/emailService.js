@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const PlatformConfig = require('../config/platform');
 
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
@@ -114,42 +115,95 @@ const sendMail = async (to, subject, html) => {
 
 /**
  * Sends Welcome & Onboarding Email upon registration/verification.
+ * Tailored for 5 distinct groups: Customer, Agent/Fulfiller, Food Merchant, Groceries Merchant, Shop Merchant.
  */
-const sendWelcomeEmail = async (to, name, role) => {
-    const isFulfiller = role === 'FULFILLER';
-    const title = isFulfiller ? 'Welcome to the Pikop Fleet!' : 'Welcome to Pikop Logistics!';
-    const html = `
-        <h1 class="greeting">${title}</h1>
-        <p class="text">Hello <strong>${name || 'Valued User'}</strong>,</p>
-        <p class="text">Thank you for joining Pikop! Your account email has been successfully verified.</p>
+const sendWelcomeEmail = async (to, name, role, data = {}) => {
+    let title = 'Welcome to Pikop Logistics!';
+    let contentHtml = '';
 
+    if (role === 'CUSTOMER') {
+        title = 'Welcome to Pikop Logistics!';
+        contentHtml = `
+            <h1 class="greeting">Welcome to the Neighborhood! 📍</h1>
+            <p class="text">Hello <strong>${name || 'Valued User'}</strong>,</p>
+            <p class="text">Thank you for joining Pikop! You can now send packages, track deliveries in real-time, and manage your logistics effortlessly across Port Harcourt and beyond.</p>
+
+            <div style="background: #F9FAFB; padding: 20px; border-radius: 16px; border: 1px solid #E5E7EB; margin-bottom: 25px;">
+                <strong style="color: #111827;">What you can do:</strong>
+                <ul style="margin-top: 10px; padding-left: 20px; color: #4B5563; font-size: 14px; line-height: 1.6;">
+                    <li><strong>Dispatch:</strong> Send items across the city instantly.</li>
+                    <li><strong>Food & Kitchen:</strong> Order delicious meals from local kitchens.</li>
+                    <li><strong>Groceries:</strong> Get fresh produce and raw food delivered to your door.</li>
+                    <li><strong>Marketplace:</strong> Shop for general items from the comfort of your home.</li>
+                </ul>
+            </div>
+
+            <p class="text"><strong>Buyer Protection:</strong> With our Cash on Delivery (COD) and Escrow system, your funds are secured until you confirm receipt of your item.</p>
+            <p class="text">View our full <a href="https://pikop.com.ng/terms">Terms & Conditions</a> and <a href="https://pikop.com.ng/privacy">Privacy Policy</a>.</p>
+        `;
+    }
+    else if (role === 'FULFILLER') {
+        title = 'Welcome to the Pikop Fleet!';
+        const category = (data.category || 'Agent').replace('_', ' ').toLowerCase();
+        contentHtml = `
+            <h1 class="greeting">Welcome to the Fleet! 🚀</h1>
+            <p class="text">Hello <strong>${name || 'Agent'}</strong>,</p>
+            <p class="text">Your account has been approved! You are now verified as a <strong>${category}</strong> in our network.</p>
+
+            <div style="background: #F0FDF4; padding: 24px; border-radius: 20px; border: 1px solid #BBF7D0; margin: 30px 0;">
+                <h3 style="margin-top: 0; color: #008751;">💡 How Missions Work:</h3>
+                <ul style="color: #374151; line-height: 1.8; margin-bottom: 0;">
+                    <li><strong>Accepting:</strong> Toggle "Online" in the app to see nearby delivery offers.</li>
+                    <li><strong>Earning:</strong> Your earnings are calculated per mission and released to your wallet instantly upon delivery.</li>
+                    <li><strong>Conduct:</strong> Please review our <a href="https://pikop.com.ng/terms/fulfiller">Fulfiller Conduct Policy</a> to maintain your tier.</li>
+                </ul>
+            </div>
+
+            <p class="text">Don't forget to complete your payout bank details in the "Wallet" section of the app if you haven't already.</p>
+        `;
+    }
+    else if (role === 'MERCHANT') {
+        const merchantType = (data.category || 'Shop').toLowerCase();
+        title = `Welcome to Pikop ${merchantType === 'food' ? 'Kitchens' : 'Marketplace'}!`;
+
+        let commission = PlatformConfig.COMMISSION.SHOP_PERCENTAGE;
+        if (merchantType === 'food') commission = PlatformConfig.COMMISSION.FOOD_PERCENTAGE;
+        if (merchantType === 'groceries') commission = PlatformConfig.COMMISSION.GROCERIES_PERCENTAGE;
+
+        const commissionStr = (commission * 100).toFixed(0) + '%';
+        const acceptsCod = data.accepts_cod === true;
+
+        contentHtml = `
+            <h1 class="greeting">Your Store is Now Live! 🏪</h1>
+            <p class="text">Hello <strong>${name || 'Partner'}</strong>,</p>
+            <p class="text">Congratulations! Your business verification is complete. Your ${merchantType} store is now active on Pikop.</p>
+
+            <div style="background: #F9FAFB; padding: 24px; border-radius: 20px; border: 1px solid #E5E7EB; margin: 30px 0;">
+                <h3 style="margin-top: 0; color: #111827;">📊 Store Terms Summary:</h3>
+                <ul style="color: #4B5563; line-height: 1.8; margin-bottom: 0;">
+                    <li><strong>Commission:</strong> Pikop marketplace commission is <strong>${commissionStr}</strong> per sale.</li>
+                    <li><strong>COD Status:</strong> You have opted <strong>${acceptsCod ? 'IN' : 'OUT'}</strong> for Cash on Delivery orders.</li>
+                    <li><strong>Payouts:</strong> Sales funds are held in escrow and released to your available balance after the customer confirms receipt.</li>
+                </ul>
+            </div>
+
+            <p class="text"><strong>Get Started:</strong> Head over to your Merchant Portal to list your first item and start receiving orders!</p>
+            <p class="text">Read our <a href="https://pikop.com.ng/terms/merchant">Merchant Service Agreement</a> for more details.</p>
+        `;
+    }
+
+    const html = `
+        ${contentHtml}
         <div style="background: #F9FAFB; padding: 20px; border-radius: 16px; border: 1px solid #E5E7EB; margin-bottom: 25px;">
-            <strong style="color: #111827;">Standard Operating Policies:</strong>
+            <strong style="color: #111827;">Quick Safety Reminder:</strong>
             <ul style="margin-top: 10px; padding-left: 20px; color: #4B5563; font-size: 14px; line-height: 1.6;">
-                <li><strong>Prohibited Items:</strong> Strictly no illegal goods, drugs, or weapons. <strong>Discovery will result in immediate reporting of the sender and item to the Nigeria Police Force. Items will be discarded immediately without refund.</strong></li>
-                <li><strong>Cancellation:</strong> 25% fee applies once an agent is matched. Cancellation is strictly prohibited after pickup.</li>
-                <li><strong>Recipient Absent:</strong> Fare is non-refundable if agent waits 10 minutes at destination.</li>
+                <li><strong>Prohibited Items:</strong> No illegal goods, drugs, or weapons. Discovery will be reported to the Nigeria Police Force.</li>
                 <li><strong>Return Charges:</strong> Return missions are charged at 75% of the original fare.</li>
-                <li><strong>Refunds:</strong> All approved refunds are issued as Pikop Wallet Credits only.</li>
             </ul>
         </div>
-
-        ${isFulfiller ? `
-            <p class="text">As a Pikop Fulfiller, you are part of our elite delivery network in Nigeria. Please complete your identity and vehicle verification in the app to start accepting mission offers.</p>
-            <div style="background: #F0FDF4; padding: 20px; border-radius: 16px; border-left: 4px solid #008751; margin-bottom: 25px;">
-                <strong style="color: #008751;">Next Steps:</strong>
-                <ol style="margin-top: 10px; padding-left: 20px; color: #374151;">
-                    <li>Open Pikop App -> Go to Account Activation</li>
-                    <li>Capture your live profile photo</li>
-                    <li>Complete Identity Check & Vehicle Details</li>
-                    <li>Submit for Admin Approval & Go Online!</li>
-                </ol>
-            </div>
-        ` : `
-            <p class="text">You can now send packages, track deliveries in real-time, and manage your logistics effortlessly across Port Harcourt and beyond.</p>
-        `}
         <p class="text">If you ever need assistance, our support team is available 24/7 in the app Help Center.</p>
     `;
+
     return await sendMail(to, title, html);
 };
 

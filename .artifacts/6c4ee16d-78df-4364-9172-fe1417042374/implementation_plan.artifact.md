@@ -1,61 +1,44 @@
-# Implementation Plan: Merchant COD Opt-In/Opt-Out
+# Implementation Plan: Customized Welcome Emails per User Group
 
-This plan adds a setting for merchants to decide whether they want to accept Cash on Delivery (COD) orders. This preference is collected during onboarding and enforced during customer checkout.
+This plan implements tailored welcome emails for five distinct user groups: Customer, Agent/Fulfiller, Food Merchant, Groceries Merchant, and Shop Merchant.
+
+## Infrastructure
+
+- **Email Provider:** Transactional emails are currently sent via **Brevo (formerly Sendinblue)** using SMTP relay in `emailService.js`.
+- **Trigger Timing:**
+    - **Customer:** Sent immediately upon successful OTP verification during signup.
+    - **Fulfiller/Merchant:** Sent only upon final account approval by an admin.
+
+## Proposed Changes
+
+### Backend Service: `emailService.js`
+- **[MODIFY] `sendWelcomeEmail`**: Refactor to support the five distinct groups.
+- **[NEW] Group-Specific Template Blocks**:
+    - **Customer**: Focus on proximity ordering and escrow buyer protection.
+    - **Agent/Fulfiller**: Personalized with their category (Rider, Driver, etc.) and payout info.
+    - **Merchants (Food, Groceries, Shop)**: Include their specific category commission rates (10%, 5%, 10%) and COD acceptance status.
+
+### Backend Controller: `authController.js`
+- **[MODIFY] `verifyOtp`**: Update to only trigger `sendWelcomeEmail` for `CUSTOMER` role. Fulfillers and Merchants will have their emails deferred to the approval step.
+
+### Backend Controller: `adminController.js`
+- **[MODIFY] `updateKYCStatus`**: Extend to handle Merchants.
+- **[NEW] Logic to trigger `sendWelcomeEmail`**: When an admin marks a Fulfiller or Merchant as `VERIFIED`, trigger the appropriate welcome email pulling real data (commission, category) from the DB.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Default Setting for Existing Merchants**
-> I will default `accepts_cod` to `true` for all existing and new merchants to maintain current behavior while rolling out the feature.
-
-> [!NOTE]
-> **Cart Architecture**
-> The current `CommerceCheckoutScreen.kt` appears to handle single-item checkouts. I will enforce the `accepts_cod` check for the specific item being purchased. If Pikop transitions to multi-item carts, a "prepaid-only if any item is prepaid-only" logic will be easier to implement then.
-
-## Proposed Changes
-
-### Database Layer
-- **[NEW] Migration**: `1726410000000_add_merchant_cod_toggle.js`
-  - Add `accepts_cod` BOOLEAN column (default `true`) to `vendors` and `kitchens` tables.
-
-### Backend Layer
-#### [MODIFY] `merchantController.js`
-- `setupMerchantProfile`: Accept `accepts_cod` in request body and save to DB.
-- `getMerchantProfile`: Include `accepts_cod` in the returned profile object.
-- **[NEW]** `updateMerchantSettings`: A new endpoint to allow merchants to toggle `accepts_cod`.
-
-#### [MODIFY] `merchantRoutes.js`
-- Register `PATCH /api/v1/merchants/settings` for `updateMerchantSettings`.
-
-#### [MODIFY] `commerceController.js`
-- `getDiscovery`: Update SQL to JOIN with `vendors`/`kitchens` and return the `accepts_cod` flag for each item.
-
-### Android API Layer
-#### [MODIFY] `ApiService.kt`
-- Update `SetupMerchantRequest` to include `accepts_cod`.
-- Update `MerchantProfile` to include `accepts_cod`.
-- Update `DiscoveryItem` to include `accepts_cod`.
-- Add `updateMerchantSettings` method.
-
-### Android UI Layer
-#### [MODIFY] `MerchantBusinessSetupScreen.kt` (Onboarding Stage 2)
-- Add a "Accept COD Orders" toggle with an explanation: "Funds are held in escrow and released after delivery. A 10% platform fee is paid by the buyer."
-
-#### [MODIFY] `CommerceCheckoutScreen.kt`
-- Check `item.accepts_cod`. If `false`, hide the "Pay on Delivery" card and default `selectedPaymentMethod` to `CARD`.
-
-#### [MODIFY] `MerchantPortalScreen.kt`
-- Add a new "Settings" tab (or a section in existing tabs) to allow toggling `accepts_cod`.
+> **Dynamic Values in Templates**
+> I will ensure that commission rates are fetched from `PlatformConfig` at send-time rather than hardcoded in the email text to prevent "rate drift" if settings change.
 
 ## Verification Plan
 
 ### Automated/Code Verification
-- Verify successful Gradle build of the Android app.
-- Verify DB migration runs without errors.
+- Verify `emailService.js` correctly maps user roles/categories to their respective templates.
+- Verify `authController.js` gating logic (Customer vs others).
 
 ### Manual Verification
-1. **Onboarding**: Sign up as a new merchant, toggle COD to "Off", and complete verification.
-2. **Settings**: Go to Merchant Portal -> Settings, toggle COD back to "On", then back to "Off".
-3. **Checkout (Merchant OFF)**: As a customer, attempt to buy an item from a merchant who has COD disabled. Verify only "Pay Now" is visible.
-4. **Checkout (Merchant ON)**: As a customer, buy from a merchant with COD enabled. Verify both "Pay Now" and "Pay on Delivery" are visible.
-5. **Data Integrity**: Verify that changing the setting doesn't affect existing orders.
+1. Register a new Customer. Verify immediate receipt of the "Superior Logistics" welcome email.
+2. Approve a Fulfiller as Admin. Verify the email includes their specific mobility category (e.g. "Approved as a Rider").
+3. Approve a Groceries Merchant. Verify the email explicitly states the 5% commission rate.
+4. Approve a Food Merchant. Verify the email explicitly states the 10% commission rate.

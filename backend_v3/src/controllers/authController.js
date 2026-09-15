@@ -134,7 +134,11 @@ const verifyOtp = async (req, res) => {
     await db.query("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP, phone_verified_at = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
     await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [user.id]);
 
-    emailService.sendWelcomeEmail(user.email, user.full_name, user.role).catch(() => {});
+    // Send Welcome Email only for CUSTOMER immediately. Fulfillers/Merchants send on Approval.
+    if (user.role === 'CUSTOMER') {
+        emailService.sendWelcomeEmail(user.email, user.full_name, user.role).catch(() => {});
+    }
+
     const tokens = authService.generateTokens(user);
 
     await db.query(
