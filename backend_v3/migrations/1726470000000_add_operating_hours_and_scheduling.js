@@ -7,11 +7,8 @@ exports.up = (pgm) => {
     operating_hours: { type: 'jsonb', default: '{"all": {"open": "08:00", "close": "20:00"}}' }
   });
 
-  // 2. Order Scheduling
-  pgm.addColumns('orders', {
-    scheduled_at: { type: 'timestamp' }
-  });
-  pgm.createIndex('orders', 'scheduled_at');
+  // 2. Order Scheduling (scheduled_at already exists from bulk migration)
+  pgm.createIndex('orders', 'scheduled_at', { ifNotExists: true });
 
   // 3. Daylight Dispatch Settings
   pgm.sql(`
@@ -25,6 +22,6 @@ exports.up = (pgm) => {
 exports.down = (pgm) => {
   pgm.dropColumns('vendors', ['operating_hours']);
   pgm.dropColumns('kitchens', ['operating_hours']);
-  pgm.dropColumns('orders', ['scheduled_at']);
+  pgm.dropIndex('orders', 'scheduled_at');
   pgm.sql(`DELETE FROM settings WHERE key IN ('daylight_dispatch_start', 'daylight_dispatch_end');`);
 };
