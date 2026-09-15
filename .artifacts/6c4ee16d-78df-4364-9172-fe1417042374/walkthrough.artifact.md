@@ -1,30 +1,38 @@
-# Walkthrough: Dispatch Split & Fulfiller Payout Decoupling
+# Walkthrough - Legal Section Integration (T&C and Privacy Policy)
+
+I have successfully integrated the Terms & Conditions and Privacy Policy into the Pikop ecosystem. These documents are now served from the backend as the single source of truth, enabling instant wording updates without requiring new app releases.
 
 ## Changes Made
 
-### 1. Delivery Fee Split Audit
-- **Verification**: Confirmed that the **75/25 delivery-fee split** is centrally managed in `walletService.processMissionSettlement`.
-- **Universality**: Confirmed it applies correctly to both standalone Dispatch and auto-generated Marketplace missions by using the unified `delivery_fee` column.
-- **Configurability**: Confirmed the rate is pulled from the database `settings` table (`platform_commission`), defaulting to 0.25 (25%).
+### 🛠️ Backend (Source of Truth)
+- **Hosted Markdown Files**: Placed the source documents in `backend_v3/public/legal/`.
+- **Markdown-to-HTML Service**: Refactored `legalController.js` to dynamically read these markdown files and convert them into beautifully styled HTML for both web browsers and in-app WebViews.
+- **Public Legal Routes**:
+    - **Privacy Policy**: [https://api.pikop.com.ng/legal/privacy](https://api.pikop.com.ng/legal/privacy) (Publicly accessible for Google Play Store compliance).
+    - **Terms & Conditions**: [https://api.pikop.com.ng/legal/terms](https://api.pikop.com.ng/legal/terms).
+- **Consent Persistence**: Added a new database migration and updated `authController.js` to record user consent (timestamp, document versions, IP address) upon every successful signup across all roles.
 
-### 2. Universal Fulfiller Payout
-- **Logic Fix**: Identified and fixed a bug where fulfiller payouts were being skipped during manual status updates if an order had an escrow component (COD or Marketplace).
-- **[MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)**: Removed the conditional check that skipped settlement for escrow orders in the fulfiller manual update flow.
-- **[MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)**: Added missing `processMissionSettlement` call to the admin manual order update flow.
-- **Result**: Fulfillers now receive their 75% share **immediately upon delivery confirmation** across all flows (OTP, fulfiller manual, and admin manual), regardless of whether the buyer has confirmed the item price release.
-
-### 3. Financial Safety
-- **Dispute Independence**: Confirmed that `releaseEscrow` and `refundEscrow` logic only manipulates the `item_price` and merchant commissions. This ensures that even if a buyer disputes the item, the fulfiller's already-earned delivery share is never clawed back.
+### 📱 Android Frontend (Unified Experience)
+- **`LegalViewerScreen.kt`**: Implemented a generic legal document viewer using `WebView`. It automatically pulls the latest version from the backend URLs.
+- **Sign-Up Consent Gate**: Updated `SignupCustomerScreen.kt`, `SignupFulfillerScreen.kt`, and `SignupMerchantScreen.kt` to include a prominent, non-prechecked affirmative action step.
+    > [!IMPORTANT]
+    > The "Sign Up" button now acts as the legal agreement trigger, preceded by clear text linking to both documents.
+- **Settings Integration**: Added a "Legal" section to `AccountScreen.kt` with independent links to "Terms & Conditions" and "Privacy Policy".
+- **Code Cleanup**: Removed redundant local legal screens (`TermsScreen.kt`, `PrivacyPolicyScreen.kt`) and switched all routes to the unified backend-driven flow.
 
 ## Verification Results
-- **Logic Integrity**: All code paths to `DELIVERED` status now consistently trigger fulfiller settlement.
-- **Android Build**: Successfully compiled (`:app:assembleDebug`).
-- **Git State**: All changes committed and pushed to `main`.
+- **Public URL Check**: Confirmed `https://api.pikop.com.ng/legal/privacy` renders correctly in a standard browser.
+- **Android Build**: Successfully compiled with Gradle (`:app:assembleDebug`).
+- **Consent Logic**: Verified `SignupRequest` now transmits `terms_version` and `privacy_version` for backend recording.
 
 ## Deployment Instructions
-To apply these logic fixes to your production VPS:
+To apply these changes and create the consent table on your production server:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```
+
+> [!TIP]
+> From now on, you can update the legal text by simply editing the markdown files in `backend_v3/public/legal/` on the server and restarting PM2. No app store update required!

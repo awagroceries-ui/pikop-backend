@@ -6,7 +6,10 @@ const path = require('path');
  * Ensures consistent styling for WebView and browser views.
  */
 const convertMarkdownToHtml = (markdown) => {
-    return markdown
+    // Standardize newlines
+    const text = markdown.replace(/\r\n/g, '\n');
+
+    return text
         .replace(/^# (.*$)/gim, '<h2 style="color: #008751; border-bottom: 2px solid #008751; padding-bottom: 10px; font-weight: 800;">$1</h2>')
         .replace(/^## (.*$)/gim, '<h3 style="color: #008751; margin-top: 35px; font-weight: 700;">$1</h3>')
         .replace(/^### (.*$)/gim, '<h4 style="color: #008751; margin-top: 25px; font-weight: 600;">$1</h4>')
@@ -27,9 +30,11 @@ const getTerms = (req, res) => {
         const markdown = fs.readFileSync(filePath, 'utf8');
         res.render('legal_pages', {
             title: 'Terms & Conditions',
-            content: convertMarkdownToHtml(markdown)
+            content: convertMarkdownToHtml(markdown),
+            layout: 'public_layout'
         });
     } catch (e) {
+        console.error('[Legal] Terms Load Error:', e.message);
         res.status(500).send('Error loading Terms');
     }
 };
@@ -40,9 +45,11 @@ const getPrivacyPolicy = (req, res) => {
         const markdown = fs.readFileSync(filePath, 'utf8');
         res.render('legal_pages', {
             title: 'Privacy Policy',
-            content: convertMarkdownToHtml(markdown)
+            content: convertMarkdownToHtml(markdown),
+            layout: 'public_layout'
         });
     } catch (e) {
+        console.error('[Legal] Privacy Load Error:', e.message);
         res.status(500).send('Error loading Privacy Policy');
     }
 };
