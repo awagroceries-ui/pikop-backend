@@ -1,11 +1,11 @@
-# Task Checklist: Signup & Legal Restoration
+# Task Checklist: Signup Restoration & Transaction Resilience
 
-- `[/]` **Robust Codebase Fixes**
-  - `[x]` Wrap `user_legal_consents` in try-catch in `authController.js`.
-  - `[x]` Add financial config fallbacks in `commerceController.js`.
-  - `[ ]` Final audit of `legalController.js` variables.
-- `[/]` **Verification**
-  - `[ ]` Verify build success.
-  - `[ ]` Deploy to device.
-- `[ ]` **Documentation**
-  - `[ ]` Update walkthrough.
+- `[x]` **1. Database Schema Fixes**
+  - `[x]` Create migration `1726450000000_fix_signup_constraints.js`.
+- `[x]` **2. Backend Logic Restoration**
+  - `[x]` Standardize fulfiller category to lowercase in `authController.js`.
+  - `[x]` Move `user_legal_consents` recording after `COMMIT`.
+  - `[x]` Enhance signup error logging.
+- `[ ]` **3. Verification & Deployment**
+  - `[ ]` Build and verify.
+  - `[ ]` Push to Git.

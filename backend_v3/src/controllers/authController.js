@@ -45,24 +45,11 @@ const signup = async (req, res) => {
                 registration_number, make, model, color
              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
             [
-                user.id, full_name, email, normalizedPhone, (primary_class || 'RIDER').toUpperCase(),
+                user.id, full_name, email, normalizedPhone, (primary_class || 'rider').toLowerCase(),
                 date_of_birth, home_address, gender,
                 registration_number, make, model, color
             ]
         );
-    }
-
-    // 5. Record Legal Consent (Resilient/Non-blocking)
-    if (terms_version && privacy_version) {
-        try {
-            await client.query(
-                `INSERT INTO user_legal_consents (user_id, terms_version, privacy_version, ip_address)
-                 VALUES ($1, $2, $3, $4)`,
-                [user.id, terms_version, privacy_version, req.ip]
-            );
-        } catch (consentErr) {
-            console.warn(`[Auth] Legal consent recording skipped (likely table missing): ${consentErr.message}`);
-        }
     }
 
     // 6. Generate OTP (Internal/Email)
@@ -85,7 +72,20 @@ const signup = async (req, res) => {
 
     await client.query('COMMIT');
 
-    // 6. DEFERRED: Email OTP is now a fallback. Only Welcome email is sent after verification.
+    // 7. Record Legal Consent (AFTER COMMIT - Resilient/Non-blocking)
+    if (terms_version && privacy_version) {
+        try {
+            await db.query(
+                `INSERT INTO user_legal_consents (user_id, terms_version, privacy_version, ip_address)
+                 VALUES ($1, $2, $3, $4)`,
+                [user.id, terms_version, privacy_version, req.ip]
+            );
+        } catch (consentErr) {
+            console.warn(`[Auth] Legal consent recording skipped (likely table missing): ${consentErr.message}`);
+        }
+    }
+
+    // 8. DEFERRED: Email OTP is now a fallback. Only Welcome email is sent after verification.
     console.log(`[Auth] Signup success for ${email}. SMS OTP triggered. Email OTP deferred as fallback.`);
 
     res.status(201).json({
@@ -98,6 +98,8 @@ const signup = async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
+    console.error('[Auth] Signup FATAL Error:', error);
+
     if (error.code === '23505') {
       return res.status(400).json({ success: false, message: 'Email or phone already registered' });
     }
