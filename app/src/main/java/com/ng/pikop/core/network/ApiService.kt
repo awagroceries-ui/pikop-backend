@@ -557,10 +557,10 @@ data class MenuItemUpdateRequest(
 )
 
 data class MerchantProfile(
-    val id: String,
-    val business_name: String,
-    val status: String,
-    val type: String, // vendor, kitchen
+    val id: String = "",
+    val business_name: String = "",
+    val status: String = "pending",
+    val type: String = "vendor", // vendor, kitchen
     val accepts_cod: Boolean = true
 )
 
@@ -707,12 +707,12 @@ data class DiscoveryItem(
     val category: String,
     val description: String?,
     val vendor_name: String,
-    val vendor_id: String,
-    val item_type: String, // product, meal
-    val city: String?,
-    val pickup_address: String?,
+    val vendor_id: String = "",
+    val item_type: String = "product", // product, meal
+    val city: String? = null,
+    val pickup_address: String? = null,
     val distance_km: Double? = null,
-    val created_at: String,
+    val created_at: String = "",
     val accepts_cod: Boolean = true
 )
 

@@ -14,7 +14,8 @@
                 <thead>
                     <tr>
                         <th>Kitchen Entity</th>
-                        <th class="text-center">Cuisine</th>
+                        <th class="text-center">Category/Cuisine</th>
+                        <th class="text-center">Accepts COD</th>
                         <th class="text-center">Status</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -24,10 +25,15 @@
                         <tr class="align-middle">
                             <td>
                                 <div class="fw-bold text-black"><%= k.business_name %></div>
-                                <div class="smaller text-muted"><%= k.contact_email %></div>
+                                <div class="smaller text-muted">Owner: <%= k.contact_person %> (<%= k.contact_email %>)</div>
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-light text-black border fw-bold small uppercase"><%= k.cuisine_type || 'GENERAL' %></span>
+                                <span class="badge bg-light text-black border fw-bold small uppercase"><%= k.category %> / <%= k.cuisine_type || 'GENERAL' %></span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge <%= k.accepts_cod ? 'bg-success' : 'bg-secondary' %> text-white">
+                                    <%= k.accepts_cod ? 'YES' : 'NO' %>
+                                </span>
                             </td>
                             <td class="text-center">
                                 <span class="badge <%= k.status === 'active' ? 'bg-green' : 'bg-gold' %> text-white fw-bold px-3">
@@ -36,8 +42,13 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-flex justify-content-end gap-2">
+                                    <% if (k.status !== 'active') { %>
+                                        <form action="/admin/merchants/kitchen/<%= k.id %>/status" method="POST" class="d-inline">
+                                            <input type="hidden" name="status" value="VERIFIED">
+                                            <button type="submit" class="btn-pikop-primary py-1 px-3" style="font-size: 11px;">APPROVE</button>
+                                        </form>
+                                    <% } %>
                                     <button class="btn-pikop-outline py-1 px-3" style="font-size: 11px;">MENU</button>
-                                    <button class="btn-pikop-primary py-1 px-3" style="font-size: 11px;">EDIT</button>
                                 </div>
                             </td>
                         </tr>

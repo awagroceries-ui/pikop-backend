@@ -203,20 +203,13 @@ const getSettings = async (req, res) => {
 const updateSettings = async (req, res) => {
     const {
         base_fare_small, base_fare_medium, base_fare_large,
-        per_km_rate, platform_commission, cod_fee_rate
+        per_km_rate, platform_commission, cod_fee_rate,
+        food_commission, groceries_commission, shop_commission
     } = req.body;
 
     const client = await db.pool.connect();
     try {
         await client.query('BEGIN');
-
-        // Validation for COD Fee Rate (Bounds: 0.00 to 0.50)
-        if (cod_fee_rate !== undefined) {
-            const rate = parseFloat(cod_fee_rate);
-            if (isNaN(rate) || rate < 0 || rate > 0.50) {
-                throw new Error('Invalid COD Platform Fee: Must be between 0% and 50% (0.00 - 0.50)');
-            }
-        }
 
         const settings = [
             ['base_fare_small', base_fare_small],
@@ -224,7 +217,10 @@ const updateSettings = async (req, res) => {
             ['base_fare_large', base_fare_large],
             ['per_km_rate', per_km_rate],
             ['platform_commission', platform_commission],
-            ['cod_fee_rate', cod_fee_rate]
+            ['cod_fee_rate', cod_fee_rate],
+            ['food_commission', food_commission],
+            ['groceries_commission', groceries_commission],
+            ['shop_commission', shop_commission]
         ];
 
         for (const [key, val] of settings) {
@@ -479,7 +475,12 @@ const updateMerchantKYCStatus = async (req, res) => {
  */
 const getVendors = async (req, res) => {
     try {
-        const { rows } = await db.query("SELECT * FROM vendors ORDER BY created_at DESC");
+        const { rows } = await db.query(`
+            SELECT v.*, u.full_name as contact_person, u.email as contact_email
+            FROM vendors v
+            JOIN users u ON u.id = v.user_id
+            ORDER BY v.created_at DESC
+        `);
         res.render('vendors', { vendors: rows });
     } catch (error) {
         res.status(500).send(error.message);
@@ -488,8 +489,30 @@ const getVendors = async (req, res) => {
 
 const getKitchens = async (req, res) => {
     try {
-        const { rows } = await db.query("SELECT * FROM kitchens ORDER BY created_at DESC");
+        const { rows } = await db.query(`
+            SELECT k.*, u.full_name as contact_person, u.email as contact_email
+            FROM kitchens k
+            JOIN users u ON u.id = k.user_id
+            ORDER BY k.created_at DESC
+        `);
         res.render('kitchens', { kitchens: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Unified Merchant Management View.
+ */
+const getMerchants = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            (SELECT id, business_name, status, category, accepts_cod, created_at, 'vendor' as type FROM vendors)
+            UNION ALL
+            (SELECT id, business_name, status, category, accepts_cod, created_at, 'kitchen' as type FROM kitchens)
+            ORDER BY created_at DESC
+        `);
+        res.render('merchants', { merchants: rows });
     } catch (error) {
         res.status(500).send(error.message);
     }
@@ -946,6 +969,7 @@ module.exports = {
   updateMerchantKYCStatus,
   getVendors,
   getKitchens,
+  getMerchants,
   getAdminUsers,
   addAdmin,
   deleteAdmin,

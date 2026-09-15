@@ -11,9 +11,65 @@
     <p class="text-muted small mb-5 max-width-500 mx-auto">Bulk ordering via API Key and JSON/CSV is now active. Business accounts can deploy multiple missions simultaneously.</p>
 
     <div class="d-flex justify-content-center gap-3">
-        <button class="btn-pikop-primary px-4">MANAGE API KEYS</button>
-        <button class="btn-pikop-outline px-4">VIEW BATCH LOGS</button>
+        <a href="/admin/vendors" class="btn-pikop-primary px-4 text-decoration-none">MANAGE VENDORS</a>
+        <a href="/admin/kitchens" class="btn-pikop-outline px-4 text-decoration-none">MANAGE KITCHENS</a>
     </div>
+</div>
+
+<div class="mt-5 mb-3">
+    <h5 class="fw-bold text-black">Verification Queue</h5>
+</div>
+
+<div class="card-pikop">
+    <% if (merchants.length === 0) { %>
+        <div class="p-5 text-center">
+            <p class="text-muted mb-0">No merchant profiles found in the system.</p>
+        </div>
+    <% } else { %>
+        <div class="table-responsive">
+            <table class="table-pikop">
+                <thead>
+                    <tr>
+                        <th>Merchant</th>
+                        <th class="text-center">Type</th>
+                        <th class="text-center">Category</th>
+                        <th class="text-center">COD</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% merchants.forEach(m => { %>
+                        <tr class="align-middle">
+                            <td class="fw-bold text-black"><%= m.business_name %></td>
+                            <td class="text-center small text-uppercase fw-bold text-muted"><%= m.type %></td>
+                            <td class="text-center"><%= m.category %></td>
+                            <td class="text-center">
+                                <span class="badge <%= m.accepts_cod ? 'bg-success' : 'bg-secondary' %> text-white">
+                                    <%= m.accepts_cod ? 'YES' : 'NO' %>
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge <%= m.status === 'active' ? 'bg-green' : 'bg-gold' %> text-white fw-bold px-3">
+                                    <%= m.status.toUpperCase() %>
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <% if (m.status !== 'active') { %>
+                                    <form action="/admin/merchants/<%= m.type %>/<%= m.id %>/status" method="POST" class="d-inline">
+                                        <input type="hidden" name="status" value="VERIFIED">
+                                        <button type="submit" class="btn-pikop-primary py-1 px-3" style="font-size: 11px;">APPROVE</button>
+                                    </form>
+                                <% } else { %>
+                                    <span class="text-muted small">N/A</span>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
 </div>
 
 <style>

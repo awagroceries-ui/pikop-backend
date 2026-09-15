@@ -14,8 +14,9 @@
                 <thead>
                     <tr>
                         <th>Business Entity</th>
-                        <th class="text-center">CAC Status</th>
-                        <th class="text-center">Account Status</th>
+                        <th class="text-center">Category</th>
+                        <th class="text-center">Accepts COD</th>
+                        <th class="text-center">Status</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -24,10 +25,16 @@
                         <tr class="align-middle">
                             <td>
                                 <div class="fw-bold text-black"><%= v.business_name %></div>
-                                <div class="smaller text-muted"><%= v.contact_email %></div>
+                                <div class="smaller text-muted">Owner: <%= v.contact_person %> (<%= v.contact_email %>)</div>
+                                <div class="smaller text-muted">CAC: <%= v.cac_number || 'None' %></div>
                             </td>
-                            <td class="text-center text-black small fw-bold">
-                                <%= v.cac_number || 'NOT REGISTERED' %>
+                            <td class="text-center">
+                                <span class="badge bg-light text-black border"><%= v.category %></span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge <%= v.accepts_cod ? 'bg-success' : 'bg-secondary' %> text-white">
+                                    <%= v.accepts_cod ? 'YES' : 'NO' %>
+                                </span>
                             </td>
                             <td class="text-center">
                                 <span class="badge <%= v.status === 'active' ? 'bg-green' : 'bg-gold' %> text-white fw-bold px-3">
@@ -36,8 +43,13 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-flex justify-content-end gap-2">
+                                    <% if (v.status !== 'active') { %>
+                                        <form action="/admin/merchants/vendor/<%= v.id %>/status" method="POST" class="d-inline">
+                                            <input type="hidden" name="status" value="VERIFIED">
+                                            <button type="submit" class="btn-pikop-primary py-1 px-3" style="font-size: 11px;">APPROVE</button>
+                                        </form>
+                                    <% } %>
                                     <button class="btn-pikop-outline py-1 px-3" style="font-size: 11px;">CATALOG</button>
-                                    <button class="btn-pikop-primary py-1 px-3" style="font-size: 11px;">EDIT</button>
                                 </div>
                             </td>
                         </tr>

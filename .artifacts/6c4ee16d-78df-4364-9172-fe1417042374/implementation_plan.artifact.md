@@ -1,56 +1,51 @@
-# Implementation Plan - Legal Integration (T&C and Privacy Policy)
+# Implementation Plan - System Audit Fixes & Enhancements
 
-This plan integrates the Pikop Terms & Conditions and Privacy Policy into the app and backend. The documents will be served from the backend as the single source of truth, enabling wording changes without app releases.
+This plan addresses the bugs and inconsistencies identified during the system audit, focusing on legal page stability, admin visibility, and financial configurability.
 
 ## User Review Required
 
-> [!IMPORTANT]
-> **Source of Truth Details**
-> I will host the markdown files on the backend (`backend_v3/public/legal/`). The app will fetch the content via API or render them in a WebView via public URLs.
-> - **Public URL for Play Store**: `https://api.pikop.com.ng/legal/privacy` (and `/legal/terms` for consistency).
+> [!CAUTION]
+> **Admin Dashboard Overhaul**
+> I will be making significant updates to the Admin views for Merchants and Kitchens to support the new onboarding fields. I will also consolidate the `/admin/merchants` route to act as a proper entry point.
 
 ## Proposed Changes
 
-### Backend (Node.js)
-
-#### [NEW] Markdown Files
-- Place `Pikop_Terms_and_Conditions.md` and `Pikop_Privacy_Policy.md` in `backend_v3/public/legal/`.
-
+### 1. Legal Module Stability (Bug Fix)
 #### [MODIFY] [legalController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/legalController.js)
-- Update `getTerms` and `getPrivacyPolicy` to read from the markdown files and render them using the existing `legal_pages.ejs` view.
-- I will implement a simple markdown-to-HTML parser (or wrap the text in `<pre>` with `white-space: pre-wrap`) to avoid adding new dependencies if `marked` is not preferred. *Self-correction: I will try to use a basic conversion for better readability.*
+- Explicitly pass `adminUsername: null` and `role: null` to `res.render` to prevent `ReferenceError` if the layout override fails or leaks.
+- Enhance `convertMarkdownToHtml` to wrap the entire result in a `<p>` tag and fix potential open-tag issues.
 
-#### [NEW] [user_legal_consents migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726430000000_create_user_legal_consents.js)
-- Create a table to record user consent: `user_id`, `terms_version`, `privacy_version`, `consented_at`, `ip_address`.
+### 2. Admin Visibility & Merchant Approval
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- Update `getVendors` and `getKitchens` to return more details.
+- Implement a combined `getMerchants` view that shows all business entities (Vendors + Kitchens) in a unified list for approval.
 
-#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
-- Update the `signup` logic to record the consent in the new table upon account creation.
+#### [MODIFY] [vendors.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/vendors.ejs) & [kitchens.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/kitchens.ejs)
+- Add columns for **Category**, **Accepts COD**, and **Commission Rate**.
+- Add an "Approve" button that calls `updateMerchantKYCStatus`.
 
----
+#### [MODIFY] [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js)
+- Link `/merchants` to the new unified view.
 
-### Android Frontend (Compose)
+### 3. Financial Configurability
+#### [MODIFY] [platform.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/config/platform.js)
+- Refactor to prioritize values from the `settings` table, falling back to hardcoded defaults.
 
-#### [NEW] `LegalViewerScreen.kt`
-- A generic screen using `WebView` to load the legal documents from the backend URLs.
+#### [NEW] Seed Migration
+- Add `food_commission`, `groceries_commission`, and `shop_commission` to the `settings` table via a new migration.
 
-#### [MODIFY] `SignupCustomerScreen.kt`, `SignupFulfillerScreen.kt`, `SignupMerchantScreen.kt`
-- Replace the current checkbox with a prominent "By continuing, you agree to..." section.
-- Ensure the "Sign Up" button is only enabled after the user has at least opened/scrolled the terms (or just after they click the links). *Instruction check: The prompt says "require an affirmative action", which typically means a button click after reading.*
-
-#### [MODIFY] `AccountScreen.kt` (Settings)
-- Add "Terms & Conditions" and "Privacy Policy" menu items under a "Legal" section.
-
-#### [MODIFY] `MainActivity.kt`
-- Register the new `LegalViewerScreen` route.
+### 4. Android Robustness
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Ensure `DiscoveryItem` and `MerchantProfile` have sensible defaults for all new fields to prevent parsing crashes if the backend response is partial.
 
 ## Verification Plan
 
 ### Automated/Code Verification
-- Verify backend routes `/legal/terms` and `/legal/privacy` return the correct HTML from markdown.
-- Verify `user_legal_consents` table is populated on signup.
+- Verify successful Gradle build.
+- Verify all backend routes load without 500 errors.
 
 ### Manual Verification
-1.  **Public Access**: Load `https://api.pikop.com.ng/legal/privacy` in a browser.
-2.  **In-App Navigation**: Go to Settings -> Legal -> Privacy Policy. Verify it loads.
-3.  **Signup Flow**: Create a new test account. Confirm the "By continuing..." text is visible and links work.
-4.  **Consent Record**: Check the DB for the new consent entry with the correct version (0.1).
+1.  **Legal Check**: Access `/legal/privacy` as an unauthenticated user. Verify it loads with the public layout.
+2.  **Admin Check**: Log in as admin. Go to Partners -> Marketplace. Verify you see the Category and COD toggle status.
+3.  **Approval Check**: Create a new Merchant, then use the Admin dashboard to mark them as `VERIFIED`. Verify they receive the welcome email.
+4.  **Config Check**: Change the `groceries_commission` in the DB settings. Verify the change is reflected in new orders.

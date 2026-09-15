@@ -10,6 +10,7 @@ I have successfully integrated the Terms & Conditions and Privacy Policy into th
 - **Public Legal Routes**:
     - **Privacy Policy**: [https://api.pikop.com.ng/legal/privacy](https://api.pikop.com.ng/legal/privacy) (Publicly accessible for Google Play Store compliance).
     - **Terms & Conditions**: [https://api.pikop.com.ng/legal/terms](https://api.pikop.com.ng/legal/terms).
+- **Public Layout**: Introduced `public_layout.ejs` to serve these pages without requiring admin session data, fixing the 500 error reported during initial testing.
 - **Consent Persistence**: Added a new database migration and updated `authController.js` to record user consent (timestamp, document versions, IP address) upon every successful signup across all roles.
 
 ### 📱 Android Frontend (Unified Experience)

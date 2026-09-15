@@ -1,23 +1,20 @@
-# Task Checklist: Legal Integration (T&C and Privacy Policy)
+# Task Checklist: System Audit Fixes & Enhancements
 
-- `[/]` **Part 1: Backend Setup**
-  - `[x]` Place markdown files in `backend_v3/public/legal/`.
-  - `[x]` Implement markdown-to-HTML conversion in `legalController.js`.
-  - `[x]` Create public routes `/legal/terms` and `/legal/privacy`.
-  - `[x]` Add migration for `user_legal_consents` table.
-- `[/]` **Part 2: Android Integration**
-  - `[x]` Create `LegalViewerScreen.kt` using `WebView`.
-  - `[x]` Update `SignupCustomerScreen.kt` with affirmative consent text and routing.
-  - `[x]` Update `SignupFulfillerScreen.kt` with affirmative consent text and routing.
-  - `[x]` Update `SignupMerchantScreen.kt` with affirmative consent text and routing.
-  - `[x]` Update `AccountScreen.kt` to include Legal section in settings.
-  - `[x]` Register new routes in `MainActivity.kt`.
-  - `[x]` Remove redundant `TermsScreen.kt` and `PrivacyPolicyScreen.kt`.
-- `[/]` **Part 3: Data & Consent**
-  - `[x]` Update `SignupRequest` in `ApiService.kt` to include version info.
-  - `[x]` Update `authController.js` to record consent in DB on signup.
-- `[ ]` **Verification**
-  - `[ ]` Test public URL loading.
-  - `[ ]` Test signup flow consent recording.
-  - `[ ]` Test settings navigation.
+- `[x]` **1. Legal Module Stability**
+  - `[x]` Fix `ReferenceError` in `legalController.js` by passing nulls for admin context.
+  - `[x]` Enhance markdown conversion logic (standardized newlines).
+- `[x]` **2. Admin Visibility & Merchant Approval**
+  - `[x]` Update `adminController.js` `getVendors` and `getKitchens` queries.
+  - `[x]` Implement `getMerchants` unified view.
+  - `[x]` Update `vendors.ejs` and `kitchens.ejs` with new columns and Approve button.
+  - `[x]` Link `/admin/merchants` in `adminRoutes.js`.
+- `[x]` **3. Financial Configurability**
+  - `[x]` Create migration to seed commission rates into `settings` table.
+  - `[x]` Update `platform.js` to prioritize configurable rates.
+  - `[x]` Update `adminController.js` and `settings.ejs` to support commission editing.
+  - `[x]` Update `commerceController.js` to fetch rates from DB at runtime.
+- `[x]` **4. Android Robustness**
+  - `[x]` Update `ApiService.kt` DTOs with default values.
+- `[ ]` **5. Verification & Git**
+  - `[ ]` Build and test.
   - `[ ]` Git commit and push.

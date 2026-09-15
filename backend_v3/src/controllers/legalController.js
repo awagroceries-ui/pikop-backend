@@ -31,7 +31,9 @@ const getTerms = (req, res) => {
         res.render('legal_pages', {
             title: 'Terms & Conditions',
             content: convertMarkdownToHtml(markdown),
-            layout: 'public_layout'
+            layout: 'public_layout',
+            adminUsername: null,
+            role: null
         });
     } catch (e) {
         console.error('[Legal] Terms Load Error:', e.message);
@@ -46,7 +48,9 @@ const getPrivacyPolicy = (req, res) => {
         res.render('legal_pages', {
             title: 'Privacy Policy',
             content: convertMarkdownToHtml(markdown),
-            layout: 'public_layout'
+            layout: 'public_layout',
+            adminUsername: null,
+            role: null
         });
     } catch (e) {
         console.error('[Legal] Privacy Load Error:', e.message);
