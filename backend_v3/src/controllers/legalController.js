@@ -24,9 +24,11 @@ const convertMarkdownToHtml = (markdown) => {
         .replace(/---/g, '<hr style="border: none; border-top: 1px solid #E5E7EB; margin: 30px 0;">');
 };
 
-const getTerms = (req, res) => {
+const getTerms = async (req, res) => {
     try {
         const filePath = path.join(__dirname, '../../public/legal/Pikop_Terms_and_Conditions.md');
+        if (!fs.existsSync(filePath)) throw new Error('Terms file not found');
+
         const markdown = fs.readFileSync(filePath, 'utf8');
         res.render('legal_pages', {
             title: 'Terms & Conditions',
@@ -37,13 +39,15 @@ const getTerms = (req, res) => {
         });
     } catch (e) {
         console.error('[Legal] Terms Load Error:', e.message);
-        res.status(500).send('Error loading Terms');
+        res.status(500).send(`Error loading Terms: ${e.message}`);
     }
 };
 
-const getPrivacyPolicy = (req, res) => {
+const getPrivacyPolicy = async (req, res) => {
     try {
         const filePath = path.join(__dirname, '../../public/legal/Pikop_Privacy_Policy.md');
+        if (!fs.existsSync(filePath)) throw new Error('Privacy file not found');
+
         const markdown = fs.readFileSync(filePath, 'utf8');
         res.render('legal_pages', {
             title: 'Privacy Policy',
@@ -54,7 +58,7 @@ const getPrivacyPolicy = (req, res) => {
         });
     } catch (e) {
         console.error('[Legal] Privacy Load Error:', e.message);
-        res.status(500).send('Error loading Privacy Policy');
+        res.status(500).send(`Error loading Privacy Policy: ${e.message}`);
     }
 };
 

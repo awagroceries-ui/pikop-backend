@@ -1,39 +1,36 @@
-# Walkthrough - Legal Section Integration (T&C and Privacy Policy)
+# Walkthrough - System Audit & Stability Fixes
 
-I have successfully integrated the Terms & Conditions and Privacy Policy into the Pikop ecosystem. These documents are now served from the backend as the single source of truth, enabling instant wording updates without requiring new app releases.
+I have completed the system-wide audit and implemented critical fixes to ensure the stability of the legal module, the visibility of merchant approvals, and the configurability of financial commissions.
 
 ## Changes Made
 
-### 🛠️ Backend (Source of Truth)
-- **Hosted Markdown Files**: Placed the source documents in `backend_v3/public/legal/`.
-- **Markdown-to-HTML Service**: Refactored `legalController.js` to dynamically read these markdown files and convert them into beautifully styled HTML for both web browsers and in-app WebViews.
-- **Public Legal Routes**:
-    - **Privacy Policy**: [https://api.pikop.com.ng/legal/privacy](https://api.pikop.com.ng/legal/privacy) (Publicly accessible for Google Play Store compliance).
-    - **Terms & Conditions**: [https://api.pikop.com.ng/legal/terms](https://api.pikop.com.ng/legal/terms).
-- **Public Layout**: Introduced `public_layout.ejs` to serve these pages without requiring admin session data, fixing the 500 error reported during initial testing.
-- **Consent Persistence**: Added a new database migration and updated `authController.js` to record user consent (timestamp, document versions, IP address) upon every successful signup across all roles.
+### 1. Legal Module Stability (Bug Fix)
+- **Resolved ReferenceError**: Fixed the crash on `/legal/privacy` and `/legal/terms` by explicitly decoupling these public views from the Admin session context.
+- **Enhanced Rendering**: Improved the Markdown-to-HTML conversion logic to handle varied line endings and ensured consistent styling across all viewing platforms.
 
-### 📱 Android Frontend (Unified Experience)
-- **`LegalViewerScreen.kt`**: Implemented a generic legal document viewer using `WebView`. It automatically pulls the latest version from the backend URLs.
-- **Sign-Up Consent Gate**: Updated `SignupCustomerScreen.kt`, `SignupFulfillerScreen.kt`, and `SignupMerchantScreen.kt` to include a prominent, non-prechecked affirmative action step.
-    > [!IMPORTANT]
-    > The "Sign Up" button now acts as the legal agreement trigger, preceded by clear text linking to both documents.
-- **Settings Integration**: Added a "Legal" section to `AccountScreen.kt` with independent links to "Terms & Conditions" and "Privacy Policy".
-- **Code Cleanup**: Removed redundant local legal screens (`TermsScreen.kt`, `PrivacyPolicyScreen.kt`) and switched all routes to the unified backend-driven flow.
+### 2. Admin Dashboard & Merchant Approval
+- **Unified Verification Queue**: Repurposed the Merchant Hub (`/admin/merchants`) to show a live list of all business entities (Vendors and Kitchens) awaiting approval.
+- **Enhanced Entity Visibility**: Updated the Vendors and Kitchens management views to display critical new fields: **Category**, **COD Acceptance**, and **Ownership Info**.
+- **One-Click Approval**: Implemented an "APPROVE" action directly in the admin tables, allowing admins to instantly verify businesses and trigger their customized welcome emails.
+
+### 3. Dynamic Financial Controls
+- **DB-Driven Commissions**: Successfully moved Marketplace Commission rates (Food 10%, Groceries 5%, Shop 10%) from static code into the `settings` database table.
+- **Admin Control Panel**: Updated the Global Settings page to allow real-time adjustment of these commission percentages without code changes.
+- **Runtime Calculation**: Refactored the commerce engine to pull live rates from the database during order initialization.
+
+### 4. Android Network Robustness
+- **Defensive DTOs**: Hardened the `DiscoveryItem` and `MerchantProfile` data classes with sensible default values. This prevents app crashes during rolling backend updates or if optional fields are missing from legacy records.
 
 ## Verification Results
-- **Public URL Check**: Confirmed `https://api.pikop.com.ng/legal/privacy` renders correctly in a standard browser.
-- **Android Build**: Successfully compiled with Gradle (`:app:assembleDebug`).
-- **Consent Logic**: Verified `SignupRequest` now transmits `terms_version` and `privacy_version` for backend recording.
+- **Backend Stability**: All `/admin` and `/legal` routes are verified operational.
+- **Financial Accuracy**: Confirmed that updating a commission rate in the Admin panel immediately impacts the calculation of new commerce orders.
+- **Android Build**: Successfully compiled (`:app:assembleDebug`).
 
 ## Deployment Instructions
-To apply these changes and create the consent table on your production server:
+To apply the new database settings and view updates to your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
 npm run migrate:up
 pm2 restart pikop-v3
 ```
-
-> [!TIP]
-> From now on, you can update the legal text by simply editing the markdown files in `backend_v3/public/legal/` on the server and restarting PM2. No app store update required!

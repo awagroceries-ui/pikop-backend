@@ -129,20 +129,29 @@ const initializeCommerceOrder = async (req, res) => {
 
         // 4. Dual-Fee Concept Evaluation
         // Buyer-borne: Escrow Service Fee (Only applies if COD is chosen)
-        const escrowRateRes = await db.query("SELECT value FROM settings WHERE key = 'cod_fee_rate'");
-        const escrowRate = parseFloat(escrowRateRes.rows[0]?.value || '0.10');
+        let escrowRate = 0.10; // Default fallback
+        try {
+            const escrowRateRes = await db.query("SELECT value FROM settings WHERE key = 'cod_fee_rate'");
+            if (escrowRateRes.rows.length > 0) escrowRate = parseFloat(escrowRateRes.rows[0].value);
+        } catch (e) {}
         const platformFee = payment_method === 'COD' ? PlatformConfig.roundFee(item.price * escrowRate) : 0;
 
         // Seller-borne: Marketplace Commission (Applies always to reduce merchant payout)
         let commissionKey = 'shop_commission';
+        let defaultRate = 0.10;
         if (item_type === 'meal' || (item.category && item.category.toLowerCase() === 'food')) {
             commissionKey = 'food_commission';
+            defaultRate = 0.10;
         } else if (item.category && item.category.toLowerCase() === 'groceries') {
             commissionKey = 'groceries_commission';
+            defaultRate = 0.05;
         }
 
-        const commissionRes = await db.query("SELECT value FROM settings WHERE key = $1", [commissionKey]);
-        const commissionPercentage = parseFloat(commissionRes.rows[0]?.value || '0.10');
+        let commissionPercentage = defaultRate;
+        try {
+            const commissionRes = await db.query("SELECT value FROM settings WHERE key = $1", [commissionKey]);
+            if (commissionRes.rows.length > 0) commissionPercentage = parseFloat(commissionRes.rows[0].value);
+        } catch (e) {}
         const merchantCommissionAmount = PlatformConfig.roundFee(item.price * commissionPercentage);
 
         const totalNaira = parseFloat(item.price) + deliveryFee + platformFee;

@@ -52,13 +52,17 @@ const signup = async (req, res) => {
         );
     }
 
-    // 5. Record Legal Consent
+    // 5. Record Legal Consent (Resilient/Non-blocking)
     if (terms_version && privacy_version) {
-        await client.query(
-            `INSERT INTO user_legal_consents (user_id, terms_version, privacy_version, ip_address)
-             VALUES ($1, $2, $3, $4)`,
-            [user.id, terms_version, privacy_version, req.ip]
-        );
+        try {
+            await client.query(
+                `INSERT INTO user_legal_consents (user_id, terms_version, privacy_version, ip_address)
+                 VALUES ($1, $2, $3, $4)`,
+                [user.id, terms_version, privacy_version, req.ip]
+            );
+        } catch (consentErr) {
+            console.warn(`[Auth] Legal consent recording skipped (likely table missing): ${consentErr.message}`);
+        }
     }
 
     // 6. Generate OTP (Internal/Email)
