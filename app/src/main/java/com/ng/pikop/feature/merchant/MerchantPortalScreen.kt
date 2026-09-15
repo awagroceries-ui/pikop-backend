@@ -1,5 +1,6 @@
 package com.ng.pikop.feature.merchant
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -70,7 +71,7 @@ fun MerchantPortalScreen(
                 else apiService.deleteMenuItem(id)
                 fetchDashboard()
             } catch (e: Exception) {
-                android.widget.Toast.makeText(context, "Delete failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Delete failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -125,6 +126,7 @@ fun MerchantPortalScreen(
                     Tab(selected = selectedTab.intValue == 0, onClick = { selectedTab.intValue = 0 }, text = { Text("My Sales") })
                     Tab(selected = selectedTab.intValue == 1, onClick = { selectedTab.intValue = 1 }, text = { Text("Listings") })
                     Tab(selected = selectedTab.intValue == 2, onClick = { selectedTab.intValue = 2 }, text = { Text("Bulk") })
+                    Tab(selected = selectedTab.intValue == 3, onClick = { selectedTab.intValue = 3 }, text = { Text("Settings") })
                 }
 
                 when (selectedTab.intValue) {
@@ -136,6 +138,20 @@ fun MerchantPortalScreen(
                         onDelete = { type, id -> handleDeleteItem(type, id) }
                     )
                     2 -> BulkTabContent(dashboardData.value?.batches ?: emptyList())
+                    3 -> SettingsTabContent(
+                        profile = merchantProfile.value,
+                        onUpdateSettings = { acceptsCod: Boolean ->
+                            scope.launch {
+                                try {
+                                    apiService.updateMerchantSettings(mapOf("accepts_cod" to acceptsCod))
+                                    fetchDashboard()
+                                    Toast.makeText(context, "Settings updated", Toast.LENGTH_SHORT).show()
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -316,5 +332,50 @@ fun BatchItem(batch: MerchantBatch) {
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         }
+    }
+}
+
+@Composable
+fun SettingsTabContent(
+    profile: MerchantProfile?,
+    onUpdateSettings: (Boolean) -> Unit
+) {
+    if (profile == null) return
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        Text("Business Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Accept Cash on Delivery", fontWeight = FontWeight.Bold)
+                        Text(
+                            "Allow customers to pay when they receive items. Funds are held in escrow.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Switch(
+                        checked = profile.accepts_cod,
+                        onCheckedChange = { onUpdateSettings(it) }
+                    )
+                }
+            }
+        }
+        
+        Text(
+            "Note: The 10% platform fee for COD is paid by the customer, not deducted from your payout.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }

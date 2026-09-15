@@ -28,7 +28,7 @@ const getDiscovery = async (req, res) => {
       (
         SELECT p.id, p.name, p.price, p.photo_url, p.category, p.description,
                v.business_name as vendor_name, v.id::text as vendor_id, 'product' as item_type,
-               v.city, a.formatted_address as pickup_address, p.created_at
+               v.city, a.formatted_address as pickup_address, p.created_at, v.accepts_cod
                ${locationSelect}
         FROM products p
         JOIN vendors v ON v.id = p.vendor_id
@@ -39,7 +39,7 @@ const getDiscovery = async (req, res) => {
       (
         SELECT m.id::text, m.name, m.price, m.photo_url, m.category, m.description,
                k.business_name as vendor_name, k.id::text as vendor_id, 'meal' as item_type,
-               k.city, a.formatted_address as pickup_address, m.created_at
+               k.city, a.formatted_address as pickup_address, m.created_at, k.accepts_cod
                ${locationSelect}
         FROM menu_items m
         JOIN kitchens k ON k.id = m.kitchen_id

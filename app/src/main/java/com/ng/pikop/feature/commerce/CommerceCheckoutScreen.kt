@@ -162,23 +162,28 @@ fun CommerceCheckoutScreen(
                         }
                     }
 
-                    OutlinedCard(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.outlinedCardColors(
-                            containerColor = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = if (selectedPaymentMethod == "COD") 2.dp else 1.dp,
-                            color = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.LightGray
-                        ),
-                        onClick = { selectedPaymentMethod = "COD" }
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Payments, contentDescription = null, tint = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.Gray)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Pay on Delivery", fontWeight = FontWeight.Bold)
-                            Text("(Cash / Transfer)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    if (item!!.accepts_cod) {
+                        OutlinedCard(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = if (selectedPaymentMethod == "COD") 2.dp else 1.dp,
+                                color = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.LightGray
+                            ),
+                            onClick = { selectedPaymentMethod = "COD" }
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Payments, contentDescription = null, tint = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.Gray)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Pay on Delivery", fontWeight = FontWeight.Bold)
+                                Text("(Cash / Transfer)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            }
                         }
+                    } else {
+                        // Spacer to keep layout balanced
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
 

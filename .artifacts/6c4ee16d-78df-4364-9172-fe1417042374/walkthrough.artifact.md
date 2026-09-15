@@ -1,27 +1,24 @@
-# Walkthrough: Unified Commerce Checkout
+# Walkthrough: Marketplace Commission
 
 ## Changes Made
-1. **Frontend UI Update (`CommerceCheckoutScreen.kt`)**:
-   - I added a clean, visual `Payment Method` selector, allowing the user to choose between **"Pay Now (Card/Transfer)"** and **"Pay on Delivery (Cash/Transfer)"**.
-   - Updated the `CommerceOrderRequest` data class in the API layer to support transmitting the chosen `payment_method`.
-   - Adapted the checkout button logic: If the user picks Card, the app starts the Paystack intent window (status quo). If the user picks COD, the app seamlessly redirects them straight to the `TrackOrderScreen` for their newly created background mission!
-2. **Backend Engine Update (`commerceController.js`)**:
-   - Updated `initializeCommerceOrder` to read the `payment_method` variable.
-   - If `payment_method === 'COD'`, the engine completely bypasses the Paystack initialization. Instead, it natively mimics the webhook's automation:
-     - It creates a new `pickup_delivery` row in the `orders` table.
-     - Sets `status = 'SEARCHING'`, `payment_status = 'PENDING'`, and `collection_status = 'pending'`.
-     - Fills in `collect_on_delivery_amount`.
-     - Secures the item price portion in `ESCROW_HOLD` for the merchant.
-     - Extracts the nearby fulfillers and instantly broadcasts the mission via Socket.io.
-   - It then returns the new `order_id` to the app so the customer can track the Dispatch mission.
-
-## Result
-Because Pikop's architecture leverages a unified `orders` table, this means:
-- The customer can buy Food, Groceries, or Shop items and checking out *automatically* orchestrates the Dispatch lifecycle.
-- The merchant can view the incoming order, accept it, and mark it ready for pickup.
-- The fulfiller sees the mission pop up organically on their map, fully linked.
+1. **Configurable Commission Variables**:
+   - Updated `backend_v3/src/config/platform.js`. Left the original COD escrow config untouched, but added a new `COMMISSION` object holding the exact rates: Food 10%, Groceries 5%, and Shop 10%.
+2. **Order Creation Ledger Tracking**:
+   - Added a new database migration (`1726400000000_add_merchant_commission.js`) to add `merchant_commission_amount DECIMAL(12,2)` to the `orders` table.
+   - Updated the `initializeCommerceOrder` function in `commerceController.js`. It now checks the `item_type` and `category` to calculate the `merchantCommissionAmount` using the configured percentages.
+   - **Crucially**, it still treats the COD platform fee separately (calculated on top, only if COD is selected). Both are stored gracefully on the order!
+3. **Escrow Settlement Deductions**:
+   - Updated `walletService.releaseEscrow()`. Previously, it credited the seller the full `itemPrice` (minus the escrow fee if the seller strangely opted to pay it). Now, it explicitly deducts the `marketplaceCommission` from the `itemPrice` before crediting the merchant's `available` wallet!
+   - This ensures absolute financial accuracy when the fulfiller delivers the order.
+4. **Transparent Merchant UI**:
+   - Modified both `MerchantOrdersScreen.kt` (for live incoming orders) and `MerchantPortalScreen.kt` (for historical completed sales).
+   - Instead of a single "Price" string, the merchant now sees a structured breakdown:
+     - **Item Price:** `₦10,000`
+     - **Marketplace Commission:** `-₦1,000` (in red text)
+     - **Your Net Payout:** `₦9,000` (in bold primary color)
+   - This creates total transparency without bothering the buyer's receipt.
 
 ## Build and Testing Status
 - The Android project compiles smoothly (`:app:assembleDebug`).
-- The syntax validation passes on the backend endpoints.
+- The backend API and DB migrations are stable.
 - All code has been successfully committed to version control and pushed to your `main` repository!

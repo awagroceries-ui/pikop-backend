@@ -556,7 +556,8 @@ data class MerchantProfile(
     val id: String,
     val business_name: String,
     val status: String,
-    val type: String // vendor, kitchen
+    val type: String, // vendor, kitchen
+    val accepts_cod: Boolean = true
 )
 
 data class SetupMerchantRequest(
@@ -566,7 +567,8 @@ data class SetupMerchantRequest(
     val cac_number: String? = null,
     val nafdac_number: String? = null,
     val bank_name: String,
-    val account_number: String
+    val account_number: String,
+    val accepts_cod: Boolean = true
 )
 
 data class SetupMerchantResponse(
@@ -706,7 +708,8 @@ data class DiscoveryItem(
     val city: String?,
     val pickup_address: String?,
     val distance_km: Double? = null,
-    val created_at: String
+    val created_at: String,
+    val accepts_cod: Boolean = true
 )
 
 data class DiscoveryResponse(
@@ -981,6 +984,9 @@ interface ApiService {
 
     @POST("api/v1/merchants/setup")
     suspend fun setupMerchantProfile(@Body request: SetupMerchantRequest): SetupMerchantResponse
+    
+    @PATCH("api/v1/merchants/settings")
+    suspend fun updateMerchantSettings(@Body request: Map<String, Boolean>): AuthResponse
     
     @GET("api/v1/merchants/orders")
     suspend fun getMerchantIncomingOrders(): List<OrderDetailsResponse>

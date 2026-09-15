@@ -6,7 +6,7 @@ const crypto = require('crypto');
  */
 const setupMerchantProfile = async (req, res) => {
     const userId = req.user.id;
-    const { business_name, category, address, cac_number, nafdac_number, bank_name, account_number } = req.body;
+    const { business_name, category, address, cac_number, nafdac_number, bank_name, account_number, accepts_cod = true } = req.body;
 
     const client = await db.pool.connect();
     try {
@@ -29,16 +29,16 @@ const setupMerchantProfile = async (req, res) => {
         // We assume category dictates table logic for simplicity
         if (category === 'Food') {
             const result = await client.query(
-                `INSERT INTO kitchens (user_id, business_name, status)
-                 VALUES ($1, $2, $3) RETURNING id`,
-                [userId, business_name, initialStatus]
+                `INSERT INTO kitchens (user_id, business_name, status, accepts_cod)
+                 VALUES ($1, $2, $3, $4) RETURNING id`,
+                [userId, business_name, initialStatus, accepts_cod]
             );
             profileId = result.rows[0].id;
         } else {
             const result = await client.query(
-                `INSERT INTO vendors (user_id, business_name, status)
-                 VALUES ($1, $2, $3) RETURNING id`,
-                [userId, business_name, initialStatus]
+                `INSERT INTO vendors (user_id, business_name, status, accepts_cod)
+                 VALUES ($1, $2, $3, $4) RETURNING id`,
+                [userId, business_name, initialStatus, accepts_cod]
             );
             profileId = result.rows[0].id;
         }
@@ -309,8 +309,8 @@ const getMerchantProfile = async (req, res) => {
 
     try {
         const [vendorRes, kitchenRes] = await Promise.all([
-            db.query("SELECT id, business_name, status, 'vendor' as type FROM vendors WHERE user_id = $1", [userId]),
-            db.query("SELECT id, business_name, status, 'kitchen' as type FROM kitchens WHERE user_id = $1", [userId])
+            db.query("SELECT id, business_name, status, accepts_cod, 'vendor' as type FROM vendors WHERE user_id = $1", [userId]),
+            db.query("SELECT id, business_name, status, accepts_cod, 'kitchen' as type FROM kitchens WHERE user_id = $1", [userId])
         ]);
 
         const profile = vendorRes.rows[0] || kitchenRes.rows[0] || null;
@@ -428,6 +428,24 @@ const createBulkOrdersSession = async (req, res) => {
 };
 
 /**
+ * Updates merchant settings (e.g. COD preference).
+ */
+const updateMerchantSettings = async (req, res) => {
+    const userId = req.user.id;
+    const { accepts_cod } = req.body;
+
+    try {
+        await Promise.all([
+            db.query("UPDATE vendors SET accepts_cod = $1 WHERE user_id = $2", [accepts_cod, userId]),
+            db.query("UPDATE kitchens SET accepts_cod = $1 WHERE user_id = $2", [accepts_cod, userId])
+        ]);
+        res.status(200).json({ success: true, message: 'Settings updated successfully.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
  * Fetches incoming orders for the merchant.
  */
 const getIncomingOrders = async (req, res) => {
@@ -508,6 +526,7 @@ module.exports = {
   getSellerDashboard,
   getMerchantProfile,
   setupMerchantProfile,
+  updateMerchantSettings,
   getIncomingOrders,
   updateOrderStatus
 };

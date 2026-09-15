@@ -1,59 +1,61 @@
-# Implementation Plan: Unified Checkout & Dispatch Automation
+# Implementation Plan: Merchant COD Opt-In/Opt-Out
 
-## 🔍 Diagnostic Report
-
-I have investigated the backend and current frontend setups regarding checkout:
-1. **Current State**: The `CommerceCheckoutScreen.kt` currently exists. It calls `/api/v1/commerce/checkout/initialize` in the backend (`commerceController.js`), which triggers a Paystack transaction with `metadata.type = 'COMMERCE_ORDER'`.
-2. **Current Automation**: When Paystack succeeds, `paymentController.js` handles the webhook, intercepts `COMMERCE_ORDER`, and **already natively creates an `orders` table entry** with `order_type='pickup_delivery'` and `status='SEARCHING'`. It sets the pickup coordinates to the merchant's address and the delivery coordinates to the customer's address!
-3. **Escrow logic**: The webhook already routes the `item_price` portion into `ESCROW_HOLD` for the merchant.
-4. **The Missing Piece (COD)**: The prompt asks to ensure COD works exactly as it does for Dispatch orders. Currently, `CommerceCheckoutScreen.kt` has *no* UI for selecting payment methods (it just instantly triggers Paystack). The backend `initializeCommerceOrder` endpoint also assumes immediate card payment.
+This plan adds a setting for merchants to decide whether they want to accept Cash on Delivery (COD) orders. This preference is collected during onboarding and enforced during customer checkout.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **COD Architecture for Commerce**
-> Since the backend webhook is already fully automating the Dispatch job creation for paid commerce orders, my primary task is updating the UI and API to allow **Cash on Delivery (COD)** as an option during unified checkout.
->
-> I will:
-> 1. Update `CommerceCheckoutScreen.kt` to allow users to toggle between "Pay Now (Card/Transfer)" and "Cash on Delivery".
-> 2. Update `initializeCommerceOrder` in `commerceController.js` to accept a `payment_method` (e.g. `CARD` vs `COD`).
-> 3. If `payment_method = 'COD'`, bypass Paystack. Instead, directly insert the order into the database exactly like the webhook does, but set `payment_status = 'PENDING'` and `collection_status = 'pending'`, calculating the total COD amount.
-> 4. Ensure the resulting order ID is returned so the customer can track it immediately.
->
-> Do you approve of this approach?
+> **Default Setting for Existing Merchants**
+> I will default `accepts_cod` to `true` for all existing and new merchants to maintain current behavior while rolling out the feature.
+
+> [!NOTE]
+> **Cart Architecture**
+> The current `CommerceCheckoutScreen.kt` appears to handle single-item checkouts. I will enforce the `accepts_cod` check for the specific item being purchased. If Pikop transitions to multi-item carts, a "prepaid-only if any item is prepaid-only" logic will be easier to implement then.
 
 ## Proposed Changes
 
-### Part 1: Android Frontend (`CommerceCheckoutScreen.kt`)
+### Database Layer
+- **[NEW] Migration**: `1726410000000_add_merchant_cod_toggle.js`
+  - Add `accepts_cod` BOOLEAN column (default `true`) to `vendors` and `kitchens` tables.
 
-#### [MODIFY] [CommerceCheckoutScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/CommerceCheckoutScreen.kt)
-- Introduce a Payment Method radio toggle (`Card / Transfer` vs `Cash on Delivery`).
-- Update the `CommerceOrderRequest` data class in `ApiService.kt` to include `payment_method: String`.
-- If Pay Now is selected, open the Paystack URL as before.
-- If COD is selected, `initializeCommerceOrder` will return `{ success: true, order_id: "..." }` instead of a payment URL. Automatically route the user to the `track_order` screen for that ID.
+### Backend Layer
+#### [MODIFY] `merchantController.js`
+- `setupMerchantProfile`: Accept `accepts_cod` in request body and save to DB.
+- `getMerchantProfile`: Include `accepts_cod` in the returned profile object.
+- **[NEW]** `updateMerchantSettings`: A new endpoint to allow merchants to toggle `accepts_cod`.
 
-### Part 2: Backend Unified Initialization (`commerceController.js`)
+#### [MODIFY] `merchantRoutes.js`
+- Register `PATCH /api/v1/merchants/settings` for `updateMerchantSettings`.
 
-#### [MODIFY] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
-- Update `initializeCommerceOrder`.
-- Accept `payment_method` in `req.body`.
-- **If `payment_method === 'COD'`**:
-  - Instead of initializing Paystack, insert directly into the `orders` table.
-  - `status = 'SEARCHING'`.
-  - `payment_status = 'PENDING'`.
-  - `collect_on_delivery_amount = totalNaira`.
-  - Fetch nearby fulfillers and broadcast the offer immediately (reuse `dispatchService.broadcastOffer`).
-  - Return the new `order.id` to the frontend.
+#### [MODIFY] `commerceController.js`
+- `getDiscovery`: Update SQL to JOIN with `vendors`/`kitchens` and return the `accepts_cod` flag for each item.
 
-### Part 3: Linkage Visibility
+### Android API Layer
+#### [MODIFY] `ApiService.kt`
+- Update `SetupMerchantRequest` to include `accepts_cod`.
+- Update `MerchantProfile` to include `accepts_cod`.
+- Update `DiscoveryItem` to include `accepts_cod`.
+- Add `updateMerchantSettings` method.
 
-- The linkage requested ("customer looking at Food order should see delivery tracking") is naturally solved because Pikop v3 uses a unified `orders` table. A commerce order *is* a dispatch order natively. The `OrdersDashboardScreen` and `TrackOrderScreen` already query the `orders` table, meaning commerce purchases will automatically appear in the user's mission history and can be tracked natively.
+### Android UI Layer
+#### [MODIFY] `MerchantBusinessSetupScreen.kt` (Onboarding Stage 2)
+- Add a "Accept COD Orders" toggle with an explanation: "Funds are held in escrow and released after delivery. A 10% platform fee is paid by the buyer."
+
+#### [MODIFY] `CommerceCheckoutScreen.kt`
+- Check `item.accepts_cod`. If `false`, hide the "Pay on Delivery" card and default `selectedPaymentMethod` to `CARD`.
+
+#### [MODIFY] `MerchantPortalScreen.kt`
+- Add a new "Settings" tab (or a section in existing tabs) to allow toggling `accepts_cod`.
 
 ## Verification Plan
 
+### Automated/Code Verification
+- Verify successful Gradle build of the Android app.
+- Verify DB migration runs without errors.
+
 ### Manual Verification
-1. Add an item to the cart in the Food module and proceed to checkout.
-2. Select "Cash on Delivery". Submit order.
-3. Verify that it bypasses Paystack, returns an `order_id`, and takes you straight to the Tracking Screen.
-4. Check the Fulfiller app -> Verify the mission is broadcast to nearby drivers.
-5. Check the Merchant app -> Verify the incoming order appears in the "Orders" tab.
+1. **Onboarding**: Sign up as a new merchant, toggle COD to "Off", and complete verification.
+2. **Settings**: Go to Merchant Portal -> Settings, toggle COD back to "On", then back to "Off".
+3. **Checkout (Merchant OFF)**: As a customer, attempt to buy an item from a merchant who has COD disabled. Verify only "Pay Now" is visible.
+4. **Checkout (Merchant ON)**: As a customer, buy from a merchant with COD enabled. Verify both "Pay Now" and "Pay on Delivery" are visible.
+5. **Data Integrity**: Verify that changing the setting doesn't affect existing orders.

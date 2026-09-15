@@ -1,14 +1,20 @@
-# Task Checklist: Unified Checkout & Dispatch Automation
+# Task Checklist: Merchant COD Opt-In/Opt-Out
 
-- `[/]` **Part 1: API Model Updates**
-  - `[ ]` Update `CommerceOrderRequest` in `ApiService.kt` to include `payment_method`.
-  - `[ ]` Update `PaymentInitializationResponse` to handle conditional `order_id` vs `authorization_url`.
-- `[ ]` **Part 2: Frontend UI (`CommerceCheckoutScreen.kt`)**
-  - `[ ]` Add Payment Method Radio Buttons (Pay Now vs Cash on Delivery).
-  - `[ ]` Handle conditional routing (Start Intent if Paystack URL exists, else navigate to `track_order/$orderId` if COD).
-- `[ ]` **Part 3: Backend Logic (`commerceController.js`)**
-  - `[ ]` Read `payment_method` in `initializeCommerceOrder`.
-  - `[ ]` If `COD`: Insert directly into `orders` with `payment_status='PENDING'`, calculate total COD amount, broadcast to fulfillers, return order ID.
-- `[ ]` **Part 4: Verification & Git**
-  - `[ ]` Compile project to verify Android code syntax.
+- `[/]` **Part 1: Database Migration**
+  - `[ ]` Create and run migration to add `accepts_cod` to `vendors` and `kitchens`.
+- `[ ]` **Part 2: Backend Logic Updates**
+  - `[ ]` Update `setupMerchantProfile` in `merchantController.js`.
+  - `[ ]` Update `getMerchantProfile` in `merchantController.js`.
+  - `[ ]` Implement `updateMerchantSettings` in `merchantController.js`.
+  - `[ ]` Update `getDiscovery` in `commerceController.js` to return `accepts_cod`.
+  - `[ ]` Register routes in `merchantRoutes.js`.
+- `[ ]` **Part 3: Android API Layer**
+  - `[ ]` Update `SetupMerchantRequest`, `MerchantProfile`, and `DiscoveryItem` in `ApiService.kt`.
+  - `[ ]` Add `updateMerchantSettings` to `ApiService` interface.
+- `[ ]` **Part 4: Android UI Layer**
+  - `[ ]` Add COD toggle to `MerchantBusinessSetupScreen.kt`.
+  - `[ ]` Update `CommerceCheckoutScreen.kt` to enforce `accepts_cod`.
+  - `[ ]` Add Settings tab with COD toggle to `MerchantPortalScreen.kt`.
+- `[ ]` **Part 5: Verification & Deployment**
+  - `[ ]` Build and test the Android client.
   - `[ ]` Git commit and push changes.

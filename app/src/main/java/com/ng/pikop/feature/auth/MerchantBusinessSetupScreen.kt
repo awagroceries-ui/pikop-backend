@@ -40,6 +40,7 @@ fun MerchantBusinessSetupScreen(
     
     var bankName by remember { mutableStateOf("") }
     var accountNumber by remember { mutableStateOf("") }
+    var acceptsCod by remember { mutableStateOf(true) }
     
     var expandedCategory by remember { mutableStateOf(false) }
     val categories = listOf("Food", "Groceries", "Shop")
@@ -170,6 +171,25 @@ fun MerchantBusinessSetupScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Payment Preference", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Accept COD Orders", fontWeight = FontWeight.Bold)
+                            Text("Customers can pay on delivery. Funds are held in escrow and released to you after delivery.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        }
+                        Switch(checked = acceptsCod, onCheckedChange = { acceptsCod = it })
+                    }
+                }
+            }
+
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -194,7 +214,8 @@ fun MerchantBusinessSetupScreen(
                                 cac_number = cacNumber.ifBlank { null },
                                 nafdac_number = nafdacNumber.ifBlank { null },
                                 bank_name = bankName,
-                                account_number = accountNumber
+                                account_number = accountNumber,
+                                accepts_cod = acceptsCod
                             )
                             val response = apiService.setupMerchantProfile(request)
                             if (response.success == true) {
