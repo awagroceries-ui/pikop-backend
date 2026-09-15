@@ -1,30 +1,28 @@
-# Walkthrough - Signup Restoration & Transaction Resilience
+# Walkthrough - Fix Merchant Signup Database Constraint
 
-I have implemented critical fixes to restore the signup service and ensure the database remains in a consistent state even when unexpected errors occur.
+I have addressed the "value too long for type character varying(20)" error that was blocking Merchant signups during the business verification step.
 
 ## Changes Made
 
-### 1. Transaction Resilience (Critical Fix)
-- **Problem**: Previously, if the legal consent recording failed (e.g., due to a missing table), it would "poison" the entire registration transaction, causing a 500 error even though the user could have been created.
-- **Solution**: Moved the `user_legal_consents` recording logic **after** the primary user creation transaction `COMMIT`. This ensures that account creation is never blocked by auxiliary logging tasks.
-
-### 2. Database Schema Alignment
-- **Merchant Support**: Added a migration (`1726450000000_fix_signup_constraints.js`) to update the `users` table check constraint, officially adding the `MERCHANT` role.
-- **Flexible Categories**: Updated the `fulfillers` table constraint to be case-insensitive, preventing crashes when the mobile app sends uppercase strings like `RIDER`.
-
-### 3. Backend Logic Hardening
-- **Lowercase Standardization**: Updated `authController.js` to automatically convert fulfiller categories to lowercase before database entry, ensuring 100% compatibility with DB constraints.
-- **Enhanced Debugging**: Added detailed error logging in the signup failure path to allow for faster troubleshooting on the production VPS.
-
-## Verification Results
-- **Android Build**: Successfully compiled (`:app:assembleDebug`).
-- **Logic Integrity**: All registration flows (Customer, Fulfiller, Merchant) now follow a "safety-first" transaction model.
+### 1. Database Schema Update
+- Created migration `1726460000000_extend_status_column_lengths.js`.
+- Increased the length of the `status` column from **20 to 50 characters** across four key tables:
+    - `vendors`
+    - `kitchens`
+    - `users`
+    - `fulfillers`
+- This ensures that descriptive statuses like `pending_business_verification` (29 characters) can be safely stored without triggering database errors.
 
 ## Deployment Instructions
-To restore signup functionality on your production server, you MUST execute these commands:
+
+To apply this fix to your production environment, please run the following commands on your VPS:
+
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
 npm run migrate:up
 pm2 restart pikop-v3
 ```
+
+> [!IMPORTANT]
+> The signup will continue to fail on the server until the `npm run migrate:up` command is executed to update the database schema.

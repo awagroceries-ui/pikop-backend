@@ -8,6 +8,7 @@ const smsService = require('../services/smsService');
 const dispatchService = require('../services/dispatchService');
 const PlatformConfig = require('../config/platform');
 const { normalizePhone } = require('../utils/phone');
+const { getWATTimeStr, isWithinWindow } = require('../utils/time');
 
 const BAD_WORDS = ['spam', 'test', 'nonsense', 'fake', 'dummy']; // Simplified V3 content check
 
@@ -164,6 +165,30 @@ const getQuote = async (req, res) => {
     [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, sizeTier, total_payable, pickup_state, sms_charge_amount, requiredClasses, pickup_landmark, delivery_landmark]
   );
 
+  // 6. Security Analysis: Daylight Window & Driver Availability
+  let restrictedDispatch = false;
+  let driversCount = 0;
+  try {
+      const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('daylight_dispatch_start', 'daylight_dispatch_end')");
+      const settings = {};
+      settingsRes.rows.forEach(r => settings[r.key] = r.value);
+
+      const nowTime = getWATTimeStr();
+      if (!isWithinWindow(nowTime, settings['daylight_dispatch_start'] || '06:00', settings['daylight_dispatch_end'] || '18:00')) {
+          restrictedDispatch = true;
+          // Count only drivers in the same state/radius
+          const statePattern = `%${(pickup_state || '').split(' ')[0]}%`;
+          const driversRes = await db.query(
+              `SELECT COUNT(*) FROM fulfillers
+               WHERE online_status = 'ONLINE' AND kyc_status = 'VERIFIED'
+               AND primary_class = 'driver' AND current_state ILIKE $1
+               AND ST_DWithin(current_location, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, 20000)`,
+              [statePattern, pickup_lng, pickup_lat]
+          );
+          driversCount = parseInt(driversRes.rows[0].count);
+      }
+  } catch (e) {}
+
   res.status(200).json({
     success: true,
     quote_id: quoteRes.rows[0].id,
@@ -179,6 +204,8 @@ const getQuote = async (req, res) => {
     total_fare: total_payable,
     recipient_payable: recipient_total,
     required_fulfiller_classes: requiredClasses,
+    restricted_dispatch: restrictedDispatch,
+    drivers_count: driversCount,
     payer_info: {
         type: recipient_type, // Map back to UI expectations
         user_id: recipient_user_id
@@ -555,7 +582,7 @@ const createOrder = async (req, res) => {
             promo_id, payment_reference,
             pickup_lat, pickup_lng, delivery_lat, delivery_lng,
             item_price, delivery_fee, platform_fee_amount, sms_charge_amount, fee_payer, initiator_role,
-            payer_id, pickup_state, recipient_payable
+            payer_id, pickup_state, recipient_payable, scheduled_at
         } = req.body;
     const userId = req.user.id;
 
@@ -601,9 +628,14 @@ const createOrder = async (req, res) => {
         const finalFare = itemPriceNum + deliveryFee + platformFeeNum;
 
         // 4. Determine Initial Status
+        // Rule: If scheduled, status is SCHEDULED.
         // Rule: If receiver is an app user, require acknowledgment before fulfiller search.
-        const isReceiverAppUser = q.payer_info?.type === 'APP_USER' || recipient_payable > 0; // Simplified check or based on quote
-        const initialStatus = isReceiverAppUser ? 'PENDING_ACKNOWLEDGMENT' : (finalFare === 0 ? 'AWAITING_PAYMENT' : 'PAYMENT_CAPTURED');
+        const isReceiverAppUser = q.payer_info?.type === 'APP_USER' || recipient_payable > 0;
+        let initialStatus = isReceiverAppUser ? 'PENDING_ACKNOWLEDGMENT' : (finalFare === 0 ? 'AWAITING_PAYMENT' : 'PAYMENT_CAPTURED');
+
+        if (scheduled_at) {
+            initialStatus = 'SCHEDULED';
+        }
 
         // 4.1 Create Order (DEFINITIVE ALIGNMENT WITH WEBHOOK)
         // Extract coordinates from body (preferred) or quote fallback
@@ -630,7 +662,7 @@ const createOrder = async (req, res) => {
                 item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
                 escrow_status, payer_id, original_delivery_fee, original_total_fare, pickup_state,
                 sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark,
-                recipient_user_id
+                recipient_user_id, scheduled_at
             ) VALUES (
                 'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
                 ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -641,7 +673,7 @@ const createOrder = async (req, res) => {
                 $28, $29, $30, $31, $32,
                 $33, $34, $35, $36, $37,
                 $38, $39, $40, $41,
-                $42
+                $42, $43
             ) RETURNING id`,
             [
                 userId, // $1
@@ -685,7 +717,8 @@ const createOrder = async (req, res) => {
                 q.required_fulfiller_classes, // $39
                 q.pickup_landmark, // $40
                 q.delivery_landmark, // $41
-                q.payer_info?.user_id // $42 (recipient_user_id)
+                q.payer_info?.user_id, // $42 (recipient_user_id)
+                scheduled_at // $43
             ]
         );
 

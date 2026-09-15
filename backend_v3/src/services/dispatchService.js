@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const socketService = require('./socketService');
 const fcmService = require('./fcmService');
+const { getWATTimeStr, isWithinWindow } = require('../utils/time');
 
 /**
  * Shared Dispatch Engine - v3 (Milestone 6)
@@ -42,7 +43,28 @@ const findNearbyFulfillers = async (order, radiusOverride = null) => {
     `;
 
     const statePattern = `%${(order.pickup_state || '').split(' ')[0]}%`;
-    const { rows } = await db.query(query, [order.pickup_location, radiusMeters, statePattern, order.required_fulfiller_classes]);
+
+    // 3. Daylight Window Enforcement (v3.9.5 Security)
+    let restrictedClasses = order.required_fulfiller_classes || ['rider', 'driver'];
+    try {
+        const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('daylight_dispatch_start', 'daylight_dispatch_end')");
+        const settings = {};
+        settingsRes.rows.forEach(r => settings[r.key] = r.value);
+
+        const nowTime = getWATTimeStr();
+        const start = settings['daylight_dispatch_start'] || '06:00';
+        const end = settings['daylight_dispatch_end'] || '18:00';
+
+        if (!isWithinWindow(nowTime, start, end)) {
+            // Outside daylight: Filter out riders and agents
+            restrictedClasses = restrictedClasses.filter(c => c !== 'rider' && c !== 'agent');
+            console.log(`[Dispatch] Night mode active. Restricting to Drivers only.`);
+        }
+    } catch (e) {
+        console.warn('[Dispatch] Settings fetch failed for daylight window:', e.message);
+    }
+
+    const { rows } = await db.query(query, [order.pickup_location, radiusMeters, statePattern, restrictedClasses]);
     return rows;
   } catch (error) {
     console.error('[Dispatch] Search Error:', error.message);

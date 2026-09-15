@@ -428,17 +428,18 @@ const createBulkOrdersSession = async (req, res) => {
 };
 
 /**
- * Updates merchant settings (e.g. COD preference).
+ * Updates merchant settings (e.g. COD preference, Operating Hours).
  */
 const updateMerchantSettings = async (req, res) => {
     const userId = req.user.id;
-    const { accepts_cod } = req.body;
+    const { accepts_cod, operating_hours } = req.body;
 
     try {
-        await Promise.all([
-            db.query("UPDATE vendors SET accepts_cod = $1 WHERE user_id = $2", [accepts_cod, userId]),
-            db.query("UPDATE kitchens SET accepts_cod = $1 WHERE user_id = $2", [accepts_cod, userId])
-        ]);
+        const queries = [
+            db.query("UPDATE vendors SET accepts_cod = COALESCE($1, accepts_cod), operating_hours = COALESCE($2, operating_hours) WHERE user_id = $3", [accepts_cod, operating_hours ? JSON.stringify(operating_hours) : null, userId]),
+            db.query("UPDATE kitchens SET accepts_cod = COALESCE($1, accepts_cod), operating_hours = COALESCE($2, operating_hours) WHERE user_id = $3", [accepts_cod, operating_hours ? JSON.stringify(operating_hours) : null, userId])
+        ];
+        await Promise.all(queries);
         res.status(200).json({ success: true, message: 'Settings updated successfully.' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

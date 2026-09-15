@@ -2,6 +2,7 @@ const db = require('../config/db');
 const crypto = require('crypto');
 const axios = require('axios');
 const PlatformConfig = require('../config/platform');
+const { getWATTimeStr, isWithinWindow } = require('../utils/time');
 const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
 
 /**
@@ -28,7 +29,8 @@ const getDiscovery = async (req, res) => {
       (
         SELECT p.id, p.name, p.price, p.photo_url, p.category, p.description,
                v.business_name as vendor_name, v.id::text as vendor_id, 'product' as item_type,
-               v.city, a.formatted_address as pickup_address, p.created_at, v.accepts_cod
+               v.city, a.formatted_address as pickup_address, p.created_at, v.accepts_cod,
+               v.operating_hours
                ${locationSelect}
         FROM products p
         JOIN vendors v ON v.id = p.vendor_id
@@ -39,7 +41,8 @@ const getDiscovery = async (req, res) => {
       (
         SELECT m.id::text, m.name, m.price, m.photo_url, m.category, m.description,
                k.business_name as vendor_name, k.id::text as vendor_id, 'meal' as item_type,
-               k.city, a.formatted_address as pickup_address, m.created_at, k.accepts_cod
+               k.city, a.formatted_address as pickup_address, m.created_at, k.accepts_cod,
+               k.operating_hours
                ${locationSelect}
         FROM menu_items m
         JOIN kitchens k ON k.id = m.kitchen_id
@@ -54,8 +57,34 @@ const getDiscovery = async (req, res) => {
 
     const { rows } = await db.query(sql, params);
 
-    // Manual filtering for Category and Query (SQL UNION makes complex WHERE tricky, easier to filter or use a wrapper)
-    let filtered = rows;
+    const nowTime = getWATTimeStr();
+
+    // Mapping and manual filtering
+    let mapped = rows.map(item => {
+        let isOpen = true;
+        let nextOpen = null;
+
+        if (item.operating_hours) {
+            const hours = typeof item.operating_hours === 'string' ? JSON.parse(item.operating_hours) : item.operating_hours;
+            const today = new Date().getDay(); // 0-6 (Sun-Sat)
+            const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][today];
+            const config = hours[dayKey] || hours['all'];
+
+            if (config) {
+                isOpen = isWithinWindow(nowTime, config.open, config.close);
+                nextOpen = config.open;
+            }
+        }
+
+        return {
+            ...item,
+            is_open: isOpen,
+            next_open_time: nextOpen,
+            operating_hours: undefined // Hide from client payload
+        };
+    });
+
+    let filtered = mapped;
 
     if (category && category.toLowerCase() !== 'all') {
         filtered = filtered.filter(item =>
@@ -97,14 +126,14 @@ const initializeCommerceOrder = async (req, res) => {
         let merchantAddressId;
         if (item_type === 'product') {
             const res = await db.query(`
-                SELECT p.*, v.pickup_address_id, v.business_name, v.user_id as merchant_user_id
+                SELECT p.*, v.pickup_address_id, v.business_name, v.user_id as merchant_user_id, v.operating_hours
                 FROM products p JOIN vendors v ON v.id = p.vendor_id WHERE p.id = $1
             `, [item_id]);
             item = res.rows[0];
             merchantAddressId = item?.pickup_address_id;
         } else {
             const res = await db.query(`
-                SELECT m.*, k.pickup_address_id, k.business_name, k.user_id as merchant_user_id
+                SELECT m.*, k.pickup_address_id, k.business_name, k.user_id as merchant_user_id, k.operating_hours
                 FROM menu_items m JOIN kitchens k ON k.id = m.kitchen_id WHERE m.id = $1
             `, [item_id]);
             item = res.rows[0];
@@ -112,6 +141,19 @@ const initializeCommerceOrder = async (req, res) => {
         }
 
         if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
+
+        // 1.1 Enforcement of Operating Hours
+        if (item.operating_hours) {
+            const nowTime = getWATTimeStr();
+            const hours = typeof item.operating_hours === 'string' ? JSON.parse(item.operating_hours) : item.operating_hours;
+            const today = new Date().getDay();
+            const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][today];
+            const config = hours[dayKey] || hours['all'];
+
+            if (config && !isWithinWindow(nowTime, config.open, config.close)) {
+                return res.status(403).json({ success: false, message: `Store is currently closed. Opens at ${config.open}.` });
+            }
+        }
 
         // 2. Fetch Merchant Coordinates
         const addrRes = await db.query("SELECT ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng FROM addresses WHERE id = $1", [merchantAddressId]);

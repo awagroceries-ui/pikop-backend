@@ -132,6 +132,8 @@ fun OrderQuoteScreen(
     var quoteId by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showSchedulingDialog by remember { mutableStateOf(false) }
+    var scheduledAt by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -529,6 +531,10 @@ fun OrderQuoteScreen(
                                 if (response.success && response.quote_id != null) {
                                     quoteId = response.quote_id
                                     quoteResult = response
+                                    
+                                    if (response.restricted_dispatch && response.drivers_count == 0) {
+                                        showSchedulingDialog = true
+                                    }
                                 } else {
                                     errorMessage = "Failed to get valid quote"
                                 }
@@ -587,7 +593,8 @@ fun OrderQuoteScreen(
                                         dSummary = deliveryAddress.take(50),
                                         quoteResult = result,
                                         sellerPhone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null,
-                                        pickupState = pickupState
+                                        pickupState = pickupState,
+                                        scheduledAt = scheduledAt
                                     )
                                     if (success) {
                                         onOrderComplete("CORPORATE")
@@ -636,11 +643,12 @@ fun OrderQuoteScreen(
                                                 delivery_fee = result.delivery_fee,
                                                 seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null,
                                                 pickup_state = pickupState,
-                                                recipient_payable = result.recipient_payable
+                                                recipient_payable = result.recipient_payable,
+                                                scheduled_at = scheduledAt
                                             )
                                             val response = apiService.createOrder(request)
-                                            if (response.status == "SEARCHING" || response.status == "AWAITING_PAYMENT" || response.status == "PAYMENT_CAPTURED") {
-                                                Toast.makeText(context, if (isZeroUpfront) "Mission Created! Recipient will pay to activate." else "Mission Activated Successfully!", Toast.LENGTH_LONG).show()
+                                            if (response.status == "SEARCHING" || response.status == "AWAITING_PAYMENT" || response.status == "PAYMENT_CAPTURED" || response.status == "SCHEDULED") {
+                                                Toast.makeText(context, if (scheduledAt != null) "Mission Scheduled for 06:00 AM" else if (isZeroUpfront) "Mission Created! Recipient will pay to activate." else "Mission Activated Successfully!", Toast.LENGTH_LONG).show()
                                                 onOrderComplete("FREE")
                                             } else {
                                                 Toast.makeText(context, "Server Error: Could not process mission", Toast.LENGTH_LONG).show()
@@ -665,7 +673,8 @@ fun OrderQuoteScreen(
                                                 fee_payer = result.fee_payer,
                                                 seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null,
                                                 promo_id = activePromo?.promo_id,
-                                                pickup_state = pickupState
+                                                pickup_state = pickupState,
+                                                metadata = if (scheduledAt != null) mapOf("scheduled_at" to scheduledAt!!) else null
                                             )
                                         )
                                         val authUrl = paymentInit.authorization_url
@@ -715,12 +724,43 @@ fun OrderQuoteScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text(if (isZeroUpfront) "Deploy & Request Payment" else "Pay & Deploy Mission", fontWeight = FontWeight.Bold)
+                        Text(if (scheduledAt != null) "Pay & Schedule Mission" else if (isZeroUpfront) "Deploy & Request Payment" else "Pay & Deploy Mission", fontWeight = FontWeight.Bold)
                     }
                 }
             }
             
             Spacer(modifier = Modifier.height(40.dp))
+        }
+
+        if (showSchedulingDialog) {
+            AlertDialog(
+                onDismissRequest = { showSchedulingDialog = false; quoteId = null },
+                title = { Text("Night Dispatch Restricted") },
+                text = { Text("No drivers are currently available for this route. Would you like to schedule this mission for tomorrow morning at 06:00 AM?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val calendar = java.util.Calendar.getInstance()
+                        calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                        calendar.set(java.util.Calendar.HOUR_OF_DAY, 6)
+                        calendar.set(java.util.Calendar.MINUTE, 0)
+                        calendar.set(java.util.Calendar.SECOND, 0)
+                        
+                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+                        scheduledAt = sdf.format(calendar.time)
+                        showSchedulingDialog = false
+                    }) {
+                        Text("Schedule for 06:00 AM")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { 
+                        showSchedulingDialog = false
+                        quoteId = null 
+                    }) {
+                        Text("Cancel Request")
+                    }
+                }
+            )
         }
     }
 }
@@ -847,7 +887,7 @@ suspend fun finalizeOrderAfterPayment(
     paymentReference: String, recipientName: String, recipientPhone: String, notes: String?, 
     pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemPhotoUrl: String, 
     pSummary: String, dSummary: String, quoteResult: QuoteResponse? = null,
-    sellerPhone: String? = null, pickupState: String? = null
+    sellerPhone: String? = null, pickupState: String? = null, scheduledAt: String? = null
 ): Boolean {
     return try {
         // ... (existing webhook check logic)
@@ -872,7 +912,8 @@ suspend fun finalizeOrderAfterPayment(
             item_price = quoteResult?.item_price,
             delivery_fee = quoteResult?.delivery_fee,
             seller_phone = sellerPhone,
-            pickup_state = pickupState
+            pickup_state = pickupState,
+            scheduled_at = scheduledAt
         )
         val response = apiService.createOrder(request)
         response.status == "SEARCHING" || response.status == "MATCHED" || response.status == "QUEUED" || response.status == "PAYMENT_CAPTURED"

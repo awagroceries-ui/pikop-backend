@@ -1,37 +1,55 @@
-# Implementation Plan - Fix Merchant Signup Database Constraint Error
+# Implementation Plan - Merchant Operating Hours & Daylight Dispatch Security
 
-This plan resolves the "value too long for type character varying(20)" error encountered during Merchant signup business verification.
-
-## 🔍 Diagnostic Summary
-- **Root Cause**: The `status` column in the `vendors` and `kitchens` tables is defined as `VARCHAR(20)`. However, the `setupMerchantProfile` function in `merchantController.js` attempts to insert the status `'pending_business_verification'`, which is 29 characters long.
-- **Affected Tables**: `vendors`, `kitchens`.
-- **Affected Column**: `status`.
+This plan implements (1) configurable merchant operating hours and (2) a security rule restricting Foot Agents, Cyclists, and Riders to daylight hours (6 AM - 6 PM WAT), falling back to next-day scheduling for night missions without drivers.
 
 ## Proposed Changes
 
-### 1. Database Schema Update
-#### [NEW] [extend_merchant_status_length migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726460000000_extend_merchant_status_length.js)
-- Alter the `status` column in `vendors` table to `VARCHAR(50)`.
-- Alter the `status` column in `kitchens` table to `VARCHAR(50)`.
-- (Optional but recommended) Alter the `status` column in `fulfillers` and `users` tables to `VARCHAR(50)` for future-proofing and consistency.
+### 1. Database Schema & Settings
+- **[NEW] Migration**:
+    - Add `operating_hours` (JSONB) to `vendors` and `kitchens` tables.
+    - Add `scheduled_at` (TIMESTAMP) to `orders` table.
+    - Add `daylight_dispatch_start` and `daylight_dispatch_end` to `settings` table (seeded with '06:00' and '18:00').
+
+### 2. Backend Logic: Merchant Operating Hours
+- **[MODIFY] `merchantController.js`**: Update `updateMerchantSettings` to handle `operating_hours` updates.
+- **[MODIFY] `commerceController.js`**:
+    - In `getDiscovery`, calculate `is_open` and `next_open_time` based on the merchant's `operating_hours` and current WAT time.
+    - In `initializeCommerceOrder`, block orders if the target merchant is currently closed.
+
+### 3. Backend Logic: Daylight Dispatch Security
+- **[MODIFY] `dispatchService.js`**:
+    - Update `findNearbyFulfillers` to fetch daylight window from settings.
+    - If current WAT is outside this window, exclude `rider` and `agent` (Foot Agent/Cyclist) from the `primary_class` filter.
+- **[MODIFY] `orderController.js`**:
+    - In `getQuote`, check if it's restricted time and return `restricted_dispatch: true` + `drivers_count` (available Drivers only).
+    - In `createOrder`, handle `status = 'SCHEDULED'` if `scheduled_at` is provided in the request.
+- **[NEW] Job**: `scheduledOrderJob.js` to activate scheduled missions at 6 AM WAT.
+
+### 4. Android App (Compose)
+- **[MODIFY] `ApiService.kt`**: Add `is_open`, `next_open_time` to `DiscoveryItem` and `restricted_dispatch`, `drivers_count` to `QuoteResponse`.
+- **[MODIFY] `StorefrontScreen.kt`**: Update `DiscoveryItemCard` to show a "CLOSED" overlay and disable clicks if `is_open` is false.
+- **[MODIFY] `OrderQuoteScreen.kt`**:
+    - If `restricted_dispatch` is true and `drivers_count == 0`, show a dialog: *"No drivers available right now — schedule this for tomorrow starting 6:00am?"*.
+    - If user accepts, set `scheduled_at` (next day 06:00 WAT) in the order request.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Admin Configurability**
+> I am making the 6 AM - 6 PM security window admin-configurable via the Global Settings page, consistent with other platform rules.
+
+> [!NOTE]
+> **Timezone Handling**
+> I will use a central `time.js` utility on the backend to ensure all checks use Nigeria (WAT) time, regardless of the server's system time.
 
 ## Verification Plan
 
 ### Automated/Code Verification
-- Verify the migration file uses correct syntax for altering column types in `node-pg-migrate`.
+- Verify `dispatchService.js` correctly filters categories based on time.
+- Verify `commerceController.js` correctly evaluates `is_open`.
 
 ### Manual Verification
-1.  **Apply Migration**: Run `npm run migrate:up` on the server.
-2.  **Test Signup**: Attempt to complete the Merchant Business Verification step again.
-3.  **Confirm Success**: Verify the profile is created and the status is correctly set to `pending_business_verification`.
-
-## User Action Required
-> [!IMPORTANT]
-> **Action Needed on Server**
-> Once these changes are pushed, you must run the following on your production VPS:
-> ```bash
-> cd /var/www/pikop-api/backend_v3/backend_v3
-> git pull origin main
-> npm run migrate:up
-> pm2 restart pikop-v3
-> ```
+1.  **Merchant Hours**: Set a merchant's hours to close at 5 PM. Try to order at 6 PM. Verify it shows "Closed" and blocks checkout.
+2.  **Daylight Dispatch**: Request a dispatch at 7 PM. Verify Foot Agents/Riders are not notified.
+3.  **Scheduling**: Request a dispatch at 7 PM when no Drivers are online. Verify the "Schedule for tomorrow?" prompt appears and works.
+4.  **Mid-mission**: Start a mission as a Rider at 5:55 PM. Verify it is NOT interrupted at 6:00 PM.

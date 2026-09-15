@@ -160,7 +160,7 @@ fun StorefrontScreen(
 @Composable
 fun DiscoveryItemCard(item: DiscoveryItem, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        modifier = Modifier.fillMaxWidth().clickable(enabled = item.is_open) { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
@@ -180,17 +180,39 @@ fun DiscoveryItemCard(item: DiscoveryItem, onClick: () -> Unit) {
                         Text("MEAL", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
+
+                if (!item.is_open) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(120.dp).background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "CLOSED",
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
             }
             Column(modifier = Modifier.padding(12.dp)) {
+                val textColor = if (item.is_open) Color.Unspecified else Color.Gray
                 Text(
                     text = item.name,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
                 )
                 Text(
-                    text = item.vendor_name,
+                    text = if (item.is_open) item.vendor_name else "Opens at ${item.next_open_time ?: "--:--"}",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Gray,
                     maxLines = 1

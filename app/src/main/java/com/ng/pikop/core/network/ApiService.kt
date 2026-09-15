@@ -98,6 +98,8 @@ data class QuoteResponse(
     val traffic_multiplier: Double? = null,
     val recipient_payable: Double? = null,
     val payer_info: PayerInfo? = null,
+    val restricted_dispatch: Boolean = false,
+    val drivers_count: Int = 0,
     val expires_at: String? = null
 )
 
@@ -131,7 +133,8 @@ data class CreateOrderRequest(
     val delivery_fee: Double? = null,
     val seller_phone: String? = null,
     val pickup_state: String? = null,
-    val recipient_payable: Double? = null
+    val recipient_payable: Double? = null,
+    val scheduled_at: String? = null
 )
 
 data class OrderResponse(
@@ -713,7 +716,9 @@ data class DiscoveryItem(
     val pickup_address: String? = null,
     val distance_km: Double? = null,
     val created_at: String = "",
-    val accepts_cod: Boolean = true
+    val accepts_cod: Boolean = true,
+    val is_open: Boolean = true,
+    val next_open_time: String? = null
 )
 
 data class DiscoveryResponse(

@@ -53,7 +53,8 @@ const initializePayment = async (req, res) => {
         payer_id: payer_id || null,
         promo_id: promo_id || null,
         recipient_name: user?.full_name,
-        recipient_phone: user?.phone
+        recipient_phone: user?.phone,
+        ...(req.body.metadata || {})
       }
     };
 
@@ -155,6 +156,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
     }
 
     const finalTotal = itemPrice + deliveryFee + platformFee + smsCharge;
+    const initialStatus = m.scheduled_at ? 'SCHEDULED' : 'PAYMENT_CAPTURED';
 
     // 4. Insert Order
     const pCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -172,7 +174,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id,
             original_delivery_fee, original_total_fare, pickup_code_hash, delivery_code_hash,
             pickup_code, delivery_code, coupon_id, pickup_state, sms_charge_amount,
-            required_fulfiller_classes, pickup_landmark, delivery_landmark
+            required_fulfiller_classes, pickup_landmark, delivery_landmark, scheduled_at
         ) VALUES (
             'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
             ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -181,12 +183,12 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             $17, $18, $19, $20, $21, $22,
             $23, $24, $25, $26, $27, $28,
             $29, $30, $31, $32,
-            $33, $34, $35::uuid, $36, $37, $38, $39, $40
+            $33, $34, $35::uuid, $36, $37, $38, $39, $40, $41
         ) RETURNING id`,
         [
             m.user_id, // $1
             q.id,      // $2
-            'PAYMENT_CAPTURED', // $3
+            initialStatus, // $3
             q.item_description, // $4
             q.size_tier, // $5
             q.pickup_address, // $6
@@ -223,7 +225,8 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             parseFloat(smsCharge), // $37
             q.required_fulfiller_classes, // $38
             q.pickup_landmark, // $39
-            q.delivery_landmark // $40
+            q.delivery_landmark, // $40
+            m.scheduled_at || null // $41
         ]
     );
 
@@ -331,27 +334,31 @@ const handleWebhook = async (req, res) => {
             const addrRes = await client.query("SELECT * FROM addresses WHERE id = $1", [m.pickup_address_id]);
             const pAddr = addrRes.rows[0];
 
+            const initialStatus = m.scheduled_at ? 'SCHEDULED' : 'SEARCHING';
+
             const orderRes = await client.query(
                 `INSERT INTO orders (
                     order_type, user_id, status, item_description,
                     pickup_address, delivery_address, pickup_location, delivery_location,
                     total_fare, item_price, delivery_fee, platform_fee_amount,
                     payment_status, payment_reference, payment_channel,
-                    seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount
+                    seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount,
+                    scheduled_at
                 ) VALUES (
-                    'pickup_delivery', $1, 'SEARCHING', $2,
-                    $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
-                    $9, $10, $11, $12,
-                    'PAID', $13, $14,
-                    $15, $16, $17, 'held', $18
+                    'pickup_delivery', $1, $2, $3,
+                    $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326)::geography, ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
+                    $10, $11, $12, $13,
+                    'PAID', $14, $15,
+                    $16, $17, $18, 'held', $19, $20
                 ) RETURNING id`,
                 [
-                    m.user_id, m.item_description,
+                    m.user_id, initialStatus, m.item_description,
                     pAddr.formatted_address, m.delivery_address, pAddr.lng, pAddr.lat, m.delivery_lng, m.delivery_lat,
                     (m.item_price + m.delivery_fee + m.platform_fee_amount), m.item_price, m.delivery_fee, m.platform_fee_amount,
                     reference, channel,
                     m.merchant_user_id, (m.item_type === 'product' ? m.item_id : null), (m.item_type === 'meal' ? m.item_id : null),
-                    m.merchant_commission_amount || 0.0
+                    m.merchant_commission_amount || 0.0,
+                    m.scheduled_at || null
                 ]
             );
 
