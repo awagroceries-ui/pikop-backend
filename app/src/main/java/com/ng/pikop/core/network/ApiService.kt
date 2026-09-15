@@ -180,6 +180,7 @@ data class OrderDetailsResponse(
     @SerializedName("fee_payer") val fee_payer: String? = null,
     @SerializedName("escrow_status") val escrow_status: String? = null,
     @SerializedName("seller_id") val seller_id: Int? = null,
+    @SerializedName("merchant_commission_amount") val merchant_commission_amount: Double? = null,
     @SerializedName("grace_period_expires_at") val grace_period_expires_at: String? = null,
     @SerializedName("customer_rating") val customer_rating: Int? = null,
     @SerializedName("pickup_code") val pickup_code: String? = null,

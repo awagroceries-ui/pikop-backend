@@ -220,7 +220,27 @@ fun SaleItem(order: OrderDetailsResponse) {
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = order.item_description ?: "Secure Pay Item", style = MaterialTheme.typography.bodyMedium)
-            Text(text = "Price: ₦${"%,.2f".format(order.item_price ?: 0.0)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+            
+            val price = order.item_price ?: 0.0
+            val commission = order.merchant_commission_amount ?: 0.0
+            val netPayout = price - commission
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Item Price", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("₦${"%,.2f".format(price)}")
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Marketplace Commission", color = MaterialTheme.colorScheme.error)
+                Text("-₦${"%,.2f".format(commission)}", color = MaterialTheme.colorScheme.error)
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Your Net Payout", fontWeight = FontWeight.Bold)
+                Text("₦${"%,.2f".format(netPayout)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
             
             if (order.escrow_status != null) {
                 Spacer(modifier = Modifier.height(4.dp))

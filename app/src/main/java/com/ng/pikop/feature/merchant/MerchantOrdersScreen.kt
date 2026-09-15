@@ -66,7 +66,29 @@ fun MerchantOrdersScreen(onNavigateToOrderDetails: (String) -> Unit) {
                             Text("Order #${order.id?.takeLast(6)}", fontWeight = FontWeight.Bold)
                             Text("Status: ${order.status}")
                             Text("Item: ${order.item_description ?: "Products"}")
+                            
                             Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            val price = order.item_price ?: 0.0
+                            val commission = order.merchant_commission_amount ?: 0.0
+                            val netPayout = price - commission
+                            
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Item Price", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("₦${"%,.2f".format(price)}")
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Marketplace Commission", color = MaterialTheme.colorScheme.error)
+                                Text("-₦${"%,.2f".format(commission)}", color = MaterialTheme.colorScheme.error)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Your Net Payout", fontWeight = FontWeight.Bold)
+                                Text("₦${"%,.2f".format(netPayout)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
                             
                             if (order.status == "PAYMENT_CAPTURED" || order.status == "SEARCHING") {
                                 Button(

@@ -167,7 +167,7 @@ const releaseEscrow = async (orderId, providedClient = null) => {
     // 2. Fetch order details with fulfiller info
     const orderRes = await client.query(
       `SELECT o.id, o.fulfiller_id, o.item_price, o.platform_fee_amount, o.fee_payer, o.user_id, o.seller_id,
-              o.escrow_status, f.user_id as fulfiller_user_id
+              o.escrow_status, f.user_id as fulfiller_user_id, o.merchant_commission_amount
        FROM orders o
        LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
        WHERE o.id = $1`,
@@ -181,9 +181,14 @@ const releaseEscrow = async (orderId, providedClient = null) => {
 
     const itemPrice = parseFloat(order.item_price);
     const fee = parseFloat(order.platform_fee_amount);
+    const marketplaceCommission = parseFloat(order.merchant_commission_amount || 0);
 
     // 2. Determine Seller Payout
-    const sellerPayout = order.fee_payer === 'SELLER' ? (itemPrice - fee) : itemPrice;
+    // If fee_payer is SELLER, they bear the escrow fee too (rare in current rules, but supported)
+    let sellerPayout = order.fee_payer === 'SELLER' ? (itemPrice - fee) : itemPrice;
+
+    // Deduct Marketplace Commission (Always borne by seller, regardless of escrow fee rules)
+    sellerPayout = sellerPayout - marketplaceCommission;
 
     // 3. Update Seller Wallet (ALWAYS USER TYPE NOW)
     const targetUserId = order.seller_id || order.fulfiller_user_id || order.user_id;
@@ -195,14 +200,21 @@ const releaseEscrow = async (orderId, providedClient = null) => {
     // Credit Available
     await recordEntry(client, sellerWalletId, 'CREDIT', sellerPayout, 'SETTLEMENT', `Earnings for Order #${order.id} (minus fees)`, order.id, 'available', {
       item_price: itemPrice,
-      fee: fee,
+      escrow_fee: fee,
+      marketplace_commission: marketplaceCommission,
       fee_payer: order.fee_payer
     });
 
-    // 4. Platform Credit (if fee paid by SELLER, it's captured now)
+    const pWalletId = await ensureWalletExists(client, 'PLATFORM', 'SYSTEM');
+
+    // 4. Platform Credit for Escrow Fee (if fee paid by SELLER)
     if (order.fee_payer === 'SELLER' && fee > 0) {
-        const pWalletId = await ensureWalletExists(client, 'PLATFORM', 'SYSTEM');
         await recordEntry(client, pWalletId, 'CREDIT', fee, 'SECURE_PAY_FEE', `Escrow service fee from Seller for Order #${order.id}`, order.id);
+    }
+
+    // 4.1 Platform Credit for Marketplace Commission
+    if (marketplaceCommission > 0) {
+        await recordEntry(client, pWalletId, 'CREDIT', marketplaceCommission, 'COMMISSION', `Marketplace Commission for Order #${order.id}`, order.id);
     }
 
     // 5. Update Order Status

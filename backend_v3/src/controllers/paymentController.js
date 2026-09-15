@@ -337,20 +337,21 @@ const handleWebhook = async (req, res) => {
                     pickup_address, delivery_address, pickup_location, delivery_location,
                     total_fare, item_price, delivery_fee, platform_fee_amount,
                     payment_status, payment_reference, payment_channel,
-                    seller_id, product_id, menu_item_id, escrow_status
+                    seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount
                 ) VALUES (
                     'pickup_delivery', $1, 'SEARCHING', $2,
                     $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
                     $9, $10, $11, $12,
                     'PAID', $13, $14,
-                    $15, $16, $17, 'held'
+                    $15, $16, $17, 'held', $18
                 ) RETURNING id`,
                 [
                     m.user_id, m.item_description,
                     pAddr.formatted_address, m.delivery_address, pAddr.lng, pAddr.lat, m.delivery_lng, m.delivery_lat,
                     (m.item_price + m.delivery_fee + m.platform_fee_amount), m.item_price, m.delivery_fee, m.platform_fee_amount,
                     reference, channel,
-                    m.merchant_user_id, (m.item_type === 'product' ? m.item_id : null), (m.item_type === 'meal' ? m.item_id : null)
+                    m.merchant_user_id, (m.item_type === 'product' ? m.item_id : null), (m.item_type === 'meal' ? m.item_id : null),
+                    m.merchant_commission_amount || 0.0
                 ]
             );
 

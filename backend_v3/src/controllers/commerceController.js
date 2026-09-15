@@ -126,7 +126,19 @@ const initializeCommerceOrder = async (req, res) => {
 
         const baseFee = item_type === 'meal' ? 500 : 800; // Simplified logic
         const deliveryFee = Math.ceil(baseFee + (distanceKm * 110));
-        const platformFee = PlatformConfig.roundFee(item.price * 0.10); // 10% Escrow Fee
+
+        // 4. Dual-Fee Concept Evaluation
+        // Buyer-borne: Escrow Service Fee (Only applies if COD is chosen)
+        const platformFee = payment_method === 'COD' ? PlatformConfig.roundFee(item.price * PlatformConfig.ESCROW.FEE_PERCENTAGE) : 0;
+
+        // Seller-borne: Marketplace Commission (Applies always to reduce merchant payout)
+        let commissionPercentage = PlatformConfig.COMMISSION.SHOP_PERCENTAGE;
+        if (item_type === 'meal' || (item.category && item.category.toLowerCase() === 'food')) {
+            commissionPercentage = PlatformConfig.COMMISSION.FOOD_PERCENTAGE;
+        } else if (item.category && item.category.toLowerCase() === 'groceries') {
+            commissionPercentage = PlatformConfig.COMMISSION.GROCERIES_PERCENTAGE;
+        }
+        const merchantCommissionAmount = PlatformConfig.roundFee(item.price * commissionPercentage);
 
         const totalNaira = parseFloat(item.price) + deliveryFee + platformFee;
 
@@ -144,21 +156,22 @@ const initializeCommerceOrder = async (req, res) => {
                         total_fare, item_price, delivery_fee, platform_fee_amount,
                         payment_status, collection_status, collect_on_delivery_amount,
                         payment_method, payment_channel,
-                        seller_id, product_id, menu_item_id, escrow_status
+                        seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount
                     ) VALUES (
                         'pickup_delivery', $1, 'SEARCHING', $2,
                         $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
                         $9, $10, $11, $12,
                         'PENDING', 'pending', $13,
                         'COD', 'cash',
-                        $14, $15, $16, 'held'
+                        $14, $15, $16, 'held', $17
                     ) RETURNING id`,
                     [
                         userId, item.name,
                         item.pickup_address, delivery_address, mLoc.lng, mLoc.lat, lng, lat,
                         totalNaira, item.price, deliveryFee, platformFee,
                         totalNaira, // collect_on_delivery_amount
-                        item.merchant_user_id, (item_type === 'product' ? item_id : null), (item_type === 'meal' ? item_id : null)
+                        item.merchant_user_id, (item_type === 'product' ? item_id : null), (item_type === 'meal' ? item_id : null),
+                        merchantCommissionAmount
                     ]
                 );
 
@@ -199,6 +212,7 @@ const initializeCommerceOrder = async (req, res) => {
                 item_price: parseFloat(item.price),
                 delivery_fee: deliveryFee,
                 platform_fee_amount: platformFee,
+                merchant_commission_amount: merchantCommissionAmount,
                 vendor_id: item.vendor_id || item.kitchen_id,
                 merchant_user_id: item.merchant_user_id,
                 pickup_address_id: merchantAddressId,

@@ -1,19 +1,27 @@
-# Walkthrough: Dedicated Merchant Module Separation
+# Walkthrough: Unified Commerce Checkout
 
 ## Changes Made
-1. **Isolated Merchant Navigation**:
-   - I built `MerchantAppScaffold.kt`, which provides an entirely decoupled root UI for the Merchant role. It has its own isolated bottom navigation (Dashboard, Inventory, Orders, Wallet, Store Settings).
-   - In `MainActivity.kt`, I intercepted the login routing at the `composable("main")` node. If a user logs in and their role is `MERCHANT`, the app now skips the customer wrapper entirely and mounts `MerchantAppScaffold` instead! This guarantees zero bleed-through of customer UI.
-2. **Order Lifecycle Hand-offs**:
-   - I built the `MerchantOrdersScreen.kt` UI component to manage incoming orders from customers.
-   - Using this UI, the merchant can view incoming orders (like meals or products). The merchant can press **"Accept & Prepare"** (which shifts the order to `PREPARING`) and then **"Mark Ready for Pickup"** (which shifts the order to `READY_FOR_PICKUP`).
-   - This beautifully satisfies the handoff requirement to the Fulfiller/Agent app (which picks up orders tagged as ready).
-3. **Backend Support (`merchantController.js`)**:
-   - Added `getIncomingOrders` API endpoint so the merchant UI can query `SELECT * FROM orders WHERE merchant_account_id = $1`.
-   - Added `updateOrderStatus` API endpoint which verifies ownership of the order, updates the database, and emits real-time Socket.io updates (e.g. `order_update_{id}`) so the customer app and fulfiller app immediately see the progress!
-   - Registered these routes in `merchantRoutes.js`.
+1. **Frontend UI Update (`CommerceCheckoutScreen.kt`)**:
+   - I added a clean, visual `Payment Method` selector, allowing the user to choose between **"Pay Now (Card/Transfer)"** and **"Pay on Delivery (Cash/Transfer)"**.
+   - Updated the `CommerceOrderRequest` data class in the API layer to support transmitting the chosen `payment_method`.
+   - Adapted the checkout button logic: If the user picks Card, the app starts the Paystack intent window (status quo). If the user picks COD, the app seamlessly redirects them straight to the `TrackOrderScreen` for their newly created background mission!
+2. **Backend Engine Update (`commerceController.js`)**:
+   - Updated `initializeCommerceOrder` to read the `payment_method` variable.
+   - If `payment_method === 'COD'`, the engine completely bypasses the Paystack initialization. Instead, it natively mimics the webhook's automation:
+     - It creates a new `pickup_delivery` row in the `orders` table.
+     - Sets `status = 'SEARCHING'`, `payment_status = 'PENDING'`, and `collection_status = 'pending'`.
+     - Fills in `collect_on_delivery_amount`.
+     - Secures the item price portion in `ESCROW_HOLD` for the merchant.
+     - Extracts the nearby fulfillers and instantly broadcasts the mission via Socket.io.
+   - It then returns the new `order_id` to the app so the customer can track the Dispatch mission.
+
+## Result
+Because Pikop's architecture leverages a unified `orders` table, this means:
+- The customer can buy Food, Groceries, or Shop items and checking out *automatically* orchestrates the Dispatch lifecycle.
+- The merchant can view the incoming order, accept it, and mark it ready for pickup.
+- The fulfiller sees the mission pop up organically on their map, fully linked.
 
 ## Build and Testing Status
 - The Android project compiles smoothly (`:app:assembleDebug`).
-- The strict role boundaries ensure the codebase is now much more scalable and resilient to future updates.
+- The syntax validation passes on the backend endpoints.
 - All code has been successfully committed to version control and pushed to your `main` repository!
