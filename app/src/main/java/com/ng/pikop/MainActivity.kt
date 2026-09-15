@@ -427,7 +427,10 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                             popUpTo(0) { inclusive = true }
                         }
                     } else {
-                        navController.navigate("terms/$role")
+                        // Skip redundant terms screen as consent was captured at signup
+                        navController.navigate("main") {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 },
                 onLogout = {
@@ -441,18 +444,12 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             )
         }
 
-        composable("terms/{role}") { backStackEntry ->
-            val role = backStackEntry.arguments?.getString("role") ?: "CUSTOMER"
-            TermsScreen(
-                onAccept = { navController.navigate("main") { popUpTo("user_type_selection") { inclusive = true } } },
-                showFulfillerTerms = role == "FULFILLER"
-            )
-        }
-        
         composable("merchant_business_setup") {
             com.ng.pikop.feature.auth.MerchantBusinessSetupScreen(
                 onSetupSuccess = {
-                    navController.navigate("terms/MERCHANT")
+                    navController.navigate("main") {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }
@@ -577,10 +574,29 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 onBack = { navController.popBackStack() }
             )
         }
-        composable("privacy_policy") { PrivacyPolicyScreen(onBack = { navController.popBackStack() }) }
+        composable("privacy_policy") { 
+            LegalViewerScreen(
+                title = "Privacy Policy",
+                url = "https://api.pikop.com.ng/legal/privacy",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable("terms_conditions") {
+            LegalViewerScreen(
+                title = "Terms & Conditions",
+                url = "https://api.pikop.com.ng/legal/terms",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        
         composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->
             val showFulfillerTerms = backStackEntry.arguments?.getString("showFulfillerTerms")?.toBoolean() ?: false
-            TermsScreen(onAccept = { navController.popBackStack() }, isViewer = true, showFulfillerTerms = showFulfillerTerms)
+            LegalViewerScreen(
+                title = if (showFulfillerTerms) "Fulfiller Terms" else "Terms & Conditions",
+                url = "https://api.pikop.com.ng/legal/terms",
+                onBack = { navController.popBackStack() }
+            )
         }
         composable("profile_edit") { ProfileEditScreen(onBack = { navController.popBackStack() }) }
         composable("growth_rewards") { GrowthRewardsScreen(onBack = { navController.popBackStack() }) }

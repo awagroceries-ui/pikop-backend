@@ -1,33 +1,56 @@
-# Implementation Plan - Delivery Fee Audit & Payout Decoupling (Refined)
+# Implementation Plan - Legal Integration (T&C and Privacy Policy)
 
-This plan confirms and fixes the implementation of Pikop's delivery fee rules: a universal 75/25 split and the immediate, decoupled release of fulfiller earnings upon delivery.
+This plan integrates the Pikop Terms & Conditions and Privacy Policy into the app and backend. The documents will be served from the backend as the single source of truth, enabling wording changes without app releases.
 
-## 🔍 Diagnostic Report
+## User Review Required
 
-### 1. 75/25 Split Confirmation
-- **Implementation**: The split is centrally managed in `walletService.processMissionSettlement`. It correctly calculates a `platformShare` (25%) and `fulfillerShare` (75%).
-- **Universality**: It applies to both standalone and Marketplace orders via the `delivery_fee` column. **Confirmed Universal.**
-
-### 2. Payout Decoupling Confirmation
-- **OTP Flow (`orderController.verifyDelivery`)**: Correctly calls `processMissionSettlement` for every order on delivery. **Confirmed Correct.**
-- **Fulfiller Manual Flow (`orderController.updateStatus`)**: 🚨 **Gap Found.** Settlement is only triggered `if (!isEscrow)`. Fulfillers on Marketplace/COD orders are not being paid immediately.
-- **Admin Manual Flow (`adminController.updateOrderStatus`)**: 🚨 **Gap Found.** Only calls `releaseEscrow` (item price). It **never** calls `processMissionSettlement`. Fulfillers are never paid the delivery fee portion in this flow.
-- **Dispute Safety**: Verified that `releaseEscrow` and `refundEscrow` only touch item price/commissions. Fulfiller earnings are already protected. **Confirmed Correct.**
+> [!IMPORTANT]
+> **Source of Truth Details**
+> I will host the markdown files on the backend (`backend_v3/public/legal/`). The app will fetch the content via API or render them in a WebView via public URLs.
+> - **Public URL for Play Store**: `https://api.pikop.com.ng/legal/privacy` (and `/legal/terms` for consistency).
 
 ## Proposed Changes
 
-### Backend Logic Fixes
+### Backend (Node.js)
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- Update `updateStatus` to trigger `walletService.processMissionSettlement(orderId)` for **all** orders when the status becomes `DELIVERED`, removing the `!isEscrow` condition.
+#### [NEW] Markdown Files
+- Place `Pikop_Terms_and_Conditions.md` and `Pikop_Privacy_Policy.md` in `backend_v3/public/legal/`.
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- Update `updateOrderStatus` to trigger `walletService.processMissionSettlement(id, client)` for **all** orders when the status becomes `DELIVERED`.
-- This ensures fulfillers are always paid their delivery share, even during admin manual overrides.
+#### [MODIFY] [legalController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/legalController.js)
+- Update `getTerms` and `getPrivacyPolicy` to read from the markdown files and render them using the existing `legal_pages.ejs` view.
+- I will implement a simple markdown-to-HTML parser (or wrap the text in `<pre>` with `white-space: pre-wrap`) to avoid adding new dependencies if `marked` is not preferred. *Self-correction: I will try to use a basic conversion for better readability.*
+
+#### [NEW] [user_legal_consents migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726430000000_create_user_legal_consents.js)
+- Create a table to record user consent: `user_id`, `terms_version`, `privacy_version`, `consented_at`, `ip_address`.
+
+#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
+- Update the `signup` logic to record the consent in the new table upon account creation.
+
+---
+
+### Android Frontend (Compose)
+
+#### [NEW] `LegalViewerScreen.kt`
+- A generic screen using `WebView` to load the legal documents from the backend URLs.
+
+#### [MODIFY] `SignupCustomerScreen.kt`, `SignupFulfillerScreen.kt`, `SignupMerchantScreen.kt`
+- Replace the current checkbox with a prominent "By continuing, you agree to..." section.
+- Ensure the "Sign Up" button is only enabled after the user has at least opened/scrolled the terms (or just after they click the links). *Instruction check: The prompt says "require an affirmative action", which typically means a button click after reading.*
+
+#### [MODIFY] `AccountScreen.kt` (Settings)
+- Add "Terms & Conditions" and "Privacy Policy" menu items under a "Legal" section.
+
+#### [MODIFY] `MainActivity.kt`
+- Register the new `LegalViewerScreen` route.
 
 ## Verification Plan
 
+### Automated/Code Verification
+- Verify backend routes `/legal/terms` and `/legal/privacy` return the correct HTML from markdown.
+- Verify `user_legal_consents` table is populated on signup.
+
 ### Manual Verification
-1.  **Admin Force-Complete**: As an admin, force-complete a COD/Marketplace order. Verify the Fulfiller is paid their 75% share immediately.
-2.  **Fulfiller Manual Complete**: Mark a non-escrow mission as delivered manually. Verify Fulfiller payout.
-3.  **Dispute Test**: Buyer disputes item correctness. Verify Fulfiller's delivery share remains in their balance.
+1.  **Public Access**: Load `https://api.pikop.com.ng/legal/privacy` in a browser.
+2.  **In-App Navigation**: Go to Settings -> Legal -> Privacy Policy. Verify it loads.
+3.  **Signup Flow**: Create a new test account. Confirm the "By continuing..." text is visible and links work.
+4.  **Consent Record**: Check the DB for the new consent entry with the correct version (0.1).

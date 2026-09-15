@@ -1,35 +1,30 @@
-# Walkthrough: Customized Welcome Emails
+# Walkthrough: Dispatch Split & Fulfiller Payout Decoupling
 
 ## Changes Made
 
-### 1. Tailored Email Templating (`emailService.js`)
-- Refactored `sendWelcomeEmail` into a robust dispatcher that serves five distinct user groups:
-    - **Customer:** Overview of Dispatch, Food, Groceries, and Shop with a focus on COD/Escrow protection.
-    - **Agent/Fulfiller:** Includes their specific mobility category (Foot Agent, Rider, Driver) and payout instructions.
-    - **Food Merchant:** Explicitly states the **10%** commission and their COD preference.
-    - **Groceries Merchant:** Explicitly states the **5%** commission (avoiding copy-paste drift).
-    - **Shop Merchant:** Explicitly states the **10%** commission.
-- **Dynamic Data:** All commission rates are pulled directly from `PlatformConfig` at send-time, ensuring they always match the system's live configuration.
+### 1. Delivery Fee Split Audit
+- **Verification**: Confirmed that the **75/25 delivery-fee split** is centrally managed in `walletService.processMissionSettlement`.
+- **Universality**: Confirmed it applies correctly to both standalone Dispatch and auto-generated Marketplace missions by using the unified `delivery_fee` column.
+- **Configurability**: Confirmed the rate is pulled from the database `settings` table (`platform_commission`), defaulting to 0.25 (25%).
 
-### 2. Gated Triggering (`authController.js` & `adminController.js`)
-- **Immediate for Customers:** Customers receive their welcome email immediately after successful OTP verification.
-- **Approval-Gated for Partners:** Fulfillers and Merchants now only receive their welcome emails once an Admin officially marks their account as `VERIFIED` in the dashboard. This prevents onboarding emails from being sent to rejected applicants.
-- Updated `updateKYCStatus` (Fulfillers) and implemented `updateMerchantKYCStatus` (Merchants) to trigger these emails upon approval.
+### 2. Universal Fulfiller Payout
+- **Logic Fix**: Identified and fixed a bug where fulfiller payouts were being skipped during manual status updates if an order had an escrow component (COD or Marketplace).
+- **[MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)**: Removed the conditional check that skipped settlement for escrow orders in the fulfiller manual update flow.
+- **[MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)**: Added missing `processMissionSettlement` call to the admin manual order update flow.
+- **Result**: Fulfillers now receive their 75% share **immediately upon delivery confirmation** across all flows (OTP, fulfiller manual, and admin manual), regardless of whether the buyer has confirmed the item price release.
 
-### 3. Database Schema Support
-- Added a migration `1726420000000_add_merchant_category.js` to store the business category ("Food", "Groceries", "Shop") directly on the `vendors` and `kitchens` tables.
-- Updated the `setupMerchantProfile` logic to capture and save this category during onboarding.
+### 3. Financial Safety
+- **Dispute Independence**: Confirmed that `releaseEscrow` and `refundEscrow` logic only manipulates the `item_price` and merchant commissions. This ensures that even if a buyer disputes the item, the fulfiller's already-earned delivery share is never clawed back.
 
 ## Verification Results
-- **Rate Accuracy:** Confirmed that Groceries merchants receive a 5% rate mention while others receive 10%, mapped via `PlatformConfig`.
-- **Navigation Safety:** All links to Terms, Privacy, and Support in the email templates have been verified.
-- **Git State:** All changes committed and pushed to `main`.
+- **Logic Integrity**: All code paths to `DELIVERED` status now consistently trigger fulfiller settlement.
+- **Android Build**: Successfully compiled (`:app:assembleDebug`).
+- **Git State**: All changes committed and pushed to `main`.
 
 ## Deployment Instructions
-To apply these backend changes and DB migrations to your production VPS:
+To apply these logic fixes to your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```

@@ -31,7 +31,11 @@ data class SignupRequest(
     val registration_number: String? = null,
     val make: String? = null,
     val model: String? = null,
-    val color: String? = null
+    val color: String? = null,
+
+    // Legal Consent
+    val terms_version: String? = "0.1",
+    val privacy_version: String? = "0.1"
 )
 
 data class AuthResponse(

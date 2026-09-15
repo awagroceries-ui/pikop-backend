@@ -255,17 +255,23 @@ fun AccountScreen(
                     onClick = onNavigateToSupport
                 )
 
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Legal", style = MaterialTheme.typography.labelMedium, color = Color.Gray, modifier = Modifier.padding(bottom = 8.dp))
+
                 AccountOption(
                     label = "Terms & Conditions",
                     icon = Icons.Default.Description,
-                    onClick = onNavigateToTerms
+                    onClick = { onNavigateToTerms() }
                 )
 
                 AccountOption(
                     label = "Privacy Policy",
                     icon = Icons.Default.Shield,
-                    onClick = onNavigateToPrivacy
+                    onClick = { onNavigateToPrivacy() }
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Account Management", style = MaterialTheme.typography.labelMedium, color = Color.Gray, modifier = Modifier.padding(bottom = 8.dp))
 
                 AccountOption(
                     label = "Manage Active Sessions",

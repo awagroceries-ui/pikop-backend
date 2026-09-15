@@ -1,13 +1,23 @@
-# Task Checklist: Delivery Fee Audit & Payout Decoupling
+# Task Checklist: Legal Integration (T&C and Privacy Policy)
 
-- `[/]` **Audit Findings**
-  - `[x]` Confirm 75/25 split is universal (Standalone + Marketplace).
-  - `[x]` Confirm split rate is admin-configurable.
-  - `[x]` Confirm Fulfiller payout is decoupled in OTP flow.
-  - `[x]` Identify gap in manual/admin status update flow.
-- `[x]` **Implementation Fixes**
-  - `[x]` Modify `updateStatus` in `orderController.js` to trigger settlement for all DELIVERED orders.
-  - `[x]` Modify `updateOrderStatus` in `adminController.js` to trigger settlement for all DELIVERED orders.
+- `[/]` **Part 1: Backend Setup**
+  - `[x]` Place markdown files in `backend_v3/public/legal/`.
+  - `[x]` Implement markdown-to-HTML conversion in `legalController.js`.
+  - `[x]` Create public routes `/legal/terms` and `/legal/privacy`.
+  - `[x]` Add migration for `user_legal_consents` table.
+- `[/]` **Part 2: Android Integration**
+  - `[x]` Create `LegalViewerScreen.kt` using `WebView`.
+  - `[x]` Update `SignupCustomerScreen.kt` with affirmative consent text and routing.
+  - `[x]` Update `SignupFulfillerScreen.kt` with affirmative consent text and routing.
+  - `[x]` Update `SignupMerchantScreen.kt` with affirmative consent text and routing.
+  - `[x]` Update `AccountScreen.kt` to include Legal section in settings.
+  - `[x]` Register new routes in `MainActivity.kt`.
+  - `[x]` Remove redundant `TermsScreen.kt` and `PrivacyPolicyScreen.kt`.
+- `[/]` **Part 3: Data & Consent**
+  - `[x]` Update `SignupRequest` in `ApiService.kt` to include version info.
+  - `[x]` Update `authController.js` to record consent in DB on signup.
 - `[ ]` **Verification**
-  - `[ ]` Confirm fulfiller payout on manual completion of COD/Marketplace orders.
-  - `[ ]` Git commit and push changes.
+  - `[ ]` Test public URL loading.
+  - `[ ]` Test signup flow consent recording.
+  - `[ ]` Test settings navigation.
+  - `[ ]` Git commit and push.

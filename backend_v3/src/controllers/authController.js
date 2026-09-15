@@ -12,7 +12,8 @@ const signup = async (req, res) => {
   const {
       full_name, email, phone, password, role, referral_code,
       primary_class, date_of_birth, home_address, gender,
-      registration_number, make, model, color
+      registration_number, make, model, color,
+      terms_version, privacy_version
   } = req.body;
   const userRole = (role || 'CUSTOMER').toUpperCase();
   const normalizedPhone = normalizePhone(phone);
@@ -51,7 +52,16 @@ const signup = async (req, res) => {
         );
     }
 
-    // 5. Generate OTP (Internal/Email)
+    // 5. Record Legal Consent
+    if (terms_version && privacy_version) {
+        await client.query(
+            `INSERT INTO user_legal_consents (user_id, terms_version, privacy_version, ip_address)
+             VALUES ($1, $2, $3, $4)`,
+            [user.id, terms_version, privacy_version, req.ip]
+        );
+    }
+
+    // 6. Generate OTP (Internal/Email)
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
 

@@ -44,7 +44,6 @@ fun SignupFulfillerScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var referralCode by remember { mutableStateOf("") }
-    var isAccepted by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
@@ -269,81 +268,8 @@ fun SignupFulfillerScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Checkbox(
-                    checked = isAccepted,
-                    onCheckedChange = { isAccepted = it }
-                )
-                Text(
-                    text = "I accept the Terms & Conditions and Privacy Policy",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    coroutineScope.launch {
-                        isLoading = true
-                        errorMessage = null
-                        try {
-                            val request = SignupRequest(
-                                full_name = fullName,
-                                email = email,
-                                phone = phone,
-                                password = password,
-                                role = "FULFILLER",
-                                referral_code = referralCode.ifBlank { null },
-                                primary_class = category,
-                                date_of_birth = dateOfBirth,
-                                home_address = "$homeAddress, $operatingCity",
-                                gender = gender,
-                                registration_number = if (isRiderOrDriver) registrationNumber else null,
-                                make = if (isRiderOrDriver) make else null,
-                                model = if (isRiderOrDriver) model else null,
-                                color = if (isRiderOrDriver) color else null
-                            )
-                            val response = apiService.signup(request)
-                            if (response.message?.contains("registered", ignoreCase = true) == true) {
-                                onSignupSuccess(email, "FULFILLER")
-                            } else {
-                                errorMessage = response.message
-                            }
-                        } catch (e: Exception) {
-                            errorMessage = ErrorUtils.parseError(e)
-                        } finally {
-                            isLoading = false
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && 
-                          fullName.isNotBlank() && 
-                          email.isNotBlank() && 
-                          phone.isNotBlank() && 
-                          password.isNotBlank() && 
-                          password == confirmPassword &&
-                          isAccepted
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Text("Sign Up as Fulfiller")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             val annotatedString = buildAnnotatedString {
-                append("By signing up, you agree to our ")
+                append("By clicking Sign Up, you agree to Pikop's ")
                 
                 pushStringAnnotation(tag = "terms", annotation = "terms")
                 withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
@@ -375,9 +301,64 @@ fun SignupFulfillerScreen(
                     annotatedString.getStringAnnotations(tag = "privacy", start = offset, end = offset)
                         .firstOrNull()?.let { onViewPrivacy() }
                 },
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(bottom = 16.dp)
             )
-            
+
+            Button(
+                onClick = {
+                    coroutineScope.launch {
+                        isLoading = true
+                        errorMessage = null
+                        try {
+                            val request = SignupRequest(
+                                full_name = fullName,
+                                email = email,
+                                phone = phone,
+                                password = password,
+                                role = "FULFILLER",
+                                referral_code = referralCode.ifBlank { null },
+                                primary_class = category,
+                                date_of_birth = dateOfBirth,
+                                home_address = "$homeAddress, $operatingCity",
+                                gender = gender,
+                                registration_number = if (isRiderOrDriver) registrationNumber else null,
+                                make = if (isRiderOrDriver) make else null,
+                                model = if (isRiderOrDriver) model else null,
+                                color = if (isRiderOrDriver) color else null,
+                                terms_version = "0.1",
+                                privacy_version = "0.1"
+                            )
+                            val response = apiService.signup(request)
+                            if (response.message?.contains("registered", ignoreCase = true) == true) {
+                                onSignupSuccess(email, "FULFILLER")
+                            } else {
+                                errorMessage = response.message
+                            }
+                        } catch (e: Exception) {
+                            errorMessage = ErrorUtils.parseError(e)
+                        } finally {
+                            isLoading = false
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading && 
+                          fullName.isNotBlank() && 
+                          email.isNotBlank() && 
+                          phone.isNotBlank() && 
+                          password.isNotBlank() && 
+                          password == confirmPassword
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Sign Up as Fulfiller")
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
