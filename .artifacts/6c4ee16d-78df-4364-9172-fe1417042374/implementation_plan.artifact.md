@@ -1,60 +1,59 @@
-# Implementation Plan: Dedicated Merchant Module Separation
+# Implementation Plan: Unified Checkout & Dispatch Automation
 
 ## 🔍 Diagnostic Report
 
-1. **Current Entanglement**: The `MerchantPortalScreen` is heavily entangled inside the *Customer/General* application graph.
-    - Currently, all users (Customer, Fulfiller, Merchant) log in and are routed to the `MainAppScaffold` in `MainActivity.kt`.
-    - Inside `MainAppScaffold`, `userRole` conditionally renders either the `CustomerHomeScreen` or the `FulfillerDashboardScreen`.
-    - **The Problem**: There is *no* dedicated home screen for Merchants. A merchant currently lands on the `CustomerHomeScreen` (because their role isn't Fulfiller), and has to navigate to the "Menu" (AccountScreen) to find a sub-menu button called "Merchant Portal" to actually manage their business.
-2. **Current Handoff Points**:
-    - **Customer -> Merchant**: Customers use `FoodStorefrontScreen` / `GroceryStorefrontScreen` to query public data. Perfect.
-    - **Merchant -> Fulfiller**: `MerchantPortalScreen` allows creating bulk orders.
-3. **Target Architecture**: The prompt specifies that a Merchant must *default* into their own Merchant experience on login, bypassing the customer home screen entirely, unless they deliberately switch apps/roles.
+I have investigated the backend and current frontend setups regarding checkout:
+1. **Current State**: The `CommerceCheckoutScreen.kt` currently exists. It calls `/api/v1/commerce/checkout/initialize` in the backend (`commerceController.js`), which triggers a Paystack transaction with `metadata.type = 'COMMERCE_ORDER'`.
+2. **Current Automation**: When Paystack succeeds, `paymentController.js` handles the webhook, intercepts `COMMERCE_ORDER`, and **already natively creates an `orders` table entry** with `order_type='pickup_delivery'` and `status='SEARCHING'`. It sets the pickup coordinates to the merchant's address and the delivery coordinates to the customer's address!
+3. **Escrow logic**: The webhook already routes the `item_price` portion into `ESCROW_HOLD` for the merchant.
+4. **The Missing Piece (COD)**: The prompt asks to ensure COD works exactly as it does for Dispatch orders. Currently, `CommerceCheckoutScreen.kt` has *no* UI for selecting payment methods (it just instantly triggers Paystack). The backend `initializeCommerceOrder` endpoint also assumes immediate card payment.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Module Architecture: In-App Dedicated Flow**
-> The most efficient way to achieve this without forcing users to download a completely separate APK is to implement the "cleanly separated in-app section" as permitted by the prompt.
+> **COD Architecture for Commerce**
+> Since the backend webhook is already fully automating the Dispatch job creation for paid commerce orders, my primary task is updating the UI and API to allow **Cash on Delivery (COD)** as an option during unified checkout.
 >
-> I will modify `MainAppScaffold` in `MainActivity.kt`. Currently, it assumes the user is either a Fulfiller or a Customer. I will add a third root branch: if `userRole == "MERCHANT"`, the entire `Scaffold` will swap out to a dedicated `MerchantAppScaffold`. This scaffold will have its own bottom navigation bar (e.g., Dashboard, Products, Orders, Wallet) and trap the Merchant inside their business operations context, totally separate from the customer parcel-sending UI.
+> I will:
+> 1. Update `CommerceCheckoutScreen.kt` to allow users to toggle between "Pay Now (Card/Transfer)" and "Cash on Delivery".
+> 2. Update `initializeCommerceOrder` in `commerceController.js` to accept a `payment_method` (e.g. `CARD` vs `COD`).
+> 3. If `payment_method = 'COD'`, bypass Paystack. Instead, directly insert the order into the database exactly like the webhook does, but set `payment_status = 'PENDING'` and `collection_status = 'pending'`, calculating the total COD amount.
+> 4. Ensure the resulting order ID is returned so the customer can track it immediately.
 >
 > Do you approve of this approach?
 
 ## Proposed Changes
 
-### Part 1: Separate Merchant Navigation
+### Part 1: Android Frontend (`CommerceCheckoutScreen.kt`)
 
-#### [NEW] [MerchantAppScaffold.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantAppScaffold.kt)
-- Create a dedicated root UI for Merchants.
-- Bottom Navigation:
-    - **Dashboard**: High-level stats, quick actions (Create Batch).
-    - **Inventory**: The current product/menu management list.
-    - **Orders**: Incoming order management (view, accept/reject, mark ready).
-    - **Wallet**: Earnings/escrow.
+#### [MODIFY] [CommerceCheckoutScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/CommerceCheckoutScreen.kt)
+- Introduce a Payment Method radio toggle (`Card / Transfer` vs `Cash on Delivery`).
+- Update the `CommerceOrderRequest` data class in `ApiService.kt` to include `payment_method: String`.
+- If Pay Now is selected, open the Paystack URL as before.
+- If COD is selected, `initializeCommerceOrder` will return `{ success: true, order_id: "..." }` instead of a payment URL. Automatically route the user to the `track_order` screen for that ID.
 
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- In the `composable("main")` block, update the routing logic:
-  - If `userRole == "FULFILLER"`, show `FulfillerAppScaffold` (or existing Fulfiller logic).
-  - If `userRole == "MERCHANT"`, show `MerchantAppScaffold`.
-  - Else, show the existing `MainAppScaffold` (Customer).
+### Part 2: Backend Unified Initialization (`commerceController.js`)
 
-### Part 2: Refactoring Merchant Portal Components
+#### [MODIFY] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
+- Update `initializeCommerceOrder`.
+- Accept `payment_method` in `req.body`.
+- **If `payment_method === 'COD'`**:
+  - Instead of initializing Paystack, insert directly into the `orders` table.
+  - `status = 'SEARCHING'`.
+  - `payment_status = 'PENDING'`.
+  - `collect_on_delivery_amount = totalNaira`.
+  - Fetch nearby fulfillers and broadcast the offer immediately (reuse `dispatchService.broadcastOffer`).
+  - Return the new `order.id` to the frontend.
 
-#### [MODIFY] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
-- Break down the current monolithic `MerchantPortalScreen` (which relies on tabs) into individual top-level screens that slot into the new `MerchantAppScaffold` bottom nav tabs.
-- Ensure the "Orders" tab connects to the existing order state machine (using an endpoint to fetch merchant-specific orders, likely requiring a quick backend check/addition).
+### Part 3: Linkage Visibility
 
-### Part 3: Backend Order Management (Handoffs)
-
-#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js) (If needed)
-- Ensure there is an endpoint for Merchants to fetch *incoming* customer orders.
-- Ensure there is an endpoint for Merchants to update order status (`PAYMENT_CAPTURED` -> `PREPARING` -> `READY_FOR_PICKUP`).
+- The linkage requested ("customer looking at Food order should see delivery tracking") is naturally solved because Pikop v3 uses a unified `orders` table. A commerce order *is* a dispatch order natively. The `OrdersDashboardScreen` and `TrackOrderScreen` already query the `orders` table, meaning commerce purchases will automatically appear in the user's mission history and can be tracked natively.
 
 ## Verification Plan
 
 ### Manual Verification
-1. Log in as a `CUSTOMER`. Verify I land on the Customer Home Screen (Dispatch, Food, Groceries).
-2. Log in as a `MERCHANT`. Verify I land directly on the `MerchantAppScaffold` (Dashboard, Inventory, Orders).
-3. Verify Customer screens (like "Request Delivery" or storefronts) do not bleed into the Merchant UI.
-4. Verify the Merchant UI provides buttons to mark an order "Ready for Pickup", properly handing off the state machine to the Fulfiller app.
+1. Add an item to the cart in the Food module and proceed to checkout.
+2. Select "Cash on Delivery". Submit order.
+3. Verify that it bypasses Paystack, returns an `order_id`, and takes you straight to the Tracking Screen.
+4. Check the Fulfiller app -> Verify the mission is broadcast to nearby drivers.
+5. Check the Merchant app -> Verify the incoming order appears in the "Orders" tab.

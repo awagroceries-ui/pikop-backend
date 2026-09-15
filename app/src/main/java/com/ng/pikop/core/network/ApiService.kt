@@ -719,7 +719,8 @@ data class CommerceOrderRequest(
     val delivery_address: String,
     val lat: Double,
     val lng: Double,
-    val city: String? = "Port Harcourt"
+    val city: String? = "Port Harcourt",
+    val payment_method: String // CARD, COD
 )
 
 data class PaymentInitializationRequest(
@@ -739,7 +740,8 @@ data class PaymentInitializationRequest(
 data class PaymentInitializationResponse(
     val authorization_url: String? = null,
     val access_code: String? = null,
-    val reference: String? = null
+    val reference: String? = null,
+    val order_id: String? = null
 )
 
 interface ApiService {

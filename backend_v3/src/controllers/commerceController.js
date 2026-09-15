@@ -88,7 +88,7 @@ const getDiscovery = async (req, res) => {
  * Initializes a Commerce Order (Buy + Deliver).
  */
 const initializeCommerceOrder = async (req, res) => {
-    const { item_id, item_type, delivery_address, lat, lng } = req.body;
+    const { item_id, item_type, delivery_address, lat, lng, payment_method } = req.body;
     const userId = req.user.id;
 
     try {
@@ -130,7 +130,63 @@ const initializeCommerceOrder = async (req, res) => {
 
         const totalNaira = parseFloat(item.price) + deliveryFee + platformFee;
 
-        // 4. Initialize Paystack
+        // --- COD FLOW (Bypass Paystack) ---
+        if (payment_method === 'COD') {
+            const client = await db.pool.connect();
+            try {
+                await client.query('BEGIN');
+
+                // Insert directly into orders just like webhook does
+                const orderRes = await client.query(
+                    `INSERT INTO orders (
+                        order_type, user_id, status, item_description,
+                        pickup_address, delivery_address, pickup_location, delivery_location,
+                        total_fare, item_price, delivery_fee, platform_fee_amount,
+                        payment_status, collection_status, collect_on_delivery_amount,
+                        payment_method, payment_channel,
+                        seller_id, product_id, menu_item_id, escrow_status
+                    ) VALUES (
+                        'pickup_delivery', $1, 'SEARCHING', $2,
+                        $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
+                        $9, $10, $11, $12,
+                        'PENDING', 'pending', $13,
+                        'COD', 'cash',
+                        $14, $15, $16, 'held'
+                    ) RETURNING id`,
+                    [
+                        userId, item.name,
+                        item.pickup_address, delivery_address, mLoc.lng, mLoc.lat, lng, lat,
+                        totalNaira, item.price, deliveryFee, platformFee,
+                        totalNaira, // collect_on_delivery_amount
+                        item.merchant_user_id, (item_type === 'product' ? item_id : null), (item_type === 'meal' ? item_id : null)
+                    ]
+                );
+
+                const newOrderId = orderRes.rows[0].id;
+
+                // Escrow hold (Pending since payment isn't collected yet, but we lock the ledger intent)
+                const walletService = require('../services/walletService');
+                const walletId = await walletService.ensureWalletExists(client, 'USER', item.merchant_user_id);
+                await walletService.recordEntry(client, walletId, 'CREDIT', item.price, 'ESCROW_HOLD', `Marketplace COD Sale: ${item.name}`, newOrderId, 'pending');
+
+                await client.query('COMMIT');
+
+                // Broadcast to fulfillers
+                const dispatchService = require('../services/dispatchService');
+                const updatedOrder = (await db.query("SELECT * FROM orders WHERE id = $1", [newOrderId])).rows[0];
+                const fulfillers = await dispatchService.findNearbyFulfillers(updatedOrder);
+                if (fulfillers.length > 0) dispatchService.broadcastOffer(updatedOrder, fulfillers).catch(() => {});
+
+                return res.status(200).json({ success: true, order_id: newOrderId.toString() });
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
+            }
+        }
+
+        // --- PREPAID FLOW (Paystack Initialization) ---
         const payload = {
             amount: Math.round(totalNaira * 100),
             email: req.user.email,

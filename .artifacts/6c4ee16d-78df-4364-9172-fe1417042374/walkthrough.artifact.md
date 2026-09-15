@@ -1,20 +1,19 @@
-# Walkthrough: Merchant Onboarding (Contact Person + Business Verification)
+# Walkthrough: Dedicated Merchant Module Separation
 
 ## Changes Made
-1. **Stage 1 (Contact Person)**:
-   - Modified `SignupMerchantScreen.kt` to clearly ask for "Contact Person Details" instead of mixing business info. It collects Name, Role (Owner/Manager), Email, and Phone.
-   - Upon OTP verification, `MainActivity.kt` now routes `MERCHANT` roles directly to Stage 2 (`merchant_business_setup`).
-2. **Stage 2 (Business Details)**:
-   - Created a brand new screen: `MerchantBusinessSetupScreen.kt`.
-   - Collects Business Name, Category (Food/Groceries/Shop), Address, Bank Details, and CAC Number.
-   - **Conditional NAFDAC**: A dynamic NAFDAC Number field appears *only* if the category is "Food" or "Groceries". If "Shop" is selected, it hides.
+1. **Isolated Merchant Navigation**:
+   - I built `MerchantAppScaffold.kt`, which provides an entirely decoupled root UI for the Merchant role. It has its own isolated bottom navigation (Dashboard, Inventory, Orders, Wallet, Store Settings).
+   - In `MainActivity.kt`, I intercepted the login routing at the `composable("main")` node. If a user logs in and their role is `MERCHANT`, the app now skips the customer wrapper entirely and mounts `MerchantAppScaffold` instead! This guarantees zero bleed-through of customer UI.
+2. **Order Lifecycle Hand-offs**:
+   - I built the `MerchantOrdersScreen.kt` UI component to manage incoming orders from customers.
+   - Using this UI, the merchant can view incoming orders (like meals or products). The merchant can press **"Accept & Prepare"** (which shifts the order to `PREPARING`) and then **"Mark Ready for Pickup"** (which shifts the order to `READY_FOR_PICKUP`).
+   - This beautifully satisfies the handoff requirement to the Fulfiller/Agent app (which picks up orders tagged as ready).
 3. **Backend Support (`merchantController.js`)**:
-   - Added a new endpoint (`POST /api/v1/merchants/setup`) that inserts the business into the appropriate table (`kitchens` or `vendors`) based on the selected category.
-   - Automatically sets the status to `pending_business_verification`.
-   - **KYC Pipeline Integration**: CAC and NAFDAC strings are inserted directly into the `kyc_documents` table (`doc_type='CAC'` or `doc_type='NAFDAC'`) for manual admin dashboard review, bypassing the Prembly identity provider seamlessly!
-4. **Product-Level NAFDAC**:
-   - As requested, I investigated the product creation flow (`AddEditProductScreen.kt` and `marketplaceController.js`). Good news: **this functionality was already built in seamlessly!** The `nafdac_number` property is already an optional field natively supported when merchants create/edit a generic marketplace product!
+   - Added `getIncomingOrders` API endpoint so the merchant UI can query `SELECT * FROM orders WHERE merchant_account_id = $1`.
+   - Added `updateOrderStatus` API endpoint which verifies ownership of the order, updates the database, and emits real-time Socket.io updates (e.g. `order_update_{id}`) so the customer app and fulfiller app immediately see the progress!
+   - Registered these routes in `merchantRoutes.js`.
 
 ## Build and Testing Status
-- The Android project logic compiles flawlessly (`:app:assembleDebug`).
-- Changes are fully committed and pushed to your `main` repository!
+- The Android project compiles smoothly (`:app:assembleDebug`).
+- The strict role boundaries ensure the codebase is now much more scalable and resilient to future updates.
+- All code has been successfully committed to version control and pushed to your `main` repository!

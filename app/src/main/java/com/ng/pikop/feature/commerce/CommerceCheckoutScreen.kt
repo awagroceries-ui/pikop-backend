@@ -43,6 +43,8 @@ fun CommerceCheckoutScreen(
     var item by remember { mutableStateOf<DiscoveryItem?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isPlacingOrder by remember { mutableStateOf(false) }
+    
+    var selectedPaymentMethod by remember { mutableStateOf("CARD") } // "CARD" or "COD"
 
     // Delivery Location State
     val deliveryAddress by navController.currentBackStackEntry
@@ -138,6 +140,49 @@ fun CommerceCheckoutScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+                Text("Payment Method", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedCard(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.outlinedCardColors(
+                            containerColor = if (selectedPaymentMethod == "CARD") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = if (selectedPaymentMethod == "CARD") 2.dp else 1.dp,
+                            color = if (selectedPaymentMethod == "CARD") MaterialTheme.colorScheme.primary else Color.LightGray
+                        ),
+                        onClick = { selectedPaymentMethod = "CARD" }
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.CreditCard, contentDescription = null, tint = if (selectedPaymentMethod == "CARD") MaterialTheme.colorScheme.primary else Color.Gray)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Pay Now", fontWeight = FontWeight.Bold)
+                            Text("(Card / Transfer)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        }
+                    }
+
+                    OutlinedCard(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.outlinedCardColors(
+                            containerColor = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = if (selectedPaymentMethod == "COD") 2.dp else 1.dp,
+                            color = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.LightGray
+                        ),
+                        onClick = { selectedPaymentMethod = "COD" }
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Payments, contentDescription = null, tint = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.Gray)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Pay on Delivery", fontWeight = FontWeight.Bold)
+                            Text("(Cash / Transfer)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
                 Text("Payment Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
                 Card(
@@ -168,12 +213,22 @@ fun CommerceCheckoutScreen(
                                     item_type = itemType,
                                     delivery_address = deliveryAddress,
                                     lat = deliveryLat,
-                                    lng = deliveryLng
+                                    lng = deliveryLng,
+                                    payment_method = selectedPaymentMethod
                                 ))
-                                
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(response.authorization_url))
-                                context.startActivity(intent)
-                                onSuccess()
+
+                                if (selectedPaymentMethod == "CARD" && !response.authorization_url.isNullOrBlank()) {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(response.authorization_url))
+                                    context.startActivity(intent)
+                                    onSuccess() // Navigates back to main. Real flow would verify via webhook/intent
+                                } else if (selectedPaymentMethod == "COD" && !response.order_id.isNullOrBlank()) {
+                                    Toast.makeText(context, "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
+                                    navController.navigate("track_order/${response.order_id}") {
+                                        popUpTo("main") { inclusive = false }
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Unexpected response from server.", Toast.LENGTH_SHORT).show()
+                                }
                             } catch (e: Exception) {
                                 val errorMsg = ErrorUtils.parseError(e)
                                 Toast.makeText(context, "Payment Failed: $errorMsg", Toast.LENGTH_LONG).show()
