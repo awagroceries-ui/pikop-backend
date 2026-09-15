@@ -350,10 +350,9 @@ const updateStatus = async (req, res) => {
 
     // 2. Trigger Settlement on Delivery (v3)
     if (status === 'DELIVERED') {
-        const { rows: orderData } = await db.query("SELECT item_price, escrow_status FROM orders WHERE id = $1", [orderId]);
-        const isEscrow = orderData[0]?.item_price > 0 && orderData[0]?.escrow_status === 'held';
+        const { rows: orderData } = await db.query("SELECT id FROM orders WHERE id = $1", [orderId]);
 
-        if (!isEscrow && orderData[0]) {
+        if (orderData[0]) {
             try {
                 await walletService.processMissionSettlement(orderId);
             } catch (e) {

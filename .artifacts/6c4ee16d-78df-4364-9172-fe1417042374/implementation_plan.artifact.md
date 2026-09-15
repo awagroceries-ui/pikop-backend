@@ -1,44 +1,33 @@
-# Implementation Plan: Customized Welcome Emails per User Group
+# Implementation Plan - Delivery Fee Audit & Payout Decoupling (Refined)
 
-This plan implements tailored welcome emails for five distinct user groups: Customer, Agent/Fulfiller, Food Merchant, Groceries Merchant, and Shop Merchant.
+This plan confirms and fixes the implementation of Pikop's delivery fee rules: a universal 75/25 split and the immediate, decoupled release of fulfiller earnings upon delivery.
 
-## Infrastructure
+## 🔍 Diagnostic Report
 
-- **Email Provider:** Transactional emails are currently sent via **Brevo (formerly Sendinblue)** using SMTP relay in `emailService.js`.
-- **Trigger Timing:**
-    - **Customer:** Sent immediately upon successful OTP verification during signup.
-    - **Fulfiller/Merchant:** Sent only upon final account approval by an admin.
+### 1. 75/25 Split Confirmation
+- **Implementation**: The split is centrally managed in `walletService.processMissionSettlement`. It correctly calculates a `platformShare` (25%) and `fulfillerShare` (75%).
+- **Universality**: It applies to both standalone and Marketplace orders via the `delivery_fee` column. **Confirmed Universal.**
+
+### 2. Payout Decoupling Confirmation
+- **OTP Flow (`orderController.verifyDelivery`)**: Correctly calls `processMissionSettlement` for every order on delivery. **Confirmed Correct.**
+- **Fulfiller Manual Flow (`orderController.updateStatus`)**: 🚨 **Gap Found.** Settlement is only triggered `if (!isEscrow)`. Fulfillers on Marketplace/COD orders are not being paid immediately.
+- **Admin Manual Flow (`adminController.updateOrderStatus`)**: 🚨 **Gap Found.** Only calls `releaseEscrow` (item price). It **never** calls `processMissionSettlement`. Fulfillers are never paid the delivery fee portion in this flow.
+- **Dispute Safety**: Verified that `releaseEscrow` and `refundEscrow` only touch item price/commissions. Fulfiller earnings are already protected. **Confirmed Correct.**
 
 ## Proposed Changes
 
-### Backend Service: `emailService.js`
-- **[MODIFY] `sendWelcomeEmail`**: Refactor to support the five distinct groups.
-- **[NEW] Group-Specific Template Blocks**:
-    - **Customer**: Focus on proximity ordering and escrow buyer protection.
-    - **Agent/Fulfiller**: Personalized with their category (Rider, Driver, etc.) and payout info.
-    - **Merchants (Food, Groceries, Shop)**: Include their specific category commission rates (10%, 5%, 10%) and COD acceptance status.
+### Backend Logic Fixes
 
-### Backend Controller: `authController.js`
-- **[MODIFY] `verifyOtp`**: Update to only trigger `sendWelcomeEmail` for `CUSTOMER` role. Fulfillers and Merchants will have their emails deferred to the approval step.
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- Update `updateStatus` to trigger `walletService.processMissionSettlement(orderId)` for **all** orders when the status becomes `DELIVERED`, removing the `!isEscrow` condition.
 
-### Backend Controller: `adminController.js`
-- **[MODIFY] `updateKYCStatus`**: Extend to handle Merchants.
-- **[NEW] Logic to trigger `sendWelcomeEmail`**: When an admin marks a Fulfiller or Merchant as `VERIFIED`, trigger the appropriate welcome email pulling real data (commission, category) from the DB.
-
-## User Review Required
-
-> [!IMPORTANT]
-> **Dynamic Values in Templates**
-> I will ensure that commission rates are fetched from `PlatformConfig` at send-time rather than hardcoded in the email text to prevent "rate drift" if settings change.
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- Update `updateOrderStatus` to trigger `walletService.processMissionSettlement(id, client)` for **all** orders when the status becomes `DELIVERED`.
+- This ensures fulfillers are always paid their delivery share, even during admin manual overrides.
 
 ## Verification Plan
 
-### Automated/Code Verification
-- Verify `emailService.js` correctly maps user roles/categories to their respective templates.
-- Verify `authController.js` gating logic (Customer vs others).
-
 ### Manual Verification
-1. Register a new Customer. Verify immediate receipt of the "Superior Logistics" welcome email.
-2. Approve a Fulfiller as Admin. Verify the email includes their specific mobility category (e.g. "Approved as a Rider").
-3. Approve a Groceries Merchant. Verify the email explicitly states the 5% commission rate.
-4. Approve a Food Merchant. Verify the email explicitly states the 10% commission rate.
+1.  **Admin Force-Complete**: As an admin, force-complete a COD/Marketplace order. Verify the Fulfiller is paid their 75% share immediately.
+2.  **Fulfiller Manual Complete**: Mark a non-escrow mission as delivered manually. Verify Fulfiller payout.
+3.  **Dispute Test**: Buyer disputes item correctness. Verify Fulfiller's delivery share remains in their balance.

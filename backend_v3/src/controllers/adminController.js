@@ -789,6 +789,15 @@ const updateOrderStatus = async (req, res) => {
 
         if (status === 'DELIVERED') {
             await client.query("UPDATE orders SET payment_status = 'PAID' WHERE id = $1", [id]);
+
+            // 1. Settle Delivery Fee for Fulfiller (Decoupled)
+            try {
+                await walletService.processMissionSettlement(id, client);
+            } catch (e) {
+                console.error('[Admin] Fulfiller settlement on force complete failed:', e.message);
+            }
+
+            // 2. Release Item Price Escrow if applicable
             if (order && order.escrow_status === 'held') {
                 try {
                     await walletService.releaseEscrow(id, client);

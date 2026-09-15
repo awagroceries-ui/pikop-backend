@@ -1,14 +1,13 @@
-# Task Checklist: Customized Welcome Emails
+# Task Checklist: Delivery Fee Audit & Payout Decoupling
 
-- `[/]` **Backend Infrastructure**
-  - `[x]` Confirm Brevo SMTP in `emailService.js`.
-- `[/]` **Tailored Templates (`emailService.js`)**
-  - `[ ]` Refactor `sendWelcomeEmail` to support `CUSTOMER`, `FULFILLER`, `FOOD_MERCHANT`, `GROCERIES_MERCHANT`, and `SHOP_MERCHANT`.
-  - `[ ]` Add dynamic blocks for commission rates, categories, and COD settings.
-- `[/]` **Trigger Gating (`authController.js`)**
-  - `[ ]` Update `verifyOtp` to only send email immediately for `CUSTOMER`.
-- `[/]` **Approval Triggers (`adminController.js`)**
-  - `[ ]` Update `updateKYCStatus` to trigger fulfiller/merchant welcome emails upon verification.
+- `[/]` **Audit Findings**
+  - `[x]` Confirm 75/25 split is universal (Standalone + Marketplace).
+  - `[x]` Confirm split rate is admin-configurable.
+  - `[x]` Confirm Fulfiller payout is decoupled in OTP flow.
+  - `[x]` Identify gap in manual/admin status update flow.
+- `[x]` **Implementation Fixes**
+  - `[x]` Modify `updateStatus` in `orderController.js` to trigger settlement for all DELIVERED orders.
+  - `[x]` Modify `updateOrderStatus` in `adminController.js` to trigger settlement for all DELIVERED orders.
 - `[ ]` **Verification**
-  - `[ ]` Verify logic correctly routes categories.
+  - `[ ]` Confirm fulfiller payout on manual completion of COD/Marketplace orders.
   - `[ ]` Git commit and push changes.
