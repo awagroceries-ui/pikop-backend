@@ -1,53 +1,34 @@
-# Implementation Plan - Advanced Incident & Dispute Engine
+# Implementation Plan - Fix Wallet Ledger Migration Violation
 
-This plan implements a robust system for handling fleet incidents, marketplace disputes, and automated financial waivers.
+This plan resolves the migration error `check constraint "wallet_ledger_entries_purpose_check" is violated by some row` encountered on the production server.
+
+## 🔍 Diagnostic Summary
+- **Root Cause**: The migration `1726490000000_incident_management.js` attempts to add a strict `CHECK` constraint to the `purpose` column in the `wallet_ledger_entries` table. However, the list of allowed values in the migration missed several existing values used in previous versions of the app or in recently added features (e.g., `COD_COLLECTION`, legacy reward strings).
+- **Violation**: Rows already exist in the database with these values, causing the `ADD CONSTRAINT` command to fail.
 
 ## Proposed Changes
 
-### 1. Database Schema Enhancements
+### Backend (Migrations)
 
-#### [NEW] [incident_management migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726490000000_incident_management.js)
-- **Extend `disputes` table**: Add `severity` (LOW, MEDIUM, HIGH), `incident_category`, and `is_3way_bridged` (boolean).
-- **[NEW] `conversation_participants` table**: To support multi-party chat (Admin + Fulfiller + Customer).
-    - `conversation_id` (UUID), `user_id` (INT), `role` (ADMIN, FULFILLER, CUSTOMER).
-
-### 2. Backend Logic (Node.js)
-
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- Update `fileIncident` and `reportProblem` to support structured categories and severity.
-- Implement logic to automatically create a 3-way bridged conversation if severity is "HIGH".
-
-#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
-- Implement `applyAutomatedWaiver(orderId, waiverType)`:
-    - `CANCELLATION`: Handles the 25% penalty waiver if proof is valid.
-    - `RETURN`: Handles the 75% return fee waiver if the failure was not the agent's fault.
-
-#### [MODIFY] [supportController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/supportController.js)
-- Implement `bridgeIncidentChat(orderId)`: Joins the assigned Fulfiller and Customer into a single Support Conversation.
-
-### 3. Admin Resolution Dashboard
-
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- Create `getDisputeResolutionCenter`: A dedicated view for admins to mediate between Customers and Merchants/Fulfillers.
-- Add "Apply Waiver" and "Release/Refund" actions directly in the resolution view.
-
-### 4. Android Frontend (Compose)
-
-#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
-- Update `IncidentReportDialog` with structured categories: `VEHICLE_BREAKDOWN`, `SAFETY_RISK`, `RECIPIENT_UNREACHABLE`, `ACCIDENT`.
-
-#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt)
-- Update `SecurePayDisputeDialog` with structured categories: `INCORRECT_ITEM`, `ITEM_DAMAGED`, `DELAYED_DELIVERY`.
-
-## User Review Required
-
-> [!IMPORTANT]
-> **3-Way Bridging UX**
-> When a "HIGH" severity incident is reported, both the Fulfiller and Customer will see a new "Support Bridge" chat room appear. This room will include a Pikop Support Admin to facilitate real-time resolution.
+#### [MODIFY] [incident_management migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726490000000_incident_management.js)
+- Update the `purpose` check constraint to include all known historical and current values:
+    - Current v3: `SETTLEMENT`, `COMMISSION`, `SECURE_PAY_FEE`, `SMS_CHARGE`, `ESCROW_HOLD`, `ESCROW_RELEASE`, `ESCROW_REFUND`, `TOPUP`, `WITHDRAWAL`, `REFERRAL_BONUS`, `REFERRAL_WELCOME`, `CANCELLATION_PENALTY`, `BULK_DISPATCH`, `COD_COLLECTION`.
+    - Incident Engine (New): `PENALTY_WAIVER`, `RETURN_FEE`, `RETURN_WAIVER`.
+    - Legacy (Migration Support): `DELIVERY_PAYMENT`, `CANCELLATION_FEE`, `CORPORATE_ORDER`, `DIRECT_DEBIT_ORDER`, `REFERRAL_REWARD`, `REFEREE_WELCOME`.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Incident Reporting**: As a Fulfiller, report a "Safety Risk" incident. Verify that a "HIGH" severity dispute is created on the backend.
-2.  **3-Way Bridge**: Confirm that a new conversation is created with both Fulfiller and Customer as participants.
-3.  **Waiver Logic**: As an Admin, apply a "Cancellation Waiver" to a mission. Verify that the 25% penalty is reversed in the user's wallet ledger.
+1.  **Server Pull**: I will advise the user to pull the updated migration.
+2.  **Migration Execution**: Run `npm run migrate:up` on the server. The constraint should now apply successfully as it covers all existing row data.
+
+## User Action Required
+> [!IMPORTANT]
+> **Action Needed on Server**
+> Please run the following commands on your production VPS once I've pushed the fix:
+> ```bash
+> cd /var/www/pikop-api/backend_v3/backend_v3
+> git pull origin main
+> npm run migrate:up
+> pm2 restart pikop-v3
+> ```
