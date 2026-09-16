@@ -738,7 +738,6 @@ const createOrder = async (req, res) => {
                 dispatchCommissionAmount // $44
             ]
         );
-        );
 
         await client.query('COMMIT');
         console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId} | Status: ${initialStatus}`);
