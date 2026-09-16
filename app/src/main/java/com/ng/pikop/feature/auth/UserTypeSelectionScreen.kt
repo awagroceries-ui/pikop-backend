@@ -3,6 +3,7 @@ package com.ng.pikop.feature.auth
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ElectricBike
 import androidx.compose.material.icons.filled.LocalShipping
@@ -55,6 +56,7 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     title = "I want to Send",
                     description = "Request deliveries & track items.",
                     icon = Icons.Default.ShoppingBag,
+                    iconColor = com.ng.pikop.ui.theme.PikopGreen,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("CUSTOMER") }
                 )
@@ -62,6 +64,7 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     title = "I want to Earn",
                     description = "Join the fleet & deliver items.",
                     icon = Icons.Default.ElectricBike,
+                    iconColor = com.ng.pikop.ui.theme.PikopGold,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("FULFILLER") }
                 )
@@ -69,6 +72,7 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     title = "I want to Sell",
                     description = "List products & grow business.",
                     icon = Icons.Default.Storefront,
+                    iconColor = com.ng.pikop.ui.theme.PikopOrange,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("MERCHANT") }
                 )
@@ -88,6 +92,7 @@ fun RoleCard(
     title: String,
     description: String,
     icon: ImageVector,
+    iconColor: Color = MaterialTheme.colorScheme.primary,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -96,9 +101,10 @@ fun RoleCard(
             .height(200.dp)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = iconColor.copy(alpha = 0.08f)
         ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        shape = RoundedCornerShape(24.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, iconColor.copy(alpha = 0.2f))
     ) {
         Column(
             modifier = Modifier
@@ -110,8 +116,8 @@ fun RoleCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
+                modifier = Modifier.size(56.dp),
+                tint = iconColor
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(

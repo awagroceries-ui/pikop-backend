@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -317,12 +318,13 @@ fun ActiveOrderScreen(
                     val isCod = (orderDetails?.item_price ?: 0.0) > 0
                     if (isCod) {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50)),
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            colors = CardDefaults.cardColors(containerColor = com.ng.pikop.ui.theme.PikopGreen),
+                            modifier = Modifier.padding(bottom = 12.dp),
+                            shape = RoundedCornerShape(8.dp)
                         ) {
-                            Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Payments, null, modifier = Modifier.size(14.dp), tint = Color.White)
-                                Spacer(modifier = Modifier.width(4.dp))
+                            Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Payments, null, modifier = Modifier.size(16.dp), tint = com.ng.pikop.ui.theme.PikopGold)
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text("Delivery + COD (Escrow Protected)", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -610,7 +612,7 @@ fun ActiveOrderScreen(
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                             ) {
                                 Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(48.dp), tint = Color(0xFF4CAF50))
+                                    Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(48.dp), tint = com.ng.pikop.ui.theme.PikopGreen)
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Text("Mission Successfully Completed!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                                     
@@ -619,7 +621,7 @@ fun ActiveOrderScreen(
                                         text = "₦$earningAmount has been credited to your available balance for this delivery.",
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF388E3C),
+                                        color = com.ng.pikop.ui.theme.PikopGreen,
                                         textAlign = TextAlign.Center
                                     )
 

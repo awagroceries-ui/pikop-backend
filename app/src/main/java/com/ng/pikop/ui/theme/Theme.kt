@@ -13,17 +13,22 @@ import androidx.core.view.WindowCompat
 
 // Forced brand identity: Light background even in dark mode for brand consistency
 private val BrandColorScheme = lightColorScheme(
-    primary = Primary,
-    onPrimary = OnPrimary,
-    secondary = Secondary,
+    primary = PikopGreen,
+    onPrimary = PikopWhite,
+    secondary = PikopGold,
     onSecondary = PikopNearBlack,
-    background = Background,
-    onBackground = OnSurface,
-    surface = Surface,
-    onSurface = OnSurface,
-    error = Error,
-    onError = OnPrimary,
-    outline = PikopGrey
+    tertiary = PikopOrange,
+    onTertiary = PikopWhite,
+    background = PikopWhite,
+    onBackground = PikopNearBlack,
+    surface = PikopWhite,
+    onSurface = PikopNearBlack,
+    surfaceVariant = PikopLemonGreen,
+    onSurfaceVariant = PikopGreen,
+    error = AlertOrange,
+    onError = PikopWhite,
+    outline = PikopGrey,
+    outlineVariant = PikopDarkGrey
 )
 
 @Composable

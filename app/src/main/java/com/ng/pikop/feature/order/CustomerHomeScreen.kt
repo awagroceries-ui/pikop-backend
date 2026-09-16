@@ -3,6 +3,7 @@ package com.ng.pikop.feature.order
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -142,63 +143,65 @@ fun CustomerHomeScreen(
                 }
             }
 
-            // Active Mission Banner (Priority)
+            // Active Mission Banner (Priority - v4.0)
             if (activeOrders.isNotEmpty()) {
                 val mission = activeOrders.first()
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 24.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
-                    onClick = { onTrackOrder(mission.id ?: "") }
+                    colors = CardDefaults.cardColors(containerColor = com.ng.pikop.ui.theme.PikopGreen),
+                    onClick = { onTrackOrder(mission.id ?: "") },
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(20.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.DirectionsBike,
+                            imageVector = Icons.Default.ElectricBike,
                             contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
+                            tint = com.ng.pikop.ui.theme.PikopGold,
+                            modifier = Modifier.size(40.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "Active Mission: ${mission.status}",
+                                "Active Mission: ${(mission.status ?: "ACTIVE").replace("_", " ")}",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = Color.White
                             )
                             Text(
-                                "Tap to track your delivery progress.",
+                                "Live tracking in progress...",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.8f)
                             )
                         }
-                        Icon(Icons.Default.ChevronRight, null, tint = Color.White)
+                        Icon(Icons.Default.ArrowForwardIos, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     }
                 }
             }
 
-            // 2x2 Grid of Primary Modules
+            // 2x2 Grid of Primary Modules (Rebranded v4.0)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 PrimaryModuleCard(
                     modifier = Modifier.weight(1f),
                     title = "Dispatch",
-                    subtitle = "Send parcels",
-                    icon = Icons.Default.DirectionsBike,
-                    backgroundColor = MaterialTheme.colorScheme.primaryContainer,
-                    iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    subtitle = "Instant delivery",
+                    icon = Icons.Default.LocalShipping,
+                    backgroundColor = com.ng.pikop.ui.theme.PikopGreen,
+                    iconTint = Color.White,
                     onClick = onNewDelivery
                 )
                 PrimaryModuleCard(
                     modifier = Modifier.weight(1f),
                     title = "Food",
-                    subtitle = "Order meals",
+                    subtitle = "Hot meals",
                     icon = Icons.Default.Restaurant,
-                    backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    backgroundColor = com.ng.pikop.ui.theme.PikopOrange,
+                    iconTint = Color.White,
                     onClick = onNavigateToFood
                 )
             }
@@ -207,19 +210,19 @@ fun CustomerHomeScreen(
                 PrimaryModuleCard(
                     modifier = Modifier.weight(1f),
                     title = "Groceries",
-                    subtitle = "Fresh & raw",
-                    icon = Icons.Default.LocalGroceryStore,
-                    backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
-                    iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    subtitle = "Fresh produce",
+                    icon = Icons.Default.ShoppingBasket,
+                    backgroundColor = com.ng.pikop.ui.theme.PikopLemonGreen,
+                    iconTint = com.ng.pikop.ui.theme.PikopGreen,
                     onClick = onNavigateToGroceries
                 )
                 PrimaryModuleCard(
                     modifier = Modifier.weight(1f),
                     title = "Shop",
-                    subtitle = "General items",
+                    subtitle = "General store",
                     icon = Icons.Default.ShoppingBag,
-                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    backgroundColor = com.ng.pikop.ui.theme.PikopGold,
+                    iconTint = com.ng.pikop.ui.theme.PikopNearBlack,
                     onClick = onNavigateToShop
                 )
             }
@@ -233,7 +236,7 @@ fun CustomerHomeScreen(
                     title = "My Wallet",
                     subtitle = "₦${"%,.0f".format(walletBalance)}",
                     icon = Icons.Default.AccountBalanceWallet,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = com.ng.pikop.ui.theme.PikopGrey,
                     onClick = onNavigateToWallet
                 )
                 ServiceButton(
@@ -241,7 +244,7 @@ fun CustomerHomeScreen(
                     title = "Saved Places",
                     subtitle = "Quick access",
                     icon = Icons.Default.Bookmark,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = com.ng.pikop.ui.theme.PikopGrey,
                     onClick = onNavigateToAddresses
                 )
             }
@@ -254,7 +257,7 @@ fun CustomerHomeScreen(
                     title = "Support Hub",
                     subtitle = "Get help",
                     icon = Icons.Default.SupportAgent,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = com.ng.pikop.ui.theme.PikopGrey,
                     onClick = onNavigateToSupport
                 )
                 ServiceButton(
@@ -262,8 +265,8 @@ fun CustomerHomeScreen(
                     title = "Settings",
                     subtitle = "Account info",
                     icon = Icons.Default.Settings,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    onClick = { /* Could go to account */ }
+                    color = com.ng.pikop.ui.theme.PikopGrey,
+                    onClick = onNavigateToAddresses
                 )
             }
 
@@ -301,18 +304,20 @@ fun ServiceButton(
     Card(
         modifier = modifier.height(100.dp),
         colors = CardDefaults.cardColors(containerColor = color),
-        onClick = onClick
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(14.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            Icon(imageVector = icon, contentDescription = null, tint = com.ng.pikop.ui.theme.PikopGreen, modifier = Modifier.size(24.dp))
             Column {
                 Text(text = title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(text = subtitle, fontSize = 11.sp, color = Color.Gray)
+                Text(text = subtitle, fontSize = 11.sp, color = com.ng.pikop.ui.theme.PikopDarkGrey)
             }
         }
     }
@@ -329,25 +334,27 @@ fun PrimaryModuleCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = modifier.height(140.dp),
+        modifier = modifier.height(130.dp),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        onClick = onClick
+        onClick = onClick,
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(24.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
-                    .padding(16.dp)
+                    .padding(20.dp)
                     .align(Alignment.TopStart)
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Black,
                     color = iconTint
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelMedium,
                     color = iconTint.copy(alpha = 0.8f)
                 )
             }
@@ -355,10 +362,10 @@ fun PrimaryModuleCard(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(80.dp)
                     .align(Alignment.BottomEnd)
-                    .offset(x = 8.dp, y = 8.dp)
-                    .graphicsLayer(alpha = 0.3f),
+                    .offset(x = 12.dp, y = 12.dp)
+                    .graphicsLayer(alpha = 0.25f),
                 tint = iconTint
             )
         }
