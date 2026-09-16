@@ -201,22 +201,26 @@ fun AccountScreen(
                     onClick = onNavigateToGrowth
                 )
 
-                // Merchant Portal: Proper verification gate (Milestone 30)
+                // Role-Aware Merchant Access (Optimization Milestone 31)
+                val isMerchant = userRole == "MERCHANT"
                 AccountOption(
-                    label = "Merchant Portal",
-                    icon = Icons.Default.Inventory,
+                    label = if (isMerchant) "Manage My Shop" else "Add Merchant Profile",
+                    icon = if (isMerchant) Icons.Default.Storefront else Icons.Default.AddBusiness,
                     onClick = {
-                        scope.launch {
-                            try {
-                                val profile = apiService.getMerchantProfile()
-                                if (profile.data != null) {
-                                    onNavigateToMerchant()
-                                } else {
-                                    // No shortcut: Redirect to proper business verification flow
-                                    onNavigateToMerchantRegistration()
+                        if (isMerchant) {
+                            onNavigateToMerchant() // Should switch tab or go to dashboard
+                        } else {
+                            scope.launch {
+                                try {
+                                    val profile = apiService.getMerchantProfile()
+                                    if (profile.data != null) {
+                                        onNavigateToMerchant()
+                                    } else {
+                                        onNavigateToMerchantRegistration()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Could not verify merchant status", Toast.LENGTH_SHORT).show()
                                 }
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Could not verify merchant status", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }

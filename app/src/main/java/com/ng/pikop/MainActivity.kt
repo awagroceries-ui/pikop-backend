@@ -862,7 +862,13 @@ fun MainAppScaffold(
                     onNavigateToSessions = { navController.navigate("session_mgmt") },
                     onNavigateToCorporate = { navController.navigate("corporate_dashboard") },
                     onNavigateToGrowth = { navController.navigate("growth_rewards") },
-                    onNavigateToMerchant = { navController.navigate("merchant_portal") },
+                    onNavigateToMerchant = { 
+                        if (userRole == "MERCHANT") {
+                            navController.navigate("main") 
+                        } else {
+                            navController.navigate("merchant_portal") 
+                        }
+                    },
                     onNavigateToMerchantRegistration = { navController.navigate("merchant_business_setup") },
                     onNavigateToTerms = { navController.navigate("terms_viewer/false") },
                     onNavigateToPrivacy = { navController.navigate("privacy_policy") },

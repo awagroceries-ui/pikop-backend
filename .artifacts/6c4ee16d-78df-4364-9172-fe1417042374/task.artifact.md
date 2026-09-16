@@ -1,15 +1,13 @@
-# Task: Fix Real-Time Chat & Notification Deep-Linking
+# Task: Merchant Module Optimization & Link Restoration
 
-- [x] **Part 1: Real-Time Chat Updates**
-    - [x] Update `ChatScreen.kt` to explicitly join rooms on entry
-- [x] **Part 2: Backend Notification Hardening**
-    - [x] Update `fcmService.js` to include metadata in all notifications
-    - [x] Update `socketService.js` to pass chat IDs to FCM
-- [x] **Part 3: Android Notification Handling**
-    - [x] Update `PikopMessagingService.kt` to extract `conversation_id` and handle key variations
-    - [x] Update `MainActivity.kt` routing logic for `SUPPORT_CHAT` and `ORDER_UPDATE`
-- [ ] **Part 4: Verification**
-    - [ ] Test live chat updates (no refresh)
-    - [ ] Test cold-start deep-linking
-    - [ ] Test warm-start deep-linking
-    - [x] Git commit and push
+- [x] **Android UI Refinement**
+    - [x] Update `AccountScreen.kt` for role-aware Merchant buttons
+    - [x] Update `MerchantAppScaffold.kt` to wire tab-switching logic
+    - [x] Update `MainActivity.kt` navigation lambdas
+- [x] **Backend Robustness**
+    - [x] Add better logging to `merchantController.js`
+- [ ] **Verification**
+    - [ ] Verify tab switching in Merchant view
+    - [ ] Verify business setup flow for Customers
+    - [ ] Verify product creation/listing
+    - [x] Build and Deploy

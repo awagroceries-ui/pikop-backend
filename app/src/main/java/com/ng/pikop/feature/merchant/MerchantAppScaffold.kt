@@ -121,7 +121,13 @@ fun MerchantAppScaffold(
                     onNavigateToSessions = { rootNavController.navigate("session_mgmt") },
                     onNavigateToCorporate = { rootNavController.navigate("corporate_dashboard") },
                     onNavigateToGrowth = { rootNavController.navigate("growth_rewards") },
-                    onNavigateToMerchant = { }, // already in it
+                    onNavigateToMerchant = { 
+                        // If already in merchant scaffold, switch to dashboard tab
+                        nestedNavController.navigate("dashboard") {
+                            popUpTo("dashboard") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
                     onNavigateToMerchantRegistration = { },
                     onNavigateToTerms = { rootNavController.navigate("terms_viewer/false") },
                     onNavigateToPrivacy = { rootNavController.navigate("privacy_policy") },

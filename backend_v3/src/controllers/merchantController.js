@@ -287,6 +287,17 @@ const getSellerDashboard = async (req, res) => {
             ORDER BY b.created_at DESC
         `, [userId]);
 
+        if (sales.length === 0 && products.length === 0 && batches.length === 0) {
+            console.log(`[Merchant] Empty Dashboard for user ${userId}. Checking if active profiles exist.`);
+            const [v, k] = await Promise.all([
+                db.query("SELECT id FROM vendors WHERE user_id = $1", [userId]),
+                db.query("SELECT id FROM kitchens WHERE user_id = $1", [userId])
+            ]);
+            if (v.rows.length === 0 && k.rows.length === 0) {
+                console.warn(`[Merchant] User ${userId} requested dashboard but has NO business profile.`);
+            }
+        }
+
         res.status(200).json({
             success: true,
             data: {
