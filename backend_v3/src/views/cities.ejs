@@ -1,0 +1,119 @@
+<div class="mb-5">
+    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Operating Cities</h3>
+    <p class="text-muted small">Activate or deactivate cities for business operations and set local rules.</p>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-12">
+        <div class="card-pikop p-4">
+            <h6 class="text-black fw-bold uppercase mb-4" style="font-size: 11px; letter-spacing: 1px;">Add New City</h6>
+            <form action="/admin/cities" method="POST">
+                <div class="row g-3">
+                    <div class="col-md-2">
+                        <input type="text" name="name" class="form-control form-control-sm" placeholder="City Name (e.g. Uyo)" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="state_name" class="form-control form-control-sm" placeholder="State Name" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" step="0.000001" name="lat" class="form-control form-control-sm" placeholder="Latitude" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" step="0.000001" name="lng" class="form-control form-control-sm" placeholder="Longitude" required>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="requires_rider_permit" class="form-select form-select-sm">
+                            <option value="false">No Rider Permit</option>
+                            <option value="true">Requires Permit</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn-pikop-primary py-1 w-100" style="font-size: 12px;">ACTIVATE CITY</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card-pikop">
+    <div class="table-responsive">
+        <table class="table-pikop">
+            <thead>
+                <tr>
+                    <th>City / State</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Rider Permit</th>
+                    <th class="text-center">Security Window</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% cities.forEach(c => { %>
+                    <tr class="align-middle">
+                        <td>
+                            <div class="fw-bold text-black"><%= c.name %></div>
+                            <div class="smaller text-muted"><%= c.state_name %></div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge <%= c.is_active ? 'bg-green' : 'bg-secondary' %> text-white fw-bold">
+                                <%= c.is_active ? 'ACTIVE' : 'INACTIVE' %>
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge <%= c.requires_rider_permit ? 'bg-orange' : 'bg-light text-muted' %>">
+                                <%= c.requires_rider_permit ? 'MANDATORY' : 'NOT REQUIRED' %>
+                            </span>
+                        </td>
+                        <td class="text-center small mono">
+                            <%= c.daylight_start.substring(0,5) %> - <%= c.daylight_end.substring(0,5) %>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-<%= c.id %>">EDIT RULES</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" class="p-0">
+                            <div class="collapse bg-light p-3 border-bottom" id="edit-<%= c.id %>">
+                                <form action="/admin/cities/<%= c.id %>/rules" method="POST">
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-3">
+                                            <label class="smaller fw-bold text-muted uppercase">Active Status</label>
+                                            <select name="is_active" class="form-select form-select-sm">
+                                                <option value="true" <%= c.is_active ? 'selected' : '' %>>Live</option>
+                                                <option value="false" <%= !c.is_active ? 'selected' : '' %>>Disabled / Coming Soon</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="smaller fw-bold text-muted uppercase">Rider Permit</label>
+                                            <select name="requires_rider_permit" class="form-select form-select-sm">
+                                                <option value="true" <%= c.requires_rider_permit ? 'selected' : '' %>>Mandatory</option>
+                                                <option value="false" <%= !c.requires_rider_permit ? 'selected' : '' %>>None</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="smaller fw-bold text-muted uppercase">Daylight Start</label>
+                                            <input type="time" name="daylight_start" class="form-control form-control-sm" value="<%= c.daylight_start %>">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="smaller fw-bold text-muted uppercase">Daylight End</label>
+                                            <input type="time" name="daylight_end" class="form-control form-control-sm" value="<%= c.daylight_end %>">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <button type="submit" class="btn btn-sm btn-primary w-100">SAVE RULES</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .smaller { font-size: 11px; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+</style>

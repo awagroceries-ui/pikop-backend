@@ -1,0 +1,38 @@
+<div class="mb-5">
+    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Expansion Waitlist</h3>
+    <p class="text-muted small">Real-time demand tracking from users in not-yet-active cities.</p>
+</div>
+
+<div class="card-pikop">
+    <% if (waitlist.length === 0) { %>
+        <div class="p-5 text-center">
+            <p class="text-muted mb-0">No entries in the expansion waitlist yet.</p>
+        </div>
+    <% } else { %>
+        <div class="table-responsive">
+            <table class="table-pikop">
+                <thead>
+                    <tr>
+                        <th>City / State</th>
+                        <th>User Email</th>
+                        <th class="text-center">Date Requested</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% waitlist.forEach(item => { %>
+                        <tr class="align-middle">
+                            <td class="fw-bold text-black">
+                                <%= item.city_name %>
+                                <% if (item.state_name) { %>
+                                    <span class="text-muted small fw-normal">, <%= item.state_name %></span>
+                                <% } %>
+                            </td>
+                            <td><%= item.email %></td>
+                            <td class="text-center small"><%= new Date(item.created_at).toLocaleString() %></td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</div>

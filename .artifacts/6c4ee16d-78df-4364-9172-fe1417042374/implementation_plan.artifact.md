@@ -1,83 +1,72 @@
-# Implementation Plan - Fleet Partner Program
+# Implementation Plan - Nationwide-Ready Architecture
 
-This plan introduces the **Fleet Partner** program, allowing logistics companies to manage their fleets on Pikop with custom commission rates and priority routing.
+This plan generalizes the Pikop platform to support any Nigerian city/state via admin configuration, removing hardcoded references to launch cities (Port Harcourt, Lagos, Abuja).
+
+## 🔍 Diagnostic Summary - Hardcoded Logic Found
+1.  **Weather Service**: Hardcoded `CITIES` list in `weatherService.js`.
+2.  **Onboarding**: Hardcoded "Port Harcourt" placeholder and Rider Permit tip in `SignupFulfillerScreen.kt`.
+3.  **Discovery**: Hardcoded "Discover Port Harcourt" header in `StorefrontScreen.kt`.
+4.  **API Defaults**: `CommerceOrderRequest` in `ApiService.kt` defaults city to "Port Harcourt".
+5.  **Map Defaults**: Multiple screens default fallback coordinates to Lagos.
+6.  **Email/Copy**: Hardcoded city lists in `notificationService.js` and `emailService.js`.
 
 ## Proposed Changes
 
-### 1. Database Schema Enhancements
+### 1. Database & Schema
 
-#### [NEW] [fleet_partner_program migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726500000000_fleet_partner_program.js)
-- **Extend `users` table**: Add `FLEET_PARTNER` to the role check constraint.
-- **[NEW] `fleet_partners` table**:
+#### [NEW] [nationwide_readiness migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726510000000_nationwide_readiness.js)
+- **[NEW] `operating_cities` table**:
     - `id` (SERIAL PRIMARY KEY)
-    - `user_id` (INT, references `users`)
-    - `business_name` (VARCHAR)
-    - `cac_number` (VARCHAR, unique)
-    - `address` (TEXT)
-    - `fleet_size` (INT)
-    - `vehicle_types` (VARCHAR[])
-    - `cities` (VARCHAR[])
-    - `commission_override` (DECIMAL) - Custom share for Pikop (default 25%)
-    - `has_overflow_priority` (BOOLEAN, default false)
-    - `status` (VARCHAR, e.g., 'PENDING', 'VERIFIED')
-- **[NEW] `fleet_partner_invites` table**:
-    - `id` (SERIAL PRIMARY KEY)
-    - `fleet_partner_id` (INT, references `fleet_partners`)
-    - `invite_code` (VARCHAR, unique)
+    - `name` (VARCHAR, unique) - e.g., "Port Harcourt"
+    - `state_name` (VARCHAR) - e.g., "Rivers"
+    - `lat`, `lng` (DECIMAL) - For weather and map biasing
     - `is_active` (BOOLEAN, default true)
-- **Extend `fulfillers` table**: Add `fleet_partner_id` (INT, references `fleet_partners`).
+    - `requires_rider_permit` (BOOLEAN, default false)
+    - `daylight_start` (TIME, default '06:00')
+    - `daylight_end` (TIME, default '18:00')
+- **[NEW] `expansion_waitlist` table**:
+    - `id` (SERIAL PRIMARY KEY)
+    - `user_id` (INT, references users)
+    - `city_name`, `email` (VARCHAR)
+- **Seed**: Lagos, Abuja, Port Harcourt (with PH requiring rider permit).
 
 ### 2. Backend Logic (Node.js)
 
-#### [NEW] [fleetPartnerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fleetPartnerController.js)
-- `setupFleetProfile`: Initial B2B application/onboarding.
-- `getFleetDashboard`: Aggregates linked fulfiller status and earnings.
-- `generateInviteCode`: For partners to onboard their drivers.
-
-#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
-- Update `signup` to handle `fleet_invite_code` for Fulfillers, linking them to a partner.
-
-#### [MODIFY] [dispatchService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/dispatchService.js)
-- Implement **Overflow-based Priority**:
-    - Independent Fulfillers get the offer first.
-    - If unaccepted after 3 minutes, broadcast to Fleet Partners with `has_overflow_priority`.
-
-#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
-- Update `processMissionSettlement` to check if a Fulfiller is linked to a Fleet Partner and apply their `commission_override` if it exists.
-
-### 3. Admin Integration
-
 #### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- Add management of Fleet Partners: Verify business, set custom commission, and toggle overflow priority.
+- Implement `getCities`, `addCity`, `updateCityRules` and `getExpansionWaitlist`.
 
-### 4. Android App (Compose)
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- `getQuote`: Check if `pickup_state` or `pickup_city` matches an active entry in `operating_cities`.
+- Return `is_live: boolean` in the quote response.
 
-#### [MODIFY] [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt)
-- Add "Logistics Partner" card for B2B signup.
+#### [MODIFY] [weatherService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/weatherService.js)
+- Replace hardcoded `CITIES` with a dynamic query from `operating_cities`.
 
-#### [NEW] `FleetPartnerOnboarding.kt`
-- Step-by-step business info and fleet details collection.
+#### [NEW] [expansionController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/expansionController.js)
+- `joinWaitlist`: Endpoint for users to request Pikop in their city.
 
-#### [NEW] `FleetPartnerDashboard.kt`
-- Management view for fleet owners.
+### 3. Android App (Compose)
+
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Remove hardcoded default values for city.
+- Add `is_live` to `QuoteResponse`.
+- Add `joinWaitlist` endpoint.
 
 #### [MODIFY] [SignupFulfillerScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/SignupFulfillerScreen.kt)
-- Add "Invite Code (Optional)" field for drivers onboarding under a fleet.
+- Fetch active cities and rules on init.
+- Dynamically show "Commercial Rider Permit" requirement based on the selected city's rules.
 
-## User Review Required
+#### [MODIFY] [StorefrontScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/StorefrontScreen.kt)
+- Change header to "Discover [Current City]" or "Discover Nearby".
+- If no items found and city is not live, show a "Coming Soon" card with a "Notify Me" button.
 
-> [!IMPORTANT]
-> **Priority Routing Logic**
-> The overflow window (3 minutes) is currently implemented in `dispatchReminderJob.js`. I will update this job to check for fleet priority eligibility upon re-broadcast.
-
-> [!CAUTION]
-> **Commission Payouts**
-> For fleet-linked Fulfillers, the payout still goes to the *individual Fulfiller's wallet*. The Fleet Partner manages the aggregate view but doesn't centrally receive the drivers' earnings unless a central billing mandate is built later.
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- If `is_live` is false, block deployment and show the Waitlist dialog.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Fleet Onboarding**: Apply as a Fleet Partner, approve via Admin, and generate an invite code.
-2.  **Linked Fulfiller**: Onboard a Rider using the invite code. Verify the `fleet_partner_id` is set.
-3.  **Commission Test**: Complete a mission with a linked Rider. Verify the custom commission rate (e.g., 15% instead of 25%) is applied.
-4.  **Overflow Test**: Create an order. Wait 3 minutes without accepting as an independent. Verify Fleet-linked Riders get the offer only then.
+1.  **Add City**: Add a new city (e.g., "Uyo") via the Admin Dashboard. Verify it appears in the app and allows orders.
+2.  **Toggle Inactive**: Deactivate a city in Admin. Verify the app shows the "Coming Soon" / Waitlist UI.
+3.  **Permit Check**: Select Port Harcourt in Fulfiller signup; verify permit text shows. Select Lagos; verify it doesn't (unless configured).
+4.  **Nationwide Signup**: Sign up with an address in a non-launch state (e.g., Kano). Verify account creation works, but "Request Delivery" is gated.

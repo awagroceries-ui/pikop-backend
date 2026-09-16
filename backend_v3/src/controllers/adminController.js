@@ -1017,6 +1017,60 @@ const getFulfillerDetail = async (req, res) => {
     }
 };
 
+/**
+ * Nationwide Readiness: City Management
+ */
+const getCities = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM operating_cities ORDER BY name ASC");
+        res.render('cities', { cities: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const addCity = async (req, res) => {
+    const { name, state_name, lat, lng, requires_rider_permit } = req.body;
+    try {
+        await db.query(
+            `INSERT INTO operating_cities (name, state_name, lat, lng, requires_rider_permit)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [name, state_name, lat, lng, requires_rider_permit === 'true']
+        );
+        res.redirect('/admin/cities');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const updateCityRules = async (req, res) => {
+    const { id } = req.params;
+    const { is_active, requires_rider_permit, daylight_start, daylight_end } = req.body;
+    try {
+        await db.query(
+            `UPDATE operating_cities
+             SET is_active = $1,
+                 requires_rider_permit = $2,
+                 daylight_start = $3,
+                 daylight_end = $4
+             WHERE id = $5`,
+            [is_active === 'true', requires_rider_permit === 'true', daylight_start, daylight_end, id]
+        );
+        res.redirect('/admin/cities');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const getExpansionWaitlist = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM expansion_waitlist ORDER BY created_at DESC");
+        res.render('waitlist', { waitlist: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -1037,6 +1091,10 @@ module.exports = {
   getMerchants,
   getFleetPartners,
   updateFleetPartnerStatus,
+  getCities,
+  addCity,
+  updateCityRules,
+  getExpansionWaitlist,
   getAdminUsers,
   addAdmin,
   deleteAdmin,

@@ -133,6 +133,7 @@ fun OrderQuoteScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showSchedulingDialog by remember { mutableStateOf(false) }
+    var showWaitlistDialog by remember { mutableStateOf(false) }
     var scheduledAt by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
@@ -532,7 +533,9 @@ fun OrderQuoteScreen(
                                     quoteId = response.quote_id
                                     quoteResult = response
                                     
-                                    if (response.restricted_dispatch && response.drivers_count == 0) {
+                                    if (!response.is_live) {
+                                        showWaitlistDialog = true
+                                    } else if (response.restricted_dispatch && response.drivers_count == 0) {
                                         showSchedulingDialog = true
                                     }
                                 } else {
@@ -730,6 +733,35 @@ fun OrderQuoteScreen(
             }
             
             Spacer(modifier = Modifier.height(40.dp))
+        }
+
+        if (showWaitlistDialog) {
+            val locationParts = pickupAddress.split(',')
+            val areaName = if (locationParts.size >= 2) locationParts[locationParts.size - 2].trim() else "your area"
+            
+            AlertDialog(
+                onDismissRequest = { showWaitlistDialog = false; quoteId = null },
+                title = { Text("Pikop isn't live here yet!") },
+                text = { Text("We're currently launching city-by-city across Nigeria. Would you like us to notify you when we activate missions in $areaName?") },
+                confirmButton = {
+                    Button(onClick = {
+                        coroutineScope.launch {
+                            try {
+                                apiService.joinWaitlist(JoinWaitlistRequest(
+                                    city_name = areaName,
+                                    email = userEmail
+                                ))
+                                Toast.makeText(context, "Interest recorded! We'll be in touch.", Toast.LENGTH_LONG).show()
+                            } catch (_: Exception) {}
+                            showWaitlistDialog = false
+                            quoteId = null
+                        }
+                    }) { Text("Notify Me") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showWaitlistDialog = false; quoteId = null }) { Text("Cancel") }
+                }
+            )
         }
 
         if (showSchedulingDialog) {

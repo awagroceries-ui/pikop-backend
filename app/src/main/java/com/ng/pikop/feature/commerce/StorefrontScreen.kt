@@ -25,10 +25,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import android.widget.Toast
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.DiscoveryItem
 import com.ng.pikop.core.network.ErrorUtils
+import com.ng.pikop.core.network.JoinWaitlistRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.launch
@@ -50,6 +52,9 @@ fun StorefrontScreen(
     var items by remember { mutableStateOf<List<DiscoveryItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var currentCity by remember { mutableStateOf("Port Harcourt") }
+    var isCityLive by remember { mutableStateOf(true) }
+    var showWaitlistDialog by remember { mutableStateOf(false) }
 
     val categories = listOf("All", "Food", "Groceries", "Electronics", "Pharmacy", "Fashion", "Beauty")
 
@@ -66,6 +71,19 @@ fun StorefrontScreen(
                 query = if (searchQuery.isBlank()) null else searchQuery
             )
             items = response.data
+            
+            // Resolve City from location if possible for Header
+            if (location != null) {
+                try {
+                    val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                    val city = geocoder.getFromLocation(location.latitude, location.longitude, 1)?.firstOrNull()?.locality
+                    if (city != null) {
+                        currentCity = city
+                        val rules = apiService.getCityRules(city)
+                        isCityLive = rules["is_live"] as? Boolean ?: false
+                    }
+                } catch (_: Exception) {}
+            }
         } catch (e: Exception) {
             android.util.Log.e("Storefront", "Fetch error", e)
         } finally {
@@ -87,7 +105,7 @@ fun StorefrontScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    "Discover Port Harcourt",
+                    if (isCityLive) "Discover $currentCity" else "Coming Soon to $currentCity",
                     color = Color.White,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
@@ -136,9 +154,29 @@ fun StorefrontScreen(
             }
         } else if (items.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Storefront, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
-                    Text("No items found nearby.", color = Color.Gray)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                    if (!isCityLive) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = com.ng.pikop.ui.theme.PikopGold.copy(alpha = 0.1f)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, com.ng.pikop.ui.theme.PikopGold)
+                        ) {
+                            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Celebration, null, modifier = Modifier.size(48.dp), tint = com.ng.pikop.ui.theme.PikopGold)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Pikop is arriving soon in $currentCity!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Text("We're currently setting up our local merchant network. Want to be the first to know?", style = MaterialTheme.typography.bodySmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp))
+                                Button(
+                                    onClick = { showWaitlistDialog = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = com.ng.pikop.ui.theme.PikopGold, contentColor = Color.Black)
+                                ) {
+                                    Text("NOTIFY ME", fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
+                        }
+                    } else {
+                        Icon(Icons.Default.Storefront, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
+                        Text("No items found nearby.", color = Color.Gray)
+                    }
                 }
             }
         } else {
@@ -155,6 +193,44 @@ fun StorefrontScreen(
             }
         }
     }
+
+    if (showWaitlistDialog) {
+        WaitlistDialog(
+            cityName = currentCity,
+            onDismiss = { showWaitlistDialog = false },
+            onConfirm = { email ->
+                scope.launch {
+                    try {
+                        apiService.joinWaitlist(JoinWaitlistRequest(city_name = currentCity, email = email))
+                        Toast.makeText(context, "Added to Waitlist!", Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {}
+                    showWaitlistDialog = false
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun WaitlistDialog(cityName: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var email by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Join $cityName Waitlist") },
+        text = {
+            Column {
+                Text("Enter your email and we'll send you an invitation when we go live in your area.", style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email Address") }, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(email) }, enabled = email.contains("@")) { Text("Join Waitlist") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

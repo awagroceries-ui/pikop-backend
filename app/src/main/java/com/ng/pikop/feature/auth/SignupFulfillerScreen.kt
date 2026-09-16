@@ -46,6 +46,7 @@ fun SignupFulfillerScreen(
     var referralCode by remember { mutableStateOf("") }
     var fleetInviteCode by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var cityRequiresPermit by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     // Extra fields
@@ -68,6 +69,15 @@ fun SignupFulfillerScreen(
 
     LaunchedEffect(Unit) {
         tokenManager.clearTokens()
+    }
+
+    LaunchedEffect(operatingCity) {
+        if (operatingCity.length >= 3) {
+            try {
+                val rules = apiService.getCityRules(operatingCity)
+                cityRequiresPermit = rules["requires_rider_permit"] as? Boolean ?: false
+            } catch (_: Exception) {}
+        }
     }
 
     Surface(
@@ -229,13 +239,8 @@ fun SignupFulfillerScreen(
                 Text("Required Documents (Upload via Dashboard after signup)", style = MaterialTheme.typography.titleSmall, color = Color.Gray)
                 Text("• Valid Driver's / Rider's License", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 
-                if (isRider) {
-                    val showPortHarcourtTip = operatingCity.contains("Port Harcourt", ignoreCase = true) || operatingCity.contains("PH", ignoreCase = true)
-                    if (showPortHarcourtTip) {
-                        Text("• Commercial Rider Permit (This permit is required for riders operating in Port Harcourt — you may be asked to provide this before being approved to accept missions there)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                    } else {
-                        Text("• Commercial Rider Permit (Optional, depending on city regulations)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                    }
+                if (isRider && cityRequiresPermit) {
+                    Text("• Commercial Rider Permit (This permit is mandatory for riders in $operatingCity — you must provide this to be approved for missions)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
                 
                 if (isDriver) {

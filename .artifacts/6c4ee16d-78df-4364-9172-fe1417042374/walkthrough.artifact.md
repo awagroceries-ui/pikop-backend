@@ -1,40 +1,40 @@
-# Walkthrough - Advanced Incident & Dispute Engine
+# Walkthrough - Fleet Partner Program
 
-I have successfully implemented the Advanced Incident & Dispute Engine, providing the platform with professional tools to manage fleet friction, marketplace disputes, and automated financial waivers.
+I have successfully implemented the **Fleet Partner Program**, allowing organized logistics companies to join Pikop as partners, manage their own fleets of drivers, and benefit from custom commission rates and priority routing.
 
 ## Changes Made
 
-### 🛠️ Infrastructure & Schema
-- **Migration**: Created `1726490000000_incident_management.js` which:
-    - Extended the `disputes` table with `severity` (LOW, MEDIUM, HIGH), `incident_category`, and `is_3way_bridged`.
-    - Created the `conversation_participants` table to support multi-party chat rooms.
-    - Updated the wallet ledger to support `PENALTY_WAIVER` and `RETURN_WAIVER` purposes.
+### 💼 1. Fleet Partner Account & Onboarding
+- **New Account Type**: Added `FLEET_PARTNER` to the system. This role is specifically designed for businesses that own a fleet but don't fulfill missions themselves.
+- **B2B Onboarding Flow**: Created a dedicated, multi-step onboarding flow for Fleet Partners:
+    - **Step 1**: Contact Person & Basic Info (`SignupFleetPartnerScreen.kt`).
+    - **Step 2**: Business Details (CAC, Address, Fleet Size, vehicle types, cities) (`FleetPartnerBusinessSetupScreen.kt`).
+- **Admin Verification**: All Fleet Partners enter a `PENDING_VERIFICATION` state, allowing admins to manually review business credentials before activation.
 
-### 🧠 Backend Logic (Intelligent Resolution)
-- **Severity-Based Responses**: Updated `orderController.js` so that reporting a "HIGH" severity incident (e.g., Accident or Safety Risk) automatically activates a **3-Way Support Bridge**.
-- **Support Bridge**: Implemented a new helper that joins the Customer, Fulfiller, and an assigned Support Admin into a single real-time conversation for immediate mediation.
-- **Automated Waivers**: Added `applyAutomatedWaiver` to `walletService.js`. This allows admins to instantly reverse the **25% cancellation penalty** or **75% return fee** with a single click, crediting the user's wallet automatically.
+### 🔗 2. Driver-Fleet Linking
+- **Invite Code System**: Verified Fleet Partners can generate a unique `invite_code` from their dashboard.
+- **Linked Signup**: Individual Fulfillers (Riders/Drivers) can enter this invite code during their signup. This automatically links them to the partner via a `fleet_partner_id`.
+- **Integrity**: Fleet-linked fulfillers still complete their own individual KYC (License/Identity/Vehicle) to maintain platform safety standards.
 
-### 📊 Admin Resolution Dashboard
-- **Dispute Resolution Center**: Created a new, dedicated view in the Admin Dashboard (`/admin/disputes`) prioritized by severity.
-- **One-Click Resolution**: Admins can now choose between:
-    - **Release Escrow**: standard marketplace release.
-    - **Refund Buyer**: standard marketplace refund.
-    - **Apply Waiver**: reverses specific penalties based on incident validity.
+### 🚀 3. Priority Routing & Commission Overrides
+- **Overflow Priority**: Implemented a 3-minute "independent-first" window. Fresh missions are first offered to independent agents; if unaccepted after 3 minutes, they are automatically broadcast to eligible Fleet Partners.
+- **Custom Commissions**: Admins can now negotiate and set custom Pikop commission rates (e.g., 20% instead of 25%) for specific partners. This override is automatically applied during mission settlement for all drivers linked to that partner.
 
-### 📱 Android UI (Structured Reporting)
-- **Fulfiller Incidents**: Updated the `ActiveOrderScreen.kt` reporting dialog to include severity levels and clearer categories like `VEHICLE_BREAKDOWN` and `ACCIDENT`.
-- **Customer Disputes**: Redesigned the `SecurePayDisputeDialog` in `TrackOrderScreen.kt` with a more structured layout, allowing customers to specify severity and precise issues like `INCORRECT_ITEM` or `ITEM_DAMAGED`.
+### 📊 4. Fleet Partner Dashboard
+- **Management Console**: Built a dedicated dashboard for fleet owners to monitor their operations in real-time.
+- **Insights**: Owners can see:
+    - Aggregate mission volume (30-day view).
+    - Status of all linked drivers (Online/Offline, KYC status, Ratings).
+    - Direct access to their unique invite code.
 
 ## Verification Results
-- **Android Build**: Successfully compiled (`:app:assembleDebug`).
-- **Logic Integrity**:
-    - Confirmed "HIGH" severity reports trigger the 3-way bridge creation logic.
-    - Verified that waivers correctly calculate the 25% or 75% amounts and record them as `CREDIT` in the ledger.
-- **Visual Audit**: Admin dashboard correctly highlights "HIGH" priority incidents in red for immediate attention.
+- **Onboarding Path**: [VERIFIED] Role selection correctly branches to Fleet Partner application.
+- **Linking Logic**: [VERIFIED] Entering a valid invite code correctly sets the `fleet_partner_id` in the database.
+- **Settlement Logic**: [VERIFIED] `walletService.js` correctly detects the partner override and adjusts the platform share accordingly.
+- **Build Status**: [SUCCESS] Successfully compiled and verified (`:app:assembleDebug`).
 
 ## Deployment Instructions
-To activate the new incident engine on your production VPS:
+To activate the Fleet Partner program on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main

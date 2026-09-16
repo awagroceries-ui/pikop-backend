@@ -101,7 +101,15 @@ data class QuoteResponse(
     val payer_info: PayerInfo? = null,
     val restricted_dispatch: Boolean = false,
     val drivers_count: Int = 0,
+    val is_live: Boolean = true,
+    val requires_permit: Boolean = false,
     val expires_at: String? = null
+)
+
+data class JoinWaitlistRequest(
+    val city_name: String,
+    val state_name: String? = null,
+    val email: String
 )
 
 data class LandmarkSuggestion(
@@ -1013,6 +1021,13 @@ interface ApiService {
 
     @GET("api/v1/fleet-partners/invite-code")
     suspend fun getFleetInviteCode(): Map<String, String>
+
+    // Expansion & Nationwide (v4.2)
+    @POST("api/v1/expansion/waitlist")
+    suspend fun joinWaitlist(@Body request: JoinWaitlistRequest): Map<String, Any>
+
+    @GET("api/v1/expansion/cities/{name}/rules")
+    suspend fun getCityRules(@retrofit2.http.Path("name") name: String): Map<String, Any>
     
     @PATCH("api/v1/merchants/settings")
     suspend fun updateMerchantSettings(@Body request: Map<String, Boolean>): AuthResponse

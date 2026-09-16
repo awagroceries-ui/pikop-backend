@@ -176,13 +176,35 @@ const getQuote = async (req, res) => {
   // 6. Security Analysis: Daylight Window & Driver Availability
   let restrictedDispatch = false;
   let driversCount = 0;
+  let isLive = true;
+  let cityRules = null;
+
   try {
+      // 6.1 Check if City/State is Live (Nationwide Readiness v4.2)
+      const stateClean = (pickup_state || '').split(' ')[0].trim();
+      const cityClean = (pickup_address || '').split(',').reverse()[1]?.trim() || '';
+
+      const liveCheck = await db.query(
+          "SELECT * FROM operating_cities WHERE is_active = true AND (state_name ILIKE $1 OR name ILIKE $2 OR name ILIKE $1) LIMIT 1",
+          [`%${stateClean}%`, `%${cityClean}%`]
+      );
+
+      if (liveCheck.rows.length === 0) {
+          isLive = false;
+          console.log(`[Quote] Gating: Location ${pickup_address} (${stateClean}) is not currently active.`);
+      } else {
+          cityRules = liveCheck.rows[0];
+      }
+
       const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('daylight_dispatch_start', 'daylight_dispatch_end')");
       const settings = {};
       settingsRes.rows.forEach(r => settings[r.key] = r.value);
 
       const nowTime = getWATTimeStr();
-      if (!isWithinWindow(nowTime, settings['daylight_dispatch_start'] || '06:00', settings['daylight_dispatch_end'] || '18:00')) {
+      const dayStart = cityRules?.daylight_start || settings['daylight_dispatch_start'] || '06:00';
+      const dayEnd = cityRules?.daylight_end || settings['daylight_dispatch_end'] || '18:00';
+
+      if (!isWithinWindow(nowTime, dayStart, dayEnd)) {
           restrictedDispatch = true;
           // Count only drivers in the same state/radius
           const statePattern = `%${(pickup_state || '').split(' ')[0]}%`;
@@ -195,7 +217,9 @@ const getQuote = async (req, res) => {
           );
           driversCount = parseInt(driversRes.rows[0].count);
       }
-  } catch (e) {}
+  } catch (e) {
+      console.error('[Quote] Gating check error:', e.message);
+  }
 
   res.status(200).json({
     success: true,
@@ -214,6 +238,8 @@ const getQuote = async (req, res) => {
     required_fulfiller_classes: requiredClasses,
     restricted_dispatch: restrictedDispatch,
     drivers_count: driversCount,
+    is_live: isLive,
+    requires_permit: cityRules?.requires_rider_permit || false,
     payer_info: {
         type: recipient_type, // Map back to UI expectations
         user_id: recipient_user_id

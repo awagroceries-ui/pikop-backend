@@ -1,23 +1,20 @@
-# Task: Fleet Partner Program
+# Task: Nationwide-Ready Architecture
 
-- [ ] **Database & Schema**
-    - [ ] Create migration `1726500000000_fleet_partner_program.js`
-- [ ] **Backend - Fleet Partner Core**
-    - [ ] Create `fleetPartnerController.js` (Onboarding, Dashboard, Invites)
-    - [ ] Add `fleetPartnerRoutes.js`
-    - [ ] Update `authController.js` to handle invite codes during fulfiller signup
-- [ ] **Backend - Logistics & Finance Hardening**
-    - [ ] Update `dispatchService.js` and `dispatchReminderJob.js` for overflow priority
-    - [ ] Update `walletService.js` for per-partner commission overrides
-- [ ] **Android UI - Onboarding & Linking**
-    - [ ] Update `UserTypeSelectionScreen.kt` (Add Fleet Partner entry)
-    - [ ] Update `SignupFulfillerScreen.kt` (Add Invite Code field)
-    - [ ] Create `FleetPartnerBusinessSetupScreen.kt` (Step 2 Onboarding)
-- [ ] **Android UI - Fleet Dashboard**
-    - [ ] Create `FleetPartnerDashboardScreen.kt`
-    - [ ] Update `MainActivity.kt` with new routes and navigation
+- [x] **Database & Schema**
+    - [x] Create migration `1726510000000_nationwide_readiness.js`
+- [x] **Backend Core - City Management**
+    - [x] Update `adminController.js` (getCities, updateCityRules)
+    - [x] Update `weatherService.js` (Dynamic city loop)
+    - [x] Implement `expansionController.js` (Waitlist)
+- [x] **Backend Core - Transaction Gating**
+    - [x] Update `orderController.js` (`getQuote` logic for active cities)
+- [x] **Android Integration**
+    - [x] Update `ApiService.kt` (DTOs & Endpoints)
+    - [x] Update `SignupFulfillerScreen.kt` (Dynamic Permit Rules)
+    - [x] Update `StorefrontScreen.kt` (Dynamic Header & Coming Soon UI)
+    - [x] Update `OrderQuoteScreen.kt` (Active city gating & Waitlist dialog)
 - [ ] **Verification**
-    - [ ] Verify Fleet-Fulfiller linking
-    - [ ] Verify overflow routing logic
-    - [ ] Verify commission override
-    - [ ] Build and Deploy
+    - [ ] Test adding new city via Admin
+    - [ ] Test gating in non-active city
+    - [ ] Verify waitlist capture
+    - [x] Build and Deploy

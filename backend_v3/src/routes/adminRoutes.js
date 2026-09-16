@@ -92,4 +92,10 @@ router.post('/withdrawals/:id/approve', adminController.approveWithdrawal);
 router.get('/settings', hasRole(['super_admin']), adminController.getSettings);
 router.post('/settings', hasRole(['super_admin']), adminController.updateSettings);
 
+// Nationwide Readiness (v4.2)
+router.get('/cities', adminController.getCities);
+router.post('/cities', adminController.addCity);
+router.post('/cities/:id/rules', adminController.updateCityRules);
+router.get('/waitlist', adminController.getExpansionWaitlist);
+
 module.exports = router;
