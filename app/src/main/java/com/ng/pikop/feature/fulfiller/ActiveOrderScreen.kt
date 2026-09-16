@@ -682,13 +682,15 @@ fun ActiveOrderScreen(
     if (showIncidentDialog) {
         IncidentReportDialog(
             onDismiss = { showIncidentDialog = false },
-            onReport = { category, resolution, notes ->
+            onReport = { category, resolution, notes, severity ->
                 coroutineScope.launch {
                     try {
-                        apiService.fileIncident(orderId, IncidentRequest(category, notes, resolution))
+                        apiService.fileIncident(orderId, IncidentRequest(category, notes, resolution, severity))
                         Toast.makeText(context, "Incident reported. Check status.", Toast.LENGTH_LONG).show()
                         onOrderCompleted()
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) {
+                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                    }
                     showIncidentDialog = false
                 }
             }
@@ -719,35 +721,57 @@ fun ActiveOrderScreen(
 }
 
 @Composable
-fun IncidentReportDialog(onDismiss: () -> Unit, onReport: (String, String, String) -> Unit) {
+fun IncidentReportDialog(onDismiss: () -> Unit, onReport: (String, String, String, String) -> Unit) {
     var category by remember { mutableStateOf("breakdown") }
     var resolution by remember { mutableStateOf("handoff") }
+    var severity by remember { mutableStateOf("MEDIUM") }
     var notes by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Report Incident") },
+        title = { Text("Report Incident", fontWeight = FontWeight.Bold) },
         text = {
-            Column {
-                Text("What happened?", style = MaterialTheme.typography.labelSmall)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = category == "breakdown", onClick = { category = "breakdown" }, label = { Text("Breakdown") })
-                    FilterChip(selected = category == "security_risk", onClick = { category = "security_risk" }, label = { Text("Security") })
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Requested Resolution", style = MaterialTheme.typography.labelSmall)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = resolution == "handoff", onClick = { resolution = "handoff" }, label = { Text("Handoff") })
-                    FilterChip(selected = resolution == "cancel_with_waiver_request", onClick = { resolution = "cancel_with_waiver_request" }, label = { Text("Abort") })
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column {
+                    Text("Severity", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = severity == "LOW", onClick = { severity = "LOW" }, label = { Text("Low") })
+                        FilterChip(selected = severity == "MEDIUM", onClick = { severity = "MEDIUM" }, label = { Text("Medium") })
+                        FilterChip(selected = severity == "HIGH", onClick = { severity = "HIGH" }, label = { Text("High") })
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes") }, modifier = Modifier.fillMaxWidth())
+                Column {
+                    Text("What happened?", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = category == "breakdown", onClick = { category = "breakdown" }, label = { Text("Breakdown") })
+                        FilterChip(selected = category == "security_risk", onClick = { category = "security_risk" }, label = { Text("Security") })
+                        FilterChip(selected = category == "accident", onClick = { category = "accident" }, label = { Text("Accident") })
+                    }
+                }
+                
+                Column {
+                    Text("Requested Resolution", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = resolution == "handoff", onClick = { resolution = "handoff" }, label = { Text("Handoff") })
+                        FilterChip(selected = resolution == "cancel_with_waiver_request", onClick = { resolution = "cancel_with_waiver_request" }, label = { Text("Abort") })
+                    }
+                }
+
+                OutlinedTextField(
+                    value = notes, 
+                    onValueChange = { notes = it }, 
+                    label = { Text("Notes / Details") }, 
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
             }
         },
         confirmButton = {
-            Button(onClick = { onReport(category, resolution, notes) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+            Button(
+                onClick = { onReport(category, resolution, notes, severity) }, 
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
                 Text("File Report")
             }
         },

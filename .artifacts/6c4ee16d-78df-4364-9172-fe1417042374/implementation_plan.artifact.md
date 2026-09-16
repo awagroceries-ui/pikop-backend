@@ -1,38 +1,53 @@
-# Implementation Plan - Merchant Module Optimization & Link Restoration
+# Implementation Plan - Advanced Incident & Dispute Engine
 
-This plan addresses the "inactive" state of the Merchant Portal and optimizes the module for product management.
+This plan implements a robust system for handling fleet incidents, marketplace disputes, and automated financial waivers.
+
+## Proposed Changes
+
+### 1. Database Schema Enhancements
+
+#### [NEW] [incident_management migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726490000000_incident_management.js)
+- **Extend `disputes` table**: Add `severity` (LOW, MEDIUM, HIGH), `incident_category`, and `is_3way_bridged` (boolean).
+- **[NEW] `conversation_participants` table**: To support multi-party chat (Admin + Fulfiller + Customer).
+    - `conversation_id` (UUID), `user_id` (INT), `role` (ADMIN, FULFILLER, CUSTOMER).
+
+### 2. Backend Logic (Node.js)
+
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- Update `fileIncident` and `reportProblem` to support structured categories and severity.
+- Implement logic to automatically create a 3-way bridged conversation if severity is "HIGH".
+
+#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
+- Implement `applyAutomatedWaiver(orderId, waiverType)`:
+    - `CANCELLATION`: Handles the 25% penalty waiver if proof is valid.
+    - `RETURN`: Handles the 75% return fee waiver if the failure was not the agent's fault.
+
+#### [MODIFY] [supportController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/supportController.js)
+- Implement `bridgeIncidentChat(orderId)`: Joins the assigned Fulfiller and Customer into a single Support Conversation.
+
+### 3. Admin Resolution Dashboard
+
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- Create `getDisputeResolutionCenter`: A dedicated view for admins to mediate between Customers and Merchants/Fulfillers.
+- Add "Apply Waiver" and "Release/Refund" actions directly in the resolution view.
+
+### 4. Android Frontend (Compose)
+
+#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
+- Update `IncidentReportDialog` with structured categories: `VEHICLE_BREAKDOWN`, `SAFETY_RISK`, `RECIPIENT_UNREACHABLE`, `ACCIDENT`.
+
+#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt)
+- Update `SecurePayDisputeDialog` with structured categories: `INCORRECT_ITEM`, `ITEM_DAMAGED`, `DELAYED_DELIVERY`.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Account Menu Redesign**
-> I am repurposing the "Merchant Portal" button in the Account screen to be context-aware. If the user is already a Merchant, it will be labeled "Manage My Shop" and link to their active dashboard.
-
-## Proposed Changes
-
-### Android Frontend (Compose)
-
-#### [MODIFY] [AccountScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/AccountScreen.kt)
-- Update the "Merchant Portal" button to dynamically change label and icon based on the `userRole`.
-- **Label**: "Add Merchant Profile" (if Customer) vs "Manage My Shop" (if Merchant).
-
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Update the `MerchantAppScaffold` navigation lambdas.
-- Ensure `onNavigateToMerchant` links to the "dashboard" tab within the nested nav instead of being empty.
-
-#### [MODIFY] [MerchantAppScaffold.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantAppScaffold.kt)
-- Implement a `navigateToTab(route)` helper and pass it to the nested `AccountScreen`.
-- This ensures that clicking "Manage My Shop" inside the Merchant "Store" tab actually switches the bottom navigation to the "Dashboard" or "Inventory" tab.
-
-### Backend (Node.js)
-
-#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
-- Update `getSellerDashboard` to include more descriptive error logging if a user attempts to access it without an active business record.
+> **3-Way Bridging UX**
+> When a "HIGH" severity incident is reported, both the Fulfiller and Customer will see a new "Support Bridge" chat room appear. This room will include a Pikop Support Admin to facilitate real-time resolution.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Customer Role**: Log in as a Customer. Go to Account. Click "Merchant Portal". Verify it correctly leads to the Business Setup flow.
-2.  **Merchant Role**: Log in as a Merchant. Go to the "Store" tab (Account screen). Click "Manage My Shop". Verify it switches the bottom nav to the Dashboard tab.
-3.  **Product Creation**: In the Merchant Portal -> Listings tab, click "+" (Floating Action Button). Create a new product with a photo. Verify it saves and appears in the list.
-4.  **Sales Tracking**: Place an order from a Customer account. Check the Merchant's "My Sales" tab. Verify the order appears instantly via Socket.io.
+1.  **Incident Reporting**: As a Fulfiller, report a "Safety Risk" incident. Verify that a "HIGH" severity dispute is created on the backend.
+2.  **3-Way Bridge**: Confirm that a new conversation is created with both Fulfiller and Customer as participants.
+3.  **Waiver Logic**: As an Admin, apply a "Cancellation Waiver" to a mission. Verify that the 25% penalty is reversed in the user's wallet ledger.

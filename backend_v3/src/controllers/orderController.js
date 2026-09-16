@@ -1071,9 +1071,12 @@ const confirmReceipt = async (req, res) => {
 /**
  * Buyer reports a problem, moving order to DISPUTED status and blocking auto-release.
  */
+/**
+ * Buyer reports a problem (Marketplace/Secure Pay).
+ */
 const reportProblem = async (req, res) => {
     const { orderId } = req.params;
-    const { reason, notes } = req.body;
+    const { reason, notes, category, severity = 'MEDIUM' } = req.body;
     const userId = req.user.id;
 
     try {
@@ -1084,11 +1087,17 @@ const reportProblem = async (req, res) => {
 
         if (rows.length === 0) return res.status(400).json({ success: false, message: 'Could not dispute order' });
 
-        // Record Dispute
+        // Record Structured Dispute
         await db.query(
-            "INSERT INTO disputes (order_id, reporter_id, reason, status) VALUES ($1, $2, $3, 'OPEN')",
-            [orderId, userId, `${reason}: ${notes}`]
+            `INSERT INTO disputes (order_id, reporter_id, reason, status, incident_category, severity)
+             VALUES ($1, $2, $3, 'OPEN', $4, $5)`,
+            [orderId, userId, notes, category || 'INCORRECT_ITEM', severity]
         );
+
+        // 3-Way Bridge for HIGH severity
+        if (severity === 'HIGH') {
+            await bridgeIncidentChat(orderId, userId, 'CUSTOMER');
+        }
 
         // Notify participants
         const socketService = require('../services/socketService');
@@ -1548,9 +1557,12 @@ const handleAcknowledgmentTimeoutChoice = async (req, res) => {
 /**
  * Fulfiller reports an incident (breakdown, security, etc.)
  */
+/**
+ * Fulfiller reports an incident (breakdown, security, etc.)
+ */
 const fileIncident = async (req, res) => {
     const { orderId } = req.params;
-    const { category, notes, resolution_requested } = req.body;
+    const { category, notes, resolution_requested, severity = 'MEDIUM' } = req.body;
     const userId = req.user.id;
 
     try {
@@ -1562,22 +1574,84 @@ const fileIncident = async (req, res) => {
         const { rows: oRes } = await db.query("SELECT id FROM orders WHERE id = $1 AND fulfiller_id = $2", [orderId, fulfillerId]);
         if (oRes.length === 0) return res.status(404).json({ success: false, message: 'Active mission not found for this agent' });
 
-        // 2. Record as a Dispute/Incident
+        // 2. Record as a Structured Dispute/Incident
         await db.query(
-            "INSERT INTO disputes (order_id, reporter_id, reason, status) VALUES ($1, $2, $3, 'OPEN')",
-            [orderId, req.user.id, `AGENT_REPORT [${category.toUpperCase()}]: ${notes}. Requested: ${resolution_requested}`]
+            `INSERT INTO disputes (order_id, reporter_id, reason, status, incident_category, severity)
+             VALUES ($1, $2, $3, 'OPEN', $4, $5)`,
+            [orderId, userId, `Requested: ${resolution_requested}. Notes: ${notes}`, category.toUpperCase(), severity]
         );
+
+        // 3-Way Bridge for HIGH severity
+        if (severity === 'HIGH') {
+            await bridgeIncidentChat(orderId, userId, 'FULFILLER');
+        }
 
         // 3. Notify Admins via Socket
         const socketService = require('../services/socketService');
         socketService.getIO().to('admins').emit("new_order_chat_alert", {
             orderId,
-            body: `INCIDENT: ${category}`
+            body: `INCIDENT [${severity}]: ${category}`
         });
 
-        res.status(200).json({ success: true, message: 'Incident reported. Support will contact you shortly.' });
+        res.status(200).json({ success: true, message: 'Incident reported. Support bridge activated for high priority.' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Creates a multi-party support conversation for critical incidents.
+ */
+const bridgeIncidentChat = async (orderId, reporterId, reporterRole) => {
+    try {
+        // 1. Fetch participants (Customer and Fulfiller)
+        const { rows } = await db.query(
+            "SELECT user_id, fulfiller_id FROM orders WHERE id = $1",
+            [orderId]
+        );
+        if (rows.length === 0) return;
+        const order = rows[0];
+
+        const { rows: fUser } = await db.query("SELECT user_id FROM fulfillers WHERE id = $1", [order.fulfiller_id]);
+        const fulfillerUserId = fUser[0]?.user_id;
+
+        // 2. Create the Bridged Conversation
+        const convRes = await db.query(
+            "INSERT INTO conversations (status) VALUES ('OPEN') RETURNING id"
+        );
+        const convId = convRes.rows[0].id;
+
+        // 3. Add Participants
+        // We track participants in a junction table for many-to-many
+        const participants = [
+            [convId, order.user_id, 'CUSTOMER'],
+            [convId, fulfillerUserId, 'FULFILLER']
+        ];
+
+        for (const p of participants) {
+            if (p[1]) {
+                await db.query(
+                    "INSERT INTO conversation_participants (conversation_id, user_id, role) VALUES ($1, $2, $3)",
+                    p
+                );
+            }
+        }
+
+        // 4. Update Dispute
+        await db.query("UPDATE disputes SET is_3way_bridged = true WHERE order_id = $1", [orderId]);
+
+        console.log(`[SupportBridge] 3-Way Chat created for Order #${orderId}. Conv: ${convId}`);
+
+        // Notify via Socket
+        const socketService = require('../services/socketService');
+        const io = socketService.getIO();
+        io.to(`user_${order.user_id}`).emit("bridge_joined", { conversationId: convId, orderId });
+        if (fulfillerUserId) {
+            io.to(`user_${fulfillerUserId}`).emit("bridge_joined", { conversationId: convId, orderId });
+        }
+
+    } catch (e) {
+        console.error('[SupportBridge] Failed:', e.message);
     }
 };
 

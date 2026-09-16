@@ -445,10 +445,15 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
             if (showDisputeDialog) {
                 SecurePayDisputeDialog(
                     onDismiss = { showDisputeDialog = false },
-                    onConfirm = { reason, notes ->
+                    onConfirm = { reason, notes, category, severity ->
                         coroutineScope.launch {
                             try {
-                                apiService.reportProblem(orderId, mapOf("reason" to reason, "notes" to notes))
+                                apiService.reportProblem(orderId, mapOf(
+                                    "reason" to reason, 
+                                    "notes" to notes,
+                                    "category" to category,
+                                    "severity" to severity
+                                ))
                                 android.widget.Toast.makeText(context, "Issue Reported. Support will investigate.", android.widget.Toast.LENGTH_LONG).show()
                                 showDisputeDialog = false
                                 onRefresh()
@@ -591,35 +596,51 @@ fun FulfillerRatingDialog(onDismiss: () -> Unit, onConfirm: (Int, String?) -> Un
 }
 
 @Composable
-fun SecurePayDisputeDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
+fun SecurePayDisputeDialog(onDismiss: () -> Unit, onConfirm: (String, String, String, String) -> Unit) {
     var reason by remember { mutableStateOf("Item Damaged") }
     var notes by remember { mutableStateOf("") }
-    val reasons = listOf("Item Damaged", "Wrong Item", "Not as Described", "Other")
+    var severity by remember { mutableStateOf("MEDIUM") }
+    val reasons = listOf("Item Damaged", "Wrong Item", "Not as Described", "Delivery Issue")
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Report a Problem") },
+        title = { Text("Report Item Issue", fontWeight = FontWeight.Bold) },
         text = {
-            Column {
-                Text("Select reason:", style = MaterialTheme.typography.labelSmall)
-                reasons.forEach { r ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = reason == r, onClick = { reason = r })
-                        Text(r, style = MaterialTheme.typography.bodyMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column {
+                    Text("Severity", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = severity == "LOW", onClick = { severity = "LOW" }, label = { Text("Low") })
+                        FilterChip(selected = severity == "MEDIUM", onClick = { severity = "MEDIUM" }, label = { Text("Medium") })
+                        FilterChip(selected = severity == "HIGH", onClick = { severity = "HIGH" }, label = { Text("High") })
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+
+                Column {
+                    Text("What is the issue?", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    reasons.forEach { r ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = reason == r, onClick = { reason = r })
+                            Text(r, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+
                 OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Additional Notes") },
-                    modifier = Modifier.fillMaxWidth()
+                    value = notes, 
+                    onValueChange = { notes = it }, 
+                    label = { Text("Details / Evidence Description") }, 
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
                 )
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(reason, notes) }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                Text("Submit Report")
+            Button(
+                onClick = { onConfirm(reason, notes, reason.uppercase().replace(" ", "_"), severity) },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Submit Dispute")
             }
         },
         dismissButton = {

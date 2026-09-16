@@ -327,7 +327,8 @@ data class RatingRequest(
 data class IncidentRequest(
     val category: String, // breakdown, accident, security_risk, other
     val description: String,
-    val resolution_requested: String // handoff, cancel_with_waiver_request
+    val resolution_requested: String, // handoff, cancel_with_waiver_request
+    val severity: String = "MEDIUM" // LOW, MEDIUM, HIGH
 )
 
 data class SavedAddress(

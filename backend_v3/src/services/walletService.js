@@ -338,6 +338,50 @@ const awardLoyaltyPoints = async (client, userId, amount) => {
     }
 };
 
+/**
+ * Applies an automated financial waiver (Milestone 35).
+ * Reverses penalties or fees based on valid incident reports.
+ */
+const applyAutomatedWaiver = async (orderId, waiverType) => {
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Fetch Order and User
+        const { rows } = await client.query("SELECT id, user_id, total_fare FROM orders WHERE id = $1", [orderId]);
+        if (rows.length === 0) throw new Error('Order not found');
+        const order = rows[0];
+
+        const walletId = await ensureWalletExists(client, 'USER', order.user_id);
+        let amountToReverse = 0;
+        let purpose = 'PENALTY_WAIVER';
+        let description = '';
+
+        if (waiverType === 'CANCELLATION') {
+            amountToReverse = parseFloat(order.total_fare) * 0.25;
+            description = `Waiver of 25% cancellation penalty for Mission #${orderId}`;
+        } else if (waiverType === 'RETURN') {
+            amountToReverse = parseFloat(order.total_fare) * 0.75;
+            purpose = 'RETURN_WAIVER';
+            description = `Waiver of 75% return fee for Mission #${orderId}`;
+        }
+
+        if (amountToReverse > 0) {
+            await recordEntry(client, walletId, 'CREDIT', amountToReverse, purpose, description, orderId);
+            console.log(`[Waiver] Applied ${waiverType} waiver for User ${order.user_id} on Order ${orderId}: +₦${amountToReverse}`);
+        }
+
+        await client.query('COMMIT');
+        return { success: true, amount: amountToReverse };
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[Waiver] Failed:', error.message);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   ensureWalletExists,
   recordEntry,
@@ -346,5 +390,6 @@ module.exports = {
   releaseEscrow,
   refundEscrow,
   processReferralReward,
-  awardLoyaltyPoints
+  awardLoyaltyPoints,
+  applyAutomatedWaiver
 };

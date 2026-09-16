@@ -631,9 +631,36 @@ const getDisputes = async (req, res) => {
 /**
  * Resolves a dispute with either 'REFUND' or 'RELEASE'.
  */
+/**
+ * Unified Dispute & Incident Resolution Center (Milestone 35).
+ */
+const getDisputeResolutionCenter = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT d.*, o.item_description, o.item_price, o.total_fare, o.status as order_status,
+                   u.full_name as reporter_name, u.role as reporter_role,
+                   f.full_name as fulfiller_name
+            FROM disputes d
+            JOIN orders o ON o.id = d.order_id
+            JOIN users u ON u.id = d.reporter_id
+            LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
+            WHERE d.status IN ('OPEN', 'INVESTIGATING')
+            ORDER BY
+              CASE WHEN d.severity = 'HIGH' THEN 1 WHEN d.severity = 'MEDIUM' THEN 2 ELSE 3 END,
+              d.created_at DESC
+        `);
+        res.render('dispute_resolution', { disputes: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Resolves a dispute with structured actions (REFUND, RELEASE, WAIVER).
+ */
 const resolveDispute = async (req, res) => {
     const { id } = req.params;
-    const { action, resolution_notes } = req.body;
+    const { action, resolution_notes, waiver_type } = req.body;
     const adminId = req.session.adminId;
 
     const client = await db.pool.connect();
@@ -644,27 +671,32 @@ const resolveDispute = async (req, res) => {
         if (rows.length === 0) throw new Error('Dispute not found');
         const dispute = rows[0];
 
+        // 1. Core Financial Actions
         if (action === 'REFUND') {
             await walletService.refundEscrow(dispute.order_id, client);
         } else if (action === 'RELEASE') {
             await walletService.releaseEscrow(dispute.order_id, client);
+        } else if (action === 'WAIVER' && waiver_type) {
+            await walletService.applyAutomatedWaiver(dispute.order_id, waiver_type);
         }
 
+        // 2. Update Dispute Status
         await client.query(
-            "UPDATE disputes SET status = 'RESOLVED', resolution_notes = $1 WHERE id = $2",
-            [resolution_notes, id]
+            "UPDATE disputes SET status = 'RESOLVED', resolution_notes = $1, assigned_admin_id = $2 WHERE id = $3",
+            [resolution_notes, adminId, id]
         );
 
-        // Audit Log
+        // 3. Audit Log
         await client.query(
             "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
-            [adminId, `RESOLVE_DISPUTE_${action}`, 'dispute', id, JSON.stringify({ resolution_notes })]
+            [adminId, `RESOLVE_DISPUTE_${action}`, 'dispute', id, JSON.stringify({ resolution_notes, action, waiver_type })]
         );
 
         await client.query('COMMIT');
         res.redirect('/admin/disputes');
     } catch (error) {
         await client.query('ROLLBACK');
+        console.error('[Admin] Resolution center error:', error.message);
         res.status(500).send(`Resolution failed: ${error.message}`);
     } finally {
         client.release();
@@ -979,7 +1011,7 @@ module.exports = {
   getCoupons,
   createCoupon,
   deleteCoupon,
-  getDisputes,
+  getDisputes: getDisputeResolutionCenter,
   resolveDispute,
   getWithdrawals,
   approveWithdrawal,

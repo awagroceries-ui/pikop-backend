@@ -1,0 +1,98 @@
+<div class="mb-5">
+    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Incident & Dispute Resolution Center</h3>
+    <p class="text-muted small">Manage platform friction, accidents, and financial waivers from a single unified board.</p>
+</div>
+
+<div class="row g-4">
+    <% if (disputes.length === 0) { %>
+        <div class="col-12">
+            <div class="card-pikop p-5 text-center">
+                <p class="text-muted mb-0">No active incidents or disputes requiring resolution.</p>
+            </div>
+        </div>
+    <% } else { %>
+        <% disputes.forEach(d => { %>
+            <div class="col-md-12">
+                <div class="card-pikop p-4 mb-3 border-start border-4 <%= d.severity === 'HIGH' ? 'border-danger' : (d.severity === 'MEDIUM' ? 'border-warning' : 'border-info') %>">
+                    <div class="row align-items-start">
+                        <div class="col-md-2">
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Mission ID</span>
+                            <div class="text-black small mono fw-bold">#<%= d.order_id %></div>
+                            <div class="smaller text-muted mt-1"><%= new Date(d.created_at).toLocaleString() %></div>
+                            <div class="mt-2">
+                                <span class="badge <%= d.severity === 'HIGH' ? 'bg-danger' : (d.severity === 'MEDIUM' ? 'bg-gold' : 'bg-info') %> text-white fw-bold" style="font-size: 10px;">
+                                    <%= d.severity %>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Reporter (<%= d.reporter_role %>)</span>
+                            <div class="text-black small fw-bold"><%= d.reporter_name %></div>
+                            <div class="smaller text-primary fw-bold text-uppercase mt-1"><%= d.incident_category?.replace('_', ' ') %></div>
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block mt-2" style="font-size: 10px; letter-spacing: 1px;">Agent (Fulfiller)</span>
+                            <div class="text-black small"><%= d.fulfiller_name || 'N/A' %></div>
+                        </div>
+                        <div class="col-md-4">
+                            <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Description / Evidence</span>
+                            <div class="text-black small bg-light p-2 rounded border" style="max-height: 80px; overflow-y: auto; line-height: 1.4;">
+                                <%= d.reason %>
+                            </div>
+                            <div class="mt-2 d-flex gap-3">
+                                <div>
+                                    <span class="text-muted smaller fw-bold">Escrow:</span>
+                                    <span class="text-green fw-bold small">₦<%= parseFloat(d.item_price).toLocaleString() %></span>
+                                </div>
+                                <div>
+                                    <span class="text-muted smaller fw-bold">Fare:</span>
+                                    <span class="text-black fw-bold small">₦<%= parseFloat(d.total_fare).toLocaleString() %></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <% if (d.is_3way_bridged) { %>
+                                <button class="btn btn-sm btn-info text-white fw-bold mb-2 w-100">ACTIVE BRIDGE</button>
+                            <% } %>
+                            <button class="btn btn-sm btn-outline-primary mb-2 w-100" type="button" data-bs-toggle="collapse" data-bs-target="#resolve-<%= d.id %>">
+                                RESOLVE
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="collapse mt-3 border-top pt-3" id="resolve-<%= d.id %>">
+                        <form action="/admin/disputes/<%= d.id %>/resolve" method="POST">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="smaller fw-bold text-muted uppercase">Resolution Notes</label>
+                                    <textarea name="resolution_notes" class="form-control form-control-sm" rows="3" placeholder="Explain the outcome and any actions taken..." required></textarea>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="smaller fw-bold text-muted uppercase">Waiver Action</label>
+                                    <select name="waiver_type" class="form-select form-select-sm">
+                                        <option value="">None (Standard)</option>
+                                        <option value="CANCELLATION">Waive Cancellation Penalty (25%)</option>
+                                        <option value="RETURN">Waive Return Fee (75%)</option>
+                                    </select>
+                                    <p class="smaller text-muted mt-2">Credits user's wallet if selected.</p>
+                                </div>
+                                <div class="col-md-3 d-flex flex-column justify-content-end">
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" name="action" value="RELEASE" class="btn btn-sm btn-success fw-bold">RELEASE ESCROW</button>
+                                        <button type="submit" name="action" value="REFUND" class="btn btn-sm btn-danger fw-bold">REFUND BUYER</button>
+                                        <button type="submit" name="action" value="WAIVER" class="btn btn-sm btn-warning fw-bold">APPLY WAIVER ONLY</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    <% } %>
+</div>
+
+<style>
+    .text-green { color: var(--green) !important; }
+    .bg-gold { background-color: var(--gold) !important; }
+    .smaller { font-size: 11px; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+</style>
