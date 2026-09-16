@@ -28,25 +28,36 @@ app.set('trust proxy', 1);
 // Initialize Sockets
 const socketService = require('./services/socketService');
 socketService.init(server);
+console.log('✅ Sockets initialized');
 
 // Start Background Jobs
-const escrowWorker = require('./jobs/escrowWorker');
-escrowWorker.startEscrowWorker(15); // Run every 15 mins
+try {
+    const escrowWorker = require('./jobs/escrowWorker');
+    escrowWorker.startEscrowWorker(15);
+    console.log('✅ Escrow worker started');
 
-const weatherService = require('./services/weatherService');
-weatherService.startWeatherJob(15);
+    const weatherService = require('./services/weatherService');
+    weatherService.startWeatherJob(15);
+    console.log('✅ Weather service started');
 
-const dispatchReminderJob = require('./jobs/dispatchReminderJob');
-dispatchReminderJob.startReminderJob(3); // Every 3 mins
+    const dispatchReminderJob = require('./jobs/dispatchReminderJob');
+    dispatchReminderJob.startReminderJob(3);
+    console.log('✅ Dispatch reminder job started');
 
-const acknowledgmentReminderJob = require('./jobs/acknowledgmentReminderJob');
-acknowledgmentReminderJob.startAcknowledgmentJob(15);
+    const acknowledgmentReminderJob = require('./jobs/acknowledgmentReminderJob');
+    acknowledgmentReminderJob.startAcknowledgmentJob(15);
+    console.log('✅ Acknowledgment job started');
 
-const scheduledOrderJob = require('./jobs/scheduledOrderJob');
-scheduledOrderJob.startScheduledJob(10);
+    const scheduledOrderJob = require('./jobs/scheduledOrderJob');
+    scheduledOrderJob.startScheduledJob(10);
+    console.log('✅ Scheduled order job started');
 
-const fleetJob = require('./jobs/fleetJob');
-fleetJob.startFleetJob(24); // Daily audit
+    const fleetJob = require('./jobs/fleetJob');
+    fleetJob.startFleetJob(24);
+    console.log('✅ Fleet job started');
+} catch (jobError) {
+    console.error('❌ Background Job Init Failed:', jobError.message);
+}
 
 // 1. Basic Middleware
 app.use(compression()); // Optimize payload size
