@@ -134,9 +134,16 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
     const itemPrice = parseFloat(m.item_price || 0);
     const platformFee = (m.fee_payer === 'PAYER') ? parseFloat(m.platform_fee_amount || 0) : 0;
 
-    // 3.1 Guest SMS Charge (₦50)
-    const isGuestPayer = !m.payer_id;
-    const smsCharge = isGuestPayer ? 50 : 0;
+    // 3.1 Guest SMS Charge (DYNAMIZED)
+    let smsCharge = 0;
+    if (!m.payer_id) {
+        try {
+            const smsRes = await client.query("SELECT value FROM settings WHERE key = 'guest_sms_charge'");
+            smsCharge = parseFloat(smsRes.rows[0]?.value || '50');
+        } catch (e) {
+            smsCharge = 50;
+        }
+    }
 
     let discount = 0;
     if (m.promo_id) {
@@ -154,6 +161,14 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             }
         } catch (e) { console.error('[Activation] Promo check failed:', e.message); }
     }
+
+    // 3.2 Calculate Frozen Dispatch Commission (v3.9.8)
+    let dispatchCommissionRate = 0.25;
+    try {
+        const commRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
+        if (commRes.rows.length > 0) dispatchCommissionRate = parseFloat(commRes.rows[0].value);
+    } catch (e) {}
+    const dispatchCommissionAmount = PlatformConfig.roundFee(deliveryFee * dispatchCommissionRate);
 
     const finalTotal = itemPrice + deliveryFee + platformFee + smsCharge;
     const initialStatus = m.scheduled_at ? 'SCHEDULED' : 'PAYMENT_CAPTURED';
@@ -174,7 +189,8 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             platform_fee_amount, fee_payer, initiator_role, escrow_status, seller_phone, payer_id,
             original_delivery_fee, original_total_fare, pickup_code_hash, delivery_code_hash,
             pickup_code, delivery_code, coupon_id, pickup_state, sms_charge_amount,
-            required_fulfiller_classes, pickup_landmark, delivery_landmark, scheduled_at
+            required_fulfiller_classes, pickup_landmark, delivery_landmark, scheduled_at,
+            dispatch_commission_amount
         ) VALUES (
             'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
             ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -183,7 +199,8 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             $17, $18, $19, $20, $21, $22,
             $23, $24, $25, $26, $27, $28,
             $29, $30, $31, $32,
-            $33, $34, $35::uuid, $36, $37, $38, $39, $40, $41
+            $33, $34, $35::uuid, $36, $37,
+            $38, $39, $40, $41, $42
         ) RETURNING id`,
         [
             m.user_id, // $1
@@ -226,7 +243,8 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             q.required_fulfiller_classes, // $38
             q.pickup_landmark, // $39
             q.delivery_landmark, // $40
-            m.scheduled_at || null // $41
+            m.scheduled_at || null, // $41
+            dispatchCommissionAmount // $42
         ]
     );
 
@@ -336,6 +354,14 @@ const handleWebhook = async (req, res) => {
 
             const initialStatus = m.scheduled_at ? 'SCHEDULED' : 'SEARCHING';
 
+            // 4.1 Calculate Frozen Dispatch Commission (v3.9.8)
+            let dispatchCommissionRate = 0.25;
+            try {
+                const commRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
+                if (commRes.rows.length > 0) dispatchCommissionRate = parseFloat(commRes.rows[0].value);
+            } catch (e) {}
+            const dispatchCommissionAmount = PlatformConfig.roundFee(m.delivery_fee * dispatchCommissionRate);
+
             const orderRes = await client.query(
                 `INSERT INTO orders (
                     order_type, user_id, status, item_description,
@@ -343,13 +369,13 @@ const handleWebhook = async (req, res) => {
                     total_fare, item_price, delivery_fee, platform_fee_amount,
                     payment_status, payment_reference, payment_channel,
                     seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount,
-                    scheduled_at
+                    scheduled_at, dispatch_commission_amount
                 ) VALUES (
                     'pickup_delivery', $1, $2, $3,
                     $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326)::geography, ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
                     $10, $11, $12, $13,
                     'PAID', $14, $15,
-                    $16, $17, $18, 'held', $19, $20
+                    $16, $17, $18, 'held', $19, $20, $21
                 ) RETURNING id`,
                 [
                     m.user_id, initialStatus, m.item_description,
@@ -358,7 +384,8 @@ const handleWebhook = async (req, res) => {
                     reference, channel,
                     m.merchant_user_id, (m.item_type === 'product' ? m.item_id : null), (m.item_type === 'meal' ? m.item_id : null),
                     m.merchant_commission_amount || 0.0,
-                    m.scheduled_at || null
+                    m.scheduled_at || null,
+                    dispatchCommissionAmount
                 ]
             );
 

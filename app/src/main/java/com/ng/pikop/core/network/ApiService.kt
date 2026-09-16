@@ -510,32 +510,6 @@ data class GrowthStatsResponse(
     val data: GrowthStats
 )
 
-data class VendorRegistrationRequest(
-    val business_name: String,
-    val cac_number: String? = null,
-    val contact_email: String,
-    val city: String,
-    val pickup_address_id: Int? = null,
-    val description: String? = null,
-    val bank_account_name: String? = null,
-    val bank_account_number: String? = null,
-    val bank_code: String? = null
-)
-
-data class KitchenRegistrationRequest(
-    val business_name: String,
-    val cac_number: String? = null,
-    val contact_email: String,
-    val city: String,
-    val cuisine_type: String? = null,
-    val description: String? = null,
-    val state_food_safety_docs: Map<String, String>? = null,
-    val bank_account_name: String? = null,
-    val bank_account_number: String? = null,
-    val bank_code: String? = null,
-    val pickup_address_id: Int? = null
-)
-
 data class ProductUpdateRequest(
     val name: String? = null,
     val price: Double? = null,
@@ -1018,9 +992,6 @@ interface ApiService {
     @GET("api/v1/kitchens/{id}")
     suspend fun getKitchenDetails(@retrofit2.http.Path("id") id: String): KitchenDetailsResponse
 
-    @POST("api/v1/marketplace/vendors/register")
-    suspend fun registerVendor(@Body request: VendorRegistrationRequest): AuthResponse
-
     @POST("api/v1/marketplace/products")
     suspend fun addProduct(@Body request: Map<String, Any>): Map<String, Any>
 
@@ -1029,9 +1000,6 @@ interface ApiService {
 
     @DELETE("api/v1/marketplace/products/{id}")
     suspend fun deleteProduct(@retrofit2.http.Path("id") id: String): AuthResponse
-
-    @POST("api/v1/kitchens/register")
-    suspend fun registerKitchen(@Body request: KitchenRegistrationRequest): AuthResponse
 
     @POST("api/v1/kitchens/menu-items")
     suspend fun addMenuItem(@Body request: Map<String, Any>): Map<String, Any>

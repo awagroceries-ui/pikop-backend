@@ -204,7 +204,8 @@ const updateSettings = async (req, res) => {
     const {
         base_fare_small, base_fare_medium, base_fare_large,
         per_km_rate, platform_commission, cod_fee_rate,
-        food_commission, groceries_commission, shop_commission
+        food_commission, groceries_commission, shop_commission,
+        guest_sms_charge
     } = req.body;
 
     const client = await db.pool.connect();
@@ -220,7 +221,8 @@ const updateSettings = async (req, res) => {
             ['cod_fee_rate', cod_fee_rate],
             ['food_commission', food_commission],
             ['groceries_commission', groceries_commission],
-            ['shop_commission', shop_commission]
+            ['shop_commission', shop_commission],
+            ['guest_sms_charge', guest_sms_charge]
         ];
 
         for (const [key, val] of settings) {

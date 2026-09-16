@@ -204,6 +204,14 @@ const initializeCommerceOrder = async (req, res) => {
             try {
                 await client.query('BEGIN');
 
+                // 4.1 Calculate Frozen Dispatch Commission (v3.9.8)
+                let dispatchCommissionRate = 0.25;
+                try {
+                    const commRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
+                    if (commRes.rows.length > 0) dispatchCommissionRate = parseFloat(commRes.rows[0].value);
+                } catch (e) {}
+                const dispatchCommissionAmount = PlatformConfig.roundFee(deliveryFee * dispatchCommissionRate);
+
                 // Insert directly into orders just like webhook does
                 const orderRes = await client.query(
                     `INSERT INTO orders (
@@ -212,14 +220,15 @@ const initializeCommerceOrder = async (req, res) => {
                         total_fare, item_price, delivery_fee, platform_fee_amount,
                         payment_status, collection_status, collect_on_delivery_amount,
                         payment_method, payment_channel,
-                        seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount
+                        seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount,
+                        dispatch_commission_amount
                     ) VALUES (
                         'pickup_delivery', $1, 'SEARCHING', $2,
                         $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
                         $9, $10, $11, $12,
                         'PENDING', 'pending', $13,
                         'COD', 'cash',
-                        $14, $15, $16, 'held', $17
+                        $14, $15, $16, 'held', $17, $18
                     ) RETURNING id`,
                     [
                         userId, item.name,
@@ -227,7 +236,8 @@ const initializeCommerceOrder = async (req, res) => {
                         totalNaira, item.price, deliveryFee, platformFee,
                         totalNaira, // collect_on_delivery_amount
                         item.merchant_user_id, (item_type === 'product' ? item_id : null), (item_type === 'meal' ? item_id : null),
-                        merchantCommissionAmount
+                        merchantCommissionAmount,
+                        dispatchCommissionAmount
                     ]
                 );
 

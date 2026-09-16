@@ -199,7 +199,7 @@ fun AccountScreen(
                     onClick = onNavigateToGrowth
                 )
 
-                // Only show Merchant Portal if applicable (simplifying for now, always shown for testing or can be gated)
+                // Merchant Portal: Proper verification gate (Milestone 30)
                 AccountOption(
                     label = "Merchant Portal",
                     icon = Icons.Default.Inventory,
@@ -210,6 +210,7 @@ fun AccountScreen(
                                 if (profile.data != null) {
                                     onNavigateToMerchant()
                                 } else {
+                                    // No shortcut: Redirect to proper business verification flow
                                     onNavigateToMerchantRegistration()
                                 }
                             } catch (e: Exception) {
@@ -217,12 +218,6 @@ fun AccountScreen(
                             }
                         }
                     }
-                )
-
-                AccountOption(
-                    label = "Join as a Merchant",
-                    icon = Icons.Default.AddBusiness,
-                    onClick = onNavigateToMerchantRegistration
                 )
 
                 if (userRole == "CUSTOMER") {

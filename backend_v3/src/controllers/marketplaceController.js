@@ -1,34 +1,6 @@
 const db = require('../config/db');
 
 /**
- * Registers a new Vendor.
- */
-const registerVendor = async (req, res) => {
-  const { business_name, cac_number, contact_email, city, pickup_address_id, description, bank_account_name, bank_account_number, bank_code } = req.body;
-  const userId = req.user.id;
-
-  try {
-    const { rows } = await db.query(
-      `INSERT INTO vendors (business_name, cac_number, contact_email, city, pickup_address_id, description, bank_account_name, bank_account_number, bank_code, user_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
-       RETURNING id, business_name, status`,
-      [business_name, cac_number, contact_email, city, pickup_address_id, description, bank_account_name, bank_account_number, bank_code, userId]
-    );
-
-    res.status(201).json({
-      success: true,
-      message: 'Vendor application submitted for review.',
-      data: rows[0]
-    });
-  } catch (error) {
-    if (error.code === '23505') {
-        return res.status(400).json({ success: false, message: 'CAC number already registered' });
-    }
-    throw error;
-  }
-};
-
-/**
  * Adds a new product to the vendor's catalog.
  */
 const addProduct = async (req, res) => {
@@ -174,7 +146,6 @@ const deleteProduct = async (req, res) => {
 };
 
 module.exports = {
-  registerVendor,
   addProduct,
   updateProduct,
   deleteProduct,

@@ -8,7 +8,6 @@ router.get('/', marketplaceController.getMarketplace);
 router.get('/vendors/:id', marketplaceController.getVendorDetails);
 
 // Vendor Management (Authenticated)
-router.post('/vendors/register', authenticateToken, marketplaceController.registerVendor);
 router.post('/products', authenticateToken, marketplaceController.addProduct);
 router.patch('/products/:id', authenticateToken, marketplaceController.updateProduct);
 router.delete('/products/:id', authenticateToken, marketplaceController.deleteProduct);

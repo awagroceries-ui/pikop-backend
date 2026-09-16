@@ -42,7 +42,6 @@ import com.ng.pikop.feature.fulfiller.*
 import com.ng.pikop.feature.merchant.AddEditProductScreen
 import com.ng.pikop.feature.merchant.BulkDispatchScreen
 import com.ng.pikop.feature.merchant.MerchantPortalScreen
-import com.ng.pikop.feature.merchant.MerchantRegistrationScreen
 import com.ng.pikop.feature.order.*
 import com.ng.pikop.feature.growth.GrowthRewardsScreen
 import com.ng.pikop.feature.merchant.MerchantPortalScreen
@@ -639,13 +638,6 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 onBack = { navController.popBackStack() }
             )
         }
-        composable("merchant_registration") { 
-            MerchantRegistrationScreen(
-                navController = navController,
-                onSuccess = { navController.popBackStack() },
-                onBack = { navController.popBackStack() }
-            )
-        }
         composable("notifications_settings") { NotificationSettingsScreen(onBack = { navController.popBackStack() }) }
         composable("recipients_mgmt") { RecipientManagementScreen(onBack = { navController.popBackStack() }) }
         composable("session_mgmt") { SessionManagementScreen(onBack = { navController.popBackStack() }) }
@@ -902,7 +894,7 @@ fun MainAppScaffold(
                     onNavigateToCorporate = { navController.navigate("corporate_dashboard") },
                     onNavigateToGrowth = { navController.navigate("growth_rewards") },
                     onNavigateToMerchant = { navController.navigate("merchant_portal") },
-                    onNavigateToMerchantRegistration = { navController.navigate("merchant_registration") },
+                    onNavigateToMerchantRegistration = { navController.navigate("merchant_business_setup") },
                     onNavigateToTerms = { navController.navigate("terms_viewer/false") },
                     onNavigateToPrivacy = { navController.navigate("privacy_policy") },
                     onLogout = {

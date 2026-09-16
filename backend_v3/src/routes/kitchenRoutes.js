@@ -8,7 +8,6 @@ router.get('/', kitchenController.getKitchens);
 router.get('/:id', kitchenController.getKitchenDetails);
 
 // Kitchen Management (Authenticated)
-router.post('/register', authenticateToken, kitchenController.registerKitchen);
 router.post('/menu-items', authenticateToken, kitchenController.addMenuItem);
 router.patch('/menu-items/:id', authenticateToken, kitchenController.updateMenuItem);
 router.delete('/menu-items/:id', authenticateToken, kitchenController.deleteMenuItem);

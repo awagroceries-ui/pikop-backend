@@ -1,21 +1,15 @@
-# Task Checklist: Merchant Operating Hours & Daylight Dispatch Security
+# Task: Remove Legacy Merchant Entry Points
 
-- `[x]` **1. Database & Schema**
-  - `[x]` Create migration `1726470000000_add_operating_hours_and_scheduling.js`.
-- `[x]` **2. Backend Core**
-  - `[x]` Create `backend_v3/src/utils/time.js` for WAT handling.
-  - `[x]` Update `merchantController.js` to support `operating_hours` updates.
-  - `[x]` Update `commerceController.js` to calculate `is_open` and block closed merchants.
-  - `[x]` Update `dispatchService.js` to enforce daylight restrictions.
-  - `[x]` Update `orderController.js` to return restricted state and handle `scheduled_at`.
-  - `[x]` Update `paymentController.js` to handle `scheduled_at` in activation flows.
-- `[x]` **3. Android Integration**
-  - `[x]` Update `ApiService.kt` DTOs.
-  - `[x]` Update `DiscoveryItemCard` in `StorefrontScreen.kt` for "CLOSED" UI.
-  - `[x]` Update `OrderQuoteScreen.kt` for scheduling choice dialog.
-- `[x]` **4. Scheduled Jobs**
-  - `[x]` Create `backend_v3/src/jobs/scheduledOrderJob.js`.
-  - `[x]` Register job in `app.js`.
-- `[ ]` **5. Verification & Git**
-  - `[ ]` Build and test.
-  - `[ ]` Git commit and push.
+- [/] **Backend (Node.js)**
+    - [x] Remove legacy routes from `marketplaceRoutes.js`
+    - [x] Remove legacy routes from `kitchenRoutes.js`
+    - [x] Delete `registerVendor` from `marketplaceController.js`
+    - [x] Delete `registerKitchen` from `kitchenController.js`
+- [ ] **Android Frontend**
+    - [ ] Update `AccountScreen.kt` (Remove "Join as a Merchant", update Portal logic)
+    - [ ] Update `MainActivity.kt` (Route cleanup)
+    - [ ] Delete `MerchantRegistrationScreen.kt`
+    - [ ] Clean up `ApiService.kt` (Remove legacy registration DTOs and methods)
+- [ ] **Verification**
+    - [ ] Verify Gradle build
+    - [ ] Git commit and push

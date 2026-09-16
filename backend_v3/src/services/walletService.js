@@ -57,6 +57,7 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
     const orderRes = await client.query(
         `SELECT o.id, o.user_id, o.fulfiller_id, o.total_fare, o.delivery_fee, o.item_price,
                 o.original_delivery_fee, o.fee_payer, o.platform_fee_amount, o.sms_charge_amount,
+                o.dispatch_commission_amount,
                 f.user_id as fulfiller_user_id
          FROM orders o
          LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
@@ -75,11 +76,18 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
 
     const settlableAmount = parseFloat(order.original_delivery_fee || order.delivery_fee || order.total_fare || 0);
 
-    // 2. Fetch Split Config from Settings
-    const settingsRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
-    const commissionRate = parseFloat(settingsRes.rows[0]?.value || '0.25');
+    // 2. Fetch Split Config or use Frozen Amount (v3.9.8)
+    let platformShare;
+    if (order.dispatch_commission_amount && parseFloat(order.dispatch_commission_amount) > 0) {
+        platformShare = parseFloat(order.dispatch_commission_amount);
+        console.log(`[Wallet] Using FROZEN commission for Order #${orderId}: ${platformShare}`);
+    } else {
+        const settingsRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
+        const commissionRate = parseFloat(settingsRes.rows[0]?.value || '0.25');
+        platformShare = settlableAmount * commissionRate;
+        console.log(`[Wallet] Using DYNAMIC commission for legacy Order #${orderId}: ${platformShare}`);
+    }
 
-    const platformShare = settlableAmount * commissionRate;
     const fulfillerShare = settlableAmount - platformShare;
 
     // 3. Fulfiller Credit (NOW UNIFIED TO USER WALLET)

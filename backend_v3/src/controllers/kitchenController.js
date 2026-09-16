@@ -1,34 +1,6 @@
 const db = require('../config/db');
 
 /**
- * Registers a new Kitchen.
- */
-const registerKitchen = async (req, res) => {
-  const { business_name, cac_number, contact_email, city, cuisine_type, description, state_food_safety_docs, bank_account_name, bank_account_number, bank_code, pickup_address_id } = req.body;
-  const userId = req.user.id;
-
-  try {
-    const { rows } = await db.query(
-      `INSERT INTO kitchens (business_name, cac_number, contact_email, city, cuisine_type, description, state_food_safety_docs, bank_account_name, bank_account_number, bank_code, pickup_address_id, user_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending')
-       RETURNING id, business_name, status`,
-      [business_name, cac_number, contact_email, city, cuisine_type, description, state_food_safety_docs, bank_account_name, bank_account_number, bank_code, pickup_address_id, userId]
-    );
-
-    res.status(201).json({
-      success: true,
-      message: 'Kitchen application submitted for review.',
-      data: rows[0]
-    });
-  } catch (error) {
-    if (error.code === '23505') {
-      return res.status(400).json({ success: false, message: 'CAC number already registered' });
-    }
-    throw error;
-  }
-};
-
-/**
  * Adds a new menu item.
  */
 const addMenuItem = async (req, res) => {
@@ -172,7 +144,6 @@ const deleteMenuItem = async (req, res) => {
 };
 
 module.exports = {
-  registerKitchen,
   addMenuItem,
   updateMenuItem,
   deleteMenuItem,
