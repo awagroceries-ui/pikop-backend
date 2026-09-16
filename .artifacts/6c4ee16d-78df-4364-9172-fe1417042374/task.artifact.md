@@ -1,8 +1,15 @@
-# Task: Fix Invisible FAQ Text
+# Task: Fix Real-Time Chat & Notification Deep-Linking
 
-- [x] **Android Frontend Fixes**
-    - [x] Update `FaqListScreen.kt` (Restore question text visibility)
-    - [x] Update `FaqDetailScreen.kt` (Restore answer text visibility)
-- [x] **Verification**
-    - [x] Verify Gradle build
-    - [ ] Git commit and push
+- [x] **Part 1: Real-Time Chat Updates**
+    - [x] Update `ChatScreen.kt` to explicitly join rooms on entry
+- [x] **Part 2: Backend Notification Hardening**
+    - [x] Update `fcmService.js` to include metadata in all notifications
+    - [x] Update `socketService.js` to pass chat IDs to FCM
+- [x] **Part 3: Android Notification Handling**
+    - [x] Update `PikopMessagingService.kt` to extract `conversation_id` and handle key variations
+    - [x] Update `MainActivity.kt` routing logic for `SUPPORT_CHAT` and `ORDER_UPDATE`
+- [ ] **Part 4: Verification**
+    - [ ] Test live chat updates (no refresh)
+    - [ ] Test cold-start deep-linking
+    - [ ] Test warm-start deep-linking
+    - [x] Git commit and push

@@ -18,20 +18,22 @@ class PikopMessagingService : FirebaseMessagingService() {
         val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: "Pikop Update"
         val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: ""
         val type = remoteMessage.data["type"]
-        val orderId = remoteMessage.data["orderId"]
+        val orderId = remoteMessage.data["order_id"] ?: remoteMessage.data["orderId"]
+        val conversationId = remoteMessage.data["conversation_id"] ?: remoteMessage.data["conversationId"]
 
-        sendNotification(title, body, type, orderId)
+        sendNotification(title, body, type, orderId, conversationId)
     }
 
     override fun onNewToken(token: String) {
         // Token is registered in MainActivity on startup/login
     }
 
-    private fun sendNotification(title: String, messageBody: String, type: String?, orderId: String?) {
+    private fun sendNotification(title: String, messageBody: String, type: String?, orderId: String?, conversationId: String? = null) {
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             putExtra("navigate_to", type)
             putExtra("order_id", orderId)
+            putExtra("conversation_id", conversationId)
         }
         
         val pendingIntent = PendingIntent.getActivity(this, System.currentTimeMillis().toInt(), intent,

@@ -125,9 +125,22 @@ const sendAcknowledgmentRequest = async (userId, orderId) => {
     );
 };
 
+/**
+ * High-priority alert for new Support messages.
+ */
+const sendSupportMessageAlert = async (userId, conversationId, content) => {
+    return sendNotification(
+        userId,
+        "Pikop Support",
+        content.length > 100 ? `${content.substring(0, 97)}...` : content,
+        { type: "SUPPORT_CHAT", conversation_id: conversationId.toString() }
+    );
+};
+
 module.exports = {
   sendNotification,
   sendSecurePayReminder,
   sendPayoutAlert,
-  sendAcknowledgmentRequest
+  sendAcknowledgmentRequest,
+  sendSupportMessageAlert
 };

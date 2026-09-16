@@ -1,34 +1,22 @@
-# Walkthrough - Codes & Guest Communication Universal Coverage
+# Walkthrough - Fix Invisible FAQ Text
 
-I have completed the audit and fixes to ensure that pickup/delivery codes and guest SMS communications are functional across every possible mission flow.
+I have resolved the issue where FAQ question and answer text was appearing blank due to a lack of contrast against the app's white background.
 
 ## Changes Made
 
-### 🛠️ Backend (Communication & Security)
-- **Immediate Guest Alerts**: Implemented a new helper, `triggerInitialGuestCommunications`, which ensures that guest receivers get an "Incoming Delivery" SMS the second a mission is created, not just at pickup.
-- **Unified Outreach Logic**: Centralized the SMS triggering for both Dispatch and Marketplace orders (Prepaid and COD).
-- **New SMS Template**: Added `sendNewDeliveryAlert` to `smsService.js` to provide guest receivers with an immediate live tracking link.
-- **Verification Integrity**: Confirmed through a code audit that pickup and delivery codes are generated, hashed, and correctly gated for all mission types:
-    - Standalone Dispatch [Verified]
-    - Marketplace Prepaid [Verified]
-    - Marketplace COD [Verified]
-    - User-to-User [Verified]
-
 ### 📱 Android Frontend (UI Fixes)
-- **Settings Button Finalization**: Successfully wired the "Settings" button on the Customer Home Screen to navigate to the Account screen.
-- **Improved Navigation**: Updated `MainActivity.kt` to correctly handle the account navigation lambda for the home screen scaffold.
+- **`FaqListScreen.kt`**: Updated the question list items to use `MaterialTheme.colorScheme.onBackground` instead of hardcoded white. This ensures titles are clearly visible as dark text.
+- **`FaqDetailScreen.kt`**: Updated the article content text to use `MaterialTheme.colorScheme.onBackground`. The answer text is now fully visible and readable.
+- **Brand Consistency**: Maintained the use of `PikopOrange` for article headers, which provides excellent contrast and brand alignment on the white background.
 
 ## Verification Results
-- **Scenario Testing**:
-    - **Guest Receiver**: Verified that creating a mission for a non-app phone number triggers an immediate SMS alert with a tracking link.
-    - **Marketplace COD**: Verified that guest payers receive the Secure Pay SMS link instantly.
-    - **Home UI**: Confirmed the Settings button now functions correctly.
-- **Build Status**: Successfully compiled (`:app:assembleDebug`).
+- **Visual Visibility**: Confirmed that both questions in the list and full answers in the detail view are now rendered in a high-contrast dark color.
+- **Android Build**: Successfully compiled with Gradle (`:app:assembleDebug`).
+- **Data Integrity**: Confirmed the content itself was always present in the database/API; the issue was purely a visual color mismatch.
 
 ## Deployment Instructions
-To apply these communication fixes to your production VPS:
+The fixes are in the latest Android build. Deploy the new APK to your device to see the changes:
 ```bash
-cd /var/www/pikop-api/backend_v3/backend_v3
-git pull origin main
-pm2 restart pikop-v3
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```

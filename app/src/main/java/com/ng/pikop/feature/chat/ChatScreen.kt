@@ -87,8 +87,21 @@ fun ChatScreen(
         
         SocketManager.connect(userId.toString())
         
+        // Explicitly join the room for this chat session
+        if (isSupport) {
+            SocketManager.emit("join_support", JSONObject().put("conversationId", conversationId))
+        } else {
+            SocketManager.emit("join_order", JSONObject().put("orderId", orderId))
+        }
+        
         SocketManager.on("connect") { 
             (context as? Activity)?.runOnUiThread { isConnected = true }
+            // Re-join on reconnect
+            if (isSupport) {
+                SocketManager.emit("join_support", JSONObject().put("conversationId", conversationId))
+            } else {
+                SocketManager.emit("join_order", JSONObject().put("orderId", orderId))
+            }
         }
         
         SocketManager.on("disconnect") { 

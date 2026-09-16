@@ -186,7 +186,7 @@ const init = (server) => {
         if (conversation_id && sender_type === 'ADMIN') {
             const convRes = await db.query("SELECT participant_id FROM conversations WHERE id = $1", [conversation_id]);
             if (convRes.rows.length > 0) {
-                await fcmService.sendNotification(convRes.rows[0].participant_id, "Pikop Support", content);
+                await fcmService.sendSupportMessageAlert(convRes.rows[0].participant_id, conversation_id, content);
             }
         }
       } catch (e) {
