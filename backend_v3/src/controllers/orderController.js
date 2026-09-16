@@ -660,13 +660,7 @@ const createOrder = async (req, res) => {
         const pHash = await bcrypt.hash(pCode, 10);
         const dHash = await bcrypt.hash(dCode, 10);
 
-        const orderRes = await client.query(
-            `INSERT INTO orders (
-                order_type, user_id, quote_id, status, item_description, size_tier,
-                pickup_address, delivery_address, pickup_location, delivery_location,
-                total_fare, payment_status, payment_method, payment_reference, payment_channel,
-                recipient_name, recipient_phone, notes, pickup_display_summary, delivery_display_summary, item_photo_url,
-                // 3.1 Calculate Frozen Dispatch Commission (v3.9.8)
+        // 3.1 Calculate Frozen Dispatch Commission (v3.9.8)
         let dispatchCommissionRate = 0.25;
         try {
             const commRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
@@ -743,6 +737,7 @@ const createOrder = async (req, res) => {
                 scheduled_at, // $43
                 dispatchCommissionAmount // $44
             ]
+        );
         );
 
         await client.query('COMMIT');
