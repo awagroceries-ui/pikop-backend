@@ -84,7 +84,7 @@ fun FAQListItem(title: String, onClick: () -> Unit) {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Text(title, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
         }
     }

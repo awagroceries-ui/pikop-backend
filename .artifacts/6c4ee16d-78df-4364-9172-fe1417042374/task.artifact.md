@@ -1,12 +1,8 @@
-# Task: Guest Communication & Code Audit Fixes
+# Task: Fix Invisible FAQ Text
 
-- [ ] **Backend (Node.js)**
-    - [ ] Add `sendNewDeliveryAlert` to `smsService.js`
-    - [ ] Implement `triggerInitialGuestCommunications` in `orderController.js`
-    - [ ] Wire triggers in `orderController.js` and `paymentController.js`
-- [ ] **Android Frontend**
-    - [ ] Update `CustomerHomeScreen.kt` with `onNavigateToAccount`
-    - [ ] Update `MainActivity.kt` to pass account navigation
-- [ ] **Verification**
-    - [ ] Verify Gradle build
+- [x] **Android Frontend Fixes**
+    - [x] Update `FaqListScreen.kt` (Restore question text visibility)
+    - [x] Update `FaqDetailScreen.kt` (Restore answer text visibility)
+- [x] **Verification**
+    - [x] Verify Gradle build
     - [ ] Git commit and push

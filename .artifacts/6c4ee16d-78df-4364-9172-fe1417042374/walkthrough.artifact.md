@@ -1,42 +1,34 @@
-# Walkthrough - Brand Color Restoration & Icon Redesign
+# Walkthrough - Codes & Guest Communication Universal Coverage
 
-I have successfully restored Pikop's vibrant brand identity by moving away from generic greys to the official color palette and redesigning the home screen modules with intuitive, colorful iconography.
+I have completed the audit and fixes to ensure that pickup/delivery codes and guest SMS communications are functional across every possible mission flow.
 
 ## Changes Made
 
-### 🎨 1. Official Brand Palette Restoration
-- **Pixel-Perfect Extraction:** Sampled the official brand colors directly from the app's logo and launcher assets:
-    - **Pikop Green (#008751):** Applied as the primary color for dispatch and core actions.
-    - **Lemon Green (#B2D732):** Used for groceries and success/active highlights.
-    - **Pikop Gold (#FFC618):** Used for shop and secondary accents.
-    - **Pikop Orange (#FF6900):** Used for food and high-energy alerts.
-- **App-Wide Theming:** Updated `Color.kt` and the Material 3 `Theme.kt` to enforce these colors across all components (buttons, progress bars, and navigation).
+### 🛠️ Backend (Communication & Security)
+- **Immediate Guest Alerts**: Implemented a new helper, `triggerInitialGuestCommunications`, which ensures that guest receivers get an "Incoming Delivery" SMS the second a mission is created, not just at pickup.
+- **Unified Outreach Logic**: Centralized the SMS triggering for both Dispatch and Marketplace orders (Prepaid and COD).
+- **New SMS Template**: Added `sendNewDeliveryAlert` to `smsService.js` to provide guest receivers with an immediate live tracking link.
+- **Verification Integrity**: Confirmed through a code audit that pickup and delivery codes are generated, hashed, and correctly gated for all mission types:
+    - Standalone Dispatch [Verified]
+    - Marketplace Prepaid [Verified]
+    - Marketplace COD [Verified]
+    - User-to-User [Verified]
 
-### 🏠 2. Home Screen Module Redesign
-- **Vibrant Module Cards:** Redesigned the four primary module buttons (Dispatch, Food, Groceries, Shop) to use their assigned brand colors as backgrounds.
-- **Distinctive Iconography:** Replaced plain icons with large, high-quality, colorful alternatives:
-    - **Dispatch:** Now features an express delivery rider icon.
-    - **Food:** Features a recognizable restaurant/meal icon.
-    - **Groceries:** Features a fresh produce basket icon.
-    - **Shop:** Features a marketplace shopping bag icon.
-- **Modern Polish:** Increased corner radius (24.dp) and added subtle elevations to make the modules "pop" against the clean white background.
-
-### ⚙️ 3. Unified Visual Consistency
-- **Auth & Account Screens:** Updated the `UserTypeSelection` cards and `Account` settings menu to use the brand palette, ensuring the "grey drift" is eliminated from the moment of signup.
-- **Storefronts:** Updated the headers for Food, Grocery, and Shop storefronts to match their respective home screen colors, providing a cohesive navigation experience.
-- **Admin Portal:** Synchronized the Node.js backend dashboard CSS variables with the official hex values for a unified brand feel across app and web.
+### 📱 Android Frontend (UI Fixes)
+- **Settings Button Finalization**: Successfully wired the "Settings" button on the Customer Home Screen to navigate to the Account screen.
+- **Improved Navigation**: Updated `MainActivity.kt` to correctly handle the account navigation lambda for the home screen scaffold.
 
 ## Verification Results
-- **Visual Audit:** side-by-side comparison confirms the app now perfectly matches the `pikop_logo.png` colors.
-- **Contrast Check:** Verified all text remains clearly legible on the new colored backgrounds (e.g., white text on green/orange/gold).
-- **Gradle Build:** Successfully compiled and verified (`:app:assembleDebug`).
+- **Scenario Testing**:
+    - **Guest Receiver**: Verified that creating a mission for a non-app phone number triggers an immediate SMS alert with a tracking link.
+    - **Marketplace COD**: Verified that guest payers receive the Secure Pay SMS link instantly.
+    - **Home UI**: Confirmed the Settings button now functions correctly.
+- **Build Status**: Successfully compiled (`:app:assembleDebug`).
 
 ## Deployment Instructions
-To apply the brand color updates to your **Admin Portal** (backend), please run on your VPS:
+To apply these communication fixes to your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
 pm2 restart pikop-v3
 ```
-
-The Android changes will be live as soon as you deploy the latest build to your device!
