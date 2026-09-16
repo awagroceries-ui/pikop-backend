@@ -580,8 +580,43 @@ const getOrderByQuote = async (req, res) => {
 };
 
 /**
+ * Helper to trigger immediate outreach for guest participants (v3.9.9).
+ */
+const triggerInitialGuestCommunications = async (orderId) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT o.id, o.user_id, o.recipient_phone, o.item_price, o.initiator_role, o.total_fare,
+                   u.full_name as sender_name
+            FROM orders o
+            JOIN users u ON u.id = o.user_id
+            WHERE o.id = $1
+        `, [orderId]);
+
+        if (rows.length === 0) return;
+        const o = rows[0];
+
+        const normalized = normalizePhone(o.recipient_phone);
+        const userCheck = await db.query("SELECT id FROM users WHERE phone = $1", [normalized]);
+        const isGuest = userCheck.rows.length === 0;
+
+        if (isGuest) {
+            const isSecurePayRequest = parseFloat(o.item_price) > 0 && o.initiator_role === 'SELLER';
+
+            if (isSecurePayRequest) {
+                // Scenario: Seller sends item, Guest Buyer must pay to activate
+                await smsService.sendSecurePaySms(o.recipient_phone, o.total_fare, o.id);
+            } else {
+                // Scenario: App User sends item to Guest, or Guest receives regular delivery
+                await smsService.sendNewDeliveryAlert(o.recipient_phone, o.sender_name, o.id);
+            }
+        }
+    } catch (e) {
+        console.error('[GuestOutreach] Error:', e.message);
+    }
+};
+
+/**
  * Manually creates an order from a verified payment.
- * Fallback for delayed webhooks.
  */
 const createOrder = async (req, res) => {
         const {
@@ -759,14 +794,8 @@ const createOrder = async (req, res) => {
                 }
             }
 
-            // 5.2 Outreach for Secure Pay (Guest)
-            if (item_price > 0) {
-                if (payer_id) {
-                    fcmService.sendNotification(payer_id, "Secure Pay Request", `A Secure Pay request for ₦${recipient_payable || item_price} is waiting for your payment.`, { type: "SECURE_PAY_REQUEST", order_id: orderRes.rows[0].id.toString() });
-                } else if (recipient_phone && recipient_type === 'GUEST') {
-                    smsService.sendSecurePaySms(recipient_phone, recipient_payable || item_price, orderRes.rows[0].id).catch(e => {});
-                }
-            }
+            // 5.2 Unified Guest Outreach (v3.9.9)
+            await triggerInitialGuestCommunications(orderRes.rows[0].id);
         }
 
         // Send Payment Receipt Email
@@ -1579,5 +1608,6 @@ module.exports = {
   getConsentPage,
   grantConsent,
   getGuestCheckout,
-  fileIncident
+  fileIncident,
+  triggerInitialGuestCommunications
 };

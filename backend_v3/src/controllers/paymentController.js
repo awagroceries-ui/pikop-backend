@@ -10,6 +10,7 @@ const emailService = require('../services/emailService');
 const fcmService = require('../services/fcmService');
 const dispatchService = require('../services/dispatchService');
 const smsService = require('../services/smsService');
+const { triggerInitialGuestCommunications } = require('./orderController');
 
 /**
  * Initializes a Paystack transaction.
@@ -250,6 +251,9 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
 
     const orderId = orderRes.rows[0].id;
 
+    // 4.1 Unified Guest Outreach (v3.9.9)
+    await triggerInitialGuestCommunications(orderId);
+
     // Crowdsource landmarks if valid
     const orderController = require('./orderController');
     if (q.pickup_landmark) await orderController.processLandmark(q.pickup_landmark, q.p_lat, q.p_lng);
@@ -389,12 +393,16 @@ const handleWebhook = async (req, res) => {
                 ]
             );
 
-            const walletId = await walletService.ensureWalletExists(client, 'USER', m.merchant_user_id);
             await walletService.recordEntry(client, walletId, 'CREDIT', m.item_price, 'ESCROW_HOLD', `Marketplace Sale: ${m.item_description}`, orderRes.rows[0].id, 'pending');
 
             await client.query('COMMIT');
 
-            const updatedOrder = (await db.query("SELECT * FROM orders WHERE id = $1", [orderRes.rows[0].id])).rows[0];
+            const orderId = orderRes.rows[0].id;
+
+            // 4.2 Unified Guest Outreach (v3.9.9)
+            await triggerInitialGuestCommunications(orderId);
+
+            const updatedOrder = (await db.query("SELECT * FROM orders WHERE id = $1", [orderId])).rows[0];
             const fulfillers = await dispatchService.findNearbyFulfillers(updatedOrder);
             if (fulfillers.length > 0) dispatchService.broadcastOffer(updatedOrder, fulfillers).catch(() => {});
 

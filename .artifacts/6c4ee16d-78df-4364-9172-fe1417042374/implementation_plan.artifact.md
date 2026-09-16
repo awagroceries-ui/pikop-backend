@@ -1,60 +1,50 @@
-# Implementation Plan - Brand Color Restore & Module Icon Redesign
+# Implementation Plan - Codes & Guest Communication Audit
 
-This plan restores the Pikop brand identity by applying the official palette (Green, Lemon Green, Gold, Orange) and redesigning the home screen module icons for better visual clarity and appeal.
+This plan addresses gaps identified in the universal coverage of pickup/delivery codes and guest SMS communications across all mission types.
 
-## User Review Required
+## 🔍 Audit Report
 
-> [!IMPORTANT]
-> **Extracted Brand Palette**
-> I have confirmed the following hex values from the brand assets:
-> - **Primary Green:** `#008751`
-> - **Lemon Green:** `#B2D732`
-> - **Brand Gold:** `#FFC618`
-> - **Brand Orange:** `#FF6900`
->
-> I will apply these across the Material 3 theme.
+### 1. Pickup & Delivery Codes
+- **Standalone Dispatch**: [WORKING] Codes generated and hashed correctly.
+- **Marketplace (Prepaid)**: [WORKING] Codes generated in `activatePaidMission`.
+- **Marketplace (COD)**: [WORKING] Codes generated in `initializeCommerceOrder`.
+- **User-to-User**: [WORKING] Codes generated and correctly gated (only participants see them).
+
+### 2. Guest SMS & Links
+- **Guest Payer (COD)**: [WORKING] `sendSecurePaySms` triggered for guest receivers.
+- **Guest Receiver (Non-COD)**: [BROKEN] No "Incoming Delivery" SMS is sent when a mission is first created for a guest. They only get an SMS *after* pickup.
+- **Guest Payer (Sender-initiated)**: [BROKEN] If a sender initiates a Secure Pay for a guest, the guest receives the link, but the communication logic is scattered.
 
 ## Proposed Changes
 
-### 1. Brand Palette & Theming
+### Backend (Node.js)
 
-#### [MODIFY] [Color.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/ui/theme/Color.kt)
-- Add `PikopLemonGreen` (`0xFFB2D732`).
-- Ensure all official colors are correctly defined.
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- Implement `triggerInitialGuestCommunications`:
+    - If `recipient_type === 'GUEST'`, send a "You have an incoming delivery" SMS immediately.
+    - If `isSecurePay && !isPayerInitiator` (Receiver pays), send the "Secure Pay Request" SMS immediately.
+- Call this helper in `createOrder`.
 
-#### [MODIFY] [Theme.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/ui/theme/Theme.kt)
-- Update `BrandColorScheme` to use:
-    - `primary`: `PikopGreen`
-    - `secondary`: `PikopGold`
-    - `tertiary`: `PikopOrange`
-    - `surfaceVariant`: `PikopLemonGreen` (light alpha)
+#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
+- Call `triggerInitialGuestCommunications` in `activatePaidMission` to handle cases where an app user pays for a delivery to a guest.
 
-### 2. Home Screen Module Redesign
+#### [MODIFY] [smsService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/smsService.js)
+- Add `sendNewDeliveryAlert(phone, senderName, orderId)` template.
+
+---
+
+### Android Frontend (Compose)
 
 #### [MODIFY] [CustomerHomeScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/CustomerHomeScreen.kt)
-- **Redesign `PrimaryModuleCard`**:
-    - Update background colors to use the brand palette (Green for Dispatch, Orange for Food, Gold for Shop, Lemon for Groceries).
-    - Replace generic icons with high-quality Material equivalents:
-        - **Dispatch:** `DeliveryDining` (Express Rider)
-        - **Food:** `Restaurant` (Meal/Plate)
-        - **Groceries:** `LocalGroceryStore` (Basket)
-        - **Shop:** `ShoppingBag` (Marketplace)
-    - **Visual Polish:** Add subtle gradients and ensure icons are large, padded, and not clipped.
-    - **Full Color Icons:** Use multi-colored icon rendering by layering or applying distinct tints to the icon and its container.
+- Finalize "Settings" button link (was previously attempted but lacked `navController`). I will pass the `onNavigateToAccount` lambda.
 
-### 3. Admin Dashboard Consistency
-
-#### [MODIFY] [layout.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/layout.ejs)
-- Update CSS variables (`--green`, `--gold`, `--orange`) to match the exact extracted hex values.
-- Add `--lemon-green` for consistent use in the admin portal.
+#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
+- Pass the account navigation to `CustomerHomeScreen`.
 
 ## Verification Plan
 
-### Automated/Code Verification
-- Verify successful Gradle build of the Android app.
-- Check accessibility contrast ratios programmatically (or via Lint).
-
 ### Manual Verification
-1.  **Side-by-Side Check:** Compare the app colors against `pikop_logo.png` to ensure a perfect match.
-2.  **Home Screen Audit:** Confirm the four module buttons are vibrant, colorful, and clearly identifiable.
-3.  **UI Consistency:** Navigate through the app (Wallet, Settings, Orders) to confirm the "grey drift" has been replaced by the brand palette.
+1.  **Guest Receiver Test**: Create a standard (non-COD) dispatch mission to a non-app phone number. Verify the guest receives an SMS *immediately* upon creation, not just at pickup.
+2.  **Marketplace Guest Test**: Order a meal for a guest receiver (paid via card). Verify the guest receives a tracking link SMS once the order is activated.
+3.  **Code Security**: Log in as User A. Try to view codes for Order B (owned by User C). Verify codes are `null` in the API response.
+4.  **Settings Test**: Tap the Settings button on Home. Verify it opens the Account screen.

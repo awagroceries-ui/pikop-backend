@@ -250,6 +250,10 @@ const initializeCommerceOrder = async (req, res) => {
 
                 await client.query('COMMIT');
 
+                // 4.3 Unified Guest Outreach (v3.9.9)
+                const orderController = require('./orderController');
+                await orderController.triggerInitialGuestCommunications(newOrderId);
+
                 // Broadcast to fulfillers
                 const dispatchService = require('../services/dispatchService');
                 const updatedOrder = (await db.query("SELECT * FROM orders WHERE id = $1", [newOrderId])).rows[0];

@@ -159,10 +159,21 @@ const sendTrackingLinkSms = async (phone, orderId) => {
     return await sendSms(phone, message, 'tracking_link', orderId);
 };
 
+/**
+ * Sends an immediate alert to a guest receiver when a mission is created.
+ */
+const sendNewDeliveryAlert = async (phone, senderName, orderId) => {
+    const trackingLink = `https://track.pikop.com.ng/guest/${orderId}`;
+    const message = `Pikop: ${senderName} sent you a package! Track it live here: ${trackingLink}`;
+
+    return await sendSms(phone, message, 'incoming_delivery', orderId);
+};
+
 module.exports = {
     sendSms,
     sendOtp,
     verifyOtpToken,
     sendSecurePaySms,
-    sendTrackingLinkSms
+    sendTrackingLinkSms,
+    sendNewDeliveryAlert
 };

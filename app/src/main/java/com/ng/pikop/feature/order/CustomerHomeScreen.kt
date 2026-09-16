@@ -38,7 +38,8 @@ fun CustomerHomeScreen(
     onNavigateToAcknowledgment: (String) -> Unit,
     onNavigateToWallet: () -> Unit,
     onNavigateToAddresses: () -> Unit,
-    onNavigateToSupport: () -> Unit
+    onNavigateToSupport: () -> Unit,
+    onNavigateToAccount: () -> Unit
 ) {
     var activeOrders by remember { mutableStateOf<List<OrderDetailsResponse>>(emptyList()) }
     var incomingOrders by remember { mutableStateOf<List<OrderDetailsResponse>>(emptyList()) }
@@ -266,7 +267,7 @@ fun CustomerHomeScreen(
                     subtitle = "Account info",
                     icon = Icons.Default.Settings,
                     color = com.ng.pikop.ui.theme.PikopGrey,
-                    onClick = onNavigateToAddresses
+                    onClick = onNavigateToAccount
                 )
             }
 

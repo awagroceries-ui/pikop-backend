@@ -809,7 +809,8 @@ fun MainAppScaffold(
                         onNavigateToAcknowledgment = { id -> navController.navigate("order_acknowledgment/$id") },
                         onNavigateToWallet = { nestedNavController.navigate("wallet") },
                         onNavigateToAddresses = { nestedNavController.navigate("account") },
-                        onNavigateToSupport = { navController.navigate("support_hub") }
+                        onNavigateToSupport = { navController.navigate("support_hub") },
+                        onNavigateToAccount = { nestedNavController.navigate("account") }
                     )
                 }
             }
