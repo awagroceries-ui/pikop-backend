@@ -38,6 +38,7 @@ import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.chat.*
 import com.ng.pikop.feature.commerce.CommerceCheckoutScreen
 import com.ng.pikop.feature.commerce.StorefrontScreen
+import com.ng.pikop.feature.fleetpartner.FleetPartnerDashboardScreen
 import com.ng.pikop.feature.fulfiller.*
 import com.ng.pikop.feature.merchant.AddEditProductScreen
 import com.ng.pikop.feature.merchant.BulkDispatchScreen
@@ -327,6 +328,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 else if (role == "CUSTOMER") navController.navigate("signup_customer")
                 else if (role == "FULFILLER") navController.navigate("fulfiller_category_selection")
                 else if (role == "MERCHANT") navController.navigate("signup_merchant")
+                else if (role == "FLEET_PARTNER") navController.navigate("signup_fleet")
             })
         }
         
@@ -383,6 +385,16 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             )
         }
 
+        composable("signup_fleet") {
+            SignupFleetPartnerScreen(
+                onSignupSuccess = { email, userRole ->
+                    navController.navigate("email_otp/$email/$userRole")
+                },
+                onViewTerms = { navController.navigate("terms_viewer/false") },
+                onViewPrivacy = { navController.navigate("privacy_policy") }
+            )
+        }
+
         composable("email_otp/{email}/{role}") { backStackEntry ->
             val email = backStackEntry.arguments?.getString("email") ?: ""
             val role = backStackEntry.arguments?.getString("role") ?: "CUSTOMER"
@@ -391,6 +403,10 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 onVerificationSuccess = { 
                     if (role == "MERCHANT") {
                         navController.navigate("merchant_business_setup") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    } else if (role == "FLEET_PARTNER") {
+                        navController.navigate("fleet_business_setup") {
                             popUpTo(0) { inclusive = true }
                         }
                     } else {
@@ -421,6 +437,16 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             )
         }
 
+        composable("fleet_business_setup") {
+            FleetPartnerBusinessSetupScreen(
+                onSetupSuccess = {
+                    navController.navigate("main") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable("main") {
             if (userRole == "MERCHANT") {
                 com.ng.pikop.feature.merchant.MerchantAppScaffold(
@@ -429,6 +455,17 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                     userName = userName ?: "",
                     userRole = userRole ?: "MERCHANT",
                     tokenManager = tokenManager
+                )
+            } else if (userRole == "FLEET_PARTNER") {
+                FleetPartnerDashboardScreen(
+                    onLogout = {
+                        scope.launch {
+                            tokenManager.clearTokens()
+                            navController.navigate("user_type_selection") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
                 )
             } else {
                 MainAppScaffold(

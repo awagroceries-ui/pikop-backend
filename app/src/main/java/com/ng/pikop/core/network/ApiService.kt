@@ -35,7 +35,8 @@ data class SignupRequest(
 
     // Legal Consent
     val terms_version: String? = "0.1",
-    val privacy_version: String? = "0.1"
+    val privacy_version: String? = "0.1",
+    val fleet_invite_code: String? = null
 )
 
 data class AuthResponse(
@@ -209,6 +210,7 @@ data class FulfillerStats(
 
 data class FulfillerProfileResponse(
     val id: Int? = null,
+    val full_name: String? = null,
     val online_status: String? = null,
     val kyc_status: String? = null,
     @SerializedName("didit_verification_status") val kyc_verification_status: String? = null,
@@ -556,6 +558,39 @@ data class SetupMerchantRequest(
 data class SetupMerchantResponse(
     val success: Boolean? = false,
     val message: String? = null
+)
+
+data class SetupFleetRequest(
+    val business_name: String,
+    val cac_number: String,
+    val address: String,
+    val fleet_size: Int,
+    val vehicle_types: List<String>,
+    val cities: List<String>
+)
+
+data class FleetPartnerDashboardResponse(
+    val success: Boolean,
+    val data: FleetDashboardData? = null
+)
+
+data class FleetDashboardData(
+    val profile: FleetProfile,
+    val fulfillers: List<FulfillerProfileResponse>,
+    val stats: FleetStats
+)
+
+data class FleetProfile(
+    val id: Int,
+    val business_name: String,
+    val status: String,
+    val commission_override: Double? = null,
+    val has_overflow_priority: Boolean = false
+)
+
+data class FleetStats(
+    val total_active_missions: Int = 0,
+    val total_fleet_volume: Double = 0.0
 )
 
 data class MerchantProfileResponse(
@@ -968,6 +1003,16 @@ interface ApiService {
 
     @POST("api/v1/merchants/setup")
     suspend fun setupMerchantProfile(@Body request: SetupMerchantRequest): SetupMerchantResponse
+
+    // Fleet Partner Methods (v4.1)
+    @POST("api/v1/fleet-partners/setup")
+    suspend fun setupFleetProfile(@Body request: SetupFleetRequest): SetupMerchantResponse
+
+    @GET("api/v1/fleet-partners/dashboard")
+    suspend fun getFleetDashboard(): FleetPartnerDashboardResponse
+
+    @GET("api/v1/fleet-partners/invite-code")
+    suspend fun getFleetInviteCode(): Map<String, String>
     
     @PATCH("api/v1/merchants/settings")
     suspend fun updateMerchantSettings(@Body request: Map<String, Boolean>): AuthResponse

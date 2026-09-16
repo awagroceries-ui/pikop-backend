@@ -62,6 +62,8 @@ router.post('/merchants/:type/:id/status', adminController.updateMerchantKYCStat
 router.get('/vendors', adminController.getVendors);
 router.get('/kitchens', adminController.getKitchens);
 router.get('/merchants', adminController.getMerchants);
+router.get('/fleet-partners', adminController.getFleetPartners);
+router.post('/fleet-partners/:id/status', adminController.updateFleetPartnerStatus);
 
 // Coupons
 router.get('/coupons', hasRole(['super_admin']), adminController.getCoupons);

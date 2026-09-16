@@ -521,6 +521,37 @@ const getMerchants = async (req, res) => {
 };
 
 /**
+ * Fleet Partner Management (v4.1)
+ */
+const getFleetPartners = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM fleet_partners ORDER BY created_at DESC");
+        res.render('fleet_partners', { partners: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const updateFleetPartnerStatus = async (req, res) => {
+    const { id } = req.params;
+    const { status, commission_override, has_overflow_priority } = req.body;
+
+    try {
+        await db.query(
+            `UPDATE fleet_partners
+             SET status = COALESCE($1, status),
+                 commission_override = COALESCE($2, commission_override),
+                 has_overflow_priority = COALESCE($3, has_overflow_priority)
+             WHERE id = $4`,
+            [status, commission_override, has_overflow_priority, id]
+        );
+        res.redirect('/admin/fleet-partners');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
  * Lists all admin users.
  */
 const getAdminUsers = async (req, res) => {
@@ -1004,6 +1035,8 @@ module.exports = {
   getVendors,
   getKitchens,
   getMerchants,
+  getFleetPartners,
+  updateFleetPartnerStatus,
   getAdminUsers,
   addAdmin,
   deleteAdmin,

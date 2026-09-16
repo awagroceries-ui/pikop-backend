@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.ElectricBike
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.ShoppingBag
@@ -68,6 +69,9 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("FULFILLER") }
                 )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 RoleCard(
                     title = "I want to Sell",
                     description = "List products & grow business.",
@@ -75,6 +79,14 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     iconColor = com.ng.pikop.ui.theme.PikopOrange,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("MERCHANT") }
+                )
+                RoleCard(
+                    title = "Fleet Partner",
+                    description = "Bring your fleet onto Pikop.",
+                    icon = Icons.Default.Business,
+                    iconColor = com.ng.pikop.ui.theme.PikopGreen,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onRoleSelected("FLEET_PARTNER") }
                 )
             }
             

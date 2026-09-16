@@ -19,8 +19,11 @@ const runDispatchReminders = async () => {
         `);
 
         for (const order of pendingOrders) {
-            console.log(`[ReminderJob] Nudging Mission #${order.id}`);
-            const fulfillers = await dispatchService.findNearbyFulfillers(order);
+            const ageMinutes = (Date.now() - new Date(order.created_at).getTime()) / 60000;
+            const includeFleets = ageMinutes >= 3.0; // Overflow window
+
+            console.log(`[ReminderJob] Nudging Mission #${order.id} (Age: ${ageMinutes.toFixed(1)}m, Fleets: ${includeFleets})`);
+            const fulfillers = await dispatchService.findNearbyFulfillers(order, null, includeFleets);
             if (fulfillers.length > 0) {
                 await dispatchService.broadcastOffer(order, fulfillers);
             }

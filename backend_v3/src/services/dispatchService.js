@@ -6,10 +6,13 @@ const { getWATTimeStr, isWithinWindow } = require('../utils/time');
 /**
  * Shared Dispatch Engine - v3 (Milestone 6)
  */
-const findNearbyFulfillers = async (order, radiusOverride = null) => {
+const findNearbyFulfillers = async (order, radiusOverride = null, includeFleets = false) => {
   const radiusMeters = radiusOverride || 20000; // Default 20km
 
   try {
+    // 0. Build Fleet Condition (v4.1)
+    // Rule: If includeFleets is false, exclude all fulfillers linked to a fleet partner.
+    const fleetCondition = includeFleets ? "" : "AND f.fleet_partner_id IS NULL";
     // V3 Advanced Dispatch (Milestone 6 + Prompt 5 Capacity)
     // Filter:
     // 1. Must be ONLINE and VERIFIED
@@ -26,6 +29,7 @@ const findNearbyFulfillers = async (order, radiusOverride = null) => {
       AND f.current_state ILIKE $3 -- Resilient state matching
       AND ST_DWithin(f.current_location, $1, $2)
       AND f.last_ping_at > NOW() - interval '30 minutes'
+      ${fleetCondition}
 
       -- 1. Class-based Eligibility (from Order Size)
       AND f.primary_class = ANY($4::text[])

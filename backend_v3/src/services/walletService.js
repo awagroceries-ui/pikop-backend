@@ -58,9 +58,11 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
         `SELECT o.id, o.user_id, o.fulfiller_id, o.total_fare, o.delivery_fee, o.item_price,
                 o.original_delivery_fee, o.fee_payer, o.platform_fee_amount, o.sms_charge_amount,
                 o.dispatch_commission_amount,
-                f.user_id as fulfiller_user_id
+                f.user_id as fulfiller_user_id, f.fleet_partner_id,
+                fp.commission_override as fleet_commission_override
          FROM orders o
          LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
+         LEFT JOIN fleet_partners fp ON fp.id = f.fleet_partner_id
          WHERE o.id = $1`,
         [orderId]
     );
@@ -80,7 +82,15 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
     let platformShare;
     if (order.dispatch_commission_amount && parseFloat(order.dispatch_commission_amount) > 0) {
         platformShare = parseFloat(order.dispatch_commission_amount);
-        console.log(`[Wallet] Using FROZEN commission for Order #${orderId}: ${platformShare}`);
+
+        // 2.1 Check for Fleet Override (v4.1)
+        if (order.fleet_commission_override !== null) {
+            const overrideRate = parseFloat(order.fleet_commission_override);
+            platformShare = settlableAmount * overrideRate;
+            console.log(`[Wallet] Applying FLEET OVERRIDE (${overrideRate * 100}%) for Order #${orderId}`);
+        } else {
+            console.log(`[Wallet] Using FROZEN commission for Order #${orderId}: ${platformShare}`);
+        }
     } else {
         const settingsRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
         const commissionRate = parseFloat(settingsRes.rows[0]?.value || '0.25');

@@ -13,7 +13,8 @@ const signup = async (req, res) => {
       full_name, email, phone, password, role, referral_code,
       primary_class, date_of_birth, home_address, gender,
       registration_number, make, model, color,
-      terms_version, privacy_version
+      terms_version, privacy_version,
+      fleet_invite_code
   } = req.body;
   const userRole = (role || 'CUSTOMER').toUpperCase();
   const normalizedPhone = normalizePhone(phone);
@@ -38,16 +39,24 @@ const signup = async (req, res) => {
 
     // 4. If Fulfiller, create initial fulfiller profile
     if (userRole === 'FULFILLER') {
+        let fleetPartnerId = null;
+        if (fleet_invite_code) {
+            const fleetRes = await client.query("SELECT fleet_partner_id FROM fleet_partner_invites WHERE invite_code = $1 AND is_active = true", [fleet_invite_code]);
+            if (fleetRes.rows.length > 0) fleetPartnerId = fleetRes.rows[0].fleet_partner_id;
+        }
+
         await client.query(
             `INSERT INTO fulfillers (
                 user_id, full_name, email, phone, primary_class,
                 date_of_birth, home_address, gender,
-                registration_number, make, model, color
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                registration_number, make, model, color,
+                fleet_partner_id
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
             [
                 user.id, full_name, email, normalizedPhone, (primary_class || 'rider').toLowerCase(),
                 date_of_birth, home_address, gender,
-                registration_number, make, model, color
+                registration_number, make, model, color,
+                fleetPartnerId
             ]
         );
     }

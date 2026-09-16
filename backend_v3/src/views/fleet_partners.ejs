@@ -1,0 +1,94 @@
+<div class="mb-5">
+    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Fleet Partner Hub</h3>
+    <p class="text-muted small">Manage logistics companies and their custom commission overrides.</p>
+</div>
+
+<div class="card-pikop">
+    <% if (partners.length === 0) { %>
+        <div class="p-5 text-center">
+            <p class="text-muted mb-0">No fleet partners found in the system.</p>
+        </div>
+    <% } else { %>
+        <div class="table-responsive">
+            <table class="table-pikop">
+                <thead>
+                    <tr>
+                        <th>Business Name</th>
+                        <th class="text-center">Fleet Size</th>
+                        <th class="text-center">Commission</th>
+                        <th class="text-center">Overflow</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% partners.forEach(p => { %>
+                        <tr class="align-middle">
+                            <td>
+                                <div class="fw-bold text-black"><%= p.business_name %></div>
+                                <div class="smaller text-muted">CAC: <%= p.cac_number || 'N/A' %></div>
+                            </td>
+                            <td class="text-center small fw-bold text-muted">~<%= p.fleet_size_estimate %></td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-primary border fw-bold">
+                                    <%= p.commission_override ? (parseFloat(p.commission_override) * 100).toFixed(0) + '%' : 'DEFAULT (25%)' %>
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <% if (p.has_overflow_priority) { %>
+                                    <span class="badge bg-success text-white px-2">YES</span>
+                                <% } else { %>
+                                    <span class="badge bg-secondary text-white px-2">NO</span>
+                                <% } %>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge <%= p.status === 'VERIFIED' ? 'bg-green' : 'bg-gold' %> text-white fw-bold px-3">
+                                    <%= p.status.toUpperCase() %>
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-<%= p.id %>">MANAGE</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="6" class="p-0">
+                                <div class="collapse bg-light p-3 border-bottom" id="edit-<%= p.id %>">
+                                    <form action="/admin/fleet-partners/<%= p.id %>/status" method="POST">
+                                        <div class="row g-3 align-items-end">
+                                            <div class="col-md-3">
+                                                <label class="smaller fw-bold text-muted uppercase">Partner Status</label>
+                                                <select name="status" class="form-select form-select-sm">
+                                                    <option value="PENDING_VERIFICATION" <%= p.status === 'PENDING_VERIFICATION' ? 'selected' : '' %>>Pending</option>
+                                                    <option value="VERIFIED" <%= p.status === 'VERIFIED' ? 'selected' : '' %>>Verified / Active</option>
+                                                    <option value="SUSPENDED" <%= p.status === 'SUSPENDED' ? 'selected' : '' %>>Suspended</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="smaller fw-bold text-muted uppercase">Commission Override (DEC)</label>
+                                                <input type="number" step="0.01" name="commission_override" class="form-control form-control-sm" value="<%= p.commission_override %>" placeholder="e.g. 0.20">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="smaller fw-bold text-muted uppercase">Priority Dispatch</label>
+                                                <select name="has_overflow_priority" class="form-select form-select-sm">
+                                                    <option value="false" <%= !p.has_overflow_priority ? 'selected' : '' %>>Disable Overflow</option>
+                                                    <option value="true" <%= p.has_overflow_priority ? 'selected' : '' %>>Enable (3m Window)</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button type="submit" class="btn btn-sm btn-primary w-100">SAVE PROTOCOL</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</div>
+
+<style>
+    .smaller { font-size: 11px; }
+</style>

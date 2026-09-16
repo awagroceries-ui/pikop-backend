@@ -1,19 +1,23 @@
-# Task: Advanced Incident & Dispute Engine
+# Task: Fleet Partner Program
 
-- [x] **Infrastructure & Schema**
-    - [x] Create migration `1726490000000_incident_management.js`
-- [x] **Backend Logic - Incident Management**
-    - [x] Update `orderController.js` (`fileIncident`, `reportProblem`)
-    - [x] Implement severity-based 3-way bridging logic
-- [x] **Financial Resilience (Waivers)**
-    - [x] Update `walletService.js` to support automated waivers
-- [x] **Admin Resolution Dashboard**
-    - [x] Update `adminController.js` with `getDisputeResolutionCenter`
-    - [x] Create/Update EJS views for dispute resolution
-- [x] **Android UI - Structured Reporting**
-    - [x] Update `ActiveOrderScreen.kt` (Fulfiller incidents)
-    - [x] Update `TrackOrderScreen.kt` (Customer disputes)
+- [ ] **Database & Schema**
+    - [ ] Create migration `1726500000000_fleet_partner_program.js`
+- [ ] **Backend - Fleet Partner Core**
+    - [ ] Create `fleetPartnerController.js` (Onboarding, Dashboard, Invites)
+    - [ ] Add `fleetPartnerRoutes.js`
+    - [ ] Update `authController.js` to handle invite codes during fulfiller signup
+- [ ] **Backend - Logistics & Finance Hardening**
+    - [ ] Update `dispatchService.js` and `dispatchReminderJob.js` for overflow priority
+    - [ ] Update `walletService.js` for per-partner commission overrides
+- [ ] **Android UI - Onboarding & Linking**
+    - [ ] Update `UserTypeSelectionScreen.kt` (Add Fleet Partner entry)
+    - [ ] Update `SignupFulfillerScreen.kt` (Add Invite Code field)
+    - [ ] Create `FleetPartnerBusinessSetupScreen.kt` (Step 2 Onboarding)
+- [ ] **Android UI - Fleet Dashboard**
+    - [ ] Create `FleetPartnerDashboardScreen.kt`
+    - [ ] Update `MainActivity.kt` with new routes and navigation
 - [ ] **Verification**
-    - [ ] Test 3-way bridge creation
-    - [ ] Verify waiver reversal in wallet
-    - [x] Build and Deploy
+    - [ ] Verify Fleet-Fulfiller linking
+    - [ ] Verify overflow routing logic
+    - [ ] Verify commission override
+    - [ ] Build and Deploy

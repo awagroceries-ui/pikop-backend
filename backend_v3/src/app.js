@@ -141,6 +141,7 @@ app.use('/api/v1/marketplace', require('./routes/marketplaceRoutes'));
 app.use('/api/v1/kitchens', require('./routes/kitchenRoutes'));
 app.use('/api/v1/wallets', require('./routes/walletRoutes'));
 app.use('/api/v1/merchants', require('./routes/merchantRoutes'));
+app.use('/api/v1/fleet-partners', require('./routes/fleetPartnerRoutes'));
 app.use('/api/v1/growth', require('./routes/growthRoutes'));
 app.use('/api/v1/promo-codes', require('./routes/growthRoutes')); // Legacy Compatibility
 app.use('/api/v1/places', require('./routes/placesRoutes'));
