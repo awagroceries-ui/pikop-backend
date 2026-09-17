@@ -3,7 +3,9 @@ package com.ng.pikop.feature.auth
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.ElectricBike
@@ -31,7 +33,8 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -123,7 +126,7 @@ fun RoleCard(
 ) {
     Card(
         modifier = modifier
-            .height(200.dp)
+            .height(180.dp)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = iconColor.copy(alpha = 0.08f)
