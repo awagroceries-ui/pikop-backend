@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -43,8 +44,9 @@ fun CommerceCheckoutScreen(
     var item by remember { mutableStateOf<DiscoveryItem?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isPlacingOrder by remember { mutableStateOf(false) }
+    var walletBalance by remember { mutableStateOf(0.0) }
     
-    var selectedPaymentMethod by remember { mutableStateOf("CARD") } // "CARD" or "COD"
+    var selectedPaymentMethod by remember { mutableStateOf("CARD") } // "CARD", "COD", "WALLET"
 
     // Delivery Location State
     val deliveryAddress by navController.currentBackStackEntry
@@ -67,6 +69,9 @@ fun CommerceCheckoutScreen(
             isLoading = true
             val response = apiService.getDiscovery() 
             item = response.data.find { it.id == itemId && it.item_type == itemType }
+            
+            val walletRes = apiService.getWalletInfo()
+            walletBalance = walletRes.balance ?: 0.0
         } catch (_: Exception) {
             Toast.makeText(context, "Error loading item", Toast.LENGTH_SHORT).show()
         } finally {
@@ -142,48 +147,75 @@ fun CommerceCheckoutScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Payment Method", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    OutlinedCard(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.outlinedCardColors(
-                            containerColor = if (selectedPaymentMethod == "CARD") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = if (selectedPaymentMethod == "CARD") 2.dp else 1.dp,
-                            color = if (selectedPaymentMethod == "CARD") MaterialTheme.colorScheme.primary else Color.LightGray
-                        ),
-                        onClick = { selectedPaymentMethod = "CARD" }
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.CreditCard, contentDescription = null, tint = if (selectedPaymentMethod == "CARD") MaterialTheme.colorScheme.primary else Color.Gray)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Pay Now", fontWeight = FontWeight.Bold)
-                            Text("(Card / Transfer)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                LazyRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    item {
+                        OutlinedCard(
+                            modifier = Modifier.width(150.dp),
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = if (selectedPaymentMethod == "CARD") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = if (selectedPaymentMethod == "CARD") 2.dp else 1.dp,
+                                color = if (selectedPaymentMethod == "CARD") MaterialTheme.colorScheme.primary else Color.LightGray
+                            ),
+                            onClick = { selectedPaymentMethod = "CARD" }
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.CreditCard, contentDescription = null, tint = if (selectedPaymentMethod == "CARD") MaterialTheme.colorScheme.primary else Color.Gray)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Pay Now", fontWeight = FontWeight.Bold)
+                                Text("(Card)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            }
+                        }
+                    }
+
+                    if (walletBalance > 0) {
+                        item {
+                            val canAfford = totalAmount <= walletBalance
+                            OutlinedCard(
+                                modifier = Modifier.width(150.dp),
+                                enabled = canAfford,
+                                colors = CardDefaults.outlinedCardColors(
+                                    containerColor = if (selectedPaymentMethod == "WALLET") MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    disabledContainerColor = Color.Transparent
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = if (selectedPaymentMethod == "WALLET") 2.dp else 1.dp,
+                                    color = if (selectedPaymentMethod == "WALLET") MaterialTheme.colorScheme.primary else Color.LightGray
+                                ),
+                                onClick = { selectedPaymentMethod = "WALLET" }
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = if (selectedPaymentMethod == "WALLET") MaterialTheme.colorScheme.primary else Color.Gray)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("My Wallet", fontWeight = FontWeight.Bold)
+                                    Text("₦${walletBalance.toInt()}", style = MaterialTheme.typography.bodySmall, color = if (canAfford) Color.Gray else MaterialTheme.colorScheme.error)
+                                }
+                            }
                         }
                     }
 
                     if (item!!.accepts_cod) {
-                        OutlinedCard(
-                            modifier = Modifier.weight(1f),
-                            colors = CardDefaults.outlinedCardColors(
-                                containerColor = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = if (selectedPaymentMethod == "COD") 2.dp else 1.dp,
-                                color = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.LightGray
-                            ),
-                            onClick = { selectedPaymentMethod = "COD" }
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Payments, contentDescription = null, tint = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.Gray)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("Pay on Delivery", fontWeight = FontWeight.Bold)
-                                Text("(Cash / Transfer)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        item {
+                            OutlinedCard(
+                                modifier = Modifier.width(150.dp),
+                                colors = CardDefaults.outlinedCardColors(
+                                    containerColor = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = if (selectedPaymentMethod == "COD") 2.dp else 1.dp,
+                                    color = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.LightGray
+                                ),
+                                onClick = { selectedPaymentMethod = "COD" }
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.Payments, contentDescription = null, tint = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.Gray)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Pay on Delivery", fontWeight = FontWeight.Bold)
+                                    Text("(Cash)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                }
                             }
                         }
-                    } else {
-                        // Spacer to keep layout balanced
-                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
 
@@ -219,15 +251,15 @@ fun CommerceCheckoutScreen(
                                     delivery_address = deliveryAddress,
                                     lat = deliveryLat,
                                     lng = deliveryLng,
-                                    payment_method = selectedPaymentMethod
+                                    payment_method = if (selectedPaymentMethod == "WALLET") "WALLETPAY" else selectedPaymentMethod
                                 ))
 
                                 if (selectedPaymentMethod == "CARD" && !response.authorization_url.isNullOrBlank()) {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(response.authorization_url))
                                     context.startActivity(intent)
                                     onSuccess() // Navigates back to main. Real flow would verify via webhook/intent
-                                } else if (selectedPaymentMethod == "COD" && !response.order_id.isNullOrBlank()) {
-                                    Toast.makeText(context, "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
+                                } else if ((selectedPaymentMethod == "COD" || selectedPaymentMethod == "WALLET") && !response.order_id.isNullOrBlank()) {
+                                    Toast.makeText(context, if (selectedPaymentMethod == "WALLET") "Payment Successful!" else "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
                                     navController.navigate("track_order/${response.order_id}") {
                                         popUpTo("main") { inclusive = false }
                                     }

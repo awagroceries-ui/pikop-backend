@@ -1,35 +1,35 @@
-# Walkthrough - Fulfiller Incentives & Customer Loyalty
+# Walkthrough - Merchant Analytics Dashboard
 
-I have successfully implemented the **Fulfiller Incentives** and **Customer Loyalty/Referral** systems, providing the platform with powerful retention tools for both agents and users.
+I have implemented a professional Analytics Dashboard for Merchants, giving them a data-driven reason to stay engaged with the Pikop platform.
 
 ## Changes Made
 
-### 🚀 1. Fulfiller Incentives (Retention & Engagement)
-- **Streak Bonuses**: Implemented a "Daily Activity" tracker. Fulfillers who complete at least one mission per day for **7 or 30 consecutive days** automatically receive a wallet bonus (default: ₦1,000 for 7 days, ₦5,000 for 30 days).
-- **Peak-Hour Bonus**: Created a dynamic incentive system for rush hours. During admin-configured windows (e.g., 4 PM - 7 PM), fulfillers earn a **flat extra bonus per delivery** (default: ₦300), funded from the platform's margin.
-- **In-App Alerts**: Added a "Peak Bonus Active! 🔥" banner and a "Streak Tracker" to the Fulfiller Dashboard to provide real-time motivation.
+### 🧠 1. Server-Side Aggregation (Backend)
+- **New Analytics Endpoint**: Added `getMerchantAnalytics` to `merchantController.js`. It performs high-performance SQL aggregations for:
+    - **Sales Trend**: Net revenue and order volume over time.
+    - **Best Sellers**: Ranking of items by units sold and contribution to net revenue.
+    - **Customer Retention**: Calculating the percentage of repeat buyers.
+    - **Peak Times**: Identifying the busiest days and hours for the merchant's business.
+- **Time Range Flexibility**: The backend now supports dynamic grouping by `daily`, `weekly`, `monthly`, and `annual` periods, respecting the Africa/Lagos (WAT) timezone.
+- **Financial Accuracy**: All revenue metrics are calculated **net of Marketplace Commission**, ensuring the analytics match the merchant's actual wallet earnings.
 
-### 👥 2. Customer Referral & Loyalty Program
-- **Hardened Referrals**: Added abuse prevention to the referral system. The system now cross-references phone numbers and IP patterns to block self-referral attempts.
-- **Loyalty Milestones**: Implemented a "Total Orders Completed" counter for every user. This provides the infrastructure for future tier-based rewards (e.g., "Pikop Elite" status after 100 orders).
-- **Transparency**: Added a "My Referred Friends" list to the Rewards screen so users can track which friends have joined and which have completed their first mission.
-- **Redemption Logic**: Finalized the point-to-wallet conversion. Users can now redeem their loyalty points for actual cash once they reach the **500-point threshold**.
-
-### ⚙️ 3. Admin Control Center
-- **Dynamic Config**: Updated the Admin Dashboard Settings page to allow real-time adjustment of streak thresholds, peak hour windows, and bonus amounts without code changes.
-- **Ledger Accounting**: All incentive payouts are strictly logged under `PURPOSE: STREAK_BONUS` or `PURPOSE: PEAK_BONUS` for financial oversight.
+### 📱 2. Insights Dashboard (Android UI)
+- **New Insights Tab**: Integrated a dedicated "Insights" tab into the Merchant Portal.
+- **Range Selector**: Added a quick toggle for merchants to switch between time windows.
+- **Visual KPI Cards**: Summarized Net Revenue, Order Count, and Repeat Customer rates for immediate visibility.
+- **Popularity & Peak Lists**: Built structured lists for "Best Selling Items" and "Peak Hours," allowing merchants to optimize their inventory and operating hours.
+- **UI Optimization**: To keep the navigation clean, I moved the **Business Settings** to a dedicated gear icon in the Top Bar, freeing up space in the main tab row.
 
 ## Verification Results
-- **Streak Calculation**: [VERIFIED] Confirmed streaks correctly reset if a day is skipped and increment on daily completion.
-- **Peak Hour Trigger**: [VERIFIED] Verified the bonus is correctly applied and displayed only during the configured window.
-- **Abuse Blocking**: [VERIFIED] Confirmed referral rewards are skipped if the referrer and referee share the same phone number.
+- **Merchant Isolation**: [VERIFIED] SQL queries strictly filter by the authenticated `seller_id`. Merchant A cannot see data from Merchant B.
+- **Time Range Sync**: [VERIFIED] Toggling between Week and Month correctly updates the trend periods and total aggregates.
+- **Net Revenue Check**: [VERIFIED] Verified that commission deductions are accurately reflected in the reported revenue figures.
 - **Build Status**: [SUCCESS] Successfully compiled and verified the Android app.
 
 ## Deployment Instructions
-To activate the incentives and loyalty engine on your production VPS:
+To activate the analytics engine on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```

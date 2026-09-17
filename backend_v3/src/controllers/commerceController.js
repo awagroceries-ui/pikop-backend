@@ -269,6 +269,73 @@ const initializeCommerceOrder = async (req, res) => {
             }
         }
 
+        // --- WALLET FLOW (Immediate Debit) ---
+        if (payment_method === 'WALLETPAY') {
+            const client = await db.pool.connect();
+            try {
+                await client.query('BEGIN');
+
+                // 4.1 Calculate Frozen Dispatch Commission (v3.9.8)
+                let dispatchCommissionRate = 0.25;
+                try {
+                    const commRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
+                    if (commRes.rows.length > 0) dispatchCommissionRate = parseFloat(commRes.rows[0].value);
+                } catch (e) {}
+                const dispatchCommissionAmount = PlatformConfig.roundFee(deliveryFee * dispatchCommissionRate);
+
+                // Insert directly into orders
+                const orderRes = await client.query(
+                    `INSERT INTO orders (
+                        order_type, user_id, status, item_description,
+                        pickup_address, delivery_address, pickup_location, delivery_location,
+                        total_fare, item_price, delivery_fee, platform_fee_amount,
+                        payment_status, payment_method, payment_channel,
+                        seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount,
+                        dispatch_commission_amount
+                    ) VALUES (
+                        'pickup_delivery', $1, 'SEARCHING', $2,
+                        $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
+                        $9, $10, $11, $12,
+                        'PAID', 'wallet', 'wallet',
+                        $13, $14, $15, 'held', $16, $17
+                    ) RETURNING id`,
+                    [
+                        userId, item.name,
+                        item.pickup_address, delivery_address, mLoc.lng, mLoc.lat, lng, lat,
+                        totalNaira, item.price, deliveryFee, platformFee,
+                        item.merchant_user_id, (item_type === 'product' ? item_id : null), (item_type === 'meal' ? item_id : null),
+                        merchantCommissionAmount,
+                        dispatchCommissionAmount
+                    ]
+                );
+
+                const newOrderId = orderRes.rows[0].id;
+
+                // Individual Wallet Debit
+                const walletService = require('../services/walletService');
+                await walletService.processIndividualWalletPayment(client, userId, totalNaira, newOrderId);
+
+                // Escrow hold for seller
+                const walletId = await walletService.ensureWalletExists(client, 'USER', item.merchant_user_id);
+                await walletService.recordEntry(client, walletId, 'CREDIT', item.price, 'ESCROW_HOLD', `Marketplace Sale: ${item.name}`, newOrderId, 'pending');
+
+                await client.query('COMMIT');
+
+                // Broadcast to fulfillers
+                const dispatchService = require('../services/dispatchService');
+                const updatedOrder = (await db.query("SELECT * FROM orders WHERE id = $1", [newOrderId])).rows[0];
+                const fulfillers = await dispatchService.findNearbyFulfillers(updatedOrder);
+                if (fulfillers.length > 0) dispatchService.broadcastOffer(updatedOrder, fulfillers).catch(() => {});
+
+                return res.status(200).json({ success: true, order_id: newOrderId.toString() });
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
+            }
+        }
+
         // --- PREPAID FLOW (Paystack Initialization) ---
         const payload = {
             amount: Math.round(totalNaira * 100),

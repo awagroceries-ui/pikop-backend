@@ -1,56 +1,57 @@
-# Implementation Plan - Merchant Analytics Dashboard
+# Implementation Plan - In-App Wallet Checkout
 
-This plan implements a dedicated Analytics view for Merchants, providing insights into sales performance, customer retention, and peak operational windows.
+This plan enables Customers to pay for deliveries and marketplace orders using their existing Pikop Wallet balance, providing a zero-friction alternative to Paystack for funded accounts.
 
 ## Proposed Changes
 
 ### 1. Backend Logic (Node.js)
 
-#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
-- Implement `getMerchantAnalytics`:
-    - **Time Range Handling**: Supports `daily`, `weekly`, `monthly`, and `annual` aggregations in WAT.
-    - **Sales & Volume Trend**: Aggregates total missions and **Net Revenue** (Item Price - Merchant Commission) grouped by time period.
-    - **Best Sellers**: Top 5 items ranked by units sold and revenue.
-    - **Retention**: Calculates the percentage of unique customers who have placed more than one order.
-    - **Operational Peaks**: Identifies the top 5 hour/day slots with the highest order volume.
+#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
+- Implement `processIndividualWalletPayment(userId, amount, orderId)`:
+    - Atomically checks if the user's `available_balance` is sufficient.
+    - Performs a `DEBIT` with `purpose: 'MISSION_PAYMENT'`.
 
-#### [MODIFY] [merchantRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/merchantRoutes.js)
-- Register `GET /analytics` endpoint.
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- Update `createOrder`:
+    - Handle `payment_method === 'wallet'`.
+    - If selected, trigger `processIndividualWalletPayment`.
+    - Mark `payment_status = 'PAID'` and status = `SEARCHING` (or `SCHEDULED`) immediately.
+
+#### [MODIFY] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
+- Update `initializeCommerceOrder`:
+    - Add support for `payment_method === 'wallet'`.
+    - Similar to the COD flow, but performs an immediate debit and sets `payment_status = 'PAID'`.
 
 ---
 
 ### 2. Android App Integration (Compose)
 
 #### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Add `MerchantAnalyticsResponse` and nested DTOs (`TrendItem`, `BestSeller`, `PeakTime`, `RetentionStats`).
-- Add `getMerchantAnalytics` endpoint.
+- Update `CommerceOrderRequest` to support `WALLETPAY` (to differentiate from `CARD` and `COD`).
 
-#### [MODIFY] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
-- Add a new **Analytics** tab (position 2, moving others down).
-- **Redesign Tab Row**: Ensure it handles 6 tabs gracefully or move settings to a profile button. I will move "Settings" to a top-bar action to keep the tab row clean (Sales, Listings, Analytics, Returns, Bulk).
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- Fetch user wallet balance on screen load.
+- Add **"My Wallet"** as a billing option.
+- **UI Logic**:
+    - Show available balance on the selector.
+    - Only allow selection if `balance >= total_fare`.
+- On confirmation, skip Paystack browser and call `createOrder` with `payment_method: 'wallet'`.
 
-#### [NEW] [MerchantAnalyticsScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantAnalyticsScreen.kt)
-- **Time Range Picker**: Segmented buttons for Day/Week/Month/Year.
-- **KPI Dashboard**: Summary cards for Total Net Revenue and Order Count.
-- **Performance Visualization**: A scrollable trend list showing growth over the selected period.
-- **Operational Insights**: "Most Popular Items" list and "Busiest Hours" breakdown.
+#### [MODIFY] [CommerceCheckoutScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/CommerceCheckoutScreen.kt)
+- Add **"Pay from Wallet"** card alongside "Pay Now" and "COD".
+- Implement similar balance check and direct-activation logic.
 
 ---
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Financial Consistency**
-> All revenue figures shown to the Merchant will be **Net Revenue** (what they actually receive after Pikop's commission is deducted). This ensures the dashboard matches their wallet balance.
-
-> [!NOTE]
-> **Data Privacy**
-> Analytics are strictly scoped to the authenticated merchant. Cross-merchant data visibility is blocked at the SQL query level using `WHERE seller_id = $userId`.
+> **Simple Full-Payment Model**
+> For this first version, I am implementing a **Full-or-Nothing** model. Users cannot split payment between Wallet and Card. They must have the full amount in their wallet to see the option.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Merchant Isolation**: Log in as Merchant A. Verify analytics only show orders where Merchant A was the seller.
-2.  **Trend Accuracy**: Compare the "Total Net Revenue" in Analytics against the sum of "Net Payouts" in the Sales tab for the same period.
-3.  **Range Switching**: Toggle between "Weekly" and "Monthly". Verify that data points update correctly (e.g., daily points for weekly, monthly points for annual).
-4.  **Best Sellers**: Sell 3 units of Item X and 1 unit of Item Y. Verify Item X appears at the top of the "Best Sellers" list.
+1.  **Funded Checkout**: Top up a wallet to ₦5,000. Create an order for ₦1,500. Select "My Wallet". Verify the order activates immediately and the wallet balance is now ₦3,500.
+2.  **Insufficient Balance**: Create an order for ₦5,001. Verify the "My Wallet" option is either disabled or shows a "Low Balance" warning and cannot be selected.
+3.  **Marketplace Test**: Purchase a ₦2,000 item using Wallet. Verify the merchant receives the sale notification and the customer balance decreases correctly.

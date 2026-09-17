@@ -1,14 +1,13 @@
-# Task: Merchant Analytics Dashboard
+# Task: In-App Wallet Checkout
 
-- [ ] **Backend - Aggregation Engine**
-    - [ ] Implement `getMerchantAnalytics` in `merchantController.js`
-    - [ ] Register route in `merchantRoutes.js`
-- [ ] **Android - API & Data Models**
-    - [ ] Update `ApiService.kt` with analytics DTOs
-- [ ] **Android - UI Implementation**
-    - [ ] Create `MerchantAnalyticsScreen.kt`
-    - [ ] Integrate into `MerchantPortalScreen.kt` tab system
+- [ ] **Backend - Wallet Logic**
+    - [ ] Implement `processIndividualWalletPayment` in `walletService.js`
+    - [ ] Update `orderController.js` to handle `payment_method: 'wallet'`
+    - [ ] Update `commerceController.js` to handle `payment_method: 'wallet'`
+- [ ] **Android - Checkout Integration**
+    - [ ] Update `OrderQuoteScreen.kt` (Fetch balance, show Wallet option)
+    - [ ] Update `CommerceCheckoutScreen.kt` (Add Wallet payment card)
 - [ ] **Verification**
-    - [ ] Verify data scoping (Merchant A cannot see Merchant B)
-    - [ ] Verify time-range accuracy
+    - [ ] Test successful wallet checkout
+    - [ ] Test insufficient balance rejection
     - [ ] Build and Deploy

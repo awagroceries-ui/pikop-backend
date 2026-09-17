@@ -812,7 +812,7 @@ const createOrder = async (req, res) => {
                 dLng, // $10
                 dLat, // $11
                 finalFare + (is_insured ? parseFloat(insurance_fee || 0) : 0), // $12
-                (finalFare === 0 || corporate_account_id) ? 'PAID' : 'pending', // $13
+                (finalFare === 0 || corporate_account_id || payment_method === 'wallet') ? 'PAID' : 'pending', // $13
                 payment_method || (corporate_account_id ? 'corporate' : 'card'), // $14
                 refToSave, // $15
                 payment_method || (corporate_account_id ? 'corporate' : 'card'), // $16
@@ -853,10 +853,14 @@ const createOrder = async (req, res) => {
 
         const orderId = orderRes.rows[0].id;
 
-        // 4.2 Perform Corporate Debit if applicable
+        // 4.2 Perform Wallet or Corporate Debit if applicable
         if (corporate_account_id) {
             await walletService.processCorporateDebit(client, corporate_account_id, finalFare, userId, orderId);
             console.log(`[Order] Corporate billing applied for Order #${orderId} (Account: ${corporate_account_id})`);
+        } else if (payment_method === 'wallet') {
+            const amountToCharge = finalFare + (is_insured ? parseFloat(insurance_fee || 0) : 0);
+            await walletService.processIndividualWalletPayment(client, userId, amountToCharge, orderId);
+            console.log(`[Order] Individual Wallet payment applied for Order #${orderId}`);
         }
 
         await client.query('COMMIT');

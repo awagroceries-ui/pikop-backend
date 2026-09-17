@@ -589,6 +589,27 @@ const processInsuranceClaim = async (orderId, claimAmount, providedClient = null
     }
 };
 
+/**
+ * Processes a standard checkout payment using personal wallet balance (v4.6).
+ */
+const processIndividualWalletPayment = async (client, userId, amount, orderId) => {
+    // 1. Lock Wallet
+    const walletId = await ensureWalletExists(client, 'USER', userId);
+    const { rows } = await client.query("SELECT balance FROM wallets WHERE id = $1 FOR UPDATE", [walletId]);
+
+    if (rows.length === 0) throw new Error('Wallet not found.');
+    const currentBalance = parseFloat(rows[0].balance);
+
+    if (currentBalance < amount) {
+        throw new Error(`Insufficient wallet balance. Required: ₦${amount.toLocaleString()}. Available: ₦${currentBalance.toLocaleString()}`);
+    }
+
+    // 2. Perform Debit
+    await recordEntry(client, walletId, 'DEBIT', amount, 'MISSION_PAYMENT', `Payment for mission #${orderId}`, orderId);
+
+    return true;
+};
+
 module.exports = {
   ensureWalletExists,
   recordEntry,
@@ -601,5 +622,6 @@ module.exports = {
   applyAutomatedWaiver,
   processReturnRefund,
   processCorporateDebit,
-  processInsuranceClaim
+  processInsuranceClaim,
+  processIndividualWalletPayment
 };

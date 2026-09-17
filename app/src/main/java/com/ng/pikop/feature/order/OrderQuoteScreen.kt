@@ -8,6 +8,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -137,6 +139,8 @@ fun OrderQuoteScreen(
     var showWaitlistDialog by remember { mutableStateOf(false) }
     var isInsured by remember { mutableStateOf(false) }
     var scheduledAt by remember { mutableStateOf<String?>(null) }
+    var walletBalance by remember { mutableStateOf(0.0) }
+    var billingMethod by remember { mutableStateOf("PERSONAL") } // PERSONAL, CORPORATE, WALLET
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -151,6 +155,9 @@ fun OrderQuoteScreen(
             savedAddresses = response.addresses
             val authorizations = apiService.getMyAuthorizations()
             corporateAccounts = authorizations.data ?: emptyList()
+            
+            val walletRes = apiService.getWalletInfo()
+            walletBalance = walletRes.balance ?: 0.0
         } catch (e: Exception) {}
     }
 
@@ -344,21 +351,49 @@ fun OrderQuoteScreen(
                 Text("Discount: ₦$discount applied to delivery", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
             }
 
-            // Billing Method
-            if (corporateAccounts.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Billing Method", 
-                    style = MaterialTheme.typography.titleMedium, 
-                    color = MaterialTheme.colorScheme.onBackground, 
-                    modifier = Modifier.align(Alignment.Start),
-                    fontWeight = FontWeight.Bold
-                )
-                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = selectedCorporateAccount == null, onClick = { selectedCorporateAccount = null }, label = { Text("Personal") })
-                    corporateAccounts.forEach { acc ->
-                        FilterChip(selected = selectedCorporateAccount?.id == acc.id, onClick = { selectedCorporateAccount = acc }, label = { Text(acc.company_name ?: "Company") })
+            // Billing Method (v4.6 Unified)
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Billing Method", 
+                style = MaterialTheme.typography.titleMedium, 
+                color = MaterialTheme.colorScheme.onBackground, 
+                modifier = Modifier.align(Alignment.Start),
+                fontWeight = FontWeight.Bold
+            )
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), 
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    FilterChip(
+                        selected = billingMethod == "PERSONAL", 
+                        onClick = { billingMethod = "PERSONAL"; selectedCorporateAccount = null }, 
+                        label = { Text("Card/Transfer") }
+                    )
+                }
+                
+                if (walletBalance > 0) {
+                    item {
+                        val canAfford = (quoteResult?.total_fare ?: 0.0) <= walletBalance
+                        FilterChip(
+                            selected = billingMethod == "WALLET",
+                            onClick = { billingMethod = "WALLET"; selectedCorporateAccount = null },
+                            label = { Text("My Wallet (₦${walletBalance.toInt()})") },
+                            enabled = canAfford,
+                            leadingIcon = if (!canAfford) { { Icon(Icons.Default.Lock, null, modifier = Modifier.size(14.dp)) } } else null
+                        )
                     }
+                }
+
+                items(corporateAccounts) { acc ->
+                    FilterChip(
+                        selected = selectedCorporateAccount?.id == acc.id, 
+                        onClick = { 
+                            selectedCorporateAccount = acc
+                            billingMethod = "CORPORATE"
+                        }, 
+                        label = { Text(acc.company_name ?: "Company") }
+                    )
                 }
             }
 
@@ -629,6 +664,36 @@ fun OrderQuoteScreen(
                                         onOrderComplete("CORPORATE")
                                     } else {
                                         Toast.makeText(context, "Failed to finalize corporate order", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else if (billingMethod == "WALLET") {
+                                    val success = finalizeOrderAfterPayment(
+                                        apiService = apiService, 
+                                        quoteId = qId, 
+                                        corporateAccountId = null, 
+                                        promoId = activePromo?.promo_id, 
+                                        paymentReference = "WALLET_${java.util.UUID.randomUUID()}", 
+                                        recipientName = recipientName, 
+                                        recipientPhone = recipientPhone, 
+                                        notes = notes, 
+                                        pLat = pickupLatLng?.latitude ?: 0.0, 
+                                        pLng = pickupLatLng?.longitude ?: 0.0, 
+                                        dLat = deliveryLatLng?.latitude ?: 0.0, 
+                                        dLng = deliveryLatLng?.longitude ?: 0.0, 
+                                        itemPhotoUrl = pUrl, 
+                                        pSummary = pickupAddress.take(50), 
+                                        dSummary = deliveryAddress.take(50),
+                                        quoteResult = result,
+                                        sellerPhone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null,
+                                        pickupState = pickupState,
+                                        scheduledAt = scheduledAt,
+                                        insuranceFee = result?.insurance_fee,
+                                        isInsured = isInsured,
+                                        surgeMultiplier = result?.surge_multiplier
+                                    )
+                                    if (success) {
+                                        onOrderComplete("WALLET")
+                                    } else {
+                                        Toast.makeText(context, "Wallet payment failed", Toast.LENGTH_SHORT).show()
                                     }
                                 } else if (result != null) {
                                     val promo = activePromo
