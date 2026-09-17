@@ -1,19 +1,22 @@
-# Task: Fulfiller SOS/Emergency Button
+# Task: Marketplace Returns & Reverse Logistics
 
 - [ ] **Database & Schema**
-    - [ ] Create migration `1726520000000_emergency_sos_system.js`
-- [ ] **Backend Core - SOS Logic**
-    - [ ] Implement `triggerSOS` in `orderController.js`
-    - [ ] Update `adminController.js` (getEmergencyDashboard, resolveEmergency)
-    - [ ] Add backend routes (`orderRoutes.js`, `adminRoutes.js`)
-- [ ] **Admin Dashboard UI**
-    - [ ] Update `layout.ejs` with sticky SOS banner
-    - [ ] Create `emergency_resolution.ejs` view
-- [ ] **Android UI - SOS & Profile**
-    - [ ] Update `ApiService.kt` (Add `triggerSOS` endpoint & Emergency Contact fields)
-    - [ ] Update `ProfileEditScreen.kt` (Add Emergency Contact fields)
-    - [ ] Update `ActiveOrderScreen.kt` (Implement SOS FAB with 3s hold logic)
+    - [ ] Create migration `1726530000000_marketplace_returns.js`
+- [ ] **Backend - Merchant Return Control**
+    - [ ] Update `merchantController.js` (Return policy settings, request processing)
+    - [ ] Implement `processReturnRequest` with flexible fee payer logic
+- [ ] **Backend - Customer Return Entry**
+    - [ ] Update `orderController.js` (`requestReturn`)
+- [ ] **Backend - Refund & Wallet**
+    - [ ] Update `walletService.js` (`processReturnRefund`, handle merchant-paid returns)
+- [ ] **Android UI - Return Policy & Requests**
+    - [ ] Update `ApiService.kt` (Endpoints & DTOs)
+    - [ ] Update `StorefrontScreen.kt` (Display policy)
+    - [ ] Update `OrdersDashboardScreen.kt` (Request return button)
+- [ ] **Android UI - Merchant Management**
+    - [ ] Update `MerchantPortalScreen.kt` (Returns tab, improved settings)
 - [ ] **Verification**
-    - [ ] Test SOS trigger and Admin alert
-    - [ ] Verify Emergency Contact SMS
+    - [ ] Verify merchant-paid return flow
+    - [ ] Verify customer-paid return flow
+    - [ ] Verify refund on receipt confirmation
     - [ ] Build and Deploy

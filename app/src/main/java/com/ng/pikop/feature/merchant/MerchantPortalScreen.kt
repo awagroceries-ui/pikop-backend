@@ -5,7 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -126,8 +128,9 @@ fun MerchantPortalScreen(
                 TabRow(selectedTabIndex = selectedTab.intValue) {
                     Tab(selected = selectedTab.intValue == 0, onClick = { selectedTab.intValue = 0 }, text = { Text("My Sales") })
                     Tab(selected = selectedTab.intValue == 1, onClick = { selectedTab.intValue = 1 }, text = { Text("Listings") })
-                    Tab(selected = selectedTab.intValue == 2, onClick = { selectedTab.intValue = 2 }, text = { Text("Bulk") })
-                    Tab(selected = selectedTab.intValue == 3, onClick = { selectedTab.intValue = 3 }, text = { Text("Settings") })
+                    Tab(selected = selectedTab.intValue == 2, onClick = { selectedTab.intValue = 2 }, text = { Text("Returns") })
+                    Tab(selected = selectedTab.intValue == 3, onClick = { selectedTab.intValue = 3 }, text = { Text("Bulk") })
+                    Tab(selected = selectedTab.intValue == 4, onClick = { selectedTab.intValue = 4 }, text = { Text("Settings") })
                 }
 
                 when (selectedTab.intValue) {
@@ -138,13 +141,20 @@ fun MerchantPortalScreen(
                         onEdit = onEditItem,
                         onDelete = { type, id -> handleDeleteItem(type, id) }
                     )
-                    2 -> BulkTabContent(dashboardData.value?.batches ?: emptyList())
-                    3 -> SettingsTabContent(
+                    2 -> ReturnsTabContent(
+                        onRefresh = { fetchDashboard() }
+                    )
+                    3 -> BulkTabContent(dashboardData.value?.batches ?: emptyList())
+                    4 -> SettingsTabContent(
                         profile = merchantProfile.value,
-                        onUpdateSettings = { acceptsCod: Boolean ->
+                        onUpdateSettings = { acceptsCod, allowsReturns, windowDays ->
                             scope.launch {
                                 try {
-                                    apiService.updateMerchantSettings(mapOf("accepts_cod" to acceptsCod))
+                                    apiService.updateMerchantSettings(mapOf(
+                                        "accepts_cod" to (acceptsCod ?: merchantProfile.value?.accepts_cod ?: true),
+                                        "allows_returns" to (allowsReturns ?: merchantProfile.value?.allows_returns ?: false),
+                                        "return_window_days" to (windowDays ?: merchantProfile.value?.return_window_days ?: 7)
+                                    ))
                                     fetchDashboard()
                                     Toast.makeText(context, "Settings updated", Toast.LENGTH_SHORT).show()
                                 } catch (_: Exception) {
@@ -365,14 +375,15 @@ fun BatchItem(batch: MerchantBatch) {
 @Composable
 fun SettingsTabContent(
     profile: MerchantProfile?,
-    onUpdateSettings: (Boolean) -> Unit
+    onUpdateSettings: (Boolean?, Boolean?, Int?) -> Unit
 ) {
     if (profile == null) return
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         Text("Business Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -381,7 +392,7 @@ fun SettingsTabContent(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Accept Cash on Delivery", fontWeight = FontWeight.Bold)
@@ -393,7 +404,38 @@ fun SettingsTabContent(
                     }
                     Switch(
                         checked = profile.accepts_cod,
-                        onCheckedChange = { onUpdateSettings(it) }
+                        onCheckedChange = { onUpdateSettings(it, null, null) }
+                    )
+                }
+
+                HorizontalDivider()
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Allow Marketplace Returns", fontWeight = FontWeight.Bold)
+                        Text(
+                            "Enable customers to request returns within your specified window.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Switch(
+                        checked = profile.allows_returns,
+                        onCheckedChange = { onUpdateSettings(null, it, null) }
+                    )
+                }
+
+                if (profile.allows_returns) {
+                    var windowText by remember { mutableStateOf(profile.return_window_days.toString()) }
+                    OutlinedTextField(
+                        value = windowText,
+                        onValueChange = { 
+                            windowText = it
+                            it.toIntOrNull()?.let { days -> onUpdateSettings(null, null, days) }
+                        },
+                        label = { Text("Return Window (Days)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
                     )
                 }
             }
@@ -404,5 +446,124 @@ fun SettingsTabContent(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary
         )
+    }
+}
+
+@Composable
+fun ReturnsTabContent(onRefresh: () -> Unit) {
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val apiService = remember { ApiService.create(tokenManager) }
+    val scope = rememberCoroutineScope()
+
+    var returns by remember { mutableStateOf<List<ReturnResponse>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    fun fetch() {
+        scope.launch {
+            isLoading = true
+            try {
+                val res = apiService.getMerchantReturnRequests()
+                returns = res.data
+            } catch (_: Exception) {}
+            isLoading = false
+        }
+    }
+
+    LaunchedEffect(Unit) { fetch() }
+
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else if (returns.isEmpty()) {
+        EmptyStateView(
+            icon = Icons.Default.KeyboardReturn,
+            title = "No Return Requests",
+            description = "Active returns from customers will appear here."
+        )
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(returns) { ret ->
+                ReturnRequestItem(
+                    ret = ret,
+                    onProcess = { status, notes, payer ->
+                        scope.launch {
+                            try {
+                                apiService.processReturnRequest(ret.id, ProcessReturnRequest(status, notes, payer))
+                                Toast.makeText(context, "Return $status", Toast.LENGTH_SHORT).show()
+                                fetch()
+                                onRefresh()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onConfirmReceipt = {
+                        scope.launch {
+                            try {
+                                apiService.confirmReturnReceipt(ret.id)
+                                Toast.makeText(context, "Refund processed", Toast.LENGTH_SHORT).show()
+                                fetch()
+                                onRefresh()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ReturnRequestItem(
+    ret: ReturnResponse,
+    onProcess: (String, String?, String) -> Unit,
+    onConfirmReceipt: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "Return Request", fontWeight = FontWeight.Bold)
+                Badge { Text(ret.status) }
+            }
+            
+            Text("Customer: ${ret.customer_name ?: "Unknown"}")
+            Text("Item: ${ret.item_description ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
+            
+            Surface(color = Color.LightGray.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Text(ret.reason, modifier = Modifier.padding(8.dp), style = MaterialTheme.typography.bodySmall)
+            }
+
+            if (ret.status == "PENDING") {
+                var notes by remember { mutableStateOf("") }
+                var feePayer by remember { mutableStateOf("CUSTOMER") }
+                
+                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Internal Notes") }, modifier = Modifier.fillMaxWidth())
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = feePayer == "MERCHANT", onCheckedChange = { feePayer = if (it) "MERCHANT" else "CUSTOMER" })
+                    Text("I will cover return delivery fee", style = MaterialTheme.typography.labelSmall)
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { onProcess("APPROVED", notes, feePayer) }, modifier = Modifier.weight(1f)) {
+                        Text("Approve")
+                    }
+                    Button(onClick = { onProcess("DECLINED", notes, "CUSTOMER") }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                        Text("Decline")
+                    }
+                }
+            } else if (ret.status == "APPROVED") {
+                Text("Awaiting item pickup/delivery...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            } else if (ret.status == "IN_TRANSIT") {
+                Text("Item is on its way back to you.", style = MaterialTheme.typography.bodySmall, color = com.ng.pikop.ui.theme.PikopGreen)
+                Button(onClick = onConfirmReceipt, modifier = Modifier.fillMaxWidth()) {
+                    Text("Confirm Receipt & Refund")
+                }
+            }
+        }
     }
 }

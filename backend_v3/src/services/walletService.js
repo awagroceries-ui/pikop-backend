@@ -392,6 +392,53 @@ const applyAutomatedWaiver = async (orderId, waiverType) => {
     }
 };
 
+/**
+ * Processes a refund for a returned item.
+ */
+const processReturnRefund = async (returnId) => {
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Fetch Return & Original Order
+        const { rows } = await client.query(`
+            SELECT r.id, o.id as order_id, o.user_id, o.item_price, o.seller_id, o.fulfiller_id,
+                   f.user_id as fulfiller_user_id
+            FROM returns r
+            JOIN orders o ON o.id = r.order_id
+            LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
+            WHERE r.id = $1
+        `, [returnId]);
+
+        if (rows.length === 0) throw new Error('Return not found');
+        const r = rows[0];
+
+        // 2. Resolve Target Seller Wallet
+        const sellerId = r.seller_id || r.fulfiller_user_id;
+        const sellerWalletId = await ensureWalletExists(client, 'USER', sellerId);
+        const buyerWalletId = await ensureWalletExists(client, 'USER', r.user_id);
+
+        // 3. Move Item Price back to Buyer
+        // NOTE: We only refund the ITEM PRICE. The delivery fee for both legs is already consumed by agents.
+        const refundAmount = parseFloat(r.item_price);
+
+        await recordEntry(client, sellerWalletId, 'DEBIT', refundAmount, 'SETTLEMENT', `Refund for returned item (Return #${returnId})`, r.order_id);
+        await recordEntry(client, buyerWalletId, 'CREDIT', refundAmount, 'SETTLEMENT', `Refund for returned item #${r.order_id}`, r.order_id);
+
+        await client.query("UPDATE returns SET status = 'COMPLETED' WHERE id = $1", [returnId]);
+
+        await client.query('COMMIT');
+        console.log(`[Refund] Processed return refund for Order ${r.order_id}: ₦${refundAmount} from ${sellerId} to ${r.user_id}`);
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[Refund] Return Refund Failed:', error.message);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   ensureWalletExists,
   recordEntry,
@@ -401,5 +448,6 @@ module.exports = {
   refundEscrow,
   processReferralReward,
   awardLoyaltyPoints,
-  applyAutomatedWaiver
+  applyAutomatedWaiver,
+  processReturnRefund
 };

@@ -17,6 +17,11 @@ router.post('/orders/bulk-session', authenticateToken, merchantController.create
 router.get('/orders', authenticateToken, merchantController.getIncomingOrders);
 router.patch('/orders/:id/status', authenticateToken, merchantController.updateOrderStatus);
 
+// Return Management (v4.2)
+router.get('/returns', authenticateToken, merchantController.getReturnRequests);
+router.post('/returns/:returnId/process', authenticateToken, merchantController.processReturnRequest);
+router.post('/returns/:returnId/confirm-receipt', authenticateToken, merchantController.confirmReturnReceipt);
+
 // Programmatic Bulk Operations (API Key)
 router.post('/orders/bulk', authenticateMerchantKey, merchantController.createBulkOrders);
 router.get('/batches', authenticateMerchantKey, merchantController.getBatches);

@@ -212,7 +212,42 @@ data class OrderDetailsResponse(
     @SerializedName("fulfiller_profile") val fulfiller_profile: FulfillerPublicProfile? = null,
     @SerializedName("history") val history: List<StatusHistoryItem>? = null,
     @SerializedName("user_name") val user_name: String? = null,
-    @SerializedName("data") val data: OrderDetailsResponse? = null
+    @SerializedName("data") val data: OrderDetailsResponse? = null,
+
+    // Return Info (v4.2)
+    val vendor_allows: Boolean? = null,
+    val vendor_window: Int? = null,
+    val kitchen_allows: Boolean? = null,
+    val kitchen_window: Int? = null,
+    val return_status: String? = null,
+    val created_at: String? = null
+)
+
+data class ReturnRequest(
+    val reason: String,
+    val evidence_urls: List<String> = emptyList()
+)
+
+data class ProcessReturnRequest(
+    val status: String, // APPROVED, DECLINED
+    val merchant_notes: String? = null,
+    val delivery_fee_payer: String = "CUSTOMER" // CUSTOMER, MERCHANT
+)
+
+data class ReturnResponse(
+    val id: String,
+    val order_id: Int,
+    val status: String,
+    val reason: String,
+    val customer_name: String? = null,
+    val item_description: String? = null,
+    val item_price: Double? = null,
+    val created_at: String
+)
+
+data class ReturnListResponse(
+    val success: Boolean,
+    val data: List<ReturnResponse>
 )
 
 data class FulfillerStats(
@@ -560,7 +595,10 @@ data class MerchantProfile(
     val business_name: String = "",
     val status: String = "pending",
     val type: String = "vendor", // vendor, kitchen
-    val accepts_cod: Boolean = true
+    val accepts_cod: Boolean = true,
+    val allows_returns: Boolean = false,
+    val return_window_days: Int = 7,
+    val return_policy_text: String? = null
 )
 
 data class SetupMerchantRequest(
@@ -1043,13 +1081,25 @@ interface ApiService {
     suspend fun getCityRules(@retrofit2.http.Path("name") name: String): Map<String, Any>
     
     @PATCH("api/v1/merchants/settings")
-    suspend fun updateMerchantSettings(@Body request: Map<String, Boolean>): AuthResponse
+    suspend fun updateMerchantSettings(@Body request: Map<String, Any>): AuthResponse
     
+    @POST("api/v1/orders/:orderId/return")
+    suspend fun requestReturn(@retrofit2.http.Path("orderId") orderId: String, @Body request: ReturnRequest): Map<String, Any>
+
     @GET("api/v1/merchants/orders")
     suspend fun getMerchantIncomingOrders(): List<OrderDetailsResponse>
     
     @PATCH("api/v1/merchants/orders/{id}/status")
     suspend fun updateMerchantOrderStatus(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): AuthResponse
+
+    @GET("api/v1/merchants/returns")
+    suspend fun getMerchantReturnRequests(): ReturnListResponse
+
+    @POST("api/v1/merchants/returns/{returnId}/process")
+    suspend fun processReturnRequest(@retrofit2.http.Path("returnId") returnId: String, @Body request: ProcessReturnRequest): Map<String, Any>
+
+    @POST("api/v1/merchants/returns/{returnId}/confirm-receipt")
+    suspend fun confirmReturnReceipt(@retrofit2.http.Path("returnId") returnId: String): Map<String, Any>
 
     @GET("api/v1/merchants/my-batches")
     suspend fun getMerchantBatches(): MerchantBatchesResponse

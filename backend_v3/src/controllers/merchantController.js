@@ -544,6 +544,124 @@ const updateOrderStatus = async (req, res) => {
     }
 };
 
+/**
+ * Returns pending and active return requests for the merchant.
+ */
+const getReturnRequests = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const { rows } = await db.query(`
+            SELECT r.*, o.item_description, o.item_price, u.full_name as customer_name
+            FROM returns r
+            JOIN orders o ON o.id = r.order_id
+            JOIN users u ON u.id = o.user_id
+            WHERE (o.vendor_id IN (SELECT id FROM vendors WHERE user_id = $1)
+               OR o.kitchen_id IN (SELECT id FROM kitchens WHERE user_id = $1))
+            ORDER BY r.created_at DESC
+        `, [userId]);
+        res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Processes a return request (Approve/Decline).
+ */
+const processReturnRequest = async (req, res) => {
+    const { returnId } = req.params;
+    const { status, merchant_notes, delivery_fee_payer } = req.body;
+    const userId = req.user.id;
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Fetch Return & Verify Ownership
+        const { rows } = await client.query(`
+            SELECT r.*, o.user_id as customer_user_id, o.pickup_location as original_pickup, o.delivery_location as original_delivery,
+                   o.delivery_address as customer_address, o.pickup_address as merchant_address,
+                   o.item_description, o.total_fare as original_fare
+            FROM returns r
+            JOIN orders o ON o.id = r.order_id
+            WHERE r.id = $1 FOR UPDATE
+        `, [returnId]);
+
+        if (rows.length === 0) throw new Error('Return request not found');
+        const ret = rows[0];
+
+        // 2. Update Status
+        await client.query(
+            "UPDATE returns SET status = $1, merchant_notes = $2, delivery_fee_payer = $3 WHERE id = $4",
+            [status, merchant_notes, delivery_fee_payer || 'CUSTOMER', returnId]
+        );
+
+        // 3. If Approved, Generate Reverse Mission
+        if (status === 'APPROVED') {
+            const initialStatus = delivery_fee_payer === 'MERCHANT' ? 'SEARCHING' : 'AWAITING_PAYMENT';
+
+            // Note: Reuse original total_fare for return trip as a baseline
+            const returnFare = ret.original_fare;
+
+            const orderRes = await client.query(
+                `INSERT INTO orders (
+                    order_type, user_id, status, item_description,
+                    pickup_address, delivery_address, pickup_location, delivery_location,
+                    total_fare, payment_status, initiator_role, parent_order_id
+                ) VALUES (
+                    'pickup_delivery', $1, $2, $3,
+                    $4, $5, $6, $7,
+                    $8, $9, 'SELLER', $10
+                ) RETURNING id`,
+                [
+                    ret.customer_user_id, initialStatus, `RETURN: ${ret.item_description}`,
+                    ret.customer_address, ret.merchant_address, ret.original_delivery, ret.original_pickup,
+                    returnFare, initialStatus === 'SEARCHING' ? 'PAID' : 'pending', ret.order_id
+                ]
+            );
+
+            const newOrderId = orderRes.rows[0].id;
+            await client.query("UPDATE returns SET return_delivery_order_id = $1 WHERE id = $2", [newOrderId, returnId]);
+
+            // Handle Merchant Payout if they cover delivery
+            if (delivery_fee_payer === 'MERCHANT') {
+                const walletService = require('../services/walletService');
+                const walletId = await walletService.ensureWalletExists(client, 'USER', userId);
+                await walletService.recordEntry(client, walletId, 'DEBIT', returnFare, 'SETTLEMENT', `Payment for return delivery #${newOrderId}`, newOrderId);
+            }
+        }
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true, message: `Return request ${status.toLowerCase()}.` });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, message: error.message });
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * Confirms receipt of returned item and triggers refund.
+ */
+const confirmReturnReceipt = async (req, res) => {
+    const { returnId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        await db.query("UPDATE returns SET status = 'RECEIVED' WHERE id = $1", [returnId]);
+
+        // Trigger Wallet Refund (Milestone 4.2)
+        const walletService = require('../services/walletService');
+        await walletService.processReturnRefund(returnId);
+
+        res.status(200).json({ success: true, message: 'Return received. Refund processed to customer.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   registerMerchant,
   createBulkOrders,
@@ -556,5 +674,8 @@ module.exports = {
   setupMerchantProfile,
   updateMerchantSettings,
   getIncomingOrders,
-  updateOrderStatus
+  updateOrderStatus,
+  getReturnRequests,
+  processReturnRequest,
+  confirmReturnReceipt
 };

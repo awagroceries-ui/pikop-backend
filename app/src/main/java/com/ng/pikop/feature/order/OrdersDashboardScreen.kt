@@ -176,6 +176,14 @@ fun OrderCard(order: OrderDetailsResponse, onTrack: (String) -> Unit) {
                     ) {
                         Text("Track")
                     }
+                } else if (order.status == "DELIVERED" && (order.vendor_allows == true || order.kitchen_allows == true)) {
+                    // Return Action (v4.2)
+                    OutlinedButton(
+                        onClick = { /* We will trigger a Return Dialog */ },
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Text("Request Return")
+                    }
                 }
             }
         }

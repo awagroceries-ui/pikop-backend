@@ -1731,6 +1731,59 @@ const triggerSOS = async (req, res) => {
     }
 };
 
+/**
+ * Initiates a return request for a marketplace order (v4.2).
+ */
+const requestReturn = async (req, res) => {
+    const { orderId } = req.params;
+    const { reason, evidence_urls } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // 1. Verify Order Eligibility (Must be Marketplace/Food and status DELIVERED/RELEASED)
+        const { rows } = await db.query(`
+            SELECT o.*,
+                   v.allows_returns as vendor_allows, v.return_window_days as vendor_window,
+                   k.allows_returns as kitchen_allows, k.return_window_days as kitchen_window
+            FROM orders o
+            LEFT JOIN vendors v ON v.id = o.vendor_id
+            LEFT JOIN kitchens k ON k.id = o.kitchen_id
+            WHERE o.id = $1 AND o.user_id = $2
+        `, [orderId, userId]);
+
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Order not found' });
+        const order = rows[0];
+
+        if (order.status !== 'DELIVERED' && order.status !== 'RELEASED') {
+            return res.status(400).json({ success: false, message: 'Return can only be requested for completed deliveries.' });
+        }
+
+        const allowsReturns = order.vendor_allows || order.kitchen_allows || false;
+        const windowDays = order.vendor_window || order.kitchen_window || 7;
+
+        if (!allowsReturns) {
+            return res.status(400).json({ success: false, message: 'This merchant does not accept returns.' });
+        }
+
+        const ageDays = (Date.now() - new Date(order.created_at).getTime()) / (1000 * 60 * 60 * 24);
+        if (ageDays > windowDays) {
+            return res.status(400).json({ success: false, message: `The return window for this order (${windowDays} days) has expired.` });
+        }
+
+        // 2. Create Return Request
+        await db.query(
+            `INSERT INTO returns (order_id, reason, evidence_urls)
+             VALUES ($1, $2, $3)`,
+            [orderId, reason, evidence_urls || []]
+        );
+
+        res.status(201).json({ success: true, message: 'Return request submitted to merchant.' });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -1760,5 +1813,6 @@ module.exports = {
   getGuestCheckout,
   fileIncident,
   triggerInitialGuestCommunications,
-  triggerSOS
+  triggerSOS,
+  requestReturn
 };
