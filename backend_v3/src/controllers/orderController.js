@@ -137,7 +137,7 @@ const getQuote = async (req, res) => {
             db.query("SELECT value FROM settings WHERE key = 'insurance_rate'"),
             db.query("SELECT value FROM settings WHERE key = 'insurance_min_item_value'")
         ]);
-        const rate = parseFloat(rateRes.rows[0]?.value || '0.01');
+        const rate = parseFloat(rateRes.rows[0]?.value || '0.04');
         const minVal = parseFloat(minValRes.rows[0]?.value || '10000');
 
         if (parseFloat(item_price) >= minVal) {
@@ -1529,12 +1529,14 @@ const getGuestCheckout = async (req, res) => {
         // Calculate breakdown for display
         const itemTotal = parseFloat(order.item_price) + parseFloat(order.platform_fee_amount);
         const logisticsTotal = parseFloat(order.delivery_fee) + parseFloat(order.sms_charge_amount);
-        const grandTotal = itemTotal + logisticsTotal;
+        const insuranceTotal = order.is_insured ? parseFloat(order.insurance_fee || 0) : 0;
+        const grandTotal = itemTotal + logisticsTotal + insuranceTotal;
 
         res.render('guest_checkout', {
             order,
             itemTotal,
             logisticsTotal,
+            insuranceTotal,
             grandTotal,
             layout: false
         });

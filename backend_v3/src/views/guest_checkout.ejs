@@ -72,9 +72,15 @@
                     <span>SMS Processing</span>
                     <span class="value">₦<%= parseFloat(order.sms_charge_amount).toLocaleString() %></span>
                 </div>
+                <% if (order.is_insured && insuranceTotal > 0) { %>
+                <div class="row">
+                    <span>Item Protection</span>
+                    <span class="value" style="color: #008751;">₦<%= parseFloat(insuranceTotal).toLocaleString() %></span>
+                </div>
+                <% } %>
                 <div class="row" style="margin-top: 12px; font-weight: 700;">
                     <span>Logistics Subtotal</span>
-                    <span>₦<%= logisticsTotal.toLocaleString() %></span>
+                    <span>₦<%= (logisticsTotal + insuranceTotal).toLocaleString() %></span>
                 </div>
             </div>
 
