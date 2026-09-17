@@ -1,40 +1,37 @@
-# Walkthrough - Fleet Partner Program
+# Walkthrough - Nationwide-Ready Architecture
 
-I have successfully implemented the **Fleet Partner Program**, allowing organized logistics companies to join Pikop as partners, manage their own fleets of drivers, and benefit from custom commission rates and priority routing.
+I have successfully generalized the Pikop platform to support nationwide expansion. The system is no longer hardcoded to specific launch cities and can now be scaled to any Nigerian city/state purely through admin configuration.
 
 ## Changes Made
 
-### 💼 1. Fleet Partner Account & Onboarding
-- **New Account Type**: Added `FLEET_PARTNER` to the system. This role is specifically designed for businesses that own a fleet but don't fulfill missions themselves.
-- **B2B Onboarding Flow**: Created a dedicated, multi-step onboarding flow for Fleet Partners:
-    - **Step 1**: Contact Person & Basic Info (`SignupFleetPartnerScreen.kt`).
-    - **Step 2**: Business Details (CAC, Address, Fleet Size, vehicle types, cities) (`FleetPartnerBusinessSetupScreen.kt`).
-- **Admin Verification**: All Fleet Partners enter a `PENDING_VERIFICATION` state, allowing admins to manually review business credentials before activation.
+### 🌍 1. Dynamic City & State Management
+- **Database Architecture**: Created the `operating_cities` table to store active launch locations and their specific local rules.
+- **Admin Dashboard**: Built a new **Operating Cities** management screen where admins can:
+    - Add new cities and set their coordinates.
+    - Toggle a city's status between **Active** and **Coming Soon**.
+    - Configure local rules like "Requires Rider Permit" per city.
+- **Demand Tracking**: Implemented an **Expansion Waitlist** system to capture user interest in not-yet-active cities, helping prioritize expansion decisions.
 
-### 🔗 2. Driver-Fleet Linking
-- **Invite Code System**: Verified Fleet Partners can generate a unique `invite_code` from their dashboard.
-- **Linked Signup**: Individual Fulfillers (Riders/Drivers) can enter this invite code during their signup. This automatically links them to the partner via a `fleet_partner_id`.
-- **Integrity**: Fleet-linked fulfillers still complete their own individual KYC (License/Identity/Vehicle) to maintain platform safety standards.
+### 🛡️ 2. Intelligent Transaction Gating
+- **Nationwide Signup**: Confirmed that users can sign up from any city in Nigeria.
+- **Transactional Gating**: Core actions (placing orders, accepting missions) are now dynamically gated. If a user tries to request a delivery in a non-active city, the app gracefully shows a **"Coming Soon"** state with a **"Notify Me"** button instead of a broken experience.
+- **Location-Aware Headers**: Updated storefronts to dynamically say "Discover [Current City]" instead of hardcoded launch cities.
 
-### 🚀 3. Priority Routing & Commission Overrides
-- **Overflow Priority**: Implemented a 3-minute "independent-first" window. Fresh missions are first offered to independent agents; if unaccepted after 3 minutes, they are automatically broadcast to eligible Fleet Partners.
-- **Custom Commissions**: Admins can now negotiate and set custom Pikop commission rates (e.g., 20% instead of 25%) for specific partners. This override is automatically applied during mission settlement for all drivers linked to that partner.
+### 📜 3. Data-Driven Local Rules
+- **Rider Permits**: Refactored the "Commercial Rider Permit" requirement. It is no longer hardcoded to Port Harcourt; the app now checks the database rules for the user's specific city during onboarding.
+- **Dynamic Security Windows**: The 6 AM - 6 PM security window can now be customized per-city in the Admin Dashboard, allowing for local adjustments based on regional security conditions.
 
-### 📊 4. Fleet Partner Dashboard
-- **Management Console**: Built a dedicated dashboard for fleet owners to monitor their operations in real-time.
-- **Insights**: Owners can see:
-    - Aggregate mission volume (30-day view).
-    - Status of all linked drivers (Online/Offline, KYC status, Ratings).
-    - Direct access to their unique invite code.
+### ⚙️ 4. Backend Scalability
+- **Weather Service**: Updated the background weather monitoring to automatically poll all active cities from the database, removing the previous hardcoded list.
+- **API Hardening**: Removed all hardcoded city defaults from network DTOs and database queries.
 
 ## Verification Results
-- **Onboarding Path**: [VERIFIED] Role selection correctly branches to Fleet Partner application.
-- **Linking Logic**: [VERIFIED] Entering a valid invite code correctly sets the `fleet_partner_id` in the database.
-- **Settlement Logic**: [VERIFIED] `walletService.js` correctly detects the partner override and adjusts the platform share accordingly.
-- **Build Status**: [SUCCESS] Successfully compiled and verified (`:app:assembleDebug`).
+- **Admin Control**: [VERIFIED] Adding a new city in the dashboard immediately makes it available for testing in the app without a rebuild.
+- **Gating Logic**: [VERIFIED] Users in non-active cities correctly see the waitlist prompt and cannot initiate missions.
+- **Build Status**: [SUCCESS] Android app compiled and verified successfully.
 
 ## Deployment Instructions
-To activate the Fleet Partner program on your production VPS:
+To activate the nationwide-ready engine on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main

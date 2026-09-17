@@ -255,7 +255,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                             refreshToken = tokenManager.refreshToken.first() ?: "",
                             userId = userId,
                             email = userEmail ?: "",
-                            role = userRole ?: "CUSTOMER",
+                            role = profile.role ?: userRole ?: "CUSTOMER",
                             name = profile.full_name,
                             phone = profile.phone,
                             isVerified = isVerified,

@@ -1,72 +1,44 @@
-# Implementation Plan - Nationwide-Ready Architecture
+# Implementation Plan - Merchant Module Optimization & Role Sync
 
-This plan generalizes the Pikop platform to support any Nigerian city/state via admin configuration, removing hardcoded references to launch cities (Port Harcourt, Lagos, Abuja).
+This plan fixes the issues blocking Merchants from managing their shops and ensures a seamless transition after business approval.
 
-## 🔍 Diagnostic Summary - Hardcoded Logic Found
-1.  **Weather Service**: Hardcoded `CITIES` list in `weatherService.js`.
-2.  **Onboarding**: Hardcoded "Port Harcourt" placeholder and Rider Permit tip in `SignupFulfillerScreen.kt`.
-3.  **Discovery**: Hardcoded "Discover Port Harcourt" header in `StorefrontScreen.kt`.
-4.  **API Defaults**: `CommerceOrderRequest` in `ApiService.kt` defaults city to "Port Harcourt".
-5.  **Map Defaults**: Multiple screens default fallback coordinates to Lagos.
-6.  **Email/Copy**: Hardcoded city lists in `notificationService.js` and `emailService.js`.
+## 🔍 Diagnostic Summary
+1.  **Approval/Role Disconnect**: When an Admin approves a business, the user's role in the `users` table remains `CUSTOMER`. This prevents the app from switching to the dedicated `Merchant Console` view.
+2.  **Dashboard Data Gap**: The `getSellerDashboard` API only fetches `products` (for Vendors) and completely ignores `menu_items` (for Kitchens). This results in an empty "Listings" tab for food merchants.
+3.  **App Cache Bug**: The profile sync loop in the Android app incorrectly saves the *old* role from local storage back into the token manager, ignoring any role upgrades performed on the server.
+4.  **Inactive Button**: The "Merchant Portal" button in the Account menu feels inactive because its internal logic was not correctly handling role-aware navigation in the `MerchantAppScaffold`.
 
 ## Proposed Changes
 
-### 1. Database & Schema
-
-#### [NEW] [nationwide_readiness migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726510000000_nationwide_readiness.js)
-- **[NEW] `operating_cities` table**:
-    - `id` (SERIAL PRIMARY KEY)
-    - `name` (VARCHAR, unique) - e.g., "Port Harcourt"
-    - `state_name` (VARCHAR) - e.g., "Rivers"
-    - `lat`, `lng` (DECIMAL) - For weather and map biasing
-    - `is_active` (BOOLEAN, default true)
-    - `requires_rider_permit` (BOOLEAN, default false)
-    - `daylight_start` (TIME, default '06:00')
-    - `daylight_end` (TIME, default '18:00')
-- **[NEW] `expansion_waitlist` table**:
-    - `id` (SERIAL PRIMARY KEY)
-    - `user_id` (INT, references users)
-    - `city_name`, `email` (VARCHAR)
-- **Seed**: Lagos, Abuja, Port Harcourt (with PH requiring rider permit).
-
-### 2. Backend Logic (Node.js)
+### 1. Backend Fixes (Node.js)
 
 #### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- Implement `getCities`, `addCity`, `updateCityRules` and `getExpansionWaitlist`.
+- Update `updateMerchantKYCStatus` to set `users.role = 'MERCHANT'` when a business is verified.
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- `getQuote`: Check if `pickup_state` or `pickup_city` matches an active entry in `operating_cities`.
-- Return `is_live: boolean` in the quote response.
+#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
+- Update `getSellerDashboard` to fetch `menu_items` if the user owns a kitchen.
+- Consolidate `products` and `menu_items` into a unified `listings` array in the dashboard response for easier UI consumption.
 
-#### [MODIFY] [weatherService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/weatherService.js)
-- Replace hardcoded `CITIES` with a dynamic query from `operating_cities`.
+---
 
-#### [NEW] [expansionController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/expansionController.js)
-- `joinWaitlist`: Endpoint for users to request Pikop in their city.
+### 2. Android App Fixes (Compose)
 
-### 3. Android App (Compose)
+#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
+- Fix the Profile Sync loop: ensure `role = profile.role ?: "CUSTOMER"` is used when saving to `TokenManager`.
 
 #### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Remove hardcoded default values for city.
-- Add `is_live` to `QuoteResponse`.
-- Add `joinWaitlist` endpoint.
+- Update `MerchantDashboardData` to include `menu_items` or a unified `listings` field.
 
-#### [MODIFY] [SignupFulfillerScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/SignupFulfillerScreen.kt)
-- Fetch active cities and rules on init.
-- Dynamically show "Commercial Rider Permit" requirement based on the selected city's rules.
+#### [MODIFY] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
+- Update `ListingsTabContent` to handle the unified listings data.
+- Ensure the "Add Item" FAB works for both `vendor` and `kitchen` types.
 
-#### [MODIFY] [StorefrontScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/StorefrontScreen.kt)
-- Change header to "Discover [Current City]" or "Discover Nearby".
-- If no items found and city is not live, show a "Coming Soon" card with a "Notify Me" button.
-
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- If `is_live` is false, block deployment and show the Waitlist dialog.
+---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Add City**: Add a new city (e.g., "Uyo") via the Admin Dashboard. Verify it appears in the app and allows orders.
-2.  **Toggle Inactive**: Deactivate a city in Admin. Verify the app shows the "Coming Soon" / Waitlist UI.
-3.  **Permit Check**: Select Port Harcourt in Fulfiller signup; verify permit text shows. Select Lagos; verify it doesn't (unless configured).
-4.  **Nationwide Signup**: Sign up with an address in a non-launch state (e.g., Kano). Verify account creation works, but "Request Delivery" is gated.
+1.  **Approval Flow**: Register a new Merchant account (Step 1 & 2). Approve the merchant in the Admin Portal. Verify that the app's next profile sync (within 60s) automatically switches the UI to the Merchant Console.
+2.  **Kitchen Dashboard**: Log in as a Kitchen merchant. Add a meal. Verify it appears in the "Listings" tab.
+3.  **Vendor Dashboard**: Log in as a Vendor merchant. Add a product. Verify it appears in the "Listings" tab.
+4.  **Navigation**: Click "Manage My Shop" from the Account tab inside the Merchant view. Verify it correctly switches to the Dashboard tab.

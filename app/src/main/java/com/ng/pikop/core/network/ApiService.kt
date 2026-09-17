@@ -655,17 +655,19 @@ data class BulkOrderRequest(
 
 data class Product(
     val id: String,
-    val vendor_id: Int,
+    val vendor_id: Int? = null,
+    val kitchen_id: String? = null,
+    val merchant_type: String? = "vendor", // vendor, kitchen
     val name: String,
     val price: Double,
-    val stock_quantity: Int,
+    val stock_quantity: Int = 0,
     val description: String? = null,
     val category: String? = null,
     val photo_url: String? = null,
     val unit: String? = null,
     val nafdac_number: String? = null,
     val active: Boolean = true,
-    val created_at: String
+    val created_at: String = ""
 )
 
 data class MerchantDashboardData(

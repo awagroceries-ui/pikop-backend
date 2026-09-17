@@ -1,20 +1,15 @@
-# Task: Nationwide-Ready Architecture
+# Task: Merchant Module Optimization & Role Sync
 
-- [x] **Database & Schema**
-    - [x] Create migration `1726510000000_nationwide_readiness.js`
-- [x] **Backend Core - City Management**
-    - [x] Update `adminController.js` (getCities, updateCityRules)
-    - [x] Update `weatherService.js` (Dynamic city loop)
-    - [x] Implement `expansionController.js` (Waitlist)
-- [x] **Backend Core - Transaction Gating**
-    - [x] Update `orderController.js` (`getQuote` logic for active cities)
-- [x] **Android Integration**
-    - [x] Update `ApiService.kt` (DTOs & Endpoints)
-    - [x] Update `SignupFulfillerScreen.kt` (Dynamic Permit Rules)
-    - [x] Update `StorefrontScreen.kt` (Dynamic Header & Coming Soon UI)
-    - [x] Update `OrderQuoteScreen.kt` (Active city gating & Waitlist dialog)
+- [ ] **Backend - Admin & Role Integrity**
+    - [ ] Update `adminController.js` to upgrade user role on business approval
+- [ ] **Backend - Dashboard Data**
+    - [ ] Update `merchantController.js` to fetch `menu_items` for kitchens
+- [ ] **Android - Role Sync Fix**
+    - [ ] Update `MainActivity.kt` sync loop to use server-provided role
+- [ ] **Android - UI Unified Listings**
+    - [ ] Update `ApiService.kt` DTOs
+    - [ ] Update `MerchantPortalScreen.kt` to show unified listings
 - [ ] **Verification**
-    - [ ] Test adding new city via Admin
-    - [ ] Test gating in non-active city
-    - [ ] Verify waitlist capture
-    - [x] Build and Deploy
+    - [ ] Verify automatic UI switch on approval
+    - [ ] Verify kitchen meal management
+    - [ ] Build and Deploy

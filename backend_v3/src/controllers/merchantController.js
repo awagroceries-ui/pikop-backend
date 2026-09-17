@@ -268,14 +268,30 @@ const getSellerDashboard = async (req, res) => {
             LIMIT 50
         `, [userId]);
 
-        // 2. Fetch Marketplace Products (if any)
-        const { rows: products } = await db.query(`
-            SELECT p.*
-            FROM products p
-            JOIN vendors v ON v.id = p.vendor_id
-            WHERE v.user_id = $1
-            ORDER BY p.created_at DESC
-        `, [userId]);
+        // 2. Fetch Marketplace Products OR Kitchen Menu Items
+        const [vProfile, kProfile] = await Promise.all([
+            db.query("SELECT id FROM vendors WHERE user_id = $1", [userId]),
+            db.query("SELECT id FROM kitchens WHERE user_id = $1", [userId])
+        ]);
+
+        let products = [];
+        if (vProfile.rows.length > 0) {
+            const res = await db.query(`
+                SELECT p.*, 'vendor' as merchant_type
+                FROM products p
+                WHERE p.vendor_id = $1
+                ORDER BY p.created_at DESC
+            `, [vProfile.rows[0].id]);
+            products = res.rows;
+        } else if (kProfile.rows.length > 0) {
+            const res = await db.query(`
+                SELECT m.*, 'kitchen' as merchant_type, m.available as active
+                FROM menu_items m
+                WHERE m.kitchen_id = $1
+                ORDER BY m.created_at DESC
+            `, [kProfile.rows[0].id]);
+            products = res.rows; // Map menu_items to product-like structure for the dashboard
+        }
 
         // 3. Fetch Bulk Batches
         const { rows: batches } = await db.query(`

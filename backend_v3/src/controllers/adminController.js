@@ -438,10 +438,19 @@ const updateMerchantKYCStatus = async (req, res) => {
         const table = type === 'kitchen' ? 'kitchens' : 'vendors';
         const newStatus = status === 'VERIFIED' ? 'active' : 'suspended';
 
-        await db.query(
-            `UPDATE ${table} SET status = $1, approved_at = CASE WHEN $2 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $3`,
-            [newStatus, status, id]
-        );
+          await db.query(
+              `UPDATE ${table} SET status = $1, approved_at = CASE WHEN $2 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $3`,
+              [newStatus, status, id]
+          );
+
+          // Role Upgrade: Ensure user role is updated to MERCHANT on approval
+          if (status === 'VERIFIED') {
+              const { rows: mRes } = await db.query(`SELECT user_id FROM ${table} WHERE id = $1`, [id]);
+              if (mRes.length > 0) {
+                  await db.query("UPDATE users SET role = 'MERCHANT' WHERE id = $1", [mRes[0].user_id]);
+                  console.log(`[Admin] Role upgraded to MERCHANT for user ${mRes[0].user_id}`);
+              }
+          }
 
         // Audit log
         await db.query(

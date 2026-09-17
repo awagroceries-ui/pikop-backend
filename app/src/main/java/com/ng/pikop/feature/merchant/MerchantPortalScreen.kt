@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -185,8 +186,11 @@ fun ListingsTabContent(
     if (products.isEmpty()) {
         EmptyStateView(
             icon = Icons.Default.Storefront,
-            title = "No Marketplace Listings",
-            description = "Register as a vendor and list your products on the Pikop Marketplace."
+            title = "No Listings Found",
+            description = profile?.let { 
+                if (it.type == "vendor") "Register as a vendor and list your products on the Pikop Marketplace."
+                else "Set up your cloud kitchen menu and start receiving food orders."
+            } ?: "Start listing your items here."
         )
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -194,9 +198,11 @@ fun ListingsTabContent(
                 ProductItem(
                     product = product,
                     onEdit = { 
-                        if (profile != null) onEdit(profile.type, profile.id, product.id) 
+                        if (profile != null) {
+                            onEdit(product.merchant_type ?: profile.type, profile.id, product.id) 
+                        }
                     },
-                    onDelete = { onDelete(profile?.type ?: "vendor", product.id) }
+                    onDelete = { onDelete(product.merchant_type ?: profile?.type ?: "vendor", product.id) }
                 )
             }
         }
@@ -272,15 +278,36 @@ fun ProductItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (product.active) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(50.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Image, null, tint = Color.Gray)
+                if (!product.photo_url.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        model = "https://api.pikop.com.ng${product.photo_url}",
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    Icon(Icons.Default.Image, null, tint = Color.Gray)
+                }
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = product.name, fontWeight = FontWeight.Bold)
+                Text(
+                    text = product.name, 
+                    fontWeight = FontWeight.Bold,
+                    color = if (product.active) Color.Unspecified else Color.Gray
+                )
                 Text(text = "₦${"%,.2f".format(product.price)}", style = MaterialTheme.typography.bodySmall)
+                if (!product.active) {
+                    Text("HIDDEN / OUT OF STOCK", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
             }
             Row {
                 IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Edit", tint = MaterialTheme.colorScheme.primary) }
