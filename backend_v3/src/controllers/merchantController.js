@@ -662,6 +662,104 @@ const confirmReturnReceipt = async (req, res) => {
     }
 };
 
+/**
+ * Aggregates business performance metrics for the merchant (v4.5).
+ */
+const getMerchantAnalytics = async (req, res) => {
+    const userId = req.user.id;
+    const { range = 'weekly' } = req.query;
+
+    try {
+        // 1. Time Boundaries (WAT)
+        let interval, truncate, subPeriod;
+        switch (range) {
+            case 'daily': interval = '1 day'; truncate = 'day'; subPeriod = 'hour'; break;
+            case 'monthly': interval = '1 month'; truncate = 'month'; subPeriod = 'day'; break;
+            case 'annual': interval = '1 year'; truncate = 'year'; subPeriod = 'month'; break;
+            default: interval = '1 week'; truncate = 'week'; subPeriod = 'day'; break;
+        }
+
+        const start = `DATE_TRUNC('${truncate}', NOW() AT TIME ZONE 'Africa/Lagos')`;
+        const end = `(${start} + INTERVAL '${interval}')`;
+
+        // 2. Volume & Revenue Trend (Net Revenue)
+        const trendRes = await db.query(`
+            SELECT
+                DATE_TRUNC($1, created_at AT TIME ZONE 'Africa/Lagos') as period,
+                COUNT(*) as volume,
+                COALESCE(SUM(item_price - merchant_commission_amount), 0) as net_revenue
+            FROM orders
+            WHERE seller_id = $2 AND status IN ('DELIVERED', 'RELEASED')
+            AND created_at >= ${start} AND created_at < ${end}
+            GROUP BY 1 ORDER BY period ASC
+        `, [subPeriod, userId]);
+
+        // 3. Best Selling Items
+        const itemsRes = await db.query(`
+            SELECT
+                COALESCE(p.name, m.name, o.item_description) as name,
+                COUNT(*) as units,
+                COALESCE(SUM(o.item_price - o.merchant_commission_amount), 0) as revenue
+            FROM orders o
+            LEFT JOIN products p ON p.id = o.product_id
+            LEFT JOIN menu_items m ON m.id = o.menu_item_id
+            WHERE o.seller_id = $1 AND o.status IN ('DELIVERED', 'RELEASED')
+            AND o.created_at >= ${start} AND o.created_at < ${end}
+            GROUP BY 1 ORDER BY units DESC LIMIT 5
+        `, [userId]);
+
+        // 4. Repeat Customer Rate (Lifetime Context)
+        const retentionRes = await db.query(`
+            WITH customer_orders AS (
+                SELECT user_id, COUNT(*) as order_count
+                FROM orders
+                WHERE seller_id = $1 AND status IN ('DELIVERED', 'RELEASED')
+                GROUP BY user_id
+            )
+            SELECT
+                COUNT(*) as total_customers,
+                COUNT(*) FILTER (WHERE order_count > 1) as repeat_customers
+            FROM customer_orders
+        `, [userId]);
+
+        const r = retentionRes.rows[0];
+        const totalCustomers = parseInt(r.total_customers || 0);
+        const repeatRate = totalCustomers > 0
+            ? (parseInt(r.repeat_customers) / totalCustomers * 100).toFixed(1)
+            : 0;
+
+        // 5. Peak Ordering Times
+        const peaksRes = await db.query(`
+            SELECT
+                EXTRACT(DOW FROM created_at AT TIME ZONE 'Africa/Lagos') as day,
+                EXTRACT(HOUR FROM created_at AT TIME ZONE 'Africa/Lagos') as hour,
+                COUNT(*) as volume
+            FROM orders
+            WHERE seller_id = $1 AND status IN ('DELIVERED', 'RELEASED')
+            AND created_at >= ${start} AND created_at < ${end}
+            GROUP BY 1, 2 ORDER BY volume DESC LIMIT 5
+        `, [userId]);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                range,
+                trend: trendRes.rows,
+                best_sellers: itemsRes.rows,
+                retention: {
+                    total_unique_customers: totalCustomers,
+                    repeat_customer_rate: parseFloat(repeatRate)
+                },
+                peak_times: peaksRes.rows
+            }
+        });
+
+    } catch (error) {
+        console.error('[MerchantAnalytics] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   registerMerchant,
   createBulkOrders,
@@ -677,5 +775,6 @@ module.exports = {
   updateOrderStatus,
   getReturnRequests,
   processReturnRequest,
-  confirmReturnReceipt
+  confirmReturnReceipt,
+  getMerchantAnalytics
 };

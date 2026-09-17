@@ -633,6 +633,42 @@ data class RedeemPointsRequest(
     val points: Int
 )
 
+data class AnalyticsTrendItem(
+    val period: String,
+    val volume: Int,
+    val net_revenue: Double
+)
+
+data class BestSellerItem(
+    val name: String,
+    val units: Int,
+    val revenue: Double
+)
+
+data class PeakTimeItem(
+    val day: Int,
+    val hour: Int,
+    val volume: Int
+)
+
+data class RetentionStats(
+    val total_unique_customers: Int,
+    val repeat_customer_rate: Double
+)
+
+data class MerchantAnalyticsData(
+    val range: String,
+    val trend: List<AnalyticsTrendItem>,
+    val best_sellers: List<BestSellerItem>,
+    val retention: RetentionStats,
+    val peak_times: List<PeakTimeItem>
+)
+
+data class MerchantAnalyticsResponse(
+    val success: Boolean,
+    val data: MerchantAnalyticsData
+)
+
 data class ProductUpdateRequest(
     val name: String? = null,
     val price: Double? = null,
@@ -1128,6 +1164,9 @@ interface ApiService {
 
     @GET("api/v1/merchants/dashboard")
     suspend fun getMerchantDashboard(): MerchantDashboardResponse
+
+    @GET("api/v1/merchants/analytics")
+    suspend fun getMerchantAnalytics(@retrofit2.http.Query("range") range: String): MerchantAnalyticsResponse
 
     @GET("api/v1/merchants/profile")
     suspend fun getMerchantProfile(): MerchantProfileResponse

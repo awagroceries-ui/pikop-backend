@@ -1,53 +1,56 @@
-# Implementation Plan - Fulfiller Incentives & Customer Loyalty
+# Implementation Plan - Merchant Analytics Dashboard
 
-This plan implements performance-based Fulfiller incentives and formalizes the Customer loyalty and referral program.
+This plan implements a dedicated Analytics view for Merchants, providing insights into sales performance, customer retention, and peak operational windows.
 
 ## Proposed Changes
 
-### 1. Database & Schema Enhancements
+### 1. Backend Logic (Node.js)
 
-#### [NEW] [growth_incentives migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726560000000_growth_incentives.js)
-- **Extend `users`**:
-    - `total_orders_completed`: (INTEGER, default 0) - For simple loyalty tiering.
-- **Extend `fulfillers`**:
-    - `current_streak_days`: (INTEGER, default 0)
-    - `last_streak_date`: (DATE)
-- **Update `wallet_ledger_entries`**: Add `STREAK_BONUS` and `PEAK_BONUS` to the purpose check constraint.
-- **Seed Settings**:
-    - `streak_bonus_7_day`: '1000'
-    - `streak_bonus_30_day`: '5000'
-    - `peak_hour_start`: '16:00'
-    - `peak_hour_end`: '19:00'
-    - `peak_hour_bonus`: '300'
+#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
+- Implement `getMerchantAnalytics`:
+    - **Time Range Handling**: Supports `daily`, `weekly`, `monthly`, and `annual` aggregations in WAT.
+    - **Sales & Volume Trend**: Aggregates total missions and **Net Revenue** (Item Price - Merchant Commission) grouped by time period.
+    - **Best Sellers**: Top 5 items ranked by units sold and revenue.
+    - **Retention**: Calculates the percentage of unique customers who have placed more than one order.
+    - **Operational Peaks**: Identifies the top 5 hour/day slots with the highest order volume.
 
-### 2. Backend Logic (Node.js)
+#### [MODIFY] [merchantRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/merchantRoutes.js)
+- Register `GET /analytics` endpoint.
 
-#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
-- **`processMissionSettlement`**:
-    - **Fulfiller Streak Check**:
-        - Check `last_streak_date`. If it was yesterday, increment `current_streak_days`. If older, reset to 1.
-        - If `current_streak_days` hits 7 or 30, award the configured `STREAK_BONUS` from the platform wallet to the fulfiller.
-    - **Peak-Hour Bonus**:
-        - Check if the order was created/matched during the `peak_hour_start` - `peak_hour_end` window.
-        - If yes, award `PEAK_BONUS` from the platform wallet to the fulfiller.
-    - **Customer Loyalty**:
-        - Increment `total_orders_completed` for the user.
-        - (Optional) If it hits a milestone (e.g., 10th order), award a loyalty point multiplier or flat bonus.
-- **Referral Abuse Prevention**:
-    - Update `processReferralReward` to verify that the new user does not share the same device fingerprint (IP address or phone number) as the referrer.
+---
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- Update settings management to include the new streak and peak hour configuration fields.
+### 2. Android App Integration (Compose)
 
-### 3. Android Frontend (Compose)
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Add `MerchantAnalyticsResponse` and nested DTOs (`TrendItem`, `BestSeller`, `PeakTime`, `RetentionStats`).
+- Add `getMerchantAnalytics` endpoint.
 
-#### [MODIFY] [FulfillerDashboardScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerDashboardScreen.kt)
-- **Peak Hour Alert**: Display a prominent banner at the top of the dashboard if a peak-hour bonus is currently active (e.g., "Peak Bonus Active! Earn an extra ₦300 per delivery until 7 PM").
-- **Streak Tracker**: Add a visual element (e.g., a flame icon) showing the current streak count and progress toward the next bonus.
+#### [MODIFY] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
+- Add a new **Analytics** tab (position 2, moving others down).
+- **Redesign Tab Row**: Ensure it handles 6 tabs gracefully or move settings to a profile button. I will move "Settings" to a top-bar action to keep the tab row clean (Sales, Listings, Analytics, Returns, Bulk).
+
+#### [NEW] [MerchantAnalyticsScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantAnalyticsScreen.kt)
+- **Time Range Picker**: Segmented buttons for Day/Week/Month/Year.
+- **KPI Dashboard**: Summary cards for Total Net Revenue and Order Count.
+- **Performance Visualization**: A scrollable trend list showing growth over the selected period.
+- **Operational Insights**: "Most Popular Items" list and "Busiest Hours" breakdown.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Financial Consistency**
+> All revenue figures shown to the Merchant will be **Net Revenue** (what they actually receive after Pikop's commission is deducted). This ensures the dashboard matches their wallet balance.
+
+> [!NOTE]
+> **Data Privacy**
+> Analytics are strictly scoped to the authenticated merchant. Cross-merchant data visibility is blocked at the SQL query level using `WHERE seller_id = $userId`.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Fulfiller Streak**: Manually advance the server date or trigger 7 consecutive orders. Verify the `STREAK_BONUS` is credited to the wallet.
-2.  **Peak Hour Bonus**: Place an order during the configured peak window. Verify the fulfiller receives the base pay + `PEAK_BONUS`.
-3.  **Referral Abuse**: Attempt to sign up a new user using the same IP address as an existing referrer. Complete an order. Verify the referral bonus is skipped.
+1.  **Merchant Isolation**: Log in as Merchant A. Verify analytics only show orders where Merchant A was the seller.
+2.  **Trend Accuracy**: Compare the "Total Net Revenue" in Analytics against the sum of "Net Payouts" in the Sales tab for the same period.
+3.  **Range Switching**: Toggle between "Weekly" and "Monthly". Verify that data points update correctly (e.g., daily points for weekly, monthly points for annual).
+4.  **Best Sellers**: Sell 3 units of Item X and 1 unit of Item Y. Verify Item X appears at the top of the "Best Sellers" list.

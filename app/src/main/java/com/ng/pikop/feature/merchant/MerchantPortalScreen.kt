@@ -87,7 +87,8 @@ fun MerchantPortalScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
                 },
                 actions = {
-                    IconButton(onClick = { fetchDashboard() }) { Icon(Icons.Default.Refresh, null) }
+                    IconButton(onClick = { selectedTab.intValue = 5 }) { Icon(Icons.Default.Settings, "Settings") }
+                    IconButton(onClick = { fetchDashboard() }) { Icon(Icons.Default.Refresh, "Refresh") }
                 }
             )
         },
@@ -125,12 +126,16 @@ fun MerchantPortalScreen(
             }
         } else {
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                TabRow(selectedTabIndex = selectedTab.intValue) {
-                    Tab(selected = selectedTab.intValue == 0, onClick = { selectedTab.intValue = 0 }, text = { Text("My Sales") })
-                    Tab(selected = selectedTab.intValue == 1, onClick = { selectedTab.intValue = 1 }, text = { Text("Listings") })
-                    Tab(selected = selectedTab.intValue == 2, onClick = { selectedTab.intValue = 2 }, text = { Text("Returns") })
-                    Tab(selected = selectedTab.intValue == 3, onClick = { selectedTab.intValue = 3 }, text = { Text("Bulk") })
-                    Tab(selected = selectedTab.intValue == 4, onClick = { selectedTab.intValue = 4 }, text = { Text("Settings") })
+                TabRow(
+                    selectedTabIndex = selectedTab.intValue,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Tab(selected = selectedTab.intValue == 0, onClick = { selectedTab.intValue = 0 }, text = { Text("Sales", fontSize = 12.sp) })
+                    Tab(selected = selectedTab.intValue == 1, onClick = { selectedTab.intValue = 1 }, text = { Text("Items", fontSize = 12.sp) })
+                    Tab(selected = selectedTab.intValue == 2, onClick = { selectedTab.intValue = 2 }, text = { Text("Insights", fontSize = 12.sp) })
+                    Tab(selected = selectedTab.intValue == 3, onClick = { selectedTab.intValue = 3 }, text = { Text("Returns", fontSize = 12.sp) })
+                    Tab(selected = selectedTab.intValue == 4, onClick = { selectedTab.intValue = 4 }, text = { Text("Bulk", fontSize = 12.sp) })
                 }
 
                 when (selectedTab.intValue) {
@@ -141,11 +146,12 @@ fun MerchantPortalScreen(
                         onEdit = onEditItem,
                         onDelete = { type, id -> handleDeleteItem(type, id) }
                     )
-                    2 -> ReturnsTabContent(
+                    2 -> MerchantAnalyticsScreen()
+                    3 -> ReturnsTabContent(
                         onRefresh = { fetchDashboard() }
                     )
-                    3 -> BulkTabContent(dashboardData.value?.batches ?: emptyList())
-                    4 -> SettingsTabContent(
+                    4 -> BulkTabContent(dashboardData.value?.batches ?: emptyList())
+                    5 -> SettingsTabContent(
                         profile = merchantProfile.value,
                         onUpdateSettings = { acceptsCod, allowsReturns, windowDays ->
                             scope.launch {
