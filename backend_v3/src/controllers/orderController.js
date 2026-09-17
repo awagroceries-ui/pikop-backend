@@ -687,10 +687,16 @@ const triggerInitialGuestCommunications = async (orderId) => {
  * Manually creates an order from a verified payment.
  */
 const createOrder = async (req, res) => {
-            payer_id, pickup_state, recipient_payable, scheduled_at,
-            corporate_account_id,
-            insurance_fee, is_insured, surge_multiplier
-        } = req.body;
+    const {
+        quote_id, payment_method, recipient_name, recipient_phone, notes,
+        pickup_display_summary, delivery_display_summary, item_photo_url,
+        promo_id, payment_reference,
+        pickup_lat, pickup_lng, delivery_lat, delivery_lng,
+        item_price, delivery_fee, platform_fee_amount, sms_charge_amount, fee_payer, initiator_role,
+        payer_id, pickup_state, recipient_payable, scheduled_at,
+        corporate_account_id,
+        insurance_fee, is_insured, surge_multiplier
+    } = req.body;
     const userId = req.user.id;
 
     const client = await db.pool.connect();
