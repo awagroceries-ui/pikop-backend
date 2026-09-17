@@ -1,33 +1,44 @@
-# Walkthrough - Marketplace Returns & Reverse Logistics
+# Walkthrough - Business/Corporate Accounts (Phase 1)
 
-I have implemented a structured, end-to-end Marketplace Returns system that handles everything from merchant policy configuration to the automated refunding of funds after a successful return delivery.
+I have successfully implemented the **Business/Corporate Account** system, enabling companies to centrally manage and pay for deliveries performed by their team members using a centralized wallet and per-user spending limits.
 
 ## Changes Made
 
-### 📋 1. Merchant Policy Control
-- **Customizable Windows**: Merchants can now set their own `return_window_days` and toggle `allows_returns` in their settings.
-- **Transparent Terms**: These policies are saved at the business level, allowing for future display on storefronts and at checkout.
+### 🏢 1. Corporate account & Onboarding
+- **New Account Type**: Added `CORPORATE` role to the system. This account type represents the company entity and acts as the "Payer" for missions.
+- **Two-Step Onboarding**:
+    - **Step 1**: Admin User creation (`SignupCorporateScreen.kt`).
+    - **Step 2**: Business Details (Company name, CAC number, Headquarters, Billing email) (`CorporateBusinessSetupScreen.kt`).
+- **Admin Verification**: All Corporate accounts enter a `PENDING_VERIFICATION` state for manual credential review by Pikop admins.
 
-### 🔄 2. The Return Request Flow
-- **Customer Initiation**: Users can now request a return directly from their order history for any eligible marketplace mission within the valid window.
-- **Evidence-Based Arbitration**: Requests include a mandatory reason and support for evidence URLs, which are then surfaced to the merchant for review.
-- **Merchant Approval**: Merchants have a new **Returns** tab to review, approve, or decline incoming requests.
+### 💰 2. Centralized Wallet Billing
+- **Centralized Funding**: The company tops up its corporate wallet once. All authorized employees draw from this single balance, removing the need for individual reimbursements.
+- **Spending Guards**: Corporate admins can set **Daily and Monthly spending limits** for every staff member.
+- **Debit Logic**: Updated `walletService.js` to automatically verify sufficient company balance and enforce staff-specific limits before any corporate mission is activated.
 
-### 🚀 3. Reverse Dispatch & Flexible Billing
-- **Automated Reverse Missions**: Upon approval, the system automatically generates a new **Reverse Dispatch mission**. It reverse-maps the pickup and delivery addresses to bring the item back to the merchant's doorstep.
-- **Who Pays?**: I implemented the flexible billing request. Merchants can choose to **Cover the delivery fee** (e.g., for defective items) or have the **Customer pay** to activate the return trip.
+### 👥 3. Staff Management & Authorization
+- **Staff Authorization**: Corporate admins can invite employees by email. Once added, the employee's existing Pikop account (as a Customer) is linked to the company's billing profile.
+- **Authorization Revocation**: Admins can revoke staff access or adjust their limits instantly from the dashboard.
 
-### 💰 4. Receipt-Triggered Refunds
-- **Automated Wallet Refund**: Once the merchant confirms receipt of the returned item via the portal, the system automatically triggers a refund of the original **Item Price** from the Merchant's wallet back to the Customer's wallet.
-- **Safe Logistics**: The delivery fees from the original and return trips are preserved for the agents who performed the work, ensuring everyone is compensated fairly.
+### 📊 4. Corporate Dashboard (Console)
+- **Spend Reporting**: Built a dedicated console in the Android app for corporate managers to:
+    - Monitor their available billing balance.
+    - Track total 30-day spend and active mission count.
+    - View a list of "Top Spenders" within the company.
+    - Manage the authorized staff list and their spending caps.
+
+### 🛒 5. Integrated Checkout
+- **Corporate Billing Option**: Authorized users now see a "Billing Method" selector at checkout. They can choose between **"Personal"** (Card/COD) and **"Corporate"** (Company Wallet).
+- **Zero-Friction Activation**: Corporate orders are marked as **PAID** immediately upon creation (if within limits), bypassing the browser payment step for employees.
 
 ## Verification Results
-- **Billing Logic**: [VERIFIED] Merchant-paid returns correctly debit the merchant wallet and start the mission in `SEARCHING` status. Customer-paid returns wait in `AWAITING_PAYMENT`.
-- **Eligibility Engine**: [VERIFIED] Orders outside the merchant's window are correctly blocked from return requests.
+- **Onboarding Flow**: [VERIFIED] Role selection correctly branches to Corporate setup.
+- **Billing Integrity**: [VERIFIED] Corporate missions correctly debit the company wallet and log the authorized user in the ledger.
+- **Limit Enforcement**: [VERIFIED] Attempting an order above a staff member's daily limit is correctly blocked with a clear error message.
 - **Build Status**: [SUCCESS] Successfully compiled and verified the Android app.
 
 ## Deployment Instructions
-To activate the reverse logistics engine on your production VPS:
+To activate the corporate infrastructure on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main

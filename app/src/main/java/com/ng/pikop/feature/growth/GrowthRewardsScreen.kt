@@ -17,8 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ng.pikop.core.datastore.TokenManager
-import com.ng.pikop.core.network.ApiService
-import com.ng.pikop.core.network.GrowthStats
+import com.ng.pikop.core.network.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,18 +26,32 @@ fun GrowthRewardsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
+    val scope = rememberCoroutineScope()
     var stats by remember { mutableStateOf<GrowthStats?>(null) }
+    var referralHistory by remember { mutableStateOf<List<ReferralItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isRedeeming by remember { mutableStateOf(false) }
+    var showRedeemDialog by remember { mutableStateOf(false) }
+
+    fun refreshData() {
+        scope.launch {
+            isLoading = true
+            try {
+                val response = apiService.getGrowthStats()
+                stats = response.data
+                
+                val historyRes = apiService.getReferralHistory()
+                referralHistory = historyRes.data
+            } catch (e: Exception) {
+                android.util.Log.e("GrowthUI", "Failed to load stats", e)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
-        try {
-            val response = apiService.getGrowthStats()
-            stats = response.data
-        } catch (e: Exception) {
-            android.util.Log.e("GrowthUI", "Failed to load stats", e)
-        } finally {
-            isLoading = false
-        }
+        refreshData()
     }
 
     Scaffold(
@@ -76,6 +89,16 @@ fun GrowthRewardsScreen(onBack: () -> Unit) {
                         Text("Loyalty Points", style = MaterialTheme.typography.labelMedium)
                         Text("${stats?.total_points ?: 0}", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Text("1 pt per ₦100 spent", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        
+                        if ((stats?.total_points ?: 0) >= 500) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { showRedeemDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Text("REDEEM POINTS")
+                            }
+                        }
                     }
                 }
 
@@ -132,8 +155,77 @@ fun GrowthRewardsScreen(onBack: () -> Unit) {
                     }
                 }
 
+                if (referralHistory.isNotEmpty()) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text("My Referred Friends", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        referralHistory.forEach { ref ->
+                            ReferralRow(ref)
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(32.dp))
-                Text("Redeem points for delivery discounts coming soon!", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            }
+        }
+    }
+
+    if (showRedeemDialog) {
+        AlertDialog(
+            onDismissRequest = { showRedeemDialog = false },
+            title = { Text("Redeem Points") },
+            text = { Text("You are about to redeem ${stats?.total_points} points for ₦${stats?.total_points} credit in your wallet. This action is irreversible. Proceed?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isRedeeming = true
+                            try {
+                                apiService.redeemPoints(RedeemPointsRequest(stats?.total_points ?: 0))
+                                refreshData()
+                                android.widget.Toast.makeText(context, "Points Redeemed!", android.widget.Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Redemption failed", android.widget.Toast.LENGTH_SHORT).show()
+                            } finally {
+                                isRedeeming = false
+                                showRedeemDialog = false
+                            }
+                        }
+                    },
+                    enabled = !isRedeeming
+                ) {
+                    if (isRedeeming) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                    else Text("Confirm Redemption")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRedeemDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+@Composable
+fun ReferralRow(ref: ReferralItem) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(ref.full_name, fontWeight = FontWeight.Bold)
+                Text("Joined: ${ref.created_at.take(10)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            }
+            Badge(
+                containerColor = if (ref.status == "completed") Color(0xFF008751) else Color.Gray
+            ) {
+                Text(
+                    text = if (ref.status == "completed") "COMPLETED" else "JOINED",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }

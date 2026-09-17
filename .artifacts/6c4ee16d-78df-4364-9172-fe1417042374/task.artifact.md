@@ -1,20 +1,15 @@
-# Task: Business/Corporate Accounts (V3 Port)
+# Task: Growth & Engagement (Loyalty & Referrals)
 
-- [/] **Database & Infrastructure**
-    - [ ] Create migration `1726540000000_corporate_infrastructure.js`
-- [ ] **Backend Core - Corporate Management**
-    - [ ] Create `corporateController.js` in `backend_v3`
-    - [ ] Add `corporateRoutes.js`
-    - [ ] Update `app.js` to register routes
-- [ ] **Backend - Billing Logic**
-    - [ ] Implement `processCorporateDebit` in `walletService.js`
-    - [ ] Update `orderController.js` to handle corporate Payer selection
-- [ ] **Android UI Refinement**
-    - [ ] Update `ApiService.kt` to match V3 corporate endpoints
-    - [ ] Finalize `CorporateDashboardScreen.kt` (Limit management & spend reporting)
-    - [ ] Update `OrderQuoteScreen.kt` for reliable billing method switching
-- [ ] **Verification**
-    - [ ] Test Corporate onboarding and approval
-    - [ ] Verify staff invitation and limit enforcement
-    - [ ] Verify spend reporting on dashboard
-    - [ ] Build and Deploy
+- [x] **Backend - Growth Logic**
+    - [x] Implement `redeemPoints` in `growthController.js`
+    - [x] Implement `getReferralHistory` in `growthController.js`
+    - [x] Register new routes in `growthRoutes.js`
+- [x] **Android - API Integration**
+    - [x] Add `RedeemRequest`, `ReferralItem`, and Response DTOs to `ApiService.kt`
+    - [x] Add `redeemPoints` and `getReferralHistory` endpoints to `ApiService.kt`
+- [x] **Android - UI Enhancements**
+    - [x] Add "Redeem" button logic to `GrowthRewardsScreen.kt`
+    - [x] Add "My Referred Friends" section to `GrowthRewardsScreen.kt`
+- [x] **Verification**
+    - [x] Verify Gradle build
+    - [ ] Git commit and push

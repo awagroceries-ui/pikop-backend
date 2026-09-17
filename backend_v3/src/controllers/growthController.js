@@ -74,7 +74,95 @@ const getMyGrowthStats = async (req, res) => {
     }
 };
 
+/**
+ * Redeems loyalty points for wallet credit.
+ */
+const redeemPoints = async (req, res) => {
+    const userId = req.user.id;
+    const { points } = req.body;
+    const MIN_REDEMPTION = 500;
+
+    if (!points || points < MIN_REDEMPTION) {
+        return res.status(400).json({ success: false, message: `Minimum redemption is ${MIN_REDEMPTION} points.` });
+    }
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Check current points
+        const pointRes = await client.query("SELECT SUM(points) as total FROM loyalty_ledger WHERE user_id = $1", [userId]);
+        const currentTotal = parseInt(pointRes.rows[0].total || 0);
+
+        if (currentTotal < points) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Insufficient points balance.' });
+        }
+
+        // 2. Deduct Points
+        await client.query(
+            "INSERT INTO loyalty_ledger (user_id, points, entry_type, description) VALUES ($1, $2, 'REDEEM', $3)",
+            [userId, -points, 'Redemption for wallet credit']
+        );
+
+        // 3. Credit Wallet (1 Point = 1 Naira)
+        const walletService = require('../services/walletService');
+        const walletId = await walletService.ensureWalletExists(client, 'USER', userId);
+        await walletService.recordEntry(client, walletId, 'CREDIT', points, 'SETTLEMENT', `Loyalty points redemption (${points} pts)`);
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true, message: `Successfully redeemed ${points} points for ₦${points} credit!` });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[Growth] Redemption Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * Returns referral history for the current user.
+ */
+const getReferralHistory = async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+        const { rows } = await db.query(`
+            SELECT
+                u.full_name,
+                r.status,
+                r.created_at,
+                r.rewarded_at
+            FROM referrals r
+            JOIN users u ON u.id = r.referred_id
+            WHERE r.referrer_id = $1
+            ORDER BY r.created_at DESC
+        `, [userId]);
+
+        // MASK NAMES: "John Doe" -> "John D."
+        const masked = rows.map(r => {
+            const parts = r.full_name.split(' ');
+            const maskedName = parts.length > 1 ? `${parts[0]} ${parts[1].charAt(0)}.` : parts[0];
+            return {
+                ...r,
+                full_name: maskedName
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            data: masked
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     validateCoupon,
-    getMyGrowthStats
+    getMyGrowthStats,
+    redeemPoints,
+    getReferralHistory
 };

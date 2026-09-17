@@ -606,6 +606,22 @@ data class GrowthStatsResponse(
     val data: GrowthStats
 )
 
+data class ReferralItem(
+    val full_name: String,
+    val status: String,
+    val created_at: String,
+    val rewarded_at: String? = null
+)
+
+data class ReferralHistoryResponse(
+    val success: Boolean,
+    val data: List<ReferralItem>
+)
+
+data class RedeemPointsRequest(
+    val points: Int
+)
+
 data class ProductUpdateRequest(
     val name: String? = null,
     val price: Double? = null,
@@ -1066,6 +1082,15 @@ interface ApiService {
     @POST("api/v1/wallets/topup")
     suspend fun initializeTopup(@Body request: Map<String, Double>): PaymentInitializationResponse
 
+    @GET("api/v1/growth/stats")
+    suspend fun getGrowthStats(): GrowthStatsResponse
+
+    @POST("api/v1/growth/redeem")
+    suspend fun redeemPoints(@Body request: RedeemPointsRequest): AuthResponse
+
+    @GET("api/v1/growth/referrals")
+    suspend fun getReferralHistory(): ReferralHistoryResponse
+
     @POST("api/v1/withdrawals")
     suspend fun requestWithdrawal(@Body request: WithdrawalRequest): AuthResponse
 
@@ -1089,9 +1114,6 @@ interface ApiService {
 
     @POST("api/v1/auth/refresh")
     suspend fun refresh(@Body request: Map<String, String>): AuthResponse
-
-    @GET("api/v1/growth/stats")
-    suspend fun getGrowthStats(): GrowthStatsResponse
 
     @GET("api/v1/merchants/dashboard")
     suspend fun getMerchantDashboard(): MerchantDashboardResponse
