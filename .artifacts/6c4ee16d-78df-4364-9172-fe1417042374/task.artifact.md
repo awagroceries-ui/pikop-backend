@@ -1,22 +1,20 @@
-# Task: Marketplace Returns & Reverse Logistics
+# Task: Business/Corporate Accounts (V3 Port)
 
-- [ ] **Database & Schema**
-    - [ ] Create migration `1726530000000_marketplace_returns.js`
-- [ ] **Backend - Merchant Return Control**
-    - [ ] Update `merchantController.js` (Return policy settings, request processing)
-    - [ ] Implement `processReturnRequest` with flexible fee payer logic
-- [ ] **Backend - Customer Return Entry**
-    - [ ] Update `orderController.js` (`requestReturn`)
-- [ ] **Backend - Refund & Wallet**
-    - [ ] Update `walletService.js` (`processReturnRefund`, handle merchant-paid returns)
-- [ ] **Android UI - Return Policy & Requests**
-    - [ ] Update `ApiService.kt` (Endpoints & DTOs)
-    - [ ] Update `StorefrontScreen.kt` (Display policy)
-    - [ ] Update `OrdersDashboardScreen.kt` (Request return button)
-- [ ] **Android UI - Merchant Management**
-    - [ ] Update `MerchantPortalScreen.kt` (Returns tab, improved settings)
+- [/] **Database & Infrastructure**
+    - [ ] Create migration `1726540000000_corporate_infrastructure.js`
+- [ ] **Backend Core - Corporate Management**
+    - [ ] Create `corporateController.js` in `backend_v3`
+    - [ ] Add `corporateRoutes.js`
+    - [ ] Update `app.js` to register routes
+- [ ] **Backend - Billing Logic**
+    - [ ] Implement `processCorporateDebit` in `walletService.js`
+    - [ ] Update `orderController.js` to handle corporate Payer selection
+- [ ] **Android UI Refinement**
+    - [ ] Update `ApiService.kt` to match V3 corporate endpoints
+    - [ ] Finalize `CorporateDashboardScreen.kt` (Limit management & spend reporting)
+    - [ ] Update `OrderQuoteScreen.kt` for reliable billing method switching
 - [ ] **Verification**
-    - [ ] Verify merchant-paid return flow
-    - [ ] Verify customer-paid return flow
-    - [ ] Verify refund on receipt confirmation
+    - [ ] Test Corporate onboarding and approval
+    - [ ] Verify staff invitation and limit enforcement
+    - [ ] Verify spend reporting on dashboard
     - [ ] Build and Deploy

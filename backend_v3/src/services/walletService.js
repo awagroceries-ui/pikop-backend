@@ -439,6 +439,57 @@ const processReturnRefund = async (returnId) => {
     }
 };
 
+/**
+ * Debits a Corporate account for an order (v4.3).
+ * Enforces per-user spending limits and wallet availability.
+ */
+const processCorporateDebit = async (client, corporateAccountId, amount, userId, orderId) => {
+    // 1. Lock Account and Wallet
+    const { rows: accRes } = await client.query(`
+        SELECT ca.id, ca.status, ca.billing_type, w.id as wallet_id, w.balance,
+               csa.daily_spend_limit, csa.monthly_spend_limit
+        FROM corporate_accounts ca
+        JOIN wallets w ON w.corporate_account_id = ca.id
+        JOIN corporate_sub_accounts csa ON csa.corporate_account_id = ca.id
+        WHERE ca.id = $1 AND csa.user_id = $2
+        FOR UPDATE OF ca, w, csa`, [corporateAccountId, userId]);
+
+    if (accRes.length === 0) throw new Error('Corporate account not found or user not authorized.');
+    const acc = accRes[0];
+
+    if (acc.status !== 'ACTIVE') throw new Error('Corporate account is not active.');
+
+    // 2. Check Limits
+    if (parseFloat(acc.daily_spend_limit) > 0) {
+        const { rows: dailyRes } = await client.query(
+            "SELECT SUM(total_fare) as spent FROM orders WHERE corporate_account_id = $1 AND user_id = $2 AND created_at >= CURRENT_DATE",
+            [corporateAccountId, userId]
+        );
+        const spentToday = parseFloat(dailyRes[0].spent || 0);
+        if (spentToday + amount > parseFloat(acc.daily_spend_limit)) {
+            throw new Error(`Daily spend limit exceeded. Remaining: ₦${(parseFloat(acc.daily_spend_limit) - spentToday).toLocaleString()}`);
+        }
+    }
+
+    if (parseFloat(acc.monthly_spend_limit) > 0) {
+        const { rows: monthlyRes } = await client.query(
+            "SELECT SUM(total_fare) as spent FROM orders WHERE corporate_account_id = $1 AND user_id = $2 AND created_at >= date_trunc('month', CURRENT_DATE)",
+            [corporateAccountId, userId]
+        );
+        const spentThisMonth = parseFloat(monthlyRes[0].spent || 0);
+        if (spentThisMonth + amount > parseFloat(acc.monthly_spend_limit)) {
+            throw new Error(`Monthly spend limit exceeded. Remaining: ₦${(parseFloat(acc.monthly_spend_limit) - spentThisMonth).toLocaleString()}`);
+        }
+    }
+
+    // 3. Perform Debit
+    if (parseFloat(acc.balance) < amount) throw new Error('Insufficient corporate funds.');
+
+    await recordEntry(client, acc.wallet_id, 'DEBIT', amount, 'CORPORATE_ORDER', `Corporate delivery #${orderId}`, orderId);
+
+    return true;
+};
+
 module.exports = {
   ensureWalletExists,
   recordEntry,
@@ -449,5 +500,6 @@ module.exports = {
   processReferralReward,
   awardLoyaltyPoints,
   applyAutomatedWaiver,
-  processReturnRefund
+  processReturnRefund,
+  processCorporateDebit
 };

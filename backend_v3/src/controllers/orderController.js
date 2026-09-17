@@ -651,7 +651,8 @@ const createOrder = async (req, res) => {
             promo_id, payment_reference,
             pickup_lat, pickup_lng, delivery_lat, delivery_lng,
             item_price, delivery_fee, platform_fee_amount, sms_charge_amount, fee_payer, initiator_role,
-            payer_id, pickup_state, recipient_payable, scheduled_at
+            payer_id, pickup_state, recipient_payable, scheduled_at,
+            corporate_account_id
         } = req.body;
     const userId = req.user.id;
 
@@ -739,7 +740,8 @@ const createOrder = async (req, res) => {
                 item_price, delivery_fee, platform_fee_amount, fee_payer, initiator_role,
                 escrow_status, payer_id, original_delivery_fee, original_total_fare, pickup_state,
                 sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark,
-                recipient_user_id, scheduled_at, dispatch_commission_amount
+                recipient_user_id, scheduled_at, dispatch_commission_amount,
+                corporate_account_id
             ) VALUES (
                 'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
                 ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -750,7 +752,7 @@ const createOrder = async (req, res) => {
                 $28, $29, $30, $31, $32,
                 $33, $34, $35, $36, $37,
                 $38, $39, $40, $41,
-                $42, $43, $44
+                $42, $43, $44, $45
             ) RETURNING id`,
             [
                 userId, // $1
@@ -765,10 +767,10 @@ const createOrder = async (req, res) => {
                 dLng, // $10
                 dLat, // $11
                 finalFare, // $12
-                finalFare === 0 ? 'pending' : 'PAID', // $13
-                payment_method || 'card', // $14
+                (finalFare === 0 || corporate_account_id) ? 'PAID' : 'pending', // $13 (Corporate is immediate paid)
+                payment_method || (corporate_account_id ? 'corporate' : 'card'), // $14
                 refToSave, // $15
-                payment_method || 'card', // $16 (payment_channel)
+                payment_method || (corporate_account_id ? 'corporate' : 'card'), // $16
                 recipient_name || 'Recipient', // $17
                 recipient_phone || '000', // $18
                 notes || null, // $19
@@ -794,14 +796,24 @@ const createOrder = async (req, res) => {
                 q.required_fulfiller_classes, // $39
                 q.pickup_landmark, // $40
                 q.delivery_landmark, // $41
-                q.payer_info?.user_id, // $42 (recipient_user_id)
+                q.payer_info?.user_id, // $42
                 scheduled_at, // $43
-                dispatchCommissionAmount // $44
+                dispatchCommissionAmount, // $44
+                corporate_account_id || null // $45
             ]
         );
 
+        const orderId = orderRes.rows[0].id;
+
+        // 4.2 Perform Corporate Debit if applicable
+        if (corporate_account_id) {
+            await walletService.processCorporateDebit(client, corporate_account_id, finalFare, userId, orderId);
+            console.log(`[Order] Corporate billing applied for Order #${orderId} (Account: ${corporate_account_id})`);
+        }
+
         await client.query('COMMIT');
-        console.log(`[ManualOrder] Mission activated: ${orderRes.rows[0].id} for User: ${userId} | Status: ${initialStatus}`);
+        console.log(`[ManualOrder] Mission activated: ${orderId} for User: ${userId} | Status: ${initialStatus}`);
+
 
         // 5. In-App Outreach (Skip SMS if App User)
         if (initialStatus === 'PENDING_ACKNOWLEDGMENT' && q.payer_info?.user_id) {

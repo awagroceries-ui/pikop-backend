@@ -147,7 +147,8 @@ fun OrderQuoteScreen(
         try {
             val response = apiService.getSavedAddresses()
             savedAddresses = response.addresses
-            corporateAccounts = apiService.getMyCorporateAccounts()
+            val authorizations = apiService.getMyAuthorizations()
+            corporateAccounts = authorizations.data ?: emptyList()
         } catch (e: Exception) {}
     }
 
@@ -929,7 +930,7 @@ suspend fun finalizeOrderAfterPayment(
             quote_id = quoteId, 
             corporate_account_id = corporateAccountId, 
             promo_id = promoId, 
-            payment_method = "card", 
+            payment_method = if (corporateAccountId != null) "corporate" else "card", 
             recipient_name = recipientName, 
             recipient_phone = recipientPhone, 
             notes = notes, 

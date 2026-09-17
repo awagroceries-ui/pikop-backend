@@ -83,11 +83,24 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                 RoleCard(
                     title = "Fleet Partner",
                     description = "Bring your fleet onto Pikop.",
-                    icon = Icons.Default.Business,
+                    icon = Icons.Default.LocalShipping,
                     iconColor = com.ng.pikop.ui.theme.PikopGreen,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("FLEET_PARTNER") }
                 )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                RoleCard(
+                    title = "Business Account",
+                    description = "Centralized billing for teams.",
+                    icon = Icons.Default.Business,
+                    iconColor = com.ng.pikop.ui.theme.PikopNearBlack,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onRoleSelected("CORPORATE") }
+                )
+                // Spacer to keep layout balanced
+                Spacer(modifier = Modifier.weight(1f))
             }
             
             Spacer(modifier = Modifier.height(48.dp))

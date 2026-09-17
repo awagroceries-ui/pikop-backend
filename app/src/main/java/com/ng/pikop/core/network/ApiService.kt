@@ -502,27 +502,66 @@ data class WithdrawalRequest(
 data class CorporateAccount(
     val id: String? = null,
     val company_name: String? = null,
-    val billing_email: String? = null,
-    val billing_type: String? = null, // direct_debit, prepaid_wallet
-    val status: String? = null
+    val billing_type: String? = null,
+    val status: String? = null,
+    val daily_spend_limit: Double? = null,
+    val monthly_spend_limit: Double? = null
 )
 
 data class CreateCorporateRequest(
     val company_name: String,
     val billing_email: String,
-    val billing_type: String
-)
-
-data class MandateResponse(
-    val authorization_url: String? = null,
-    val message: String? = null
+    val billing_type: String = "prepaid_wallet",
+    val cac_number: String? = null,
+    val business_address: String? = null
 )
 
 data class CorporateStaff(
+    val id: Int? = null,
     val full_name: String? = null,
     val email: String? = null,
     val role: String? = null,
+    val daily_spend_limit: Double = 0.0,
+    val monthly_spend_limit: Double = 0.0,
     val created_at: String? = null
+)
+
+data class WalletBalance(
+    val balance: Double = 0.0,
+    val pending_balance: Double = 0.0
+)
+
+data class CorporateDashboardData(
+    val account: CorporateAccount,
+    val wallet: WalletBalance,
+    val stats: CorporateStats,
+    val top_users: List<UserSpend>
+)
+
+data class CorporateStats(
+    val total_orders: Int = 0,
+    val total_spend: Double = 0.0,
+    val active_staff: Int = 0
+)
+
+data class UserSpend(
+    val full_name: String,
+    val spend: Double
+)
+
+data class CorporateDashboardResponse(
+    val success: Boolean,
+    val data: CorporateDashboardData
+)
+
+data class CorporateStaffResponse(
+    val success: Boolean,
+    val data: List<CorporateStaff>
+)
+
+data class CorporateAccountsResponse(
+    val success: Boolean,
+    val data: List<CorporateAccount>
 )
 
 data class Bank(
@@ -1033,20 +1072,20 @@ interface ApiService {
     @POST("api/v1/fulfillers/kyc/start")
     suspend fun startKycSession(@Body request: Map<String, String> = mapOf("provider" to "prembly")): KycSessionResponse
 
-    @POST("api/v1/corporate/accounts")
-    suspend fun createCorporateAccount(@Body request: CreateCorporateRequest): CorporateAccount
+    @POST("api/v1/corporate/setup")
+    suspend fun setupCorporateProfile(@Body request: CreateCorporateRequest): AuthResponse
 
-    @GET("api/v1/corporate/my-accounts")
-    suspend fun getMyCorporateAccounts(): List<CorporateAccount>
+    @GET("api/v1/corporate/dashboard")
+    suspend fun getCorporateDashboard(): CorporateDashboardResponse
 
-    @POST("api/v1/corporate/accounts/{id}/mandate/authorize")
-    suspend fun authorizeMandate(@retrofit2.http.Path("id") id: String): MandateResponse
+    @GET("api/v1/corporate/staff")
+    suspend fun getCorporateStaff(): CorporateStaffResponse
 
-    @POST("api/v1/corporate/accounts/{id}/sub-accounts")
-    suspend fun addStaffToCorporate(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): AuthResponse
+    @POST("api/v1/corporate/staff")
+    suspend fun addStaffMember(@Body request: Map<String, String>): AuthResponse
 
-    @GET("api/v1/corporate/accounts/{id}/sub-accounts")
-    suspend fun getCorporateStaff(@retrofit2.http.Path("id") id: String): List<CorporateStaff>
+    @GET("api/v1/corporate/my-authorizations")
+    suspend fun getMyAuthorizations(): CorporateAccountsResponse
 
     @POST("api/v1/auth/refresh")
     suspend fun refresh(@Body request: Map<String, String>): AuthResponse

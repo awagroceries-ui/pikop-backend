@@ -329,6 +329,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 else if (role == "FULFILLER") navController.navigate("fulfiller_category_selection")
                 else if (role == "MERCHANT") navController.navigate("signup_merchant")
                 else if (role == "FLEET_PARTNER") navController.navigate("signup_fleet")
+                else if (role == "CORPORATE") navController.navigate("signup_corporate")
             })
         }
         
@@ -395,6 +396,16 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             )
         }
 
+        composable("signup_corporate") {
+            SignupCorporateScreen(
+                onSignupSuccess = { email, userRole ->
+                    navController.navigate("email_otp/$email/$userRole")
+                },
+                onViewTerms = { navController.navigate("terms_viewer/false") },
+                onViewPrivacy = { navController.navigate("privacy_policy") }
+            )
+        }
+
         composable("email_otp/{email}/{role}") { backStackEntry ->
             val email = backStackEntry.arguments?.getString("email") ?: ""
             val role = backStackEntry.arguments?.getString("role") ?: "CUSTOMER"
@@ -447,6 +458,16 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             )
         }
 
+        composable("corporate_business_setup") {
+            CorporateBusinessSetupScreen(
+                onSetupSuccess = {
+                    navController.navigate("main") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable("main") {
             if (userRole == "MERCHANT") {
                 com.ng.pikop.feature.merchant.MerchantAppScaffold(
@@ -459,6 +480,17 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             } else if (userRole == "FLEET_PARTNER") {
                 FleetPartnerDashboardScreen(
                     onLogout = {
+                        scope.launch {
+                            tokenManager.clearTokens()
+                            navController.navigate("user_type_selection") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            } else if (userRole == "CORPORATE") {
+                CorporateDashboardScreen(
+                    onBack = {
                         scope.launch {
                             tokenManager.clearTokens()
                             navController.navigate("user_type_selection") {
