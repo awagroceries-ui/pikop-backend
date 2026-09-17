@@ -205,7 +205,9 @@ const updateSettings = async (req, res) => {
         base_fare_small, base_fare_medium, base_fare_large,
         per_km_rate, platform_commission, cod_fee_rate,
         food_commission, groceries_commission, shop_commission,
-        guest_sms_charge
+        guest_sms_charge,
+        insurance_rate, insurance_min_item_value,
+        max_surge_multiplier, manual_surge_multiplier
     } = req.body;
 
     const client = await db.pool.connect();
@@ -222,7 +224,11 @@ const updateSettings = async (req, res) => {
             ['food_commission', food_commission],
             ['groceries_commission', groceries_commission],
             ['shop_commission', shop_commission],
-            ['guest_sms_charge', guest_sms_charge]
+            ['guest_sms_charge', guest_sms_charge],
+            ['insurance_rate', insurance_rate],
+            ['insurance_min_item_value', insurance_min_item_value],
+            ['max_surge_multiplier', max_surge_multiplier],
+            ['manual_surge_multiplier', manual_surge_multiplier]
         ];
 
         for (const [key, val] of settings) {
@@ -678,6 +684,7 @@ const getDisputeResolutionCenter = async (req, res) => {
     try {
         const { rows } = await db.query(`
             SELECT d.*, o.item_description, o.item_price, o.total_fare, o.status as order_status,
+                   o.is_insured,
                    u.full_name as reporter_name, u.role as reporter_role,
                    f.full_name as fulfiller_name
             FROM disputes d
@@ -717,7 +724,14 @@ const resolveDispute = async (req, res) => {
         } else if (action === 'RELEASE') {
             await walletService.releaseEscrow(dispute.order_id, client);
         } else if (action === 'WAIVER' && waiver_type) {
-            await walletService.applyAutomatedWaiver(dispute.order_id, waiver_type);
+            await walletService.applyAutomatedWaiver(dispute.order_id, waiver_type, client);
+        } else if (action === 'INSURANCE_CLAIM') {
+            const { rows: oRes } = await client.query("SELECT item_price, is_insured FROM orders WHERE id = $1", [dispute.order_id]);
+            if (oRes.rows[0]?.is_insured) {
+                await walletService.processInsuranceClaim(dispute.order_id, parseFloat(oRes.rows[0].item_price), client);
+            } else {
+                throw new Error('Order is not insured.');
+            }
         }
 
         // 2. Update Dispute Status

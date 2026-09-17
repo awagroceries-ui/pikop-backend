@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -134,6 +135,7 @@ fun OrderQuoteScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showSchedulingDialog by remember { mutableStateOf(false) }
     var showWaitlistDialog by remember { mutableStateOf(false) }
+    var isInsured by remember { mutableStateOf(false) }
     var scheduledAt by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
@@ -425,10 +427,11 @@ fun OrderQuoteScreen(
                     val itemPriceNum = result.item_price ?: 0.0
                     val platformFee = result.platform_fee_amount ?: 0.0
                     val smsCharge = result.sms_charge_amount ?: 0.0
+                    val insuranceFee = result.insurance_fee ?: 0.0
                     
                     // Logic: If user is Buyer, they pay everything. If Seller, they pay 0.
                     val isBuyer = initiatorRole == "PAYER"
-                    val amountToCharge = if (isBuyer) itemPriceNum + platformFee + (deliveryFee - discount) + smsCharge else 0.0
+                    val amountToCharge = if (isBuyer) itemPriceNum + platformFee + (deliveryFee - discount) + smsCharge + (if (isInsured) insuranceFee else 0.0) else 0.0
 
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Order Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -461,11 +464,30 @@ fun OrderQuoteScreen(
                         if (trafficMult > 1.0) {
                             SummaryLine("Traffic adjustment", "x$trafficMult", color = Color(0xFFD32F2F))
                         }
+                        val surgeMult = result.surge_multiplier ?: 1.0
+                        if (surgeMult > 1.0) {
+                            SummaryLine("High-demand adjustment", "x$surgeMult", color = Color(0xFFD32F2F))
+                        }
 
                         // SMS Charge for Guest (ONLY if > 0)
                         val smsChargeVal = result.sms_charge_amount ?: 0.0
                         if (smsChargeVal > 0) {
                             SummaryLine("Guest SMS charge", "₦$smsChargeVal")
+                        }
+
+                        // Optional Item Insurance (v4.3)
+                        if (insuranceFee > 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(8.dp)).padding(8.dp)) {
+                                Checkbox(checked = isInsured, onCheckedChange = { isInsured = it })
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Protect this item", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                    Text("Cover loss or damage for ₦$insuranceFee", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                }
+                            }
+                            if (isInsured) {
+                                SummaryLine("Item protection premium", "₦$insuranceFee", color = MaterialTheme.colorScheme.primary)
+                            }
                         }
 
                         val logisticsTotal = (deliveryFee - discount) + smsChargeVal
@@ -480,7 +502,7 @@ fun OrderQuoteScreen(
 
                         if (isSecurePay && !isBuyer) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            val grandTotal = itemPriceNum + platformFee + logisticsTotal
+                            val grandTotal = itemPriceNum + platformFee + logisticsTotal + (if (isInsured) insuranceFee else 0.0)
                             Text("Note: You are paying ₦0 now. The Recipient will receive an SMS to pay ₦$grandTotal to activate this mission.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                         }
 
@@ -598,7 +620,10 @@ fun OrderQuoteScreen(
                                         quoteResult = result,
                                         sellerPhone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null,
                                         pickupState = pickupState,
-                                        scheduledAt = scheduledAt
+                                        scheduledAt = scheduledAt,
+                                        insuranceFee = result?.insurance_fee,
+                                        isInsured = isInsured,
+                                        surgeMultiplier = result?.surge_multiplier
                                     )
                                     if (success) {
                                         onOrderComplete("CORPORATE")
@@ -618,10 +643,11 @@ fun OrderQuoteScreen(
                                     val itemPriceNum = result.item_price ?: 0.0
                                     val platformFee = result.platform_fee_amount ?: 0.0
                                     val smsCharge = result.sms_charge_amount ?: 0.0
+                                    val insuranceFee = if (isInsured) result.insurance_fee ?: 0.0 else 0.0
                                     
                                     // Logic: If user is Buyer, they pay everything. If Seller, they pay 0.
                                     val isBuyer = initiatorRole == "PAYER"
-                                    val amountToCharge = if (isBuyer) itemPriceNum + platformFee + (deliveryFee - discount) + smsCharge else 0.0
+                                    val amountToCharge = if (isBuyer) itemPriceNum + platformFee + (deliveryFee - discount) + smsCharge + insuranceFee else 0.0
 
                                     // ZERO UPFRONT BYPASS (Seller-initiated COD or 100% Promo)
                                     if (amountToCharge <= 0) {
@@ -648,7 +674,10 @@ fun OrderQuoteScreen(
                                                 seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null,
                                                 pickup_state = pickupState,
                                                 recipient_payable = result.recipient_payable,
-                                                scheduled_at = scheduledAt
+                                                scheduled_at = scheduledAt,
+                                                insurance_fee = result.insurance_fee,
+                                                is_insured = isInsured,
+                                                surge_multiplier = result.surge_multiplier
                                             )
                                             val response = apiService.createOrder(request)
                                             if (response.status == "SEARCHING" || response.status == "AWAITING_PAYMENT" || response.status == "PAYMENT_CAPTURED" || response.status == "SCHEDULED") {
@@ -678,7 +707,13 @@ fun OrderQuoteScreen(
                                                 seller_phone = if (isSecurePay && initiatorRole == "PAYER") sellerPhone else null,
                                                 promo_id = activePromo?.promo_id,
                                                 pickup_state = pickupState,
-                                                metadata = if (scheduledAt != null) mapOf("scheduled_at" to scheduledAt!!) else null
+                                                metadata = mapOf(
+                                                    "quote_id" to qId,
+                                                    "is_insured" to isInsured.toString(),
+                                                    "insurance_fee" to (result.insurance_fee ?: 0.0).toString(),
+                                                    "surge_multiplier" to (result.surge_multiplier ?: 1.0).toString(),
+                                                    "scheduled_at" to (scheduledAt ?: "")
+                                                )
                                             )
                                         )
                                         val authUrl = paymentInit.authorization_url
@@ -920,7 +955,8 @@ suspend fun finalizeOrderAfterPayment(
     paymentReference: String, recipientName: String, recipientPhone: String, notes: String?, 
     pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemPhotoUrl: String, 
     pSummary: String, dSummary: String, quoteResult: QuoteResponse? = null,
-    sellerPhone: String? = null, pickupState: String? = null, scheduledAt: String? = null
+    sellerPhone: String? = null, pickupState: String? = null, scheduledAt: String? = null,
+    insuranceFee: Double? = null, isInsured: Boolean = false, surgeMultiplier: Double? = null
 ): Boolean {
     return try {
         // ... (existing webhook check logic)
@@ -946,7 +982,10 @@ suspend fun finalizeOrderAfterPayment(
             delivery_fee = quoteResult?.delivery_fee,
             seller_phone = sellerPhone,
             pickup_state = pickupState,
-            scheduled_at = scheduledAt
+            scheduled_at = scheduledAt,
+            insurance_fee = quoteResult?.insurance_fee,
+            is_insured = quoteResult?.insurance_fee != null && quoteResult.insurance_fee > 0,
+            surge_multiplier = quoteResult?.surge_multiplier
         )
         val response = apiService.createOrder(request)
         response.status == "SEARCHING" || response.status == "MATCHED" || response.status == "QUEUED" || response.status == "PAYMENT_CAPTURED"

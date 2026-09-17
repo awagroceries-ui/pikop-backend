@@ -98,6 +98,8 @@ data class QuoteResponse(
     val sms_charge_amount: Double? = null,
     val weather_multiplier: Double? = null,
     val traffic_multiplier: Double? = null,
+    val surge_multiplier: Double? = 1.0,
+    val insurance_fee: Double? = 0.0,
     val recipient_payable: Double? = null,
     val payer_info: PayerInfo? = null,
     val restricted_dispatch: Boolean = false,
@@ -150,7 +152,10 @@ data class CreateOrderRequest(
     val seller_phone: String? = null,
     val pickup_state: String? = null,
     val recipient_payable: Double? = null,
-    val scheduled_at: String? = null
+    val scheduled_at: String? = null,
+    val insurance_fee: Double? = null,
+    val is_insured: Boolean = false,
+    val surge_multiplier: Double? = null
 )
 
 data class OrderResponse(

@@ -107,6 +107,46 @@ const getQuote = async (req, res) => {
         });
     });
 
+    // 3.3 Dynamic Surge Pricing (v4.3)
+    let surgeMultiplier = 1.0;
+    try {
+        const [demandRes, supplyRes, maxSurgeRes, manualSurgeRes] = await Promise.all([
+            db.query("SELECT COUNT(*) FROM orders WHERE pickup_state = $1 AND status = 'SEARCHING'", [pickup_state]),
+            db.query("SELECT COUNT(*) FROM fulfillers WHERE current_state = $1 AND online_status = 'ONLINE' AND kyc_status = 'VERIFIED'", [pickup_state]),
+            db.query("SELECT value FROM settings WHERE key = 'max_surge_multiplier'"),
+            db.query("SELECT value FROM settings WHERE key = 'manual_surge_multiplier'")
+        ]);
+
+        const demand = parseInt(demandRes.rows[0].count);
+        const supply = parseInt(supplyRes.rows[0].count);
+        const maxSurge = parseFloat(maxSurgeRes.rows[0]?.value || '3.0');
+        const manualSurge = parseFloat(manualSurgeRes.rows[0]?.value || '1.0');
+
+        if (supply > 0 && demand > supply) {
+            surgeMultiplier = Math.min(demand / supply, maxSurge);
+        }
+        surgeMultiplier = Math.max(surgeMultiplier, manualSurge);
+    } catch (e) {
+        console.warn('[Quote] Surge calc failed:', e.message);
+    }
+
+    // 3.4 Optional Item Insurance (v4.3)
+    let insuranceFee = 0;
+    try {
+        const [rateRes, minValRes] = await Promise.all([
+            db.query("SELECT value FROM settings WHERE key = 'insurance_rate'"),
+            db.query("SELECT value FROM settings WHERE key = 'insurance_min_item_value'")
+        ]);
+        const rate = parseFloat(rateRes.rows[0]?.value || '0.01');
+        const minVal = parseFloat(minValRes.rows[0]?.value || '10000');
+
+        if (parseFloat(item_price) >= minVal) {
+            insuranceFee = parseFloat(item_price) * rate;
+        }
+    } catch (e) {
+        console.warn('[Quote] Insurance calc failed:', e.message);
+    }
+
   } catch (e) {
     console.warn('[Quote] Pricing fetch failed, using fallback pricing.', e.message);
   }
@@ -114,8 +154,8 @@ const getQuote = async (req, res) => {
   const base_fare = baseFees[aiResult.size_tier] || baseFees['MEDIUM'];
   const effectiveDistance = distanceKm * roadWindingFactor;
 
-  // Apply Multipliers: (Base + Dist) * Weather * Traffic
-  const raw_delivery_fee = (base_fare + (effectiveDistance * perKmRate)) * weatherMultiplier * trafficMultiplier;
+  // Apply Multipliers: (Base + Dist) * Weather * Traffic * Surge
+  const raw_delivery_fee = (base_fare + (effectiveDistance * perKmRate)) * weatherMultiplier * trafficMultiplier * surgeMultiplier;
   const delivery_fee = Math.ceil(raw_delivery_fee);
 
   // 4. Reliable Account Lookup (In-App vs Guest) - DETERMINES RECIPIENT TYPE
@@ -167,10 +207,10 @@ const getQuote = async (req, res) => {
 
   // 6. Save Quote
     const quoteRes = await db.query(
-    `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state, sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark)
-     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, $12, $13, $14, $15)
+    `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state, sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark, insurance_fee, surge_multiplier)
+     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
      RETURNING id, expires_at`,
-    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, sizeTier, total_payable, pickup_state, sms_charge_amount, requiredClasses, pickup_landmark, delivery_landmark]
+    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, sizeTier, total_payable, pickup_state, sms_charge_amount, requiredClasses, pickup_landmark, delivery_landmark, insuranceFee, surgeMultiplier]
   );
 
   // 6. Security Analysis: Daylight Window & Driver Availability
@@ -232,6 +272,8 @@ const getQuote = async (req, res) => {
     sms_charge_amount,
     weather_multiplier: weatherMultiplier,
     traffic_multiplier: trafficMultiplier,
+    surge_multiplier: surgeMultiplier,
+    insurance_fee: insuranceFee,
     fee_payer,
     total_fare: total_payable,
     recipient_payable: recipient_total,
@@ -645,14 +687,9 @@ const triggerInitialGuestCommunications = async (orderId) => {
  * Manually creates an order from a verified payment.
  */
 const createOrder = async (req, res) => {
-        const {
-            quote_id, payment_method, recipient_name, recipient_phone, notes,
-            pickup_display_summary, delivery_display_summary, item_photo_url,
-            promo_id, payment_reference,
-            pickup_lat, pickup_lng, delivery_lat, delivery_lng,
-            item_price, delivery_fee, platform_fee_amount, sms_charge_amount, fee_payer, initiator_role,
             payer_id, pickup_state, recipient_payable, scheduled_at,
-            corporate_account_id
+            corporate_account_id,
+            insurance_fee, is_insured, surge_multiplier
         } = req.body;
     const userId = req.user.id;
 
@@ -741,7 +778,8 @@ const createOrder = async (req, res) => {
                 escrow_status, payer_id, original_delivery_fee, original_total_fare, pickup_state,
                 sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark,
                 recipient_user_id, scheduled_at, dispatch_commission_amount,
-                corporate_account_id
+                corporate_account_id,
+                insurance_fee, is_insured, surge_multiplier
             ) VALUES (
                 'pickup_delivery', $1, $2, $3, $4, $5, $6, $7,
                 ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
@@ -752,7 +790,8 @@ const createOrder = async (req, res) => {
                 $28, $29, $30, $31, $32,
                 $33, $34, $35, $36, $37,
                 $38, $39, $40, $41,
-                $42, $43, $44, $45
+                $42, $43, $44, $45,
+                $46, $47, $48
             ) RETURNING id`,
             [
                 userId, // $1
@@ -766,8 +805,8 @@ const createOrder = async (req, res) => {
                 pLat, // $9
                 dLng, // $10
                 dLat, // $11
-                finalFare, // $12
-                (finalFare === 0 || corporate_account_id) ? 'PAID' : 'pending', // $13 (Corporate is immediate paid)
+                finalFare + (is_insured ? parseFloat(insurance_fee || 0) : 0), // $12
+                (finalFare === 0 || corporate_account_id) ? 'PAID' : 'pending', // $13
                 payment_method || (corporate_account_id ? 'corporate' : 'card'), // $14
                 refToSave, // $15
                 payment_method || (corporate_account_id ? 'corporate' : 'card'), // $16
@@ -799,7 +838,10 @@ const createOrder = async (req, res) => {
                 q.payer_info?.user_id, // $42
                 scheduled_at, // $43
                 dispatchCommissionAmount, // $44
-                corporate_account_id || null // $45
+                corporate_account_id || null, // $45
+                insurance_fee || 0.0, // $46
+                is_insured || false, // $47
+                surge_multiplier || 1.0 // $48
             ]
         );
 

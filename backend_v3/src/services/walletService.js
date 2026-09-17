@@ -118,6 +118,11 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
         await recordEntry(client, pWalletId, 'CREDIT', order.sms_charge_amount, 'SMS_CHARGE', `Guest notification fee for Order #${order.id}`, order.id);
     }
 
+    // 7. Insurance Premium (v4.3)
+    if (order.is_insured && parseFloat(order.insurance_fee) > 0) {
+        await recordEntry(client, pWalletId, 'CREDIT', order.insurance_fee, 'INSURANCE_PREMIUM', `Insurance protection for Order #${order.id}`, order.id);
+    }
+
     if (shouldRelease) await client.query('COMMIT');
     console.log(`[Wallet] Settled Mission #${order.id}: Fulfiller +${fulfillerShare}, Platform +${platformShare + (order.sms_charge_amount || 0)}`);
 
@@ -352,10 +357,12 @@ const awardLoyaltyPoints = async (client, userId, amount) => {
  * Applies an automated financial waiver (Milestone 35).
  * Reverses penalties or fees based on valid incident reports.
  */
-const applyAutomatedWaiver = async (orderId, waiverType) => {
-    const client = await db.pool.connect();
+const applyAutomatedWaiver = async (orderId, waiverType, providedClient = null) => {
+    const client = providedClient || await db.pool.connect();
+    let shouldRelease = !providedClient;
+
     try {
-        await client.query('BEGIN');
+        if (shouldRelease) await client.query('BEGIN');
 
         // 1. Fetch Order and User
         const { rows } = await client.query("SELECT id, user_id, total_fare FROM orders WHERE id = $1", [orderId]);
@@ -381,14 +388,14 @@ const applyAutomatedWaiver = async (orderId, waiverType) => {
             console.log(`[Waiver] Applied ${waiverType} waiver for User ${order.user_id} on Order ${orderId}: +₦${amountToReverse}`);
         }
 
-        await client.query('COMMIT');
+        if (shouldRelease) await client.query('COMMIT');
         return { success: true, amount: amountToReverse };
     } catch (error) {
-        await client.query('ROLLBACK');
+        if (shouldRelease) await client.query('ROLLBACK');
         console.error('[Waiver] Failed:', error.message);
         throw error;
     } finally {
-        client.release();
+        if (shouldRelease) client.release();
     }
 };
 
@@ -490,6 +497,40 @@ const processCorporateDebit = async (client, corporateAccountId, amount, userId,
     return true;
 };
 
+/**
+ * Processes an insurance claim for lost/damaged items (v4.3).
+ */
+const processInsuranceClaim = async (orderId, claimAmount, providedClient = null) => {
+    const client = providedClient || await db.pool.connect();
+    let shouldRelease = !providedClient;
+
+    try {
+        if (shouldRelease) await client.query('BEGIN');
+
+        const { rows } = await client.query("SELECT user_id FROM orders WHERE id = $1", [orderId]);
+        if (rows.length === 0) throw new Error('Order not found');
+        const userId = rows[0].user_id;
+
+        const pWalletId = await ensureWalletExists(client, 'PLATFORM', 'SYSTEM');
+        const uWalletId = await ensureWalletExists(client, 'USER', userId);
+
+        // Debit Platform (Claims Pool)
+        await recordEntry(client, pWalletId, 'DEBIT', claimAmount, 'INSURANCE_CLAIM', `Claim payout for Order #${orderId}`, orderId);
+
+        // Credit User
+        await recordEntry(client, uWalletId, 'CREDIT', claimAmount, 'SETTLEMENT', `Insurance claim payout for Order #${orderId}`, orderId);
+
+        if (shouldRelease) await client.query('COMMIT');
+        return true;
+    } catch (error) {
+        if (shouldRelease) await client.query('ROLLBACK');
+        console.error('[Insurance] Claim processing failed:', error.message);
+        throw error;
+    } finally {
+        if (shouldRelease) client.release();
+    }
+};
+
 module.exports = {
   ensureWalletExists,
   recordEntry,
@@ -501,5 +542,6 @@ module.exports = {
   awardLoyaltyPoints,
   applyAutomatedWaiver,
   processReturnRefund,
-  processCorporateDebit
+  processCorporateDebit,
+  processInsuranceClaim
 };

@@ -79,6 +79,9 @@
                                         <button type="submit" name="action" value="RELEASE" class="btn btn-sm btn-success fw-bold">RELEASE ESCROW</button>
                                         <button type="submit" name="action" value="REFUND" class="btn btn-sm btn-danger fw-bold">REFUND BUYER</button>
                                         <button type="submit" name="action" value="WAIVER" class="btn btn-sm btn-warning fw-bold">APPLY WAIVER ONLY</button>
+                                        <% if (d.is_insured) { %>
+                                            <button type="submit" name="action" value="INSURANCE_CLAIM" class="btn btn-sm btn-dark fw-bold">PAY INSURANCE CLAIM</button>
+                                        <% } %>
                                     </div>
                                 </div>
                             </div>
