@@ -1,63 +1,53 @@
-# Implementation Plan - Item Insurance & Surge Pricing
+# Implementation Plan - Fulfiller Incentives & Customer Loyalty
 
-This plan implements two new financial features: **Optional Item Insurance** for high-value deliveries and **Dynamic Surge Pricing** for high-demand periods.
+This plan implements performance-based Fulfiller incentives and formalizes the Customer loyalty and referral program.
 
 ## Proposed Changes
 
-### 1. Database & Infrastructure
+### 1. Database & Schema Enhancements
 
-#### [NEW] [pricing_enhancements migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726550000000_pricing_enhancements.js)
-- **Extend `quotes` and `orders`**:
-    - Add `insurance_fee` (DECIMAL).
-    - Add `is_insured` (BOOLEAN).
-    - Add `surge_multiplier` (DECIMAL, default 1.0).
-- **Update `wallet_ledger_entries`**: Add `INSURANCE_PREMIUM` and `INSURANCE_CLAIM` to the purpose check constraint.
+#### [NEW] [growth_incentives migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726560000000_growth_incentives.js)
+- **Extend `users`**:
+    - `total_orders_completed`: (INTEGER, default 0) - For simple loyalty tiering.
+- **Extend `fulfillers`**:
+    - `current_streak_days`: (INTEGER, default 0)
+    - `last_streak_date`: (DATE)
+- **Update `wallet_ledger_entries`**: Add `STREAK_BONUS` and `PEAK_BONUS` to the purpose check constraint.
 - **Seed Settings**:
-    - `insurance_rate`: 0.01 (1%)
-    - `insurance_min_item_value`: 10000
-    - `max_surge_multiplier`: 3.0
+    - `streak_bonus_7_day`: '1000'
+    - `streak_bonus_30_day`: '5000'
+    - `peak_hour_start`: '16:00'
+    - `peak_hour_end`: '19:00'
+    - `peak_hour_bonus`: '300'
 
 ### 2. Backend Logic (Node.js)
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **`getQuote` Enhancements**:
-    - **Surge Calculation**: Implement real-time demand/supply check per state.
-        - Formula: `surge = (ActiveOrders + 1) / (OnlineFulfillers + 1)`.
-        - Apply multiplier to the base delivery fee.
-    - **Insurance Calculation**: If `item_price >= insurance_min_item_value`, calculate `insurance_fee = item_price * insurance_rate`.
-- **`createOrder` Enhancements**:
-    - Capture `is_insured` opt-in from request.
-    - Persist final calculated fees and multiplier.
-
 #### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
-- Update settlement logic to credit `INSURANCE_PREMIUM` to the platform wallet.
-- Implement `processInsuranceClaim(orderId)` for admin resolution of lost/damaged insured items.
-
-### 3. Admin Dashboard
+- **`processMissionSettlement`**:
+    - **Fulfiller Streak Check**:
+        - Check `last_streak_date`. If it was yesterday, increment `current_streak_days`. If older, reset to 1.
+        - If `current_streak_days` hits 7 or 30, award the configured `STREAK_BONUS` from the platform wallet to the fulfiller.
+    - **Peak-Hour Bonus**:
+        - Check if the order was created/matched during the `peak_hour_start` - `peak_hour_end` window.
+        - If yes, award `PEAK_BONUS` from the platform wallet to the fulfiller.
+    - **Customer Loyalty**:
+        - Increment `total_orders_completed` for the user.
+        - (Optional) If it hits a milestone (e.g., 10th order), award a loyalty point multiplier or flat bonus.
+- **Referral Abuse Prevention**:
+    - Update `processReferralReward` to verify that the new user does not share the same device fingerprint (IP address or phone number) as the referrer.
 
 #### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- Update settings page to include Insurance and Surge limits.
-- Implement manual surge override setting (e.g., `manual_surge_multiplier` setting).
+- Update settings management to include the new streak and peak hour configuration fields.
 
-### 4. Android Frontend (Compose)
+### 3. Android Frontend (Compose)
 
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Update `QuoteResponse` and `CreateOrderRequest` to include insurance and surge fields.
-
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- **Insurance UI**: Show an "Item Protection" checkbox if the item value is above the threshold. Display the exact cost.
-- **Surge UI**: If `surge_multiplier > 1.0`, show a "High Demand" notice next to the delivery fee (e.g., "₦1,500 (Includes 1.2x surge)").
-
-## User Review Required
-
-> [!IMPORTANT]
-> **Pricing Decisions**
-> 1. **Insurance**: 1% of item price (₦100 for a ₦10k item). Minimum value threshold of ₦10,000.
-> 2. **Surge**: Applied to **Delivery Fee only**. Transparently disclosed at checkout. Capped at 3.0x.
+#### [MODIFY] [FulfillerDashboardScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerDashboardScreen.kt)
+- **Peak Hour Alert**: Display a prominent banner at the top of the dashboard if a peak-hour bonus is currently active (e.g., "Peak Bonus Active! Earn an extra ₦300 per delivery until 7 PM").
+- **Streak Tracker**: Add a visual element (e.g., a flame icon) showing the current streak count and progress toward the next bonus.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Surge Test**: Simulate high demand (create 10 searching orders, keep 1 fulfiller online). Verify `getQuote` returns a multiplier > 1.0 and delivery fee increases.
-2.  **Insurance Test**: Set item price to ₦20,000. Verify the "Protect this item" option appears with a ₦200 fee. Complete order and verify `is_insured: true` in DB.
-3.  **Claim Test**: Confirm an insured order. As Admin, trigger an insurance claim settlement. Verify platform wallet is debited and user is credited under `INSURANCE_CLAIM`.
+1.  **Fulfiller Streak**: Manually advance the server date or trigger 7 consecutive orders. Verify the `STREAK_BONUS` is credited to the wallet.
+2.  **Peak Hour Bonus**: Place an order during the configured peak window. Verify the fulfiller receives the base pay + `PEAK_BONUS`.
+3.  **Referral Abuse**: Attempt to sign up a new user using the same IP address as an existing referrer. Complete an order. Verify the referral bonus is skipped.

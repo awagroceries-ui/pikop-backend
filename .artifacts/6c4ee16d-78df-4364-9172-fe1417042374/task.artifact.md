@@ -1,20 +1,18 @@
-# Task: Item Insurance & Surge Pricing
+# Task: Fulfiller Incentives & Customer Loyalty Program
 
-- [x] **Infrastructure & Schema**
-    - [x] Create migration `1726550000000_pricing_enhancements.js`
-- [x] **Backend - Pricing Engine (`orderController.js`)**
-    - [x] Implement demand ratio surge calculation in `getQuote`
-    - [x] Implement insurance calculation in `getQuote`
-    - [x] Update `createOrder` to persist insurance opt-in and surge values
-- [x] **Backend - Wallet & Settings**
-    - [x] Update `walletService.js` to handle `INSURANCE_PREMIUM` collection
-    - [x] Update `settingsController.js` and `adminController.js` to manage new pricing toggles
-- [x] **Android App - Checkout Enhancements (`OrderQuoteScreen.kt`)**
-    - [x] Update `ApiService.kt` DTOs
-    - [x] Add Surge Pricing visibility UI
-    - [x] Add Item Protection Opt-In Checkbox
-    - [x] Ensure billing total accurately reflects toggled insurance
-- [x] **Verification**
-    - [x] Trigger high demand, verify surge pricing in app
-    - [x] Check opt-in box, verify premium is added to total
-    - [x] Build and Deploy
+- [ ] **Infrastructure & Schema**
+    - [ ] Create migration `1726560000000_growth_incentives.js`
+- [ ] **Backend - Incentives & Loyalty**
+    - [ ] Implement `STREAK_BONUS` and `PEAK_BONUS` logic in `walletService.js`
+    - [ ] Implement customer `total_orders_completed` tracking
+    - [ ] Harden `processReferralReward` with abuse prevention (IP/Phone checks)
+- [ ] **Backend - Admin Config**
+    - [ ] Update `adminController.js` and `settings.ejs` for new config keys
+- [ ] **Android UI - Fulfiller App**
+    - [ ] Update `ApiService.kt` DTOs for streak/peak data
+    - [ ] Add Peak-Hour banner and Streak tracker to `FulfillerDashboardScreen.kt`
+- [ ] **Verification**
+    - [ ] Test streak bonus calculation
+    - [ ] Test peak bonus application
+    - [ ] Verify referral abuse blocking
+    - [ ] Build and Deploy

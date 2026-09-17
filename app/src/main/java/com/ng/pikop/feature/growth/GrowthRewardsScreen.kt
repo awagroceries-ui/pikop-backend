@@ -106,15 +106,15 @@ fun GrowthRewardsScreen(onBack: () -> Unit) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     StatCard(
                         modifier = Modifier.weight(1f),
-                        label = "Referrals",
-                        value = "${stats?.referral_count ?: 0}",
-                        icon = Icons.Default.Group
+                        label = "Orders Completed",
+                        value = "${stats?.total_orders_completed ?: 0}",
+                        icon = Icons.Default.LocalShipping
                     )
                     StatCard(
                         modifier = Modifier.weight(1f),
-                        label = "Bonus Earned",
-                        value = "₦${(stats?.referral_count ?: 0) * 250}",
-                        icon = Icons.Default.CardGiftcard
+                        label = "Referrals",
+                        value = "${stats?.referral_count ?: 0}",
+                        icon = Icons.Default.Group
                     )
                 }
 

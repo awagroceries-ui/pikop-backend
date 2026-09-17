@@ -207,7 +207,9 @@ const updateSettings = async (req, res) => {
         food_commission, groceries_commission, shop_commission,
         guest_sms_charge,
         insurance_rate, insurance_min_item_value,
-        max_surge_multiplier, manual_surge_multiplier
+        max_surge_multiplier, manual_surge_multiplier,
+        streak_bonus_7_day, streak_bonus_30_day,
+        peak_hour_start, peak_hour_end, peak_hour_bonus
     } = req.body;
 
     const client = await db.pool.connect();
@@ -228,7 +230,12 @@ const updateSettings = async (req, res) => {
             ['insurance_rate', insurance_rate],
             ['insurance_min_item_value', insurance_min_item_value],
             ['max_surge_multiplier', max_surge_multiplier],
-            ['manual_surge_multiplier', manual_surge_multiplier]
+            ['manual_surge_multiplier', manual_surge_multiplier],
+            ['streak_bonus_7_day', streak_bonus_7_day],
+            ['streak_bonus_30_day', streak_bonus_30_day],
+            ['peak_hour_start', peak_hour_start],
+            ['peak_hour_end', peak_hour_end],
+            ['peak_hour_bonus', peak_hour_bonus]
         ];
 
         for (const [key, val] of settings) {

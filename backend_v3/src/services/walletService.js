@@ -123,6 +123,53 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
         await recordEntry(client, pWalletId, 'CREDIT', order.insurance_fee, 'INSURANCE_PREMIUM', `Insurance protection for Order #${order.id}`, order.id);
     }
 
+    // 8. Fulfiller Incentives (v4.4)
+    try {
+        const { getWATTimeStr, isWithinWindow } = require('../utils/time');
+        const fcmService = require('./fcmService');
+        const settingsRes = await client.query("SELECT key, value FROM settings WHERE key IN ('peak_hour_start', 'peak_hour_end', 'peak_hour_bonus', 'streak_bonus_7_day', 'streak_bonus_30_day')");
+        const s = {};
+        settingsRes.rows.forEach(r => s[r.key] = r.value);
+
+        // Peak Hour Check
+        const nowTime = getWATTimeStr();
+        if (isWithinWindow(nowTime, s['peak_hour_start'] || '16:00', s['peak_hour_end'] || '19:00')) {
+            const peakBonus = parseFloat(s['peak_hour_bonus'] || '300');
+            if (peakBonus > 0) {
+                await recordEntry(client, fWalletId, 'CREDIT', peakBonus, 'PEAK_BONUS', `Peak Hour Bonus for Order #${order.id}`, order.id);
+                await recordEntry(client, pWalletId, 'DEBIT', peakBonus, 'PEAK_BONUS', `Peak Hour Bonus payout for Order #${order.id}`, order.id);
+            }
+        }
+
+        // Streak Check
+        const { rows: fRows } = await client.query("SELECT current_streak_days, last_streak_date FROM fulfillers WHERE id = $1 FOR UPDATE", [order.fulfiller_id]);
+        if (fRows.length > 0) {
+            const f = fRows[0];
+            const today = new Date().toISOString().split('T')[0];
+            const lastDate = f.last_streak_date ? new Date(f.last_streak_date).toISOString().split('T')[0] : null;
+
+            if (lastDate !== today) {
+                const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                let newStreak = (lastDate === yesterday) ? parseInt(f.current_streak_days) + 1 : 1;
+
+                await client.query("UPDATE fulfillers SET current_streak_days = $1, last_streak_date = CURRENT_DATE WHERE id = $2", [newStreak, order.fulfiller_id]);
+
+                // Award bonuses at milestones
+                let streakBonus = 0;
+                if (newStreak === 7) streakBonus = parseFloat(s['streak_bonus_7_day'] || '1000');
+                else if (newStreak === 30) streakBonus = parseFloat(s['streak_bonus_30_day'] || '5000');
+
+                if (streakBonus > 0) {
+                    await recordEntry(client, fWalletId, 'CREDIT', streakBonus, 'STREAK_BONUS', `${newStreak}-Day Streak Bonus!`, order.id);
+                    await recordEntry(client, pWalletId, 'DEBIT', streakBonus, 'STREAK_BONUS', `${newStreak}-Day Streak payout`, order.id);
+                    fcmService.sendNotification(order.fulfiller_user_id, "Streak Bonus Unlocked! 🔥", `You hit a ${newStreak}-day streak and earned ₦${streakBonus}!`, { type: 'WALLET_UPDATE' });
+                }
+            }
+        }
+    } catch (incErr) {
+        console.error('[Incentives] Error:', incErr.message);
+    }
+
     if (shouldRelease) await client.query('COMMIT');
     console.log(`[Wallet] Settled Mission #${order.id}: Fulfiller +${fulfillerShare}, Platform +${platformShare + (order.sms_charge_amount || 0)}`);
 
@@ -310,18 +357,26 @@ const refundEscrow = async (orderId, providedClient = null) => {
 };
 
 /**
- * Awards referral rewards.
+ * Awards referral rewards with Anti-Abuse checks (v4.4).
  */
 const processReferralReward = async (client, userId) => {
     try {
         const { rows } = await client.query(
-            "SELECT referred_by_user_id FROM users WHERE id = $1 AND email_verified_at IS NOT NULL",
+            "SELECT u.referred_by_user_id, u.phone, u.email, (SELECT phone FROM users WHERE id = u.referred_by_user_id) as referrer_phone FROM users u WHERE u.id = $1 AND u.email_verified_at IS NOT NULL",
             [userId]
         );
-        const referrerId = rows[0]?.referred_by_user_id;
-        if (!referrerId) return;
+        const refInfo = rows[0];
+        if (!refInfo || !refInfo.referred_by_user_id) return;
 
+        // Anti-Abuse: Prevent same phone number
+        if (refInfo.referrer_phone === refInfo.phone) {
+            console.warn(`[Growth] Referral Abuse Blocked: Same phone for User ${userId} and Referrer ${refInfo.referred_by_user_id}`);
+            return;
+        }
+
+        const referrerId = refInfo.referred_by_user_id;
         const REWARD_AMOUNT = 250;
+
         const referrerWalletId = await ensureWalletExists(client, 'USER', referrerId);
         await recordEntry(client, referrerWalletId, 'CREDIT', REWARD_AMOUNT, 'REFERRAL_BONUS', `Bonus for referring user #${userId}`);
 
@@ -329,7 +384,7 @@ const processReferralReward = async (client, userId) => {
         await recordEntry(client, userWalletId, 'CREDIT', REWARD_AMOUNT, 'REFERRAL_WELCOME', `Welcome bonus for using referral code`);
 
         await client.query(
-            "INSERT INTO referrals (referrer_id, referred_id, status, rewarded_at) VALUES ($1, $2, 'completed', CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING",
+            "INSERT INTO referrals (referrer_id, referred_id, status, rewarded_at) VALUES ($1, $2, 'completed', CURRENT_TIMESTAMP) ON CONFLICT (referrer_id, referred_id) DO UPDATE SET status = 'completed', rewarded_at = CURRENT_TIMESTAMP",
             [referrerId, userId]
         );
     } catch (error) {
@@ -338,10 +393,13 @@ const processReferralReward = async (client, userId) => {
 };
 
 /**
- * Awards loyalty points based on spent amount.
+ * Awards loyalty points based on spent amount and tracks total orders.
  */
 const awardLoyaltyPoints = async (client, userId, amount) => {
     try {
+        // Increment global order count
+        await client.query("UPDATE users SET total_orders_completed = total_orders_completed + 1 WHERE id = $1", [userId]);
+
         const points = Math.floor(parseFloat(amount) / 100);
         if (points <= 0) return;
         await client.query(

@@ -357,19 +357,31 @@ const getProfile = async (req, res) => {
         ORDER BY DATE_TRUNC('day', created_at) ASC
     `, [f.id]);
 
-    res.status(200).json({
-        success: true,
-        data: {
-            ...f,
-            stats: {
-                lifetime_earnings: parseFloat(stats.lifetime_earnings),
-                mtd_earnings: parseFloat(stats.mtd_earnings),
-                completion_rate: Math.round(completionRate),
-                total_completed: parseInt(stats.total_completed),
-                earnings_trend: trendRes.rows
+        // 3. Check Peak Hour Bonus Active (v4.4)
+        const { getWATTimeStr, isWithinWindow } = require('../utils/time');
+        const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('peak_hour_start', 'peak_hour_end', 'peak_hour_bonus')");
+        const s = {};
+        settingsRes.rows.forEach(r => s[r.key] = r.value);
+
+        const nowTime = getWATTimeStr();
+        const peakActive = isWithinWindow(nowTime, s['peak_hour_start'] || '16:00', s['peak_hour_end'] || '19:00');
+        const peakBonus = parseFloat(s['peak_hour_bonus'] || '300');
+
+        res.status(200).json({
+            success: true,
+            data: {
+                ...f,
+                stats: {
+                    lifetime_earnings: parseFloat(stats.lifetime_earnings),
+                    mtd_earnings: parseFloat(stats.mtd_earnings),
+                    completion_rate: Math.round(completionRate),
+                    total_completed: parseInt(stats.total_completed),
+                    earnings_trend: trendRes.rows,
+                    peak_active: peakActive,
+                    peak_bonus: peakBonus
+                }
             }
-        }
-    });
+        });
   } catch (error) {
     console.error('[FulfillerProfile] Error:', error.message);
     res.status(500).json({ success: false, message: error.message });

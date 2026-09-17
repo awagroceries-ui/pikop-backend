@@ -260,7 +260,9 @@ data class FulfillerStats(
     val mtd_earnings: Double = 0.0,
     val completion_rate: Int = 100,
     val total_completed: Int = 0,
-    val earnings_trend: List<Map<String, Any>> = emptyList()
+    val earnings_trend: List<Map<String, Any>> = emptyList(),
+    val peak_active: Boolean = false,
+    val peak_bonus: Double = 0.0
 )
 
 data class FulfillerProfileResponse(
@@ -286,6 +288,9 @@ data class FulfillerProfileResponse(
     val account_number: String? = null,
     val bank_code: String? = null,
     val account_name: String? = null,
+    val emergency_contact_name: String? = null,
+    val emergency_contact_phone: String? = null,
+    val current_streak_days: Int = 0,
     val stats: FulfillerStats? = null,
     @SerializedName("data") val data: FulfillerProfileResponse? = null
 )
@@ -603,7 +608,8 @@ data class PromoValidationResponse(
 data class GrowthStats(
     val referral_code: String? = null,
     val total_points: Int = 0,
-    val referral_count: Int = 0
+    val referral_count: Int = 0,
+    val total_orders_completed: Int = 0
 )
 
 data class GrowthStatsResponse(
@@ -1149,7 +1155,7 @@ interface ApiService {
     @PATCH("api/v1/merchants/settings")
     suspend fun updateMerchantSettings(@Body request: Map<String, Any>): AuthResponse
     
-    @POST("api/v1/orders/:orderId/return")
+    @POST("api/v1/orders/{orderId}/return")
     suspend fun requestReturn(@retrofit2.http.Path("orderId") orderId: String, @Body request: ReturnRequest): Map<String, Any>
 
     @GET("api/v1/merchants/orders")

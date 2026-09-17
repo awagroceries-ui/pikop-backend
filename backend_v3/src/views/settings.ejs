@@ -121,6 +121,45 @@
                 </div>
                 <p class="smaller text-muted mb-5"><i>Items above the minimum value will be offered optional protection at checkout.</i></p>
 
+                <h6 class="text-black small fw-bold uppercase mt-5 mb-4" style="letter-spacing: 1px;">Growth & Incentives (v4.4)</h6>
+                <hr class="mb-4">
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">7-Day Streak Bonus</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light fw-bold">₦</span>
+                            <input type="number" step="1" name="streak_bonus_7_day" class="form-control py-2" value="<%= settings.streak_bonus_7_day %>" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">30-Day Streak Bonus</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light fw-bold">₦</span>
+                            <input type="number" step="1" name="streak_bonus_30_day" class="form-control py-2" value="<%= settings.streak_bonus_30_day %>" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-4">
+                        <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">Peak Hour Start</label>
+                        <input type="time" name="peak_hour_start" class="form-control py-2" value="<%= settings.peak_hour_start %>" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">Peak Hour End</label>
+                        <input type="time" name="peak_hour_end" class="form-control py-2" value="<%= settings.peak_hour_end %>" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-black small fw-bold uppercase mb-2 d-block" style="font-size: 11px;">Peak Bonus / Order</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light fw-bold">₦</span>
+                            <input type="number" step="1" name="peak_hour_bonus" class="form-control py-2" value="<%= settings.peak_hour_bonus %>" required>
+                        </div>
+                    </div>
+                </div>
+                <p class="smaller text-muted mb-5"><i>Peak hour bonuses are paid from the Platform Wallet to encourage online presence during high demand.</i></p>
+
                 <div class="alert alert-warning border-0 small py-3 mb-5" style="border-radius: 12px;">
                     <div class="fw-bold mb-1">⚠️ Policy Enforcement Notice</div>
                     Rate changes will apply to <b>new orders/missions created after saving</b>. Active missions will complete using the rates they were assigned at creation.

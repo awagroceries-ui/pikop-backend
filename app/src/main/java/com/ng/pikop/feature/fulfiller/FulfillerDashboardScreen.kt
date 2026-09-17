@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Pending
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -52,6 +54,7 @@ fun FulfillerDashboardScreen(
     var isLoading by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf<List<FulfillerOrderResponse>>(emptyList()) }
     var walletBalance by remember { mutableStateOf(0.0) }
+    var profileData by remember { mutableStateOf<com.ng.pikop.core.network.FulfillerProfileResponse?>(null) }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -79,7 +82,8 @@ fun FulfillerDashboardScreen(
                 isLoading = true
                 // 1. Fetch Profile to set correct Online State
                 val profile = apiService.getFulfillerProfile()
-                isOnline = profile.data?.online_status == "ONLINE"
+                profileData = profile.data ?: profile
+                isOnline = profileData?.online_status == "ONLINE"
                 
                 // 2. Sync Wallet & History
                 val wallet = apiService.getWalletInfo()
@@ -171,6 +175,25 @@ fun FulfillerDashboardScreen(
             color = MaterialTheme.colorScheme.background
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                // Peak Hour Bonus Banner (v4.4)
+                val peakActive = profileData?.stats?.peak_active ?: false
+                val peakBonus = profileData?.stats?.peak_bonus ?: 0.0
+                if (peakActive && peakBonus > 0) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        colors = CardDefaults.cardColors(containerColor = com.ng.pikop.ui.theme.PikopOrange)
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Timer, null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Peak Bonus Active! 🔥", fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("Earn an extra ₦${peakBonus.toInt()} on every delivery.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f))
+                            }
+                        }
+                    }
+                }
+
                 // Resume Active Mission Banner
                 val activeMissions = history.filter { 
                     it.status != "DELIVERED" && it.status != "CANCELLED" && it.status != "RECIPIENT_ABSENT" && it.status != "RELEASED" && it.status != "REFUNDED"
@@ -187,6 +210,25 @@ fun FulfillerDashboardScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Resume Active Mission", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                                 Text("You have a mission in progress. Tap to return.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f))
+                            }
+                        }
+                    }
+                }
+
+                // Streak Tracker (v4.4)
+                val streak = profileData?.current_streak_days ?: 0
+                if (streak > 0) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocalFireDepartment, null, tint = com.ng.pikop.ui.theme.PikopOrange, modifier = Modifier.size(32.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("$streak Day Streak", fontWeight = FontWeight.Bold)
+                                val nextMilestone = if (streak < 7) 7 else 30
+                                Text("Keep it up! Next bonus at $nextMilestone days.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                             }
                         }
                     }
