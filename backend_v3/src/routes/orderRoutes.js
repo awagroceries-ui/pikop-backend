@@ -31,6 +31,7 @@ router.post('/:orderId/acknowledge', authenticateToken, orderController.acknowle
 router.post('/:orderId/timeout-choice', authenticateToken, orderController.handleAcknowledgmentTimeoutChoice);
 router.post('/:orderId/cancel', authenticateToken, orderController.cancelOrder);
 router.patch('/:orderId/status', authenticateToken, orderController.updateStatus);
+router.post('/:orderId/sos', authenticateToken, orderController.triggerSOS);
 router.post('/:orderId/accept', authenticateToken, orderController.acceptOrder);
 router.post('/:orderId/pickup', authenticateToken, orderController.verifyPickup);
 router.post('/:orderId/deliver', authenticateToken, orderController.verifyDelivery);

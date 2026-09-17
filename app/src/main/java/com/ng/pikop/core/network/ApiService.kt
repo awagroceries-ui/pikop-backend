@@ -107,6 +107,12 @@ data class QuoteResponse(
     val expires_at: String? = null
 )
 
+data class SOSRequest(
+    val orderId: String? = null,
+    val lat: Double,
+    val lng: Double
+)
+
 data class JoinWaitlistRequest(
     val city_name: String,
     val state_name: String? = null,
@@ -278,7 +284,9 @@ data class ProfileUpdateRequest(
     val bank_name: String? = null,
     val account_number: String? = null,
     val bank_code: String? = null,
-    val account_name: String? = null
+    val account_name: String? = null,
+    val emergency_contact_name: String? = null,
+    val emergency_contact_phone: String? = null
 )
 
 data class UserProfileResponse(
@@ -290,7 +298,9 @@ data class UserProfileResponse(
     val bank_name: String? = null,
     val account_number: String? = null,
     val bank_code: String? = null,
-    val account_name: String? = null
+    val account_name: String? = null,
+    val emergency_contact_name: String? = null,
+    val emergency_contact_phone: String? = null
 )
 
 data class FulfillerStatusRequest(
@@ -1108,6 +1118,10 @@ interface ApiService {
 
     @POST("api/v1/auth/delete-account")
     suspend fun deleteAccount(): AuthResponse
+
+    // Emergency (v4.3)
+    @POST("api/v1/orders/sos")
+    suspend fun triggerSOS(@Body request: SOSRequest): Map<String, Any>
 
     companion object {
         private const val BASE_URL = "https://api.pikop.com.ng/"

@@ -7,10 +7,12 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stars
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,6 +84,10 @@ fun ActiveOrderScreen(
     var isLoading by remember { mutableStateOf(false) }
     var showRatingDialog by remember { mutableStateOf(false) }
     var showIncidentDialog by remember { mutableStateOf(false) }
+    
+    var sosActive by remember { mutableStateOf(false) }
+    var sosHoldProgress by remember { mutableFloatStateOf(0f) }
+    var sosTriggered by remember { mutableStateOf(false) }
     
     // Timer for "Mark Failed" (10-minute wait)
     var secondsAtDestination by remember { mutableStateOf(0) }
@@ -196,7 +203,7 @@ fun ActiveOrderScreen(
                 } catch (e: Exception) {
                     android.util.Log.e("ActiveOrder", "Location stream error", e)
                 }
-                delay(10000)
+                delay(if (sosTriggered) 5000 else 10000)
                 
                 // Break loop if status changes to non-trackable (Double Check)
                 if (orderStatus.uppercase() !in trackableStatuses) break
@@ -253,6 +260,82 @@ fun ActiveOrderScreen(
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
+        },
+        floatingActionButton = {
+            if (!sosTriggered) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    sosActive = true
+                                    val startTime = System.currentTimeMillis()
+                                    while (sosActive && sosHoldProgress < 1f) {
+                                        val elapsed = System.currentTimeMillis() - startTime
+                                        sosHoldProgress = (elapsed.toFloat() / 3000f).coerceAtMost(1f)
+                                        if (sosHoldProgress >= 1f) {
+                                            // TRIGGER SOS
+                                            coroutineScope.launch {
+                                                try {
+                                                    val location = try {
+                                                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                                                    } catch (_: Exception) { null }
+                                                    
+                                                    apiService.triggerSOS(SOSRequest(
+                                                        orderId = orderId,
+                                                        lat = location?.latitude ?: 0.0,
+                                                        lng = location?.longitude ?: 0.0
+                                                    ))
+                                                    sosTriggered = true
+                                                    Toast.makeText(context, "SOS SIGNAL SENT!", Toast.LENGTH_LONG).show()
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "SOS Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                        delay(50)
+                                    }
+                                    sosActive = false
+                                    if (!sosTriggered) sosHoldProgress = 0f
+                                }
+                            )
+                        }
+                ) {
+                    CircularProgressIndicator(
+                        progress = { sosHoldProgress },
+                        modifier = Modifier.fillMaxSize(),
+                        color = Color.Red,
+                        strokeWidth = 6.dp,
+                        trackColor = Color.LightGray.copy(alpha = 0.3f)
+                    )
+                    FloatingActionButton(
+                        onClick = { 
+                            if (sosHoldProgress < 1f) {
+                                Toast.makeText(context, "Hold for 3 seconds to trigger SOS", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        containerColor = if (sosHoldProgress > 0) Color.Red else Color.DarkGray,
+                        contentColor = Color.White,
+                        modifier = Modifier.size(56.dp),
+                        shape = CircleShape
+                    ) {
+                        Text("SOS", fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            } else {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Red),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("EMERGENCY ACTIVE", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     ) { padding ->
         Surface(

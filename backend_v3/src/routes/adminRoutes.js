@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { isAdminAuthenticated, hasRole } = require('../middleware/adminAuth');
+const db = require('../config/db');
 
 // Public
 router.get('/login', (req, res) => {
@@ -25,10 +26,17 @@ router.post('/signup', adminController.postSignup);
 // Protected
 router.use(isAdminAuthenticated);
 
-// Set common locals for all dashboard pages
-router.use((req, res, next) => {
+router.use(async (req, res, next) => {
     res.locals.adminUsername = req.session.adminUsername;
     res.locals.role = req.session.adminRole;
+
+    // Fetch Emergency Count for Banner
+    try {
+        const { rows } = await db.query("SELECT COUNT(*) FROM emergency_alerts WHERE status = 'OPEN'");
+        res.locals.emergencyCount = parseInt(rows[0].count);
+    } catch (e) {
+        res.locals.emergencyCount = 0;
+    }
     next();
 });
 
@@ -97,5 +105,9 @@ router.get('/cities', adminController.getCities);
 router.post('/cities', adminController.addCity);
 router.post('/cities/:id/rules', adminController.updateCityRules);
 router.get('/waitlist', adminController.getExpansionWaitlist);
+
+// Emergency SOS (v4.3)
+router.get('/emergency', adminController.getEmergencyDashboard);
+router.post('/emergency/:id/resolve', adminController.resolveEmergency);
 
 module.exports = router;

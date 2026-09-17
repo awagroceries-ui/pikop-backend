@@ -1,0 +1,69 @@
+<div class="mb-5">
+    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Emergency Response Center</h3>
+    <p class="text-muted small">Active SOS signals and tactical location tracking for fleet safety.</p>
+</div>
+
+<div class="row g-4">
+    <% if (alerts.length === 0) { %>
+        <div class="col-12">
+            <div class="card-pikop p-5 text-center">
+                <div class="mb-3 text-success">
+                    <svg fill="currentColor" viewBox="0 0 20 20" style="width: 48px; height: 48px;"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                </div>
+                <h5 class="fw-bold text-black">All Personnel Secure</h5>
+                <p class="text-muted mb-0">No active SOS signals detected at this time.</p>
+            </div>
+        </div>
+    <% } else { %>
+        <% alerts.forEach(a => { %>
+            <div class="col-md-12">
+                <div class="card-pikop border-danger border-2 p-4 mb-3" style="background-color: #FFF5F5;">
+                    <div class="row align-items-start">
+                        <div class="col-md-3">
+                            <span class="text-danger smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">CRITICAL: ACTIVE SOS</span>
+                            <div class="text-black fw-bold h5 mb-1"><%= a.fulfiller_name %></div>
+                            <div class="text-muted small mb-2"><%= a.fulfiller_phone %></div>
+                            <div class="smaller text-muted mt-1">Triggered: <%= new Date(a.created_at).toLocaleString() %></div>
+
+                            <div class="mt-4">
+                                <a href="https://www.google.com/maps/search/?api=1&query=<%= a.lat %>,<%= a.lng %>" target="_blank" class="btn btn-sm btn-danger w-100 fw-bold mb-2">VIEW LIVE GPS</a>
+                                <a href="tel:<%= a.fulfiller_phone %>" class="btn btn-sm btn-outline-danger w-100 fw-bold">CALL AGENT</a>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="bg-white p-3 rounded border border-danger border-opacity-20 h-100">
+                                <span class="text-muted smaller fw-bold uppercase mb-2 d-block" style="font-size: 10px;">Tactical Context</span>
+                                <div class="mb-2">
+                                    <span class="small text-muted">Mission:</span>
+                                    <span class="small fw-bold text-black">#<%= a.order_id || 'N/A (Off-mission)' %></span>
+                                </div>
+                                <div class="mb-2">
+                                    <span class="small text-muted">Last Known Coord:</span>
+                                    <span class="small mono"><%= a.lat %>, <%= a.lng %></span>
+                                </div>
+                                <hr>
+                                <div class="alert alert-warning p-2 small mb-0 border-0">
+                                    <strong>Protocol:</strong> 1. Attempt contact. 2. Verify safety status. 3. Escalate to authorities if unresponsive.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="card bg-white p-3 border-0 shadow-sm h-100">
+                                <form action="/admin/emergency/<%= a.id %>/resolve" method="POST">
+                                    <label class="smaller fw-bold text-muted uppercase d-block text-start mb-2">Resolution Log</label>
+                                    <textarea name="resolution_notes" class="form-control form-control-sm mb-3" rows="3" placeholder="Log the actions taken and current status of the agent..." required></textarea>
+                                    <button type="submit" class="btn btn-sm btn-success w-100 fw-bold py-2">MARK AS SECURE / RESOLVED</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    <% } %>
+</div>
+
+<style>
+    .smaller { font-size: 11px; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+</style>

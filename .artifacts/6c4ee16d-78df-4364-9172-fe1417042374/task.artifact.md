@@ -1,17 +1,19 @@
-# Task: In-App Account Deletion (Compliance)
+# Task: Fulfiller SOS/Emergency Button
 
-- [ ] **Backend - Security & Gating**
-    - [ ] Add `/confirm-password` to `authRoutes.js`
-    - [ ] Implement `confirmPassword` in `authController.js`
-    - [ ] Harden `deleteAccount` in `authController.js` (Checks for balance, missions, disputes)
-- [ ] **Backend - Data Anonymization**
-    - [ ] Implement irreversible anonymization logic in `deleteAccount`
-    - [ ] Clean up `kyc_documents` and `user_fcm_tokens` on deletion
-- [ ] **Android UI - Deletion Flow**
-    - [ ] Update `ApiService.kt` with `confirmPassword` and hardened `deleteAccount` response
-    - [ ] Redesign `DeleteAccount` dialog in `AccountScreen.kt` (Multi-step)
+- [ ] **Database & Schema**
+    - [ ] Create migration `1726520000000_emergency_sos_system.js`
+- [ ] **Backend Core - SOS Logic**
+    - [ ] Implement `triggerSOS` in `orderController.js`
+    - [ ] Update `adminController.js` (getEmergencyDashboard, resolveEmergency)
+    - [ ] Add backend routes (`orderRoutes.js`, `adminRoutes.js`)
+- [ ] **Admin Dashboard UI**
+    - [ ] Update `layout.ejs` with sticky SOS banner
+    - [ ] Create `emergency_resolution.ejs` view
+- [ ] **Android UI - SOS & Profile**
+    - [ ] Update `ApiService.kt` (Add `triggerSOS` endpoint & Emergency Contact fields)
+    - [ ] Update `ProfileEditScreen.kt` (Add Emergency Contact fields)
+    - [ ] Update `ActiveOrderScreen.kt` (Implement SOS FAB with 3s hold logic)
 - [ ] **Verification**
-    - [ ] Test blocking with active missions
-    - [ ] Test blocking with non-zero wallet balance
-    - [ ] Test successful deletion and PII cleanup
+    - [ ] Test SOS trigger and Admin alert
+    - [ ] Verify Emergency Contact SMS
     - [ ] Build and Deploy

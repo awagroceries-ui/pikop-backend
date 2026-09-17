@@ -37,6 +37,9 @@ fun ProfileEditScreen(onBack: () -> Unit) {
     var accountNumber by remember { mutableStateOf("") }
     var accountName by remember { mutableStateOf("") }
     
+    var emergencyName by remember { mutableStateOf("") }
+    var emergencyPhone by remember { mutableStateOf("") }
+    
     var role by remember { mutableStateOf("CUSTOMER") }
     var isLoading by remember { mutableStateOf(false) }
     var isVerifyingBank by remember { mutableStateOf(false) }
@@ -50,6 +53,8 @@ fun ProfileEditScreen(onBack: () -> Unit) {
             phone = profile.phone ?: ""
             accountNumber = profile.account_number ?: ""
             accountName = profile.account_name ?: ""
+            emergencyName = profile.emergency_contact_name ?: ""
+            emergencyPhone = profile.emergency_contact_phone ?: ""
             role = profile.role ?: "CUSTOMER"
             
             val bankRes = apiService.getBanks()
@@ -186,6 +191,26 @@ fun ProfileEditScreen(onBack: () -> Unit) {
                         else Text("Verify Bank Account")
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                Text("Emergency Contact (Optional)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("This person will be notified via SMS if you trigger an SOS during a mission.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = emergencyName,
+                    onValueChange = { emergencyName = it },
+                    label = { Text("Contact Person Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = emergencyPhone,
+                    onValueChange = { emergencyPhone = it },
+                    label = { Text("Contact Phone Number") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone)
+                )
             }
             
             Spacer(modifier = Modifier.weight(1f))
@@ -201,7 +226,9 @@ fun ProfileEditScreen(onBack: () -> Unit) {
                                 bank_name = if (role == "FULFILLER") selectedBank?.name else null,
                                 account_number = if (role == "FULFILLER") accountNumber else null,
                                 bank_code = if (role == "FULFILLER") selectedBank?.code else null,
-                                account_name = if (role == "FULFILLER") accountName else null
+                                account_name = if (role == "FULFILLER") accountName else null,
+                                emergency_contact_name = emergencyName.ifBlank { null },
+                                emergency_contact_phone = emergencyPhone.ifBlank { null }
                             ))
                             
                             // Update local store so UI refreshes immediately

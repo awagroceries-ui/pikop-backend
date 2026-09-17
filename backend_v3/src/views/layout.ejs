@@ -249,9 +249,45 @@
             background-color: rgba(0, 135, 81, 0.02);
         }
 
+        .emergency-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #D32F2F;
+            color: white;
+            z-index: 9999;
+            padding: 10px;
+            text-align: center;
+            font-weight: 800;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+        /* Adjust main content when banner is active */
+        body:has(.emergency-banner) .sidebar { top: 40px; height: calc(100vh - 40px); }
+        body:has(.emergency-banner) .main-content { margin-top: 40px; }
+
     </style>
 </head>
 <body>
+    <% if (emergencyCount > 0) { %>
+        <div class="emergency-banner">
+            <div class="d-flex align-items-center justify-content-center gap-3">
+                <svg fill="currentColor" viewBox="0 0 20 20" style="width: 20px; height: 20px;"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                <span class="fw-black">CRITICAL ALERT: <%= emergencyCount %> ACTIVE SOS SIGNAL(S) DETECTED</span>
+                <a href="/admin/emergency" class="btn btn-sm btn-light fw-bold px-3 py-1 text-danger">RESPOND NOW</a>
+            </div>
+        </div>
+    <% } %>
+
     <aside class="sidebar">
         <div class="sidebar-header">
             <img src="/public/assets/logo.png" alt="Pikop Logo" style="height: 45px; width: auto; filter: brightness(0) invert(1);">
@@ -337,6 +373,10 @@
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     Waitlist Tracking
                 </a>
+                <a href="/admin/emergency" id="nav-emergency">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    SOS Signals
+                </a>
             </div>
 
             <div class="nav-group">
@@ -373,6 +413,21 @@
     </aside>
 
     <div class="main-content">
+        <!-- EMERGENCY SOS STICKY BANNER (v4.3) -->
+        <% if (locals.emergencyCount && locals.emergencyCount > 0) { %>
+            <div class="bg-danger text-white py-3 px-4 d-flex justify-content-between align-items-center animate-pulse" style="position: sticky; top: 70px; z-index: 1000; box-shadow: 0 4px 10px rgba(211, 47, 47, 0.4);">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="spinner-grow spinner-grow-sm text-white" role="status"></div>
+                    <span class="fw-bold" style="letter-spacing: 0.5px;">CRITICAL: <%= emergencyCount %> ACTIVE SOS SIGNAL(S) DETECTED</span>
+                </div>
+                <a href="/admin/emergency" class="btn btn-sm btn-light fw-bold px-4">RESPOND NOW</a>
+            </div>
+            <style>
+                @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.85; } 100% { opacity: 1; } }
+                .animate-pulse { animation: pulse 1.5s infinite; }
+            </style>
+        <% } %>
+
         <header class="top-bar">
             <div>
                 <span class="status-badge">SYSTEM OPERATIONAL</span>

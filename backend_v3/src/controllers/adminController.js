@@ -1080,6 +1080,39 @@ const getExpansionWaitlist = async (req, res) => {
     }
 };
 
+/**
+ * Emergency SOS Management (v4.3)
+ */
+const getEmergencyDashboard = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT e.*, f.full_name as fulfiller_name, f.phone as fulfiller_phone,
+                   ST_Y(e.last_location::geometry) as lat, ST_X(e.last_location::geometry) as lng
+            FROM emergency_alerts e
+            JOIN fulfillers f ON f.id = e.fulfiller_id
+            WHERE e.status = 'OPEN'
+            ORDER BY e.created_at DESC
+        `);
+        res.render('emergency_resolution', { alerts: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const resolveEmergency = async (req, res) => {
+    const { id } = req.params;
+    const { resolution_notes } = req.body;
+    try {
+        await db.query(
+            "UPDATE emergency_alerts SET status = 'RESOLVED', resolution_notes = $1, resolved_at = CURRENT_TIMESTAMP WHERE id = $2",
+            [resolution_notes, id]
+        );
+        res.redirect('/admin/emergency');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -1104,6 +1137,8 @@ module.exports = {
   addCity,
   updateCityRules,
   getExpansionWaitlist,
+  getEmergencyDashboard,
+  resolveEmergency,
   getAdminUsers,
   addAdmin,
   deleteAdmin,

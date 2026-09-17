@@ -1,34 +1,40 @@
-# Walkthrough - Merchant Module Optimization & Role Sync Fixes
+# Walkthrough - In-App Account Deletion (Compliance)
 
-I have successfully optimized the Merchant module, fixing critical bugs that were preventing food merchants from managing their listings and ensuring that the app correctly switches to the Merchant view upon approval.
+I have successfully implemented a comprehensive In-App Account Deletion flow that meets both Google Play Store requirements and Nigeria's NDPA data protection standards.
 
 ## Changes Made
 
-### 🧠 Backend (Logic & Security)
-- **Role Upgrade Automation**: Updated `adminController.js` to automatically set the user's role to `MERCHANT` when their business is verified and approved. This removes the need for manual role changes.
-- **Kitchen Dashboard Data**: Fixed a major gap in `merchantController.js` where the dashboard was only fetching `products` (Vendors) and ignoring `menu_items` (Kitchens). Both are now fetched and unified in the response.
-- **Data Hardening**: Enhanced the `getSellerDashboard` logic to handle the `merchant_type` field, allowing the UI to differentiate between retail products and restaurant meals.
+### 🛡️ 1. Gated Security Checks
+- **Mission Lock**: The system now hard-blocks account deletion if the user has any **active/in-progress missions**. Users are instructed to complete or cancel their missions first.
+- **Wallet Lock**: Deletion is blocked if there is a **non-zero balance** (available or pending) in the user's wallet. This protects user funds and ensures proper financial closure.
+- **Dispute Lock**: Accounts with **unresolved disputes** or investigations are blocked from deletion until the cases are closed by an admin.
 
-### 📱 Android Frontend (UI & Sync)
-- **Fixed Role Sync Bug**: Resolved a bug in `MainActivity.kt` where the profile sync loop would overwrite the server-updated role with the old role from local storage. The app now correctly detects when a user has been promoted to a Merchant and reloads the UI.
-- **Unified Listings UI**: Updated `MerchantPortalScreen.kt` and the `Product` DTO to handle both Products and Menu Items seamlessly.
-- **Enhanced Visuals**: Improved the `ProductItem` component:
-    - Added **Photo Previews** for listed items.
-    - Added **Availability Indicators** (e.g., "Hidden / Out of Stock") to help merchants manage their catalog.
-- **Active Navigation**: Wired the "Manage My Shop" button in the Account tab to correctly switch the bottom navigation back to the Dashboard.
+### 🧠 2. Hardened Deletion Logic (Backend)
+- **Identity Verification**: Added a mandatory `/confirm-password` step. Users must re-verify their identity before the deletion process can even begin.
+- **Anonymization Engine**: To balance legal retention needs with privacy rights:
+    - **PII Scrubbing**: Name, Email, and Phone are irreversibly scrambled (e.g., "Deleted User", `deleted_123@pikop.ng`).
+    - **Credential Wipe**: Password hashes are set to an invalid character (`*`), and all active sessions are instantly revoked.
+- **Data Cleanup**:
+    - Permanently deleted all linked **KYC Documents** (licenses, registration papers).
+    - Removed all **FCM push tokens** to stop further notifications.
+- **Business Suspension**: Automatically sets linked Fulfiller, Vendor, or Kitchen profiles to `deleted` or `suspended`.
+
+### 📱 3. Multi-Step Android UI
+- **Redesigned Dialog**: Replaced the simple confirmation with a clear 3-step process:
+    1.  **Consequences**: Explain that the action is irreversible and list what will be lost.
+    2.  **Verification**: Secure password entry field.
+    3.  **Final Commitment**: A high-contrast "Delete Forever" button.
+- **Intelligent Feedback**: The app now displays detailed error messages from the backend (e.g., "Withdraw your ₦1,500 balance first") to guide the user.
 
 ## Verification Results
-- **Role Switching**: [VERIFIED] Approving a merchant in the admin panel now correctly triggers the app to switch from the Customer view to the Merchant Console.
-- **Kitchen Management**: [VERIFIED] Kitchen merchants can now see, add, and edit their meals in the "Listings" tab.
-- **Data Integrity**: [VERIFIED] Product photos and statuses are correctly synced between the app and the backend.
+- **Blocking Tests**: [VERIFIED] Verified that deletion is successfully blocked by active missions and non-zero balances.
+- **Anonymization Audit**: [VERIFIED] Confirmed that the `users` table record is scrubbed of PII but order IDs remain for accounting history.
+- **Build Status**: [SUCCESS] Successfully compiled and verified (`:app:assembleDebug`).
 
 ## Deployment Instructions
-To activate these fixes on your production VPS:
+To activate the deletion compliance engine on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
 pm2 restart pikop-v3
 ```
-
-> [!TIP]
-> After pulling these changes, any merchant you approve in the admin dashboard will have their app automatically switch to the "Merchant Console" view within 60 seconds!

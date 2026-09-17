@@ -1681,6 +1681,56 @@ const bridgeIncidentChat = async (orderId, reporterId, reporterRole) => {
     }
 };
 
+/**
+ * Triggers an SOS alert from a Fulfiller (v4.3 Safety).
+ */
+const triggerSOS = async (req, res) => {
+    const { orderId, lat, lng } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // 1. Verify and Fetch Fulfiller info
+        const fRes = await db.query("SELECT id, full_name, phone, emergency_contact_name, emergency_contact_phone FROM fulfillers WHERE user_id = $1", [userId]);
+        if (fRes.rows.length === 0) return res.status(403).json({ success: false, message: 'Fulfiller profile not found' });
+        const f = fRes.rows[0];
+
+        // 2. Record Alert
+        const alertRes = await db.query(
+            `INSERT INTO emergency_alerts (order_id, fulfiller_id, last_location)
+             VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography)
+             RETURNING id`,
+            [orderId || null, f.id, lng, lat]
+        );
+        const alertId = alertRes.rows[0].id;
+
+        // 3. Broadcast to Admins (Real-time Socket)
+        const socketService = require('../services/socketService');
+        socketService.getIO().to('admins').emit("emergency_sos_alert", {
+            alertId,
+            orderId,
+            fulfillerName: f.full_name,
+            fulfillerPhone: f.phone,
+            lat,
+            lng
+        });
+
+        // 4. Outreach to Trusted Contact (Optional)
+        if (f.emergency_contact_phone) {
+            const trackingLink = orderId ? `https://track.pikop.com.ng/guest/${orderId}` : `https://track.pikop.com.ng/fleet/${f.id}`;
+            const message = `EMERGENCY: Pikop Agent ${f.full_name} triggered an SOS. Live tracking: ${trackingLink}`;
+
+            // Standard SMS outreach
+            await smsService.sendSms(f.emergency_contact_phone, message, 'EMERGENCY_ALERT', orderId);
+        }
+
+        res.status(201).json({ success: true, message: 'SOS alert broadcasted. Support is tracking your location.' });
+
+    } catch (error) {
+        console.error('[SOS] Trigger Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -1709,5 +1759,6 @@ module.exports = {
   grantConsent,
   getGuestCheckout,
   fileIncident,
-  triggerInitialGuestCommunications
+  triggerInitialGuestCommunications,
+  triggerSOS
 };
