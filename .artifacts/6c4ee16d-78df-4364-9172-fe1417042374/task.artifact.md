@@ -1,15 +1,17 @@
-# Task: Merchant Module Optimization & Role Sync
+# Task: In-App Account Deletion (Compliance)
 
-- [ ] **Backend - Admin & Role Integrity**
-    - [ ] Update `adminController.js` to upgrade user role on business approval
-- [ ] **Backend - Dashboard Data**
-    - [ ] Update `merchantController.js` to fetch `menu_items` for kitchens
-- [ ] **Android - Role Sync Fix**
-    - [ ] Update `MainActivity.kt` sync loop to use server-provided role
-- [ ] **Android - UI Unified Listings**
-    - [ ] Update `ApiService.kt` DTOs
-    - [ ] Update `MerchantPortalScreen.kt` to show unified listings
+- [ ] **Backend - Security & Gating**
+    - [ ] Add `/confirm-password` to `authRoutes.js`
+    - [ ] Implement `confirmPassword` in `authController.js`
+    - [ ] Harden `deleteAccount` in `authController.js` (Checks for balance, missions, disputes)
+- [ ] **Backend - Data Anonymization**
+    - [ ] Implement irreversible anonymization logic in `deleteAccount`
+    - [ ] Clean up `kyc_documents` and `user_fcm_tokens` on deletion
+- [ ] **Android UI - Deletion Flow**
+    - [ ] Update `ApiService.kt` with `confirmPassword` and hardened `deleteAccount` response
+    - [ ] Redesign `DeleteAccount` dialog in `AccountScreen.kt` (Multi-step)
 - [ ] **Verification**
-    - [ ] Verify automatic UI switch on approval
-    - [ ] Verify kitchen meal management
+    - [ ] Test blocking with active missions
+    - [ ] Test blocking with non-zero wallet balance
+    - [ ] Test successful deletion and PII cleanup
     - [ ] Build and Deploy

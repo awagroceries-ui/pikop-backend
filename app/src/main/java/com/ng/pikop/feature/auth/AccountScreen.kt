@@ -78,31 +78,98 @@ fun AccountScreen(
     }
 
     if (showDeleteAccountDialog) {
+        var deletionStep by remember { mutableIntStateOf(1) } // 1: Warning, 2: Password, 3: Confirm
+        var passwordInput by remember { mutableStateOf("") }
+        
         AlertDialog(
-            onDismissRequest = { showDeleteAccountDialog = false },
-            title = { Text("Delete Account?") },
-            text = { Text("This action is permanent. Your active missions will be preserved for history, but you will lose access to your wallet and profile. Are you sure?") },
+            onDismissRequest = { showDeleteAccountDialog = false; deletionStep = 1 },
+            title = { 
+                Text(
+                    text = when(deletionStep) {
+                        1 -> "Delete Account?"
+                        2 -> "Verify Identity"
+                        else -> "Final Confirmation"
+                    },
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    when (deletionStep) {
+                        1 -> {
+                            Text("This action is permanent and irreversible. You will lose access to your wallet, rewards, and order history.")
+                            Text("All personal data will be removed or anonymized in compliance with NDPA regulations.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        }
+                        2 -> {
+                            Text("Please enter your current password to continue.")
+                            OutlinedTextField(
+                                value = passwordInput,
+                                onValueChange = { passwordInput = it },
+                                label = { Text("Password") },
+                                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        3 -> {
+                            Text("Are you absolutely sure? This cannot be undone.", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         scope.launch {
-                            isActionLoading = true
-                            try {
-                                apiService.deleteAccount()
-                                onLogout() // Wipe local data
-                            } catch (e: Exception) {
-                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
-                            } finally { isActionLoading = false }
+                            when (deletionStep) {
+                                1 -> deletionStep = 2
+                                2 -> {
+                                    isActionLoading = true
+                                    try {
+                                        val confirmRes = apiService.confirmPassword(mapOf("password" to passwordInput))
+                                        if (confirmRes.success == true) {
+                                            deletionStep = 3
+                                        } else {
+                                            Toast.makeText(context, confirmRes.message ?: "Incorrect password", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                                    } finally { isActionLoading = false }
+                                }
+                                3 -> {
+                                    isActionLoading = true
+                                    try {
+                                        val deleteRes = apiService.deleteAccount()
+                                        if (deleteRes.success == true) {
+                                            Toast.makeText(context, "Account Deleted", Toast.LENGTH_LONG).show()
+                                            onLogout()
+                                        } else {
+                                            // Handle block conditions (active missions, etc)
+                                            Toast.makeText(context, deleteRes.message, Toast.LENGTH_LONG).show()
+                                            showDeleteAccountDialog = false
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                                    } finally { isActionLoading = false }
+                                }
+                            }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (deletionStep == 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    if (isActionLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                    else Text("Delete Forever")
+                    if (isActionLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                    else Text(
+                        when(deletionStep) {
+                            1 -> "Continue"
+                            2 -> "Verify"
+                            else -> "Delete Forever"
+                        }
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteAccountDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteAccountDialog = false; deletionStep = 1 }) { Text("Cancel") }
             }
         )
     }

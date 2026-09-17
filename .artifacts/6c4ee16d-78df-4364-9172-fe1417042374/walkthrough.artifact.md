@@ -1,40 +1,34 @@
-# Walkthrough - Nationwide-Ready Architecture
+# Walkthrough - Merchant Module Optimization & Role Sync Fixes
 
-I have successfully generalized the Pikop platform to support nationwide expansion. The system is no longer hardcoded to specific launch cities and can now be scaled to any Nigerian city/state purely through admin configuration.
+I have successfully optimized the Merchant module, fixing critical bugs that were preventing food merchants from managing their listings and ensuring that the app correctly switches to the Merchant view upon approval.
 
 ## Changes Made
 
-### 🌍 1. Dynamic City & State Management
-- **Database Architecture**: Created the `operating_cities` table to store active launch locations and their specific local rules.
-- **Admin Dashboard**: Built a new **Operating Cities** management screen where admins can:
-    - Add new cities and set their coordinates.
-    - Toggle a city's status between **Active** and **Coming Soon**.
-    - Configure local rules like "Requires Rider Permit" per city.
-- **Demand Tracking**: Implemented an **Expansion Waitlist** system to capture user interest in not-yet-active cities, helping prioritize expansion decisions.
+### 🧠 Backend (Logic & Security)
+- **Role Upgrade Automation**: Updated `adminController.js` to automatically set the user's role to `MERCHANT` when their business is verified and approved. This removes the need for manual role changes.
+- **Kitchen Dashboard Data**: Fixed a major gap in `merchantController.js` where the dashboard was only fetching `products` (Vendors) and ignoring `menu_items` (Kitchens). Both are now fetched and unified in the response.
+- **Data Hardening**: Enhanced the `getSellerDashboard` logic to handle the `merchant_type` field, allowing the UI to differentiate between retail products and restaurant meals.
 
-### 🛡️ 2. Intelligent Transaction Gating
-- **Nationwide Signup**: Confirmed that users can sign up from any city in Nigeria.
-- **Transactional Gating**: Core actions (placing orders, accepting missions) are now dynamically gated. If a user tries to request a delivery in a non-active city, the app gracefully shows a **"Coming Soon"** state with a **"Notify Me"** button instead of a broken experience.
-- **Location-Aware Headers**: Updated storefronts to dynamically say "Discover [Current City]" instead of hardcoded launch cities.
-
-### 📜 3. Data-Driven Local Rules
-- **Rider Permits**: Refactored the "Commercial Rider Permit" requirement. It is no longer hardcoded to Port Harcourt; the app now checks the database rules for the user's specific city during onboarding.
-- **Dynamic Security Windows**: The 6 AM - 6 PM security window can now be customized per-city in the Admin Dashboard, allowing for local adjustments based on regional security conditions.
-
-### ⚙️ 4. Backend Scalability
-- **Weather Service**: Updated the background weather monitoring to automatically poll all active cities from the database, removing the previous hardcoded list.
-- **API Hardening**: Removed all hardcoded city defaults from network DTOs and database queries.
+### 📱 Android Frontend (UI & Sync)
+- **Fixed Role Sync Bug**: Resolved a bug in `MainActivity.kt` where the profile sync loop would overwrite the server-updated role with the old role from local storage. The app now correctly detects when a user has been promoted to a Merchant and reloads the UI.
+- **Unified Listings UI**: Updated `MerchantPortalScreen.kt` and the `Product` DTO to handle both Products and Menu Items seamlessly.
+- **Enhanced Visuals**: Improved the `ProductItem` component:
+    - Added **Photo Previews** for listed items.
+    - Added **Availability Indicators** (e.g., "Hidden / Out of Stock") to help merchants manage their catalog.
+- **Active Navigation**: Wired the "Manage My Shop" button in the Account tab to correctly switch the bottom navigation back to the Dashboard.
 
 ## Verification Results
-- **Admin Control**: [VERIFIED] Adding a new city in the dashboard immediately makes it available for testing in the app without a rebuild.
-- **Gating Logic**: [VERIFIED] Users in non-active cities correctly see the waitlist prompt and cannot initiate missions.
-- **Build Status**: [SUCCESS] Android app compiled and verified successfully.
+- **Role Switching**: [VERIFIED] Approving a merchant in the admin panel now correctly triggers the app to switch from the Customer view to the Merchant Console.
+- **Kitchen Management**: [VERIFIED] Kitchen merchants can now see, add, and edit their meals in the "Listings" tab.
+- **Data Integrity**: [VERIFIED] Product photos and statuses are correctly synced between the app and the backend.
 
 ## Deployment Instructions
-To activate the nationwide-ready engine on your production VPS:
+To activate these fixes on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```
+
+> [!TIP]
+> After pulling these changes, any merchant you approve in the admin dashboard will have their app automatically switch to the "Merchant Console" view within 60 seconds!

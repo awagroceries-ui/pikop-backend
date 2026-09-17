@@ -1,44 +1,50 @@
-# Implementation Plan - Merchant Module Optimization & Role Sync
+# Implementation Plan - In-App Account Deletion (Compliance)
 
-This plan fixes the issues blocking Merchants from managing their shops and ensures a seamless transition after business approval.
+This plan implements a secure, multi-step account deletion flow for all users (Customers, Fulfillers, Merchants, Fleet Partners) to comply with Google Play requirements and NDPA regulations.
 
 ## 🔍 Diagnostic Summary
-1.  **Approval/Role Disconnect**: When an Admin approves a business, the user's role in the `users` table remains `CUSTOMER`. This prevents the app from switching to the dedicated `Merchant Console` view.
-2.  **Dashboard Data Gap**: The `getSellerDashboard` API only fetches `products` (for Vendors) and completely ignores `menu_items` (for Kitchens). This results in an empty "Listings" tab for food merchants.
-3.  **App Cache Bug**: The profile sync loop in the Android app incorrectly saves the *old* role from local storage back into the token manager, ignoring any role upgrades performed on the server.
-4.  **Inactive Button**: The "Merchant Portal" button in the Account menu feels inactive because its internal logic was not correctly handling role-aware navigation in the `MerchantAppScaffold`.
+- **Current State**: A basic soft-delete exists in `authController.js` but lacks security checks (active missions, wallet balance) and thorough data anonymization.
+- **Compliance Requirement**: Users must be able to delete their account from within the app. Identification data must be removed/anonymized, but transactional data should be retained for accounting/legal reasons in an anonymized form.
 
 ## Proposed Changes
 
-### 1. Backend Fixes (Node.js)
+### 1. Backend Enhancements (Node.js)
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- Update `updateMerchantKYCStatus` to set `users.role = 'MERCHANT'` when a business is verified.
+#### [MODIFY] [authRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/authRoutes.js)
+- Add `POST /confirm-password` endpoint to verify identity before sensitive actions.
 
-#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
-- Update `getSellerDashboard` to fetch `menu_items` if the user owns a kitchen.
-- Consolidate `products` and `menu_items` into a unified `listings` array in the dashboard response for easier UI consumption.
+#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
+- **Implement `confirmPassword`**: Standard bcrypt verification.
+- **Harden `deleteAccount`**:
+    - **Pre-deletion Checks**:
+        - Block if there are **active missions** (Status not in `DELIVERED`, `CANCELLED`, `RELEASED`, `REFUNDED`).
+        - Block if **wallet balance** (available or pending) is non-zero.
+        - Block if there are **unresolved disputes** (`status` is `OPEN` or `INVESTIGATING`).
+    - **Data Anonymization**:
+        - `users` table: Set `full_name = 'Deleted User'`, `email = 'deleted_' || id || '@pikop.ng'`, `phone = 'deleted_' || id`, `password_hash = '*'`.
+    - **Data Deletion**:
+        - Delete entries in `kyc_documents`, `user_fcm_tokens`.
+        - Revoke all `user_sessions`.
+        - Delete profile photo from local storage (if applicable).
+    - **Role Specifics**: Handle linked `fulfillers`, `vendors`, `kitchens`, or `fleet_partners` by setting their status to `deleted` or `suspended`.
 
----
+### 2. Android UI Refinement (Compose)
 
-### 2. Android App Fixes (Compose)
-
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Fix the Profile Sync loop: ensure `role = profile.role ?: "CUSTOMER"` is used when saving to `TokenManager`.
-
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Update `MerchantDashboardData` to include `menu_items` or a unified `listings` field.
-
-#### [MODIFY] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
-- Update `ListingsTabContent` to handle the unified listings data.
-- Ensure the "Add Item" FAB works for both `vendor` and `kitchen` types.
-
----
+#### [MODIFY] [AccountScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/AccountScreen.kt)
+- Redesign the **Delete Account** flow:
+    1.  **Initial Warning**: Explain consequences (irreversible, loss of wallet access).
+    2.  **Identity Verification**: Prompt for password re-entry.
+    3.  **Final Confirmation**: A last "Are you sure?" check.
+- Display detailed error messages if deletion is blocked (e.g., "You have 2 active missions. Please complete them before deleting your account").
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Approval Flow**: Register a new Merchant account (Step 1 & 2). Approve the merchant in the Admin Portal. Verify that the app's next profile sync (within 60s) automatically switches the UI to the Merchant Console.
-2.  **Kitchen Dashboard**: Log in as a Kitchen merchant. Add a meal. Verify it appears in the "Listings" tab.
-3.  **Vendor Dashboard**: Log in as a Vendor merchant. Add a product. Verify it appears in the "Listings" tab.
-4.  **Navigation**: Click "Manage My Shop" from the Account tab inside the Merchant view. Verify it correctly switches to the Dashboard tab.
+1.  **Block Test (Active Mission)**: Create a mission. Attempt deletion. Verify the app displays a clear error and prevents deletion.
+2.  **Block Test (Wallet Balance)**: Top up wallet with ₦100. Attempt deletion. Verify the app prompts the user to withdraw or spend the balance first.
+3.  **Success Test**: Delete an empty/inactive account.
+    - Verify redirection to the login/landing screen.
+    - Verify database anonymization (Email/Phone/Name changed).
+    - Verify KYC documents and sessions are removed.
+    - Attempt login with old credentials. Verify it fails.
+4.  **Retention Test**: Check an old order for the deleted user. Verify the "Deleted User" label appears but mission details are preserved.

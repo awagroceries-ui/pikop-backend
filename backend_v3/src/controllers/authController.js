@@ -389,24 +389,120 @@ const changePassword = async (req, res) => {
 /**
  * Performs a soft-delete of the user account.
  */
-const deleteAccount = async (req, res) => {
+/**
+ * Verifies identity via password before sensitive operations.
+ */
+const confirmPassword = async (req, res) => {
+    const { password } = req.body;
     const userId = req.user.id;
 
     try {
-        // Soft delete: set status and anonymize identifiers
+        const { rows } = await db.query("SELECT password_hash FROM users WHERE id = $1", [userId]);
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const isMatch = await authService.comparePassword(password, rows[0].password_hash);
+        res.status(200).json({ success: isMatch, message: isMatch ? 'Identity confirmed' : 'Incorrect password' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Performs a hardened soft-delete of the user account.
+ */
+const deleteAccount = async (req, res) => {
+    const userId = req.user.id;
+    const client = await db.pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // 1. GATING: Check for Active Missions
+        const { rows: activeMissions } = await client.query(`
+            SELECT id FROM orders
+            WHERE user_id = $1
+              AND status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'RECIPIENT_ABSENT')
+        `, [userId]);
+
+        if (activeMissions.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: `You have ${activeMissions.length} active mission(s) in progress. Please complete them before deleting your account.`
+            });
+        }
+
+        // 2. GATING: Check Wallet Balance
+        const { rows: wallet } = await client.query("SELECT balance, pending_balance FROM wallets WHERE owner_type = 'USER' AND owner_id = $1", [userId.toString()]);
+        if (wallet.length > 0) {
+            const bal = parseFloat(wallet[0].balance);
+            const pend = parseFloat(wallet[0].pending_balance);
+            if (bal > 0 || pend > 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    success: false,
+                    message: "You have a non-zero wallet balance. Please withdraw your funds before deleting your account."
+                });
+            }
+        }
+
+        // 3. GATING: Check for Unresolved Disputes
+        const { rows: disputes } = await client.query(`
+            SELECT id FROM disputes
+            WHERE reporter_id = $1 AND status IN ('OPEN', 'INVESTIGATING')
+        `, [userId]);
+
+        if (disputes.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: "You have open disputes under investigation. Please resolve them with support before deleting your account."
+            });
+        }
+
+        // 4. ANONYMIZATION: Scramble PII in Users table
         const anonymizedEmail = `deleted_${userId}@pikop.ng`;
         const anonymizedPhone = `deleted_${userId}`;
 
-        await db.query(
-            "UPDATE users SET status = 'deleted', email = $1, phone = $2, email_verified_at = NULL WHERE id = $3",
+        await client.query(
+            `UPDATE users
+             SET full_name = 'Deleted User',
+                 email = $1,
+                 phone = $2,
+                 password_hash = '*',
+                 profile_photo_url = NULL,
+                 status = 'deleted',
+                 email_verified_at = NULL,
+                 phone_verified_at = NULL,
+                 kyc_provider_ref = NULL
+             WHERE id = $3`,
             [anonymizedEmail, anonymizedPhone, userId]
         );
 
-        await db.query("UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [userId]);
+        // 5. CLEANUP: Delete linked documents and tokens
+        await client.query("DELETE FROM kyc_documents WHERE fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1)", [userId]);
+        await client.query("DELETE FROM user_fcm_tokens WHERE user_id = $1", [userId]);
 
-        res.status(200).json({ success: true, message: 'Account deleted successfully' });
+        // 6. ROLE STATUS: Suspend linked business entities
+        await client.query("UPDATE fulfillers SET status = 'deleted', online_status = 'OFFLINE' WHERE user_id = $1", [userId]);
+        await client.query("UPDATE vendors SET status = 'suspended' WHERE user_id = $1", [userId]);
+        await client.query("UPDATE kitchens SET status = 'suspended' WHERE user_id = $1", [userId]);
+        await client.query("UPDATE fleet_partners SET status = 'SUSPENDED' WHERE user_id = $1", [userId]);
+
+        // 7. SESSION: Revoke all access
+        await client.query("UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [userId]);
+
+        await client.query('COMMIT');
+        console.log(`[Account] User ${userId} successfully deleted and anonymized.`);
+
+        res.status(200).json({ success: true, message: 'Your account and personal data have been removed.' });
+
     } catch (error) {
-        throw error;
+        await client.query('ROLLBACK');
+        console.error('[Account] Deletion failed:', error.message);
+        res.status(500).json({ success: false, message: 'An error occurred during deletion.' });
+    } finally {
+        client.release();
     }
 };
 
@@ -419,5 +515,6 @@ module.exports = {
   refresh,
   updateFCMToken,
   changePassword,
+  confirmPassword,
   deleteAccount
 };

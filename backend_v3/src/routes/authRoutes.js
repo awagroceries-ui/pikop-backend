@@ -11,6 +11,7 @@ router.post('/request-email-otp', authController.requestEmailOtp);
 router.post('/refresh', authController.refresh);
 router.post('/fcm-token', authenticateToken, authController.updateFCMToken);
 router.post('/change-password', authenticateToken, authController.changePassword);
+router.post('/confirm-password', authenticateToken, authController.confirmPassword);
 router.post('/delete-account', authenticateToken, authController.deleteAccount);
 
 module.exports = router;

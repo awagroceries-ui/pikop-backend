@@ -40,6 +40,7 @@ data class SignupRequest(
 )
 
 data class AuthResponse(
+    val success: Boolean? = true,
     val message: String? = null,
     val accessToken: String? = null,
     val refreshToken: String? = null,
@@ -1101,6 +1102,9 @@ interface ApiService {
 
     @POST("api/v1/auth/change-password")
     suspend fun changePassword(@Body request: Map<String, String>): AuthResponse
+
+    @POST("api/v1/auth/confirm-password")
+    suspend fun confirmPassword(@Body request: Map<String, String>): AuthResponse
 
     @POST("api/v1/auth/delete-account")
     suspend fun deleteAccount(): AuthResponse
