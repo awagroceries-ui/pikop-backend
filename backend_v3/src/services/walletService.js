@@ -53,6 +53,14 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
   try {
     if (shouldRelease) await client.query('BEGIN');
 
+    // 0. Idempotency Check: Verify if settlement already recorded for this mission
+    const existing = await client.query("SELECT 1 FROM wallet_ledger_entries WHERE order_id = $1 AND purpose = 'SETTLEMENT'", [orderId]);
+    if (existing.rows.length > 0) {
+        console.log(`[Wallet] Settlement already processed for Order #${orderId}. Skipping.`);
+        if (shouldRelease) await client.query('COMMIT');
+        return;
+    }
+
     // 1. Fetch order details with User ID instead of just Fulfiller ID
     const orderRes = await client.query(
         `SELECT o.id, o.user_id, o.fulfiller_id, o.total_fare, o.delivery_fee, o.item_price,
@@ -231,6 +239,14 @@ const releaseEscrow = async (orderId, providedClient = null) => {
   try {
     if (shouldRelease) await client.query('BEGIN');
 
+    // 0. Idempotency Check: Verify if escrow already released for this mission
+    const existing = await client.query("SELECT 1 FROM wallet_ledger_entries WHERE order_id = $1 AND purpose = 'ESCROW_RELEASE'", [orderId]);
+    if (existing.rows.length > 0) {
+        console.log(`[Wallet] Escrow already released for Order #${orderId}. Skipping.`);
+        if (shouldRelease) await client.query('COMMIT');
+        return;
+    }
+
     // 1. Lock the order row first (prevents race conditions)
     await client.query("SELECT id FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
 
@@ -375,6 +391,11 @@ const processReferralReward = async (client, userId) => {
         }
 
         const referrerId = refInfo.referred_by_user_id;
+
+        // 0. Idempotency Check: Verify if referral already rewarded
+        const existing = await client.query("SELECT 1 FROM referrals WHERE referrer_id = $1 AND referred_id = $2 AND status = 'completed'", [referrerId, userId]);
+        if (existing.rows.length > 0) return;
+
         const REWARD_AMOUNT = 250;
 
         const referrerWalletId = await ensureWalletExists(client, 'USER', referrerId);

@@ -155,6 +155,16 @@ fun OrderCard(order: OrderDetailsResponse, onTrack: (String) -> Unit) {
             Text(text = "From: ${order.pickup_address ?: "N/A"}", style = MaterialTheme.typography.bodySmall, maxLines = 1)
             Text(text = "To: ${order.delivery_address ?: "N/A"}", style = MaterialTheme.typography.bodySmall, maxLines = 1)
             
+            if (order.status == "SCHEDULED" && order.scheduled_at != null) {
+                Text(
+                    text = "Scheduled for: ${order.scheduled_at.take(16).replace("T", " ")}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = com.ng.pikop.ui.theme.PikopOrange,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
             
             Row(
@@ -169,12 +179,19 @@ fun OrderCard(order: OrderDetailsResponse, onTrack: (String) -> Unit) {
                     color = MaterialTheme.colorScheme.primary
                 )
                 
-                if (order.status != "DELIVERED" && order.status != "CANCELLED") {
+                if (order.status != "DELIVERED" && order.status != "CANCELLED" && order.status != "SCHEDULED") {
                     Button(
                         onClick = { onTrack(order.id ?: "") },
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
                     ) {
                         Text("Track")
+                    }
+                } else if (order.status == "SCHEDULED") {
+                    OutlinedButton(
+                        onClick = { /* In a real flow, trigger a reschedule dialog or re-open quote screen */ },
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Text("Reschedule")
                     }
                 } else if (order.status == "DELIVERED" && (order.vendor_allows == true || order.kitchen_allows == true)) {
                     // Return Action (v4.2)
@@ -198,11 +215,12 @@ fun StatusBadge(status: String) {
         "PICKED_UP" -> MaterialTheme.colorScheme.primary
         "DELIVERED" -> Color.Gray
         "CANCELLED" -> MaterialTheme.colorScheme.error
+        "SCHEDULED" -> com.ng.pikop.ui.theme.PikopOrange
         else -> Color.Gray
     }
     
     // Accessibility: Use NearBlack for text on light backgrounds if color is too light (like Gold)
-    val textColor = if (status == "SEARCHING") MaterialTheme.colorScheme.onBackground else color
+    val textColor = if (status == "SEARCHING" || status == "SCHEDULED") MaterialTheme.colorScheme.onBackground else color
 
     Surface(
         color = color.copy(alpha = 0.1f),

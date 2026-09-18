@@ -520,6 +520,25 @@ fun OrderQuoteScreen(
                             color = Color.Gray,
                             modifier = Modifier.padding(top = 8.dp)
                         )
+
+                        // Inline Validation (v4.5 Hardening)
+                        selectedDateTime?.let {
+                            val hour = it.get(Calendar.HOUR_OF_DAY)
+                            if (hour < 6 || hour >= 18) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        "Night scheduling is restricted to Vehicle dispatch only. Foot agents and Cyclists will not be matched.",
+                                        modifier = Modifier.padding(8.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

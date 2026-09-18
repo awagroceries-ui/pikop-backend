@@ -225,7 +225,8 @@ data class OrderDetailsResponse(
     val kitchen_allows: Boolean? = null,
     val kitchen_window: Int? = null,
     val return_status: String? = null,
-    val created_at: String? = null
+    val created_at: String? = null,
+    val scheduled_at: String? = null
 )
 
 data class ReturnRequest(
@@ -1049,6 +1050,9 @@ interface ApiService {
 
     @POST("api/v1/orders/{id}/cancel")
     suspend fun cancelOrder(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): AuthResponse
+
+    @PATCH("api/v1/orders/{id}/reschedule")
+    suspend fun rescheduleOrder(@retrofit2.http.Path("id") id: String, @Body request: Map<String, String>): AuthResponse
 
     @POST("api/v1/orders/{id}/incident")
     suspend fun fileIncident(@retrofit2.http.Path("id") id: String, @Body request: IncidentRequest): AuthResponse

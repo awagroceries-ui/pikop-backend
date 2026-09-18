@@ -1,45 +1,42 @@
-# Implementation Plan - Group-Specific FAQ Integration
+# Implementation Plan - Audit-Driven Fixes & Hardening
 
-This plan restructures the FAQ/Knowledge Base system to be user-group specific and category-organized, serving the content from the backend based on the provided `Pikop_FAQs_Content.md`.
+This plan addresses hidden bugs, data integrity risks, and idempotency gaps discovered during the comprehensive audit of recent features.
 
 ## Proposed Changes
 
-### 1. Backend Infrastructure (Node.js)
+### 1. Financial Hardening (Backend)
 
-#### [MODIFY] [Knowledge Base Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1723860000000_v3_knowledge_base.js)
-- Update `target_audience` constraint to include `MERCHANT`.
-- Add `CORPORATE` if needed (not in source content, but good for future-proofing).
+#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
+- **Idempotency**: Update `processMissionSettlement`, `releaseEscrow`, and `processReferralReward` to check the `wallet_ledger_entries` table for existing transactions linked to the same `order_id` and `purpose`. This prevents duplicate payouts if a process is triggered twice.
+- **Ledger Constraints**: Ensure `INSURANCE_PREMIUM` and `INSURANCE_CLAIM` are always recorded with the `order_id` for auditability.
 
-#### [NEW] [Seed FAQs Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726570000000_seed_structured_faqs.js)
-- Clear existing `knowledge_base` entries.
-- Parse and insert all content from `Pikop_FAQs_Content.md` mapped to `CUSTOMER`, `FULFILLER`, and `MERCHANT` groups.
+### 2. State Machine Consistency (Backend)
 
-#### [MODIFY] [supportController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/supportController.js)
-- Update `getKnowledgeBase` to use the authenticated user's actual role (`req.user.role`) instead of defaulting everything to CUSTOMER/FULFILLER.
-- Support a `group` query parameter for multi-role users to switch between FAQ sets.
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- **[NEW] `rescheduleOrder`**: Allow users to update `scheduled_at` if the mission is still in `SCHEDULED` status.
+- **Dispute Resolution**: Add logic to `resolveDispute` (in `adminController.js` calling `walletService.js`) to ensure that if a dispute is settled via refund, the `escrow_status` is updated to `refunded` and the `status` to `REFUNDED` in a single transaction.
 
-### 2. Android App Integration (Compose)
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- **Role Awareness**: Update `updateMerchantKYCStatus` to handle users who might have multiple capabilities. Instead of overwriting `role`, consider a bitmask or a separate `capabilities` table (future-proofing). For now, I will add a check to see if the user is already a `FULFILLER` before changing their role.
+
+### 3. UI/UX Polishing (Android)
 
 #### [MODIFY] [SupportHubScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/SupportHubScreen.kt)
-- **Role Switcher**: If a user has multiple roles (e.g. CUSTOMER and MERCHANT), show a tab-style switcher at the top.
-- **Search Bar**: Add a persistent search field at the top to filter categories or questions.
-- **Collapsible Sections**: Instead of navigating to a new screen for each category, implement an accordion-style view where categories can be expanded to show questions directly.
-- **Direct Navigation**: Clicking a question should still navigate to `FaqDetailScreen` for the full answer text.
+- **Counts**: Add a badge to category accordions showing the number of articles in that section.
+- **Empty States**: Improve the "No search results" view with a clear "Clear Search" button.
 
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Update `getKnowledgeBase` to optionally accept a `user_group` parameter.
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- **Validation Feedback**: If a scheduled time is blocked due to security windows or merchant hours, show an Inline Error Message rather than just a Toast, so the user knows exactly why they can't proceed.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Data Migration**
-> I will replace all current FAQ content with the provided structured markdown content. Any manual additions made to the `knowledge_base` table in production should be backed up or re-added after this migration.
+> **Idempotency Implementation**
+> I am adding unique constraints or lookups on `(order_id, purpose)` in the ledger for certain transaction types. This is the safest way to prevent "Ghost Payouts" if the server or a job retries a settlement.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Role Awareness**: Log in as a Fulfiller. Verify only "For Fulfillers / Agents" content is visible.
-2.  **Category Organization**: Verify questions are grouped under headers like "Getting Started", "Missions", etc.
-3.  **Search**: Type "SOS" in the Fulfiller FAQ search. Verify the relevant mission question appears.
-4.  **Multi-Role**: Log in as a user with both `CUSTOMER` and `MERCHANT` roles. Verify a toggle appears to switch between "Customer Help" and "Seller Help".
-5.  **Text Visibility**: Confirm long FAQ answers are fully visible and not cut off (re-verifying previous fix).
+1.  **Double Settlement**: Trigger `processMissionSettlement` manually via a script twice for the same order. Verify only one ledger entry is created.
+2.  **Role Preservation**: Verify that a `FULFILLER` who gets approved as a `MERCHANT` doesn't lose their ability to fulfill missions (or at least, the system warns the admin).
+3.  **Rescheduling**: Create a scheduled order, then change the time. Verify the database updates and the background job respects the new time.

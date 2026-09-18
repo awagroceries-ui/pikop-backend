@@ -42,6 +42,7 @@ router.post('/:orderId/dispute', authenticateToken, orderController.reportProble
 router.post('/:orderId/rate-fulfiller', authenticateToken, orderController.rateFulfiller);
 router.post('/:orderId/incident', authenticateToken, orderController.fileIncident);
 router.post('/:orderId/return', authenticateToken, orderController.initiateReturn);
+router.patch('/:orderId/reschedule', authenticateToken, orderController.rescheduleOrder);
 router.get('/:orderId/messages', authenticateToken, orderController.getOrderMessages);
 router.post('/upload', authenticateToken, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });

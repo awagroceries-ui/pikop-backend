@@ -177,6 +177,7 @@ fun SupportHubScreen(
 
                     CategoryAccordion(
                         name = category,
+                        count = categoryArticles.size,
                         isExpanded = expanded,
                         onToggle = { expandedCategories[category] = !expanded }
                     )
@@ -193,7 +194,7 @@ fun SupportHubScreen(
 }
 
 @Composable
-fun CategoryAccordion(name: String, isExpanded: Boolean, onToggle: () -> Unit) {
+fun CategoryAccordion(name: String, count: Int, isExpanded: Boolean, onToggle: () -> Unit) {
     Surface(
         onClick = onToggle,
         color = Color.Transparent,
@@ -211,8 +212,10 @@ fun CategoryAccordion(name: String, isExpanded: Boolean, onToggle: () -> Unit) {
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(name, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-            Badge(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
-                // Placeholder for count if needed
+            if (count > 0) {
+                Badge(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
+                    Text("$count", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }

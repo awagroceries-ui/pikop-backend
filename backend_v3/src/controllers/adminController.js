@@ -456,12 +456,21 @@ const updateMerchantKYCStatus = async (req, res) => {
               [newStatus, status, id]
           );
 
-          // Role Upgrade: Ensure user role is updated to MERCHANT on approval
+          // Role Upgrade: Ensure user role is updated to MERCHANT on approval, preserving higher privileges
           if (status === 'VERIFIED') {
               const { rows: mRes } = await db.query(`SELECT user_id FROM ${table} WHERE id = $1`, [id]);
               if (mRes.length > 0) {
-                  await db.query("UPDATE users SET role = 'MERCHANT' WHERE id = $1", [mRes[0].user_id]);
-                  console.log(`[Admin] Role upgraded to MERCHANT for user ${mRes[0].user_id}`);
+                  const { rows: uRes } = await db.query("SELECT role FROM users WHERE id = $1", [mRes[0].user_id]);
+                  const currentRole = uRes[0]?.role;
+
+                  // Only upgrade if currently a CUSTOMER or unassigned.
+                  // If they are FULFILLER or CORPORATE, they keep that role but gain merchant capabilities (v4.5 Hardening)
+                  if (currentRole === 'CUSTOMER') {
+                      await db.query("UPDATE users SET role = 'MERCHANT' WHERE id = $1", [mRes[0].user_id]);
+                      console.log(`[Admin] Role upgraded to MERCHANT for user ${mRes[0].user_id}`);
+                  } else {
+                      console.log(`[Admin] User ${mRes[0].user_id} is already ${currentRole}. Merchant capabilities unlocked without role overwrite.`);
+                  }
               }
           }
 

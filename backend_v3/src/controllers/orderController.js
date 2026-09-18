@@ -1872,6 +1872,41 @@ const requestReturn = async (req, res) => {
     }
 };
 
+/**
+ * Reschedules an existing SCHEDULED order (v4.5).
+ */
+const rescheduleOrder = async (req, res) => {
+    const { orderId } = req.params;
+    const { scheduled_at } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // 1. Verify Ownership and Current Status
+        const { rows } = await db.query(
+            "SELECT id, status FROM orders WHERE id = $1 AND user_id = $2 FOR UPDATE",
+            [orderId, userId]
+        );
+
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Mission not found.' });
+        if (rows[0].status !== 'SCHEDULED') {
+            return res.status(400).json({ success: false, message: 'Only scheduled missions can be rescheduled.' });
+        }
+
+        // 2. Validate New Time
+        const scheduledDate = new Date(scheduled_at);
+        if (scheduledDate <= new Date()) {
+            return res.status(400).json({ success: false, message: 'New time must be in the future.' });
+        }
+
+        // 3. Update
+        await db.query("UPDATE orders SET scheduled_at = $1 WHERE id = $2", [scheduled_at, orderId]);
+
+        res.status(200).json({ success: true, message: 'Mission rescheduled successfully.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   getQuote,
   getOrderByQuote,
@@ -1902,5 +1937,6 @@ module.exports = {
   fileIncident,
   triggerInitialGuestCommunications,
   triggerSOS,
-  requestReturn
+  requestReturn,
+  rescheduleOrder
 };
