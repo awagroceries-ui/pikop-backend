@@ -82,9 +82,11 @@ exports.up = (pgm) => {
     { group: 'MERCHANT', cat: 'Returns', q: `Am I required to accept returns?`, a: `No — you set your own return policy (whether you accept returns, the return window, any excluded categories) in your business settings, and it's shown to customers before they buy.` }
   ];
 
-  for (const f of faqs) {
-    pgm.sql(`INSERT INTO knowledge_base (title, content, category, target_audience, priority) VALUES ($1, $2, $3, $4, 0)`, [f.q, f.a, f.cat, f.group]);
-  }
+  const values = faqs.map(f =>
+    `($$${f.q}$$, $$${f.a}$$, $$${f.cat}$$, $$${f.group}$$, 0)`
+  ).join(', ');
+
+  pgm.sql(`INSERT INTO knowledge_base (title, content, category, target_audience, priority) VALUES ${values}`);
 };
 
 exports.down = (pgm) => {
