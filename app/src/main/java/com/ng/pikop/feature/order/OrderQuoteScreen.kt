@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import java.text.SimpleDateFormat
+import java.util.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -141,6 +143,9 @@ fun OrderQuoteScreen(
     var scheduledAt by remember { mutableStateOf<String?>(null) }
     var walletBalance by remember { mutableStateOf(0.0) }
     var billingMethod by remember { mutableStateOf("PERSONAL") } // PERSONAL, CORPORATE, WALLET
+    
+    var isSchedulingEnabled by remember { mutableStateOf(false) }
+    var selectedDateTime by remember { mutableStateOf<Calendar?>(null) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -148,6 +153,41 @@ fun OrderQuoteScreen(
     val apiService = remember { ApiService.create(tokenManager) }
 
     val photoLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? -> itemPhotoUri = uri }
+
+    fun showDateTimePicker() {
+        val current = Calendar.getInstance()
+        android.app.DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val date = Calendar.getInstance()
+                date.set(year, month, dayOfMonth)
+                
+                android.app.TimePickerDialog(
+                    context,
+                    { _, hourOfDay, minute ->
+                        date.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                        date.set(Calendar.MINUTE, minute)
+                        date.set(Calendar.SECOND, 0)
+                        
+                        if (date.after(Calendar.getInstance())) {
+                            selectedDateTime = date
+                            scheduledAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(date.time)
+                        } else {
+                            Toast.makeText(context, "Please select a future time", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    current.get(Calendar.HOUR_OF_DAY),
+                    current.get(Calendar.MINUTE),
+                    false
+                ).show()
+            },
+            current.get(Calendar.YEAR),
+            current.get(Calendar.MONTH),
+            current.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            datePicker.minDate = System.currentTimeMillis()
+        }.show()
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -443,6 +483,46 @@ fun OrderQuoteScreen(
                     cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Delivery Schedule", 
+                style = MaterialTheme.typography.titleMedium, 
+                color = MaterialTheme.colorScheme.onBackground, 
+                modifier = Modifier.align(Alignment.Start),
+                fontWeight = FontWeight.Bold
+            )
+            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = !isSchedulingEnabled, onClick = { isSchedulingEnabled = false; scheduledAt = null }, label = { Text("Deliver Now") })
+                FilterChip(selected = isSchedulingEnabled, onClick = { isSchedulingEnabled = true }, label = { Text("Schedule for Later") })
+            }
+
+            if (isSchedulingEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            val displayText = selectedDateTime?.let { 
+                                SimpleDateFormat("EEE, MMM d, hh:mm a", Locale.getDefault()).format(it.time)
+                            } ?: "Select Date & Time"
+                            Text(displayText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                            
+                            Button(onClick = { showDateTimePicker() }) {
+                                Text("Change")
+                            }
+                        }
+                        
+                        Text(
+                            "Note: Scheduled missions activate 30 mins before the set time. Night deliveries (6 PM - 6 AM) are restricted to vehicle-only.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            }
 
             if (quoteResult != null) {
                 Spacer(modifier = Modifier.height(24.dp))

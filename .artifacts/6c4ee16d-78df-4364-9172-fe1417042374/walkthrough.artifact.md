@@ -1,33 +1,33 @@
-# Walkthrough - Merchant Analytics Dashboard
+# Walkthrough - In-App Wallet Checkout
 
-I have implemented a professional Analytics Dashboard for Merchants, giving them a data-driven reason to stay engaged with the Pikop platform.
+I have implemented the **Pay-from-Wallet** feature, allowing customers to use their existing Pikop balance to pay for deliveries and marketplace orders instantly.
 
 ## Changes Made
 
-### 🧠 1. Server-Side Aggregation (Backend)
-- **New Analytics Endpoint**: Added `getMerchantAnalytics` to `merchantController.js`. It performs high-performance SQL aggregations for:
-    - **Sales Trend**: Net revenue and order volume over time.
-    - **Best Sellers**: Ranking of items by units sold and contribution to net revenue.
-    - **Customer Retention**: Calculating the percentage of repeat buyers.
-    - **Peak Times**: Identifying the busiest days and hours for the merchant's business.
-- **Time Range Flexibility**: The backend now supports dynamic grouping by `daily`, `weekly`, `monthly`, and `annual` periods, respecting the Africa/Lagos (WAT) timezone.
-- **Financial Accuracy**: All revenue metrics are calculated **net of Marketplace Commission**, ensuring the analytics match the merchant's actual wallet earnings.
+### 💰 1. Wallet Payment Engine (Backend)
+- **Atomic Debit Logic**: Added `processIndividualWalletPayment` to `walletService.js`. This service uses database-level row locking (`FOR UPDATE`) to ensure that a user cannot double-spend or go below zero during a checkout transaction.
+- **Order Integration**:
+    - Updated `orderController.js` to support the `wallet` payment method. Wallet-paid missions are marked as **PAID** immediately upon creation and skip the browser payment step.
+    - Updated `commerceController.js` to support **WALLETPAY** for marketplace and food orders.
 
-### 📱 2. Insights Dashboard (Android UI)
-- **New Insights Tab**: Integrated a dedicated "Insights" tab into the Merchant Portal.
-- **Range Selector**: Added a quick toggle for merchants to switch between time windows.
-- **Visual KPI Cards**: Summarized Net Revenue, Order Count, and Repeat Customer rates for immediate visibility.
-- **Popularity & Peak Lists**: Built structured lists for "Best Selling Items" and "Peak Hours," allowing merchants to optimize their inventory and operating hours.
-- **UI Optimization**: To keep the navigation clean, I moved the **Business Settings** to a dedicated gear icon in the Top Bar, freeing up space in the main tab row.
+### 📱 2. Unified Checkout UI (Android)
+- **Balance Visibility**: The checkout screens (`OrderQuoteScreen` and `CommerceCheckoutScreen`) now automatically fetch the user's available wallet balance on load.
+- **Dynamic Selection**: Added a "My Wallet" option to the billing method selector.
+    - **Smart Gating**: The option is only selectable if the user's balance is sufficient to cover the total amount (including insurance and fees).
+    - **Visual Feedback**: If the balance is too low, the wallet option shows a lock icon and is disabled to prevent failed payment attempts.
+- **Zero-Friction Activation**: When paying via wallet, the app bypasses the Paystack browser entirely and activates the mission with a single click.
+
+### 📜 3. Auditable Ledger
+- Every wallet payment is recorded in the transaction history with a unique `MISSION_PAYMENT` reference, ensuring both the customer and admins have a clear paper trail of how funds were spent.
 
 ## Verification Results
-- **Merchant Isolation**: [VERIFIED] SQL queries strictly filter by the authenticated `seller_id`. Merchant A cannot see data from Merchant B.
-- **Time Range Sync**: [VERIFIED] Toggling between Week and Month correctly updates the trend periods and total aggregates.
-- **Net Revenue Check**: [VERIFIED] Verified that commission deductions are accurately reflected in the reported revenue figures.
-- **Build Status**: [SUCCESS] Successfully compiled and verified the Android app.
+- **Payment Flow**: [VERIFIED] Verified that selecting "My Wallet" correctly deducts the amount and triggers immediate mission status update to `SEARCHING`.
+- **Insufficient Funds**: [VERIFIED] Verified that the "My Wallet" chip is disabled and shows the lock icon when the order total exceeds the available balance.
+- **Fee Integrity**: [VERIFIED] Confirmed that insurance fees and platform commissions are correctly calculated and collected regardless of the wallet payment method.
+- **Build Status**: [SUCCESS] Successfully compiled the Android app.
 
 ## Deployment Instructions
-To activate the analytics engine on your production VPS:
+To activate wallet-based checkout on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main

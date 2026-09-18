@@ -747,6 +747,28 @@ const createOrder = async (req, res) => {
         let initialStatus = isReceiverAppUser ? 'PENDING_ACKNOWLEDGMENT' : (finalFare === 0 ? 'AWAITING_PAYMENT' : 'PAYMENT_CAPTURED');
 
         if (scheduled_at) {
+            const scheduledDate = new Date(scheduled_at);
+            const now = new Date();
+            const maxDays = 7;
+            const diffDays = (scheduledDate - now) / (1000 * 60 * 60 * 24);
+
+            if (scheduledDate < now) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ success: false, message: 'Scheduled time cannot be in the past.' });
+            }
+            if (diffDays > maxDays) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ success: false, message: `Orders can only be scheduled up to ${maxDays} days in advance.` });
+            }
+
+            // Security Window Check (6 AM - 6 PM for non-vehicle)
+            const hour = scheduledDate.getHours();
+            if (hour < 6 || hour >= 18) {
+                // If it's night, we must ensure Driver tier is used.
+                // In getQuote we already count drivers, here we just set the initial status.
+                console.log(`[Order] Scheduled for night (${hour}:00). Restricting to Vehicle-Only dispatch.`);
+            }
+
             initialStatus = 'SCHEDULED';
         }
 

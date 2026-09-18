@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.SimpleDateFormat
+import java.util.*
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.ng.pikop.core.datastore.TokenManager
@@ -45,6 +47,9 @@ fun CommerceCheckoutScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isPlacingOrder by remember { mutableStateOf(false) }
     var walletBalance by remember { mutableStateOf(0.0) }
+    var scheduledAt by remember { mutableStateOf<String?>(null) }
+    var isSchedulingEnabled by remember { mutableStateOf(false) }
+    var selectedDateTime by remember { mutableStateOf<Calendar?>(null) }
     
     var selectedPaymentMethod by remember { mutableStateOf("CARD") } // "CARD", "COD", "WALLET"
 
@@ -77,6 +82,41 @@ fun CommerceCheckoutScreen(
         } finally {
             isLoading = false
         }
+    }
+
+    fun showDateTimePicker() {
+        val current = Calendar.getInstance()
+        android.app.DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val date = Calendar.getInstance()
+                date.set(year, month, dayOfMonth)
+                
+                android.app.TimePickerDialog(
+                    context,
+                    { _, hourOfDay, minute ->
+                        date.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                        date.set(Calendar.MINUTE, minute)
+                        date.set(Calendar.SECOND, 0)
+                        
+                        if (date.after(Calendar.getInstance())) {
+                            selectedDateTime = date
+                            scheduledAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(date.time)
+                        } else {
+                            Toast.makeText(context, "Please select a future time", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    current.get(Calendar.HOUR_OF_DAY),
+                    current.get(Calendar.MINUTE),
+                    false
+                ).show()
+            },
+            current.get(Calendar.YEAR),
+            current.get(Calendar.MONTH),
+            current.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            datePicker.minDate = System.currentTimeMillis()
+        }.show()
     }
 
     // Dynamic Price Logic (Initial heuristic for UI before final quote)
@@ -140,6 +180,33 @@ fun CommerceCheckoutScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text("Choose where you want your item delivered", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Delivery Schedule", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = !isSchedulingEnabled, onClick = { isSchedulingEnabled = false; scheduledAt = null }, label = { Text("Deliver Now") })
+                    FilterChip(selected = isSchedulingEnabled, onClick = { isSchedulingEnabled = true }, label = { Text("Schedule for Later") })
+                }
+
+                if (isSchedulingEnabled) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                val displayText = selectedDateTime?.let { 
+                                    SimpleDateFormat("EEE, MMM d, hh:mm a", Locale.getDefault()).format(it.time)
+                                } ?: "Select Date & Time"
+                                Text(displayText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                                
+                                Button(onClick = { showDateTimePicker() }) {
+                                    Text("Change")
+                                }
+                            }
                         }
                     }
                 }
@@ -251,7 +318,8 @@ fun CommerceCheckoutScreen(
                                     delivery_address = deliveryAddress,
                                     lat = deliveryLat,
                                     lng = deliveryLng,
-                                    payment_method = if (selectedPaymentMethod == "WALLET") "WALLETPAY" else selectedPaymentMethod
+                                    payment_method = if (selectedPaymentMethod == "WALLET") "WALLETPAY" else selectedPaymentMethod,
+                                    scheduled_at = scheduledAt
                                 ))
 
                                 if (selectedPaymentMethod == "CARD" && !response.authorization_url.isNullOrBlank()) {

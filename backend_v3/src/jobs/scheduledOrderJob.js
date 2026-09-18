@@ -12,7 +12,7 @@ const processScheduledOrders = async () => {
             UPDATE orders
             SET status = 'SEARCHING'
             WHERE status = 'SCHEDULED'
-              AND scheduled_at <= (CURRENT_TIMESTAMP AT TIME ZONE 'Africa/Lagos')
+              AND scheduled_at <= (CURRENT_TIMESTAMP AT TIME ZONE 'Africa/Lagos' + INTERVAL '30 minutes')
             RETURNING *
         `);
 

@@ -80,7 +80,7 @@ const getDiscovery = async (req, res) => {
             ...item,
             is_open: isOpen,
             next_open_time: nextOpen,
-            operating_hours: undefined // Hide from client payload
+            operating_hours: item.operating_hours // Expose for client-side scheduling validation
         };
     });
 
@@ -117,7 +117,7 @@ const getDiscovery = async (req, res) => {
  * Initializes a Commerce Order (Buy + Deliver).
  */
 const initializeCommerceOrder = async (req, res) => {
-    const { item_id, item_type, delivery_address, lat, lng, payment_method } = req.body;
+    const { item_id, item_type, delivery_address, lat, lng, payment_method, scheduled_at } = req.body;
     const userId = req.user.id;
 
     try {
@@ -144,14 +144,18 @@ const initializeCommerceOrder = async (req, res) => {
 
         // 1.1 Enforcement of Operating Hours
         if (item.operating_hours) {
-            const nowTime = getWATTimeStr();
             const hours = typeof item.operating_hours === 'string' ? JSON.parse(item.operating_hours) : item.operating_hours;
-            const today = new Date().getDay();
-            const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][today];
+
+            const targetDate = scheduled_at ? new Date(scheduled_at) : new Date();
+            const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][targetDate.getDay()];
             const config = hours[dayKey] || hours['all'];
 
-            if (config && !isWithinWindow(nowTime, config.open, config.close)) {
-                return res.status(403).json({ success: false, message: `Store is currently closed. Opens at ${config.open}.` });
+            // Format target time as HH:mm
+            const targetTimeStr = targetDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+            if (config && !isWithinWindow(targetTimeStr, config.open, config.close)) {
+                const type = scheduled_at ? 'requested time' : 'current time';
+                return res.status(403).json({ success: false, message: `Store is closed at ${type}. Opens: ${config.open} - ${config.close}` });
             }
         }
 
@@ -218,17 +222,16 @@ const initializeCommerceOrder = async (req, res) => {
                         order_type, user_id, status, item_description,
                         pickup_address, delivery_address, pickup_location, delivery_location,
                         total_fare, item_price, delivery_fee, platform_fee_amount,
-                        payment_status, collection_status, collect_on_delivery_amount,
                         payment_method, payment_channel,
                         seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount,
-                        dispatch_commission_amount
+                        dispatch_commission_amount, scheduled_at
                     ) VALUES (
-                        'pickup_delivery', $1, 'SEARCHING', $2,
+                        'pickup_delivery', $1, $19, $2,
                         $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
                         $9, $10, $11, $12,
                         'PENDING', 'pending', $13,
                         'COD', 'cash',
-                        $14, $15, $16, 'held', $17, $18
+                        $14, $15, $16, 'held', $17, $18, $20
                     ) RETURNING id`,
                     [
                         userId, item.name,
@@ -237,7 +240,9 @@ const initializeCommerceOrder = async (req, res) => {
                         totalNaira, // collect_on_delivery_amount
                         item.merchant_user_id, (item_type === 'product' ? item_id : null), (item_type === 'meal' ? item_id : null),
                         merchantCommissionAmount,
-                        dispatchCommissionAmount
+                        dispatchCommissionAmount,
+                        scheduled_at ? 'SCHEDULED' : 'SEARCHING',
+                        scheduled_at || null
                     ]
                 );
 
@@ -291,13 +296,13 @@ const initializeCommerceOrder = async (req, res) => {
                         total_fare, item_price, delivery_fee, platform_fee_amount,
                         payment_status, payment_method, payment_channel,
                         seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount,
-                        dispatch_commission_amount
+                        dispatch_commission_amount, scheduled_at
                     ) VALUES (
-                        'pickup_delivery', $1, 'SEARCHING', $2,
+                        'pickup_delivery', $1, $18, $2,
                         $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
                         $9, $10, $11, $12,
                         'PAID', 'wallet', 'wallet',
-                        $13, $14, $15, 'held', $16, $17
+                        $13, $14, $15, 'held', $16, $17, $19
                     ) RETURNING id`,
                     [
                         userId, item.name,
@@ -305,7 +310,9 @@ const initializeCommerceOrder = async (req, res) => {
                         totalNaira, item.price, deliveryFee, platformFee,
                         item.merchant_user_id, (item_type === 'product' ? item_id : null), (item_type === 'meal' ? item_id : null),
                         merchantCommissionAmount,
-                        dispatchCommissionAmount
+                        dispatchCommissionAmount,
+                        scheduled_at ? 'SCHEDULED' : 'SEARCHING',
+                        scheduled_at || null
                     ]
                 );
 
@@ -356,7 +363,8 @@ const initializeCommerceOrder = async (req, res) => {
                 delivery_address,
                 delivery_lat: lat,
                 delivery_lng: lng,
-                item_description: item.name
+                item_description: item.name,
+                scheduled_at: scheduled_at || null
             }
         };
 

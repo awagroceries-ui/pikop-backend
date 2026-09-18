@@ -889,7 +889,8 @@ data class DiscoveryItem(
     val created_at: String = "",
     val accepts_cod: Boolean = true,
     val is_open: Boolean = true,
-    val next_open_time: String? = null
+    val next_open_time: String? = null,
+    val operating_hours: Map<String, Map<String, String>>? = null
 )
 
 data class DiscoveryResponse(
@@ -904,7 +905,8 @@ data class CommerceOrderRequest(
     val lat: Double,
     val lng: Double,
     val city: String? = "Port Harcourt",
-    val payment_method: String // CARD, COD
+    val payment_method: String, // CARD, COD, WALLETPAY
+    val scheduled_at: String? = null
 )
 
 data class PaymentInitializationRequest(
