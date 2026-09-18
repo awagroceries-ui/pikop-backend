@@ -93,13 +93,14 @@ fun MerchantPortalScreen(
             )
         },
         floatingActionButton = {
-            if (merchantProfile.value != null) {
+            val profile = merchantProfile.value
+            if (profile != null && profile.status == "active") {
                 if (selectedTab.intValue == 1) {
                     FloatingActionButton(
-                        onClick = { onAddItem(merchantProfile.value!!.type, merchantProfile.value!!.id) },
+                        onClick = { onAddItem(profile.type, profile.id) },
                         containerColor = MaterialTheme.colorScheme.primary
                     ) { Icon(Icons.Default.Add, "Add Item") }
-                } else if (selectedTab.intValue == 2) {
+                } else if (selectedTab.intValue == 4) { 
                     FloatingActionButton(
                         onClick = onCreateBatch,
                         containerColor = MaterialTheme.colorScheme.secondary
@@ -126,6 +127,38 @@ fun MerchantPortalScreen(
             }
         } else {
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                // 1. Verification Status Banner (v4.5)
+                val profile = merchantProfile.value
+                if (profile != null && profile.status != "active") {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PendingActions, null, tint = MaterialTheme.colorScheme.error)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Verification Pending", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                                Text("Your business profile is under review. Listing items is disabled until approval.", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                } else if (profile == null && !isLoading.value) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Business Setup Incomplete", fontWeight = FontWeight.Bold)
+                            Text("Please complete your business registration to start selling.", style = MaterialTheme.typography.bodySmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(onClick = { /* This case is handled in AccountScreen, but we could add a CTA here */ }) {
+                                Text("Complete Setup")
+                            }
+                        }
+                    }
+                }
+
                 TabRow(
                     selectedTabIndex = selectedTab.intValue,
                     containerColor = MaterialTheme.colorScheme.surface,

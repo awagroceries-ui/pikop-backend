@@ -1,17 +1,17 @@
-# Task: Scheduled/Future-Dated Orders
+# Task: Fix Merchant Product Creation
 
-- [ ] **Backend - Core Scheduling Logic**
-    - [ ] Update `scheduledOrderJob.js` with 30-minute lead time activation
-    - [ ] Update `orderController.js` with scheduling validation (7-day limit, security windows)
-    - [ ] Update `commerceController.js` to support `scheduled_at` and merchant hour validation
-    - [ ] Update `marketplaceController.js` to include `operating_hours` in API responses
-- [ ] **Android - API Integration**
-    - [ ] Update `ApiService.kt` DTOs (`CommerceOrderRequest`, `DiscoveryItem`)
-- [ ] **Android - UI Implementation**
-    - [ ] Implement Scheduling Toggle & Pickers in `OrderQuoteScreen.kt`
-    - [ ] Implement Scheduling Toggle & Pickers in `CommerceCheckoutScreen.kt`
-    - [ ] Add real-time validation for chosen times
+- [x] **Backend Repairs**
+    - [x] Update `getMerchantProfile` in `merchantController.js` to return all fields
+    - [x] Add status checks to `addProduct` in `marketplaceController.js`
+    - [x] Add status checks to `addMenuItem` in `kitchenController.js`
+- [x] **Android API & Models**
+    - [x] Update `MerchantProfile` DTO in `ApiService.kt`
+- [x] **Android UI Fixes**
+    - [x] Update logic in `AccountScreen.kt` for legacy merchant repair
+    - [x] Enhance `MerchantPortalScreen.kt` with "Complete Setup" CTA and status banners
+    - [x] Gate "Add Item" FAB based on active status
 - [ ] **Verification**
-    - [ ] Verify background job activation
-    - [ ] Verify merchant hour blocking
+    - [ ] Verify legacy merchant routing to setup
+    - [ ] Verify pending verification banner
+    - [ ] Verify successful item creation for active merchants
     - [ ] Build and Deploy

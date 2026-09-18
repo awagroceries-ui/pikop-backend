@@ -8,9 +8,13 @@ const addMenuItem = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // Auth Check: User must own the kitchen
-    const kCheck = await db.query("SELECT id FROM kitchens WHERE id = $1 AND user_id = $2", [kitchen_id, userId]);
+    // Auth Check: User must own the kitchen and be ACTIVE
+    const kCheck = await db.query("SELECT id, status FROM kitchens WHERE id = $1 AND user_id = $2", [kitchen_id, userId]);
     if (kCheck.rows.length === 0) return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+    if (kCheck.rows[0].status !== 'active') {
+        return res.status(403).json({ success: false, message: 'Kitchen account is not yet active. Please complete verification.' });
+    }
 
     const { rows } = await db.query(
       `INSERT INTO menu_items (kitchen_id, name, price, description, category, photo_url, prep_time_minutes, modifiers)

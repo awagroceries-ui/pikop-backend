@@ -1,33 +1,34 @@
-# Walkthrough - In-App Wallet Checkout
+# Walkthrough - Scheduled & Future-Dated Orders
 
-I have implemented the **Pay-from-Wallet** feature, allowing customers to use their existing Pikop balance to pay for deliveries and marketplace orders instantly.
+I have successfully implemented the **Scheduled Orders** feature, allowing customers to plan their deliveries and marketplace purchases up to 7 days in advance.
 
 ## Changes Made
 
-### 💰 1. Wallet Payment Engine (Backend)
-- **Atomic Debit Logic**: Added `processIndividualWalletPayment` to `walletService.js`. This service uses database-level row locking (`FOR UPDATE`) to ensure that a user cannot double-spend or go below zero during a checkout transaction.
-- **Order Integration**:
-    - Updated `orderController.js` to support the `wallet` payment method. Wallet-paid missions are marked as **PAID** immediately upon creation and skip the browser payment step.
-    - Updated `commerceController.js` to support **WALLETPAY** for marketplace and food orders.
+### 🗓️ 1. Scheduling UI at Checkout
+- **Unified Selector**: Added a "Deliver Now" vs "Schedule for Later" toggle to both the standard Dispatch and Marketplace checkout screens.
+- **Native Pickers**: Integrated Android's native Date and Time pickers for a seamless scheduling experience.
+- **Visual Progress**: The selected time is clearly displayed with a summary of how scheduled missions work (30-minute lead time).
 
-### 📱 2. Unified Checkout UI (Android)
-- **Balance Visibility**: The checkout screens (`OrderQuoteScreen` and `CommerceCheckoutScreen`) now automatically fetch the user's available wallet balance on load.
-- **Dynamic Selection**: Added a "My Wallet" option to the billing method selector.
-    - **Smart Gating**: The option is only selectable if the user's balance is sufficient to cover the total amount (including insurance and fees).
-    - **Visual Feedback**: If the balance is too low, the wallet option shows a lock icon and is disabled to prevent failed payment attempts.
-- **Zero-Friction Activation**: When paying via wallet, the app bypasses the Paystack browser entirely and activates the mission with a single click.
+### 🚀 2. Smart Activation Job (Backend)
+- **Pre-emptive Dispatch**: Updated the `scheduledOrderJob.js` background worker. Instead of waiting for the exact scheduled time, it now activates missions **30 minutes prior** to the requested time. This ensures a driver is found and arriving exactly when the customer needs them.
+- **Timezone Awareness**: All calculations are performed in the Africa/Lagos (WAT) timezone to ensure accuracy for local operations.
 
-### 📜 3. Auditable Ledger
-- Every wallet payment is recorded in the transaction history with a unique `MISSION_PAYMENT` reference, ensuring both the customer and admins have a clear paper trail of how funds were spent.
+### 🛡️ 3. Multi-Layer Validation
+- **Merchant Operating Hours**: For Food and Marketplace orders, the system now validates the scheduled time against the Merchant's set operating hours. Customers are blocked from scheduling when a store is closed.
+- **7-Day Advance Limit**: Scheduling is capped at one week in the future to maintain operational predictability.
+- **Security Windows**: Scheduled times outside the 6 AM - 6 PM daylight window are logged for "Vehicle-Only" dispatch, adhering to our established safety protocols.
+
+### 📜 4. Reliable API Contracts
+- **DTO Updates**: Updated `ApiService.kt` to include `scheduled_at` in all relevant order requests and exposed `operating_hours` in discovery results for real-time client-side validation.
 
 ## Verification Results
-- **Payment Flow**: [VERIFIED] Verified that selecting "My Wallet" correctly deducts the amount and triggers immediate mission status update to `SEARCHING`.
-- **Insufficient Funds**: [VERIFIED] Verified that the "My Wallet" chip is disabled and shows the lock icon when the order total exceeds the available balance.
-- **Fee Integrity**: [VERIFIED] Confirmed that insurance fees and platform commissions are correctly calculated and collected regardless of the wallet payment method.
-- **Build Status**: [SUCCESS] Successfully compiled the Android app.
+- **Scheduled Activation**: [VERIFIED] Confirmed missions move from `SCHEDULED` to `SEARCHING` exactly 30 minutes before their target time.
+- **Merchant Gating**: [VERIFIED] Successfully blocked a scheduled meal order for a time when the kitchen was closed.
+- **Immediate Refund**: [VERIFIED] Verified that cancelling a `SCHEDULED` order before it activates triggers an automatic refund to the user's wallet.
+- **Build Status**: [SUCCESS] Successfully compiled and verified the Android app.
 
 ## Deployment Instructions
-To activate wallet-based checkout on your production VPS:
+To activate the scheduling engine on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main

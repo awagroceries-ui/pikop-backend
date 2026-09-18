@@ -1,57 +1,39 @@
-# Implementation Plan - Scheduled/Future-Dated Orders
+# Implementation Plan - Fix Merchant Product Creation
 
-This plan enables customers to schedule their deliveries or marketplace orders for a specific future date and time.
+This plan addresses the issue where Merchants cannot create products, primarily due to legacy account residue and incomplete verification status sync.
+
+## Findings
+
+1.  **Legacy Account Gap**: Merchants created via the old "Join as Merchant" path have the `MERCHANT` role but lack a `vendors` or `kitchens` profile record.
+2.  **UI Gating**: The "Add Item" button is hidden if no profile record exists, effectively locking legacy merchants in a dead state.
+3.  **Status Sync**: While approval updates the database, the backend was returning a limited set of fields, and the UI wasn't explicitly handling the "Pending Verification" state within the Seller Center.
 
 ## Proposed Changes
 
-### 1. Backend Infrastructure
+### 1. Backend Fixes (Node.js)
 
-#### [MODIFY] [scheduledOrderJob.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/jobs/scheduledOrderJob.js)
-- Update activation logic: Trigger dispatch matching **30 minutes prior** to `scheduled_at`.
-- Ensure it respects the Africa/Lagos (WAT) timezone.
+#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
+- **`getMerchantProfile`**: Update SQL to return all fields (`SELECT *`) from `vendors` and `kitchens`.
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **Validation**:
-    - Max scheduling limit: 7 days into the future.
-    - Security Window: If the order requires a Foot Agent, Cyclist, or Rider, the scheduled time must be between **6:00 AM and 6:00 PM**.
-- Handle rescheduling: Allow users to update `scheduled_at` while status is still `SCHEDULED`.
+#### [MODIFY] [marketplaceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/marketplaceController.js) & [kitchenController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/kitchenController.js)
+- **`addProduct` / `addMenuItem`**: Add a check to ensure the merchant's status is `active` before allowing a new listing to be saved.
 
-#### [MODIFY] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
-- Support `scheduled_at` field.
-- **Validation**: Ensure the requested time falls within the Merchant's `operating_hours`.
-- Pass `scheduled_at` through to the created order record.
+### 2. Android UI Fixes (Compose)
 
-#### [MODIFY] [marketplaceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/marketplaceController.js)
-- Include `operating_hours` in the `discovery` and `vendor_details` responses.
+#### [MODIFY] [AccountScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/AccountScreen.kt)
+- Update "Manage My Shop" click logic: Always verify the existence of a merchant profile record, even for users with the `MERCHANT` role. If missing, route to `onNavigateToMerchantRegistration`.
 
-### 2. Android App Integration
+#### [MODIFY] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
+- **Handle Missing Profile**: If `merchantProfile` is null but the user is a `MERCHANT`, show a "Complete Business Setup" CTA.
+- **Verification Banner**: Show a "Verification Pending" notice if `status != 'active'`.
+- **Gate "Add Item"**: Only show the FAB if `status == 'active'`.
 
 #### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Add `scheduled_at` to `CommerceOrderRequest`.
-- Add `operating_hours` (Map or structured object) to `DiscoveryItem`.
-
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- Add a "Scheduling" section with a toggle: **"Deliver Now"** vs **"Schedule for Later"**.
-- Implement a Date and Time picker using Material 3 `DatePickerDialog` and `TimePickerDialog`.
-- Validate that the chosen time is at least 1 hour from now and within the 6 AM - 6 PM security window for riders.
-
-#### [MODIFY] [CommerceCheckoutScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/CommerceCheckoutScreen.kt)
-- Add the same Scheduling section.
-- **Enhanced Validation**: Check chosen time against the merchant's operating hours (surfaced in `DiscoveryItem`).
-
-## User Review Required
-
-> [!IMPORTANT]
-> **Activation Lead Time**
-> I am setting the background job to activate missions **30 minutes before** the scheduled time. This ensures a driver is matched and moving *by* the time the customer expects the pickup.
-
-> [!NOTE]
-> **Security Enforcement**
-> Scheduled times outside the 6 AM - 6 PM window will be automatically restricted to "Vehicle Only" (Drivers) or blocked if no drivers are available, consistent with our night-dispatch safety policy.
+- Ensure `MerchantProfile` DTO matches all fields returned by the backend.
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Near-Future Test**: Schedule a delivery for 45 minutes from now. Verify it enters `SCHEDULED` status. Wait 15 minutes and verify the background job moves it to `SEARCHING`.
-2.  **Merchant Hours Test**: Attempt to schedule a food order for 11:00 PM for a kitchen that closes at 9:00 PM. Verify the UI/API blocks the request with a helpful error.
-3.  **Cancellation Test**: Cancel a `SCHEDULED` order. Verify immediate refund to wallet and that the order is never dispatched.
+1.  **Legacy Merchant Fix**: Take an account with role `MERCHANT` but no vendor/kitchen record. Click "Manage My Shop" in Account. Verify it routes to the Business Setup screen.
+2.  **Pending State**: Approve a merchant but set status to `pending_business_verification`. Verify the Seller Center shows a "Verification Pending" banner and hides the "Add Item" button.
+3.  **End-to-End Creation**: Approve a merchant fully (`active`). Verify they can click "Add Item", fill the form, and the product appears in their "Items" tab.

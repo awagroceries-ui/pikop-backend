@@ -336,8 +336,8 @@ const getMerchantProfile = async (req, res) => {
 
     try {
         const [vendorRes, kitchenRes] = await Promise.all([
-            db.query("SELECT id, business_name, status, accepts_cod, 'vendor' as type FROM vendors WHERE user_id = $1", [userId]),
-            db.query("SELECT id, business_name, status, accepts_cod, 'kitchen' as type FROM kitchens WHERE user_id = $1", [userId])
+            db.query("SELECT *, 'vendor' as type FROM vendors WHERE user_id = $1", [userId]),
+            db.query("SELECT *, 'kitchen' as type FROM kitchens WHERE user_id = $1", [userId])
         ]);
 
         const profile = vendorRes.rows[0] || kitchenRes.rows[0] || null;

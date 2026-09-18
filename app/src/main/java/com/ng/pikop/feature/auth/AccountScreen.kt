@@ -274,20 +274,17 @@ fun AccountScreen(
                     label = if (isMerchant) "Manage My Shop" else "Add Merchant Profile",
                     icon = if (isMerchant) Icons.Default.Storefront else Icons.Default.AddBusiness,
                     onClick = {
-                        if (isMerchant) {
-                            onNavigateToMerchant() // Should switch tab or go to dashboard
-                        } else {
-                            scope.launch {
-                                try {
-                                    val profile = apiService.getMerchantProfile()
-                                    if (profile.data != null) {
-                                        onNavigateToMerchant()
-                                    } else {
-                                        onNavigateToMerchantRegistration()
-                                    }
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Could not verify merchant status", Toast.LENGTH_SHORT).show()
+                        scope.launch {
+                            try {
+                                val profileRes = apiService.getMerchantProfile()
+                                if (profileRes.data != null) {
+                                    onNavigateToMerchant()
+                                } else {
+                                    // Missing profile record (Legacy Merchant Gap)
+                                    onNavigateToMerchantRegistration()
                                 }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Could not verify merchant status", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }

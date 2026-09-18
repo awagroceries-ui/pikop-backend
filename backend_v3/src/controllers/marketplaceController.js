@@ -8,9 +8,13 @@ const addProduct = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // Auth Check: User must own the vendor
-    const vCheck = await db.query("SELECT id FROM vendors WHERE id = $1 AND user_id = $2", [vendor_id, userId]);
+    // Auth Check: User must own the vendor and be ACTIVE
+    const vCheck = await db.query("SELECT id, status FROM vendors WHERE id = $1 AND user_id = $2", [vendor_id, userId]);
     if (vCheck.rows.length === 0) return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+    if (vCheck.rows[0].status !== 'active') {
+        return res.status(403).json({ success: false, message: 'Merchant account is not yet active. Please complete verification.' });
+    }
 
     const { rows } = await db.query(
       `INSERT INTO products (vendor_id, name, price, stock_quantity, description, category, unit, nafdac_number, photo_url)
