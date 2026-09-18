@@ -705,7 +705,8 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
 
         composable("support_hub") {
             SupportHubScreen(
-                onNavigateToFaqList = { category -> navController.navigate("faq_list/$category") },
+                userRole = userRole ?: "CUSTOMER",
+                onNavigateToFaqList = { id -> navController.navigate("faq_detail/$id") },
                 onNavigateToChat = {
                     scope.launch {
                         try {
@@ -715,14 +716,6 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                         } catch (_: Exception) {}
                     }
                 },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("faq_list/{category}") { backStackEntry ->
-            val category = backStackEntry.arguments?.getString("category") ?: ""
-            FaqListScreen(
-                category = category,
-                onNavigateToDetail = { id -> navController.navigate("faq_detail/$id") },
                 onBack = { navController.popBackStack() }
             )
         }

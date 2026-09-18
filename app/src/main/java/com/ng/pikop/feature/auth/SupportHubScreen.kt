@@ -4,13 +4,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.QuestionAnswer
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,26 +26,40 @@ import com.ng.pikop.ui.theme.PikopOrange
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SupportHubScreen(
+    userRole: String,
     onNavigateToFaqList: (String) -> Unit,
     onNavigateToChat: () -> Unit,
     onBack: () -> Unit
 ) {
     var articles by remember { mutableStateOf<List<KnowledgeBaseArticle>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var activeGroup by remember { mutableStateOf(if (userRole == "MERCHANT") "MERCHANT" else if (userRole == "FULFILLER") "FULFILLER" else "CUSTOMER") }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        isLoading = true
-        try {
-            articles = apiService.getKnowledgeBase()
-        } catch (_: Exception) {}
-        isLoading = false
+    fun fetchArticles() {
+        scope.launch {
+            isLoading = true
+            try {
+                articles = apiService.getKnowledgeBase(activeGroup)
+            } catch (_: Exception) {}
+            isLoading = false
+        }
     }
 
-    val categories = articles.map { it.category ?: "General" }.distinct()
+    LaunchedEffect(activeGroup) {
+        fetchArticles()
+    }
+
+    // Filter logic
+    val filteredArticles = articles.filter {
+        it.title.contains(searchQuery, ignoreCase = true) || it.content.contains(searchQuery, ignoreCase = true)
+    }
+    val categories = filteredArticles.map { it.category ?: "General" }.distinct()
 
     Scaffold(
         topBar = {
@@ -65,46 +80,81 @@ fun SupportHubScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            // Role Switcher (Multi-role support)
+            // Note: In Pikop V3, users often have one primary role, but we support switching if they are a MERCHANT/FULFILLER too.
+            if (userRole == "MERCHANT" || userRole == "FULFILLER") {
+                TabRow(
+                    selectedTabIndex = if (activeGroup == "CUSTOMER") 0 else 1,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Tab(
+                        selected = activeGroup == "CUSTOMER",
+                        onClick = { activeGroup = "CUSTOMER" },
+                        text = { Text("Customer Help") }
+                    )
+                    Tab(
+                        selected = activeGroup == userRole,
+                        onClick = { activeGroup = userRole },
+                        text = { Text(if (userRole == "MERCHANT") "Seller Help" else "Agent Help") }
+                    )
+                }
+            }
+
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                placeholder = { Text("Search help articles...") },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                trailingIcon = if (searchQuery.isNotEmpty()) {
+                    { IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Close, null) } }
+                } else null,
+                shape = RoundedCornerShape(12.dp)
+            )
+
             // Live Chat Card
-                Card(
+            Card(
                 onClick = onNavigateToChat,
-                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary)
             ) {
                 Row(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Chat, 
                         contentDescription = null, 
                         tint = MaterialTheme.colorScheme.onSecondary, 
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "Live Support Chat", 
-                            style = MaterialTheme.typography.titleMedium, 
+                            style = MaterialTheme.typography.titleSmall, 
                             fontWeight = FontWeight.Bold, 
                             color = MaterialTheme.colorScheme.onSecondary
                         )
                         Text(
                             "Chat with a real agent now.", 
-                            style = MaterialTheme.typography.bodySmall, 
+                            style = MaterialTheme.typography.labelSmall, 
                             color = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.8f)
                         )
                     }
                     Icon(
                         Icons.Default.ChevronRight, 
                         contentDescription = null, 
-                        tint = MaterialTheme.colorScheme.onSecondary
+                        tint = MaterialTheme.colorScheme.onSecondary,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
 
             Text(
-                "Frequently Asked Questions",
+                "Common Questions",
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.Gray,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -114,13 +164,28 @@ fun SupportHubScreen(
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = PikopOrange)
             } else if (categories.isEmpty()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("No help articles found.", color = Color.Gray)
+                    Text(if (searchQuery.isEmpty()) "No help articles found." else "No results for '$searchQuery'", color = Color.Gray)
                 }
             }
 
+            val expandedCategories = remember { mutableStateMapOf<String, Boolean>() }
+
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 items(categories) { category ->
-                    CategoryItem(category) { onNavigateToFaqList(category) }
+                    val categoryArticles = filteredArticles.filter { it.category == category }
+                    val expanded = expandedCategories[category] ?: false
+
+                    CategoryAccordion(
+                        name = category,
+                        isExpanded = expanded,
+                        onToggle = { expandedCategories[category] = !expanded }
+                    )
+
+                    if (expanded) {
+                        categoryArticles.forEach { article ->
+                            FAQListItem(article.title) { onNavigateToFaqList(article.id) }
+                        }
+                    }
                 }
             }
         }
@@ -128,7 +193,33 @@ fun SupportHubScreen(
 }
 
 @Composable
-fun CategoryItem(name: String, onClick: () -> Unit) {
+fun CategoryAccordion(name: String, isExpanded: Boolean, onToggle: () -> Unit) {
+    Surface(
+        onClick = onToggle,
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                tint = Color.Gray,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(name, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+            Badge(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
+                // Placeholder for count if needed
+            }
+        }
+    }
+}
+
+@Composable
+fun FAQListItem(title: String, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         color = Color.Transparent,
@@ -138,9 +229,7 @@ fun CategoryItem(name: String, onClick: () -> Unit) {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.QuestionAnswer, contentDescription = null, tint = PikopOrange, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(name, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
+            Text(title, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
         }
     }

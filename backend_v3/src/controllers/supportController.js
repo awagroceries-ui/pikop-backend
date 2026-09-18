@@ -4,7 +4,9 @@ const db = require('../config/db');
  * Fetches knowledge base articles filtered by the user's role.
  */
 const getKnowledgeBase = async (req, res) => {
-  const userRole = req.user.role === 'FULFILLER' ? 'FULFILLER' : 'CUSTOMER';
+  const { group } = req.query;
+  // Fallback to user's actual role if no group specified, default to CUSTOMER
+  const userRole = group || req.user.role || 'CUSTOMER';
 
   try {
     const { rows } = await db.query(
@@ -16,10 +18,9 @@ const getKnowledgeBase = async (req, res) => {
       [userRole]
     );
 
-    // FLATTEN: Return raw array for the Android app
     res.status(200).json(rows);
   } catch (error) {
-    throw error;
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

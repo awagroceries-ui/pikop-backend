@@ -1123,7 +1123,7 @@ interface ApiService {
     suspend fun getSupportMessages(@retrofit2.http.Path("id") id: String): List<ChatMessage>
 
     @GET("api/v1/support/kb")
-    suspend fun getKnowledgeBase(): List<KnowledgeBaseArticle>
+    suspend fun getKnowledgeBase(@retrofit2.http.Query("group") group: String? = null): List<KnowledgeBaseArticle>
 
     @GET("api/v1/wallets/me")
     suspend fun getWalletInfo(): WalletResponse

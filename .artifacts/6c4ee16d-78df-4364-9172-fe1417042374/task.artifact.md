@@ -1,17 +1,17 @@
-# Task: Fix Merchant Product Creation
+# Task: Group-Specific FAQ Integration
 
-- [x] **Backend Repairs**
-    - [x] Update `getMerchantProfile` in `merchantController.js` to return all fields
-    - [x] Add status checks to `addProduct` in `marketplaceController.js`
-    - [x] Add status checks to `addMenuItem` in `kitchenController.js`
-- [x] **Android API & Models**
-    - [x] Update `MerchantProfile` DTO in `ApiService.kt`
-- [x] **Android UI Fixes**
-    - [x] Update logic in `AccountScreen.kt` for legacy merchant repair
-    - [x] Enhance `MerchantPortalScreen.kt` with "Complete Setup" CTA and status banners
-    - [x] Gate "Add Item" FAB based on active status
+- [ ] **Backend - Infrastructure & Seeding**
+    - [ ] Update `knowledge_base` target audience constraint
+    - [ ] Create `1726570000000_seed_structured_faqs.js` and insert data from markdown
+    - [ ] Update `supportController.js` logic for role-based filtering
+- [ ] **Android - API Integration**
+    - [ ] Update `getKnowledgeBase` in `ApiService.kt`
+- [ ] **Android - UI Restructuring**
+    - [ ] Implement search bar in `SupportHubScreen.kt`
+    - [ ] Implement role switcher in `SupportHubScreen.kt`
+    - [ ] Implement collapsible category sections
 - [ ] **Verification**
-    - [ ] Verify legacy merchant routing to setup
-    - [ ] Verify pending verification banner
-    - [ ] Verify successful item creation for active merchants
+    - [ ] Verify role-specific content display
+    - [ ] Verify search functionality
+    - [ ] Confirm text visibility of long answers
     - [ ] Build and Deploy
