@@ -74,15 +74,18 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 RoleCard(
                     title = "I want to Sell",
                     description = "List products & grow business.",
                     icon = Icons.Default.Storefront,
                     iconColor = com.ng.pikop.ui.theme.PikopOrange,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(0.6f),
                     onClick = { onRoleSelected("MERCHANT") }
                 )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 RoleCard(
                     title = "Fleet Partner",
                     description = "Bring your fleet onto Pikop.",
@@ -91,9 +94,6 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("FLEET_PARTNER") }
                 )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 RoleCard(
                     title = "Business Account",
                     description = "Centralized billing for teams.",
@@ -102,8 +102,6 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("CORPORATE") }
                 )
-                // Spacer to keep layout balanced
-                Spacer(modifier = Modifier.weight(1f))
             }
             
             Spacer(modifier = Modifier.height(48.dp))

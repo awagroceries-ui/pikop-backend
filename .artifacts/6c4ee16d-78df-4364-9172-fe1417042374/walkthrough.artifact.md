@@ -1,37 +1,35 @@
-# Walkthrough - Group-Specific FAQ Integration
+# Walkthrough - Audit-Driven Hardening & Polish
 
-I have successfully restructured the Help Center to be group-aware and category-organized, ensuring users only see the content relevant to their specific role (Customer, Fulfiller, or Merchant).
+Following a comprehensive system audit, I have implemented a series of "Hardening" updates to ensure Pikop's financial integrity, account stability, and UI/UX clarity.
 
 ## Changes Made
 
-### 📚 1. Structured Knowledge Base (Backend)
-- **Data Migration**: I created a new migration `1726570000000_seed_structured_faqs.js` that seeds the entire provided `Pikop_FAQs_Content.md` into the database. This replaces the old, flat list with structured group/category mapping.
-- **Audience Constraints**: Updated the database schema to explicitly support the `MERCHANT` and `CORPORATE` target audiences.
-- **Dynamic Filtering**: Updated the `supportController.js` to automatically filter articles based on the authenticated user's actual role.
+### 🔒 1. Financial Idempotency (Backend)
+- **Retry-Safe Settlements**: Updated `processMissionSettlement` and `releaseEscrow` in `walletService.js`. The system now explicitly checks the ledger for an existing record of the same `order_id` and `purpose` before executing a payout. This prevents duplicate fulfiller credits if a server job or webhook is triggered more than once.
+- **Deduplicated Referrals**: Added a check to `processReferralReward` to ensure a referral bonus can never be paid twice for the same user-pair.
 
-### 📱 2. Redesigned Support Hub (Android UI)
-- **Role-Aware Defaulting**: When a user opens the Help Center, the app now automatically selects the correct help group (e.g., an Agent sees Fulfiller FAQs by default).
-- **Role Switcher**: For users with multiple capabilities (like a Customer who is also a Merchant), I added a tab-style switcher to flip between "Customer Help" and "Seller/Agent Help."
-- **Search Bar**: Added a global search field at the top. Users can now search both question and answer text across all categories in their section.
-- **Accordion Navigation**: Categories are now organized into collapsible groups. This keeps the large volume of content navigable without overwhelming the user.
-- **Text Visibility**: Confirmed that long FAQ answers (like the detailed COD breakdown) are fully scrollable and perfectly visible, carrying over the fix from previous iterations.
+### 🔄 2. Scheduling & Rescheduling
+- **Rescheduling API**: Implemented a new `rescheduleOrder` endpoint. Users with missions in `SCHEDULED` status can now update their requested time without needing to cancel and re-create the order.
+- **Night-Mode Guard**: Enhanced the `OrderQuoteScreen.kt` with **Inline Validation**. If a user selects a time between 6 PM and 6 AM, the app now clearly warns them that dispatch will be restricted to Vehicles (Drivers) for safety.
+- **Dashboard Visibility**: The `OrdersDashboardScreen.kt` now displays the exact scheduled time for pending missions and includes a **"Reschedule"** action button.
 
-### 🧹 3. Code Cleanup
-- **Simplified Routing**: Removed the redundant `FaqListScreen.kt` and consolidated the UI into a more modern, single-screen hub with nested expansion.
-- **Standardized DTOs**: Updated `ApiService.kt` to support the group-based querying.
+### 👥 3. Smart Role Management
+- **Role Preservation**: Fixed a risk in `adminController.js`. When a user is approved as a Merchant, the system no longer blindly overwrites their account role. If the user is already a `FULFILLER` or `FLEET_PARTNER`, they keep their higher-level role while gaining merchant capabilities, ensuring they don't lose access to the agent app.
+
+### 📱 4. UI/UX Polishing
+- **Help Center Counts**: Added dynamic article counts to each category in the `SupportHubScreen.kt`. Users can now see exactly how many help articles are in sections like "Dispatch" or "COD" before expanding them.
+- **Enhanced Status Mapping**: Updated the `StatusBadge` logic to include a dedicated color and style for `SCHEDULED` missions.
 
 ## Verification Results
-- **Customer Role**: [VERIFIED] Only Customer-relevant categories (Dispatch, Food, Groceries, etc.) are shown by default.
-- **Fulfiller Role**: [VERIFIED] Shows Agent-specific info like Streak Bonuses and Payout details.
-- **Merchant Role**: [VERIFIED] Displays Seller-centric info on Commissions and Operating Hours.
-- **Search Logic**: [VERIFIED] Typing "wallet" correctly filters the list to only relevant questions.
+- **Idempotency**: [VERIFIED] Attempting to settle the same mission twice result in a "Skipping" log and no duplicate ledger entry.
+- **Role Persistence**: [VERIFIED] An agent account approved as a merchant remains as role `FULFILLER` but can access the Seller Center.
+- **Scheduling**: [VERIFIED] Night-time scheduling correctly triggers the inline safety warning.
 - **Build Status**: [SUCCESS] Successfully compiled the Android app.
 
 ## Deployment Instructions
-To push the new FAQ content live to your production server:
+To activate the hardened logic on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
 pm2 restart pikop-v3
 ```
