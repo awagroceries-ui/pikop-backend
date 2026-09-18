@@ -1,32 +1,37 @@
-# Walkthrough - Fix Merchant Product Creation
+# Walkthrough - Group-Specific FAQ Integration
 
-I have resolved the issue where Merchants were unable to create products by addressing legacy account gaps and improving verification status transparency.
+I have successfully restructured the Help Center to be group-aware and category-organized, ensuring users only see the content relevant to their specific role (Customer, Fulfiller, or Merchant).
 
 ## Changes Made
 
-### 🔧 1. Legacy Merchant Repair
-- **Smart Routing**: Updated the **"Manage My Shop"** button in `AccountScreen.kt`. It now performs a real-time check for a valid merchant profile record.
-- **Onboarding Bridge**: If a user has the `MERCHANT` role but is missing their business profile (common for accounts created via the old legacy path), the app now automatically routes them to the **Business Setup** screen instead of showing a broken portal.
+### 📚 1. Structured Knowledge Base (Backend)
+- **Data Migration**: I created a new migration `1726570000000_seed_structured_faqs.js` that seeds the entire provided `Pikop_FAQs_Content.md` into the database. This replaces the old, flat list with structured group/category mapping.
+- **Audience Constraints**: Updated the database schema to explicitly support the `MERCHANT` and `CORPORATE` target audiences.
+- **Dynamic Filtering**: Updated the `supportController.js` to automatically filter articles based on the authenticated user's actual role.
 
-### 🛡️ 2. Verification Gating (Backend & UI)
-- **Status Banners**: Added a clear "Verification Pending" notice in the **Seller Center**. This informs unapproved merchants that their profile is under review and that listing items is temporarily disabled.
-- **FAB Gating**: The "Add Item" button is now dynamically hidden unless the merchant's status is officially **'active'**.
-- **Backend Enforcement**: Added server-side status checks to the `addProduct` and `addMenuItem` endpoints. Even if the UI is bypassed, the API will block listings from unverified accounts.
+### 📱 2. Redesigned Support Hub (Android UI)
+- **Role-Aware Defaulting**: When a user opens the Help Center, the app now automatically selects the correct help group (e.g., an Agent sees Fulfiller FAQs by default).
+- **Role Switcher**: For users with multiple capabilities (like a Customer who is also a Merchant), I added a tab-style switcher to flip between "Customer Help" and "Seller/Agent Help."
+- **Search Bar**: Added a global search field at the top. Users can now search both question and answer text across all categories in their section.
+- **Accordion Navigation**: Categories are now organized into collapsible groups. This keeps the large volume of content navigable without overwhelming the user.
+- **Text Visibility**: Confirmed that long FAQ answers (like the detailed COD breakdown) are fully scrollable and perfectly visible, carrying over the fix from previous iterations.
 
-### 📜 3. Data Integrity
-- **Full Profile Sync**: Updated `getMerchantProfile` on the backend to return all business fields, allowing the app to make better logic decisions based on category and verification stage.
-- **DTO Alignment**: Synchronized the Android `MerchantProfile` model with the latest backend schema.
+### 🧹 3. Code Cleanup
+- **Simplified Routing**: Removed the redundant `FaqListScreen.kt` and consolidated the UI into a more modern, single-screen hub with nested expansion.
+- **Standardized DTOs**: Updated `ApiService.kt` to support the group-based querying.
 
 ## Verification Results
-- **Legacy Repair**: [VERIFIED] An account with the MERCHANT role but no profile now correctly triggers the Setup flow.
-- **Pending State**: [VERIFIED] Verified that merchants with status `pending_business_verification` see the status banner and cannot access the "Add Item" button.
-- **Approved Creation**: [VERIFIED] Once status is changed to `active` via admin, the "Add Item" button appears and listings are successfully saved to the marketplace.
-- **Build Status**: [SUCCESS] Successfully compiled and verified the Android app.
+- **Customer Role**: [VERIFIED] Only Customer-relevant categories (Dispatch, Food, Groceries, etc.) are shown by default.
+- **Fulfiller Role**: [VERIFIED] Shows Agent-specific info like Streak Bonuses and Payout details.
+- **Merchant Role**: [VERIFIED] Displays Seller-centric info on Commissions and Operating Hours.
+- **Search Logic**: [VERIFIED] Typing "wallet" correctly filters the list to only relevant questions.
+- **Build Status**: [SUCCESS] Successfully compiled the Android app.
 
 ## Deployment Instructions
-To activate these repairs on your production VPS:
+To push the new FAQ content live to your production server:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```
