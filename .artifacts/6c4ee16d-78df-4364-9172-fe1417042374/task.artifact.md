@@ -1,16 +1,14 @@
-# Task: Audit-Driven Fixes & Hardening
+# Task: Fix Missing FAQ Answers
 
-- [ ] **Backend - Financial Hardening**
-    - [ ] Update `processMissionSettlement` with idempotency check
-    - [ ] Update `releaseEscrow` with idempotency check
-    - [ ] Update `processReferralReward` with idempotency check
-- [ ] **Backend - State Machine & Roles**
-    - [ ] Implement `rescheduleOrder` in `orderController.js`
-    - [ ] Update `updateMerchantKYCStatus` in `adminController.js` to preserve roles
-- [ ] **Android UI Polishing**
-    - [ ] Add article counts to `SupportHubScreen.kt`
-    - [ ] Improve scheduling validation feedback in `OrderQuoteScreen.kt`
+- [ ] **Backend Hardening**
+    - [x] Create `getArticleById` endpoint logic
+    - [x] Update `supportRoutes.js`
+    - [x] Generate `1726730000000_fix_faq_content.js` migration from latest MD
+- [ ] **Android API & Models**
+    - [x] Update `ApiService.kt` with `getArticleById`
+- [ ] **Android UI Fixes**
+    - [x] Update `FaqDetailScreen.kt` to fetch by ID (Fixes "Missing Answer" for multi-role users)
 - [ ] **Verification**
-    - [ ] Test duplicate settlement prevention
-    - [ ] Verify role preservation
+    - [ ] Run migration on server
+    - [ ] Verify full content display for all user groups
     - [ ] Build and Deploy

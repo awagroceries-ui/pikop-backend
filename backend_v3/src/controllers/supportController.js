@@ -25,6 +25,23 @@ const getKnowledgeBase = async (req, res) => {
 };
 
 /**
+ * Fetches a single knowledge base article by ID.
+ */
+const getArticleById = async (req, res) => {
+    const { articleId } = req.params;
+    try {
+        const { rows } = await db.query(
+            "SELECT id, title, content, category, priority FROM knowledge_base WHERE id = $1",
+            [articleId]
+        );
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Article not found' });
+        res.status(200).json(rows[0]);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
  * Gets or creates an open support conversation.
  */
 const getOrCreateConversation = async (req, res) => {

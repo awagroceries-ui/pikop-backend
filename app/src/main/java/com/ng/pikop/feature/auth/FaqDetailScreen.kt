@@ -33,7 +33,7 @@ fun FaqDetailScreen(
     LaunchedEffect(articleId) {
         isLoading = true
         try {
-            article = apiService.getKnowledgeBase().find { it.id == articleId }
+            article = apiService.getArticleById(articleId)
         } catch (_: Exception) {}
         isLoading = false
     }

@@ -1129,6 +1129,9 @@ interface ApiService {
     @GET("api/v1/support/kb")
     suspend fun getKnowledgeBase(@retrofit2.http.Query("group") group: String? = null): List<KnowledgeBaseArticle>
 
+    @GET("api/v1/support/kb/{articleId}")
+    suspend fun getArticleById(@retrofit2.http.Path("articleId") articleId: String): KnowledgeBaseArticle
+
     @GET("api/v1/wallets/me")
     suspend fun getWalletInfo(): WalletResponse
 

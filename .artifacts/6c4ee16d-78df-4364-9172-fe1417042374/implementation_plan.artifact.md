@@ -1,42 +1,40 @@
-# Implementation Plan - Audit-Driven Fixes & Hardening
+# Implementation Plan - Fix Missing FAQ Answers
 
-This plan addresses hidden bugs, data integrity risks, and idempotency gaps discovered during the comprehensive audit of recent features.
+This plan addresses the data issue where FAQ answers were being lost or not displayed correctly, and re-imports the full structured content from the updated `Pikop_FAQs_Content(1).md`.
 
 ## Proposed Changes
 
-### 1. Financial Hardening (Backend)
+### 1. Backend Hardening (Node.js)
 
-#### [MODIFY] [walletService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/walletService.js)
-- **Idempotency**: Update `processMissionSettlement`, `releaseEscrow`, and `processReferralReward` to check the `wallet_ledger_entries` table for existing transactions linked to the same `order_id` and `purpose`. This prevents duplicate payouts if a process is triggered twice.
-- **Ledger Constraints**: Ensure `INSURANCE_PREMIUM` and `INSURANCE_CLAIM` are always recorded with the `order_id` for auditability.
+#### [MODIFY] [supportRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/supportRoutes.js)
+- Add a new endpoint `GET /kb/:articleId` to fetch a specific FAQ article by its ID.
 
-### 2. State Machine Consistency (Backend)
+#### [MODIFY] [supportController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/supportController.js)
+- Implement `getArticleById`: Fetches a single article directly from the `knowledge_base` table.
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **[NEW] `rescheduleOrder`**: Allow users to update `scheduled_at` if the mission is still in `SCHEDULED` status.
-- **Dispute Resolution**: Add logic to `resolveDispute` (in `adminController.js` calling `walletService.js`) to ensure that if a dispute is settled via refund, the `escrow_status` is updated to `refunded` and the `status` to `REFUNDED` in a single transaction.
+#### [NEW] [Refined FAQ Seeding](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726730000000_fix_faq_content.js)
+- Clear existing FAQ entries.
+- Re-import 57 high-depth FAQ entries parsed directly from the latest source file using a robust automation script to ensure no data loss.
+- Use PostgreSQL dollar-quoting (`$$`) to preserve all formatting, quotes, and symbols.
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- **Role Awareness**: Update `updateMerchantKYCStatus` to handle users who might have multiple capabilities. Instead of overwriting `role`, consider a bitmask or a separate `capabilities` table (future-proofing). For now, I will add a check to see if the user is already a `FULFILLER` before changing their role.
+### 2. Android App Integration (Compose)
 
-### 3. UI/UX Polishing (Android)
+#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
+- Register the new `getArticleById` method.
 
-#### [MODIFY] [SupportHubScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/SupportHubScreen.kt)
-- **Counts**: Add a badge to category accordions showing the number of articles in that section.
-- **Empty States**: Improve the "No search results" view with a clear "Clear Search" button.
-
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- **Validation Feedback**: If a scheduled time is blocked due to security windows or merchant hours, show an Inline Error Message rather than just a Toast, so the user knows exactly why they can't proceed.
+#### [MODIFY] [FaqDetailScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/FaqDetailScreen.kt)
+- **Bug Fix**: Switch from finding the article in the general list (which was group-filtered and caused "Missing Answer" bugs for multi-role users) to fetching it directly by ID using the new API endpoint. This ensures the answer is *always* found regardless of the user's current role or group.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Idempotency Implementation**
-> I am adding unique constraints or lookups on `(order_id, purpose)` in the ledger for certain transaction types. This is the safest way to prevent "Ghost Payouts" if the server or a job retries a settlement.
+> **Data Restoration**
+> This fix involves a full reload of the `knowledge_base` table. The new content is significantly more detailed (57 entries vs the previous ~20).
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Double Settlement**: Trigger `processMissionSettlement` manually via a script twice for the same order. Verify only one ledger entry is created.
-2.  **Role Preservation**: Verify that a `FULFILLER` who gets approved as a `MERCHANT` doesn't lose their ability to fulfill missions (or at least, the system warns the admin).
-3.  **Rescheduling**: Create a scheduled order, then change the time. Verify the database updates and the background job respects the new time.
+1.  **Direct Navigation**: Log in as a MERCHANT. Search for a CUSTOMER FAQ. Click it and verify the full, long answer is displayed in `FaqDetailScreen`.
+2.  **Completeness Audit**: Scroll through every category in the Help Center. Confirm every single question has a corresponding answer.
+3.  **Search & Filter**: Verify that searching for "COD" or "Refund" returns the correct list and those articles load their answers perfectly.
+4.  **Layout & Visibility**: Confirm that the long, multi-paragraph answers are scrollable and the text is high-contrast against the background.
