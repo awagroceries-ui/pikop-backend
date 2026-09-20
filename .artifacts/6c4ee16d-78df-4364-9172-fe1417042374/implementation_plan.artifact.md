@@ -1,65 +1,37 @@
-# Implementation Plan - Advanced Feature Suite
+# Implementation Plan - Total User Base Reset
 
-This plan covers the next major evolution of the Pikop platform, focusing on user engagement, merchant growth, and operational efficiency.
-
-## Proposed Changes
-
-### 1. 🔗 Merchant Store Links (Direct-to-Shop)
-- **Backend**:
-    - [MODIFY] `vendors` and `kitchens` tables: Add `store_slug` (unique).
-    - [MODIFY] `merchantController.js`: Auto-generate slug on profile setup and create `GET /api/v1/merchants/slug/:slug` to resolve storefront details.
-- **Android**:
-    - [MODIFY] `AndroidManifest.xml`: Register deep link scheme `pikop://store/{slug}`.
-    - [MODIFY] `MerchantPortalScreen.kt`: Add a "Share My Store" card that generates the link using the system share sheet.
-    - [MODIFY] `MainActivity.kt`: Handle the deep link and navigate directly to the `StorefrontScreen` with the resolved merchant ID.
-
-### 2. 🎫 Merchant-Specific Promotions (Store Coupons)
-- **Backend**:
-    - [MODIFY] `coupons` table: Add `merchant_id` (nullable). If set, the coupon only applies to items from that specific merchant.
-    - [MODIFY] `marketplaceController.js` & `kitchenController.js`: Update checkout validation to verify store-specific coupons.
-- **Android**:
-    - [MODIFY] `MerchantPortalScreen.kt`: Add a "Promotions" tab where merchants can create, toggle, and view usage stats for their own store coupons.
-
-### 3. 🌓 Full Dark Mode Support (Premium UI Pass)
-- **Android**:
-    - [MODIFY] `Theme.kt`: Define a robust `darkColorScheme` using Pikop's secondary colors (Gold/Orange) as functional accents to ensure accessibility.
-    - [REFACTOR] Global UI pass: Replace hardcoded `Color.White` or `Color.Black` in all feature screens with semantic theme colors (e.g., `MaterialTheme.colorScheme.surface`, `onSurface`, `primaryContainer`).
-
-### 🤖 AI-Powered Support Assistant (Pikop Agent)
-- **Backend**:
-    - [NEW] `POST /api/v1/support/ask`: Connects user queries to Gemini 1.5 Flash. It will use a "RAG" (Retrieval-Augmented Generation) approach by passing the top 3 relevant FAQ articles as context to the AI.
-- **Android**:
-    - [MODIFY] `SupportHubScreen.kt`: Add a floating "Ask Pikop" chat bubble that opens an interactive AI assistant.
-
-### 🛒 Multi-Item Shopping Cart
-- **Android**:
-    - [NEW] `CartManager`: A local Room database or DataStore to track `(productId, quantity, merchantId)`.
-    - [MODIFY] Storefronts: Change "Buy Now" to "Add to Cart" and add a persistent Cart overlay.
-- **Backend**:
-    - [MODIFY] `commerceController.js`: Update `initializeCommerceOrder` to process an array of items and calculate the total weight/fare for the batch.
-
-### 🗺️ In-App Route Rendering for Agents
-- **Android**:
-    - [MODIFY] `ActiveOrderScreen.kt`: Use the Google Maps Directions API to fetch and draw a `Polyline` representing the optimized path.
-
----
+This plan describes the process to delete all existing user accounts (Customers, Fulfillers, and Merchants) and their associated data to allow for a clean system restart.
 
 ## User Review Required
 
-> [!IMPORTANT]
-> **Database Migration**
-> Adding `store_slug` and `merchant_id` to coupons requires a schema update. I will handle this via a new migration file.
+> [!CAUTION]
+> **DESTRUCTIVE ACTION**
+> This process will permanently delete all user profiles, mission history, wallet balances, and merchant listings. This action cannot be undone.
 
-> [!NOTE]
-> **Dark Mode Assets**
-> I will use programmatic tinting for icons where possible. If any custom illustrations (like the Pikop logo) need dark-mode specific versions, I will flag them.
+## Proposed Changes
+
+### 1. Database Cleanup (SQL)
+
+I will create a single migration file `1726850000000_total_user_reset.js` that executes a cascaded deletion of all user-related data.
+
+#### [NEW] [Reset Migration](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726850000000_total_user_reset.js)
+The script will perform the following operations in a transaction:
+- Truncate all transactional tables: `wallet_ledger_entries`, `order_items`, `orders`, `disputes`, `returns`, `emergency_alerts`, `sms_logs`, `fcm_logs`.
+- Truncate all profile/identity tables: `fulfillers`, `vendors`, `kitchens`, `products`, `menu_items`, `kyc_documents`.
+- Truncate all account management tables: `user_sessions`, `otp_verifications`, `referrals`, `loyalty_ledger`, `corporate_sub_accounts`, `corporate_accounts`, `merchant_sub_accounts`, `merchant_accounts`.
+- Delete all records from the `users` table where `role != 'ADMIN'` and `role != 'SUPER_ADMIN'`.
+
+### 2. File System Cleanup (Optional/Cleanup)
+- Clear the `uploads/` directory on the server to remove old KYC documents and product photos.
 
 ---
 
 ## Verification Plan
 
 ### Manual Verification
-1.  **Deep Link Test**: Generate a store link as a Merchant. Click it from a WhatsApp/SMS message. Verify it opens the correct store in Pikop.
-2.  **Dark Mode Toggle**: Switch system theme to Dark. Verify all screens (Checkout, Tracking, Wallet) are perfectly legible and brand-consistent.
-3.  **Promo Gating**: Create a Merchant Coupon. Try using it on a different merchant's item. Verify it is rejected with "This coupon is only valid for [Store Name]".
-4.  **AI Accuracy**: Ask the AI "What is the 10% fee?". Confirm it correctly references the "COD Platform Fee" from the FAQ.
+1.  **Run Migration**: Execute `npm run migrate:up` on the server.
+2.  **Verify Empty State**:
+    - Log in to the Admin Dashboard.
+    - Confirm "Total Users" is 0 (or only shows Admin accounts).
+    - Confirm "Active Orders" and "Total Products" are 0.
+3.  **Registration Test**: Attempt to sign up a new Customer and a new Merchant to ensure the sequences and constraints still work perfectly.

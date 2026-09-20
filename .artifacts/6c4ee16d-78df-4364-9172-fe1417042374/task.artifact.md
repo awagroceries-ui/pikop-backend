@@ -1,19 +1,11 @@
-# Task: System Hardening & Bug Fixes
+# Task: Total User Base Reset
 
-- [x] **Merchant Growth Tools**
-    - [x] Implement Store Slugs and deep linking (`pikop://store/{slug}`)
-    - [x] Add "Share Store Link" functionality to Merchant Portal
-    - [x] Build Merchant-Specific Promotions (Store Coupons)
-- [x] **Core Platform Evolution**
-    - [x] Implement Multi-Item Shopping Cart (UI & Backend)
-    - [x] Build Gemini-powered AI Support Assistant (Pikop Agent)
-    - [x] Implement In-App Route Rendering for Agents
-    - [x] Add Demand Heatmaps for Fulfillers
-- [x] **Visual Excellence**
-    - [x] Full Dark Mode support refactor across all key screens
-- [x] **Verification**
-    - [x] Verified Deep Linking and Store Resolution
-    - [x] Verified Multi-item Cart checkout logic
-    - [x] Verified Dark Mode legibility
-    - [x] Build and Deploy
-
+- [x] **Reset Migration**
+    - [x] Create `1726850000000_total_user_reset.js`
+    - [x] Implement cascaded deletion logic (preserving Admins)
+- [ ] **Deployment & Execution**
+    - [ ] Push changes to main
+    - [ ] Run migration on VPS
+- [ ] **Verification**
+    - [ ] Confirm user-facing data is cleared
+    - [ ] Confirm Admin accounts are preserved
