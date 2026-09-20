@@ -17,8 +17,8 @@ android {
         applicationId = "com.ng.pikop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1-beta"
+        versionCode = 3
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -44,6 +44,21 @@ android {
         buildConfigField("String", "PAYSTACK_PUBLIC_KEY", "\"${paystackKey}\"")
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = project.rootProject.file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val props = Properties()
+                props.load(keystorePropertiesFile.inputStream())
+                // Use rootProject.file() to ensure we look in the project root, not the app module folder
+                storeFile = project.rootProject.file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -51,6 +66,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
