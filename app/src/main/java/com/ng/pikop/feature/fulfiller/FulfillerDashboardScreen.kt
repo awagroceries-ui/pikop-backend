@@ -1,16 +1,14 @@
 package com.ng.pikop.feature.fulfiller
 
 import androidx.compose.foundation.Image
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AssignmentTurnedIn
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Pending
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,13 +17,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.*
 import com.ng.pikop.R
 import com.ng.pikop.core.datastore.TokenManager
-import com.ng.pikop.core.network.ApiService
-import com.ng.pikop.core.network.FulfillerOrderResponse
-import com.ng.pikop.core.network.FulfillerStatusRequest
-import com.ng.pikop.core.network.OfferResponse
+import com.ng.pikop.core.network.*
 import com.ng.pikop.feature.auth.NavigationDrawerContent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -190,211 +191,230 @@ fun FulfillerDashboardScreen(
             modifier = Modifier.padding(padding).fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                // Peak Hour Bonus Banner (v4.4)
-                val peakActive = profileData?.stats?.peak_active ?: false
-                val peakBonus = profileData?.stats?.peak_bonus ?: 0.0
-                if (peakActive && peakBonus > 0) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        colors = CardDefaults.cardColors(containerColor = com.ng.pikop.ui.theme.PikopOrange)
-                    ) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Timer, null, tint = Color.White)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text("Peak Bonus Active! 🔥", fontWeight = FontWeight.Bold, color = Color.White)
-                                Text("Earn an extra ₦${peakBonus.toInt()} on every delivery.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f))
-                            }
-                        }
-                    }
-                }
+            var showHotspots by remember { mutableStateOf(false) }
+            var hotspots by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+            val cameraPositionState = rememberCameraPositionState {
+                position = CameraPosition.fromLatLngZoom(LatLng(6.5244, 3.3792), 12f)
+            }
 
-                // Resume Active Mission Banner
-                val activeMissions = history.filter { 
-                    it.status != "DELIVERED" && it.status != "CANCELLED" && it.status != "RECIPIENT_ABSENT" && it.status != "RELEASED" && it.status != "REFUNDED"
+            LaunchedEffect(showHotspots) {
+                if (showHotspots) {
+                    try {
+                        val res = apiService.getDemandHeatmap()
+                        @Suppress("UNCHECKED_CAST")
+                        val data = res["data"] as? List<Map<String, Any>>
+                        hotspots = data?.map { LatLng((it["lat"] as? Number)?.toDouble() ?: 0.0, (it["lng"] as? Number)?.toDouble() ?: 0.0) } ?: emptyList()
+                    } catch (_: Exception) {}
                 }
-                if (activeMissions.isNotEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
-                        onClick = { onAcceptOffer(activeMissions.first().id.toString()) }
-                    ) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(androidx.compose.material.icons.Icons.Default.AssignmentTurnedIn, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Resume Active Mission", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                                Text("You have a mission in progress. Tap to return.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f))
-                            }
-                        }
-                    }
-                }
+            }
 
-                // Streak Tracker (v4.4)
-                val streak = profileData?.current_streak_days ?: 0
-                if (streak > 0) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    ) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.LocalFireDepartment, null, tint = com.ng.pikop.ui.theme.PikopOrange, modifier = Modifier.size(32.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text("$streak Day Streak", fontWeight = FontWeight.Bold)
-                                val nextMilestone = if (streak < 7) 7 else 30
-                                Text("Keep it up! Next bonus at $nextMilestone days.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                            }
-                        }
-                    }
-                }
-
-                // KYC Status Card
-                if (kycStatus != "VERIFIED") {
-                    val isPending = kycStatus == "PENDING_REVIEW"
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isPending) Color(0xFFFFF3E0) else MaterialTheme.colorScheme.errorContainer
-                        ),
-                        onClick = onGoToKyc
-                    ) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (isPending) Icons.Default.Pending else Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = if (isPending) Color(0xFFFF9800) else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (isPending) "Verification Under Review" else "Account Not Verified",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = if (isPending) Color(0xFFE65100) else MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                Text(
-                                    text = if (isPending) "We are reviewing your details. This usually takes 24 hours." else "Complete verification to start earning.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isPending) Color(0xFFE65100).copy(alpha = 0.8f) else MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-                                )
-                            }
-                            if (!isPending && kycStatus != "REJECTED") {
-                                TextButton(onClick = onGoToKyc) {
-                                    Text("Verify Now")
-                                }
-                            } else if (kycStatus == "REJECTED") {
-                                TextButton(onClick = onGoToKyc) {
-                                    Text("Fix Issues")
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                // 1. Map Section
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+                        GoogleMap(
+                            modifier = Modifier.fillMaxSize(),
+                            cameraPositionState = cameraPositionState,
+                            uiSettings = MapUiSettings(zoomControlsEnabled = false)
+                        ) {
+                            if (showHotspots) {
+                                hotspots.forEach { spot ->
+                                    Marker(
+                                        state = MarkerState(position = spot),
+                                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE),
+                                        alpha = 0.6f,
+                                        title = "High Demand Zone"
+                                    )
                                 }
                             }
                         }
-                    }
-                }
 
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    onClick = onGoToWallet,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Withdrawable Balance", style = MaterialTheme.typography.labelSmall)
-                            Text("₦${"%,.2f".format(walletBalance)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        }
-                        Row {
-                            TextButton(onClick = onGoToInsights) {
-                                Text("Insights", style = MaterialTheme.typography.labelSmall)
-                            }
-                            TextButton(onClick = onGoToWallet) {
-                                Text("Wallet", style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
-                    }
-                }
-                
-                // Online/Offline Toggle
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isOnline) 
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) 
-                        else 
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(), 
-                        horizontalArrangement = Arrangement.SpaceBetween, 
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isOnline) "You are Online" else "You are Offline", 
-                            style = MaterialTheme.typography.titleMedium, 
-                            color = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        FilterChip(
+                            selected = showHotspots,
+                            onClick = { showHotspots = !showHotspots },
+                            label = { Text("Demand Hotspots", fontSize = 10.sp) },
+                            modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                            leadingIcon = { Icon(Icons.Default.LocalFireDepartment, null, modifier = Modifier.size(14.dp)) }
                         )
-                        Switch(
-                            checked = isOnline,
-                            onCheckedChange = { checked ->
-                                val targetStatus = if (checked) "ONLINE" else "OFFLINE"
-                                coroutineScope.launch {
-                                    isStatusLoading = true
-                                    try {
-                                        android.util.Log.d("FleetStatus", "Updating status to: $targetStatus")
-                                        
-                                        // Resolve current state before going online
-                                        var state: String? = null
-                                        if (checked) {
-                                            try {
-                                                val loc = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-                                                state = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                    try {
-                                                        val geocoder = Geocoder(context, Locale.getDefault())
-                                                        @Suppress("DEPRECATION")
-                                                        geocoder.getFromLocation(loc?.latitude ?: 0.0, loc?.longitude ?: 0.0, 1)?.firstOrNull()?.adminArea
-                                                    } catch (e: Exception) { null }
-                                                }
-                                            } catch (e: SecurityException) {}
-                                        }
+                    }
+                }
 
-                                        apiService.updateStatus(FulfillerStatusRequest(
-                                            online_status = targetStatus,
-                                            current_state = state
-                                        ))
-                                        
-                                        isOnline = checked
-                                        android.widget.Toast.makeText(context, "Status updated: $targetStatus", android.widget.Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) {
-                                        val errorMsg = com.ng.pikop.core.network.ErrorUtils.parseError(e)
-                                        android.util.Log.e("FleetStatus", "Update failed: $errorMsg", e)
-                                        android.widget.Toast.makeText(context, "Failed to update status: $errorMsg", android.widget.Toast.LENGTH_LONG).show()
-                                    } finally {
-                                        isStatusLoading = false
+                // 2. Dash Content
+                item {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        // Peak Hour Bonus Banner
+                        val peakActive = profileData?.stats?.peak_active ?: false
+                        val peakBonus = profileData?.stats?.peak_bonus ?: 0.0
+                        if (peakActive && peakBonus > 0) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                            ) {
+                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Timer, null, tint = MaterialTheme.colorScheme.onTertiary)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text("Peak Bonus Active! 🔥", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onTertiary)
+                                        Text("Earn an extra ₦${peakBonus.toInt()} on every delivery.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onTertiary.copy(alpha = 0.9f))
                                     }
                                 }
-                            },
-                            enabled = !isStatusLoading && kycStatus == "VERIFIED",
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            }
+                        }
+
+                        // Active Mission
+                        val activeMissions = history.filter { 
+                            it.status != "DELIVERED" && it.status != "CANCELLED" && it.status != "RECIPIENT_ABSENT" && it.status != "RELEASED" && it.status != "REFUNDED"
+                        }
+                        if (activeMissions.isNotEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+                                onClick = { onAcceptOffer(activeMissions.first().id.toString()) }
+                            ) {
+                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.AssignmentTurnedIn, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(32.dp))
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Resume Active Mission", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                                        Text("You have a mission in progress. Tap to return.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
+                                    }
+                                }
+                            }
+                        }
+
+                        // Streak Tracker
+                        val streak = profileData?.current_streak_days ?: 0
+                        if (streak > 0) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            ) {
+                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.LocalFireDepartment, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(32.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text("$streak Day Streak", fontWeight = FontWeight.Bold)
+                                        val nextMilestone = if (streak < 7) 7 else 30
+                                        Text("Keep it up! Next bonus at $nextMilestone days.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                                    }
+                                }
+                            }
+                        }
+
+                        // KYC Card
+                        if (kycStatus != "VERIFIED") {
+                            val isPending = kycStatus == "PENDING_REVIEW"
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isPending) Color(0xFFFFF3E0) else MaterialTheme.colorScheme.errorContainer
+                                ),
+                                onClick = onGoToKyc
+                            ) {
+                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (isPending) Icons.Default.Pending else Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = if (isPending) Color(0xFFFF9800) else MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (isPending) "Verification Under Review" else "Account Not Verified",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = if (isPending) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                                        )
+                                        Text(
+                                            text = if (isPending) "We are reviewing your details. This usually takes 24 hours." else "Complete verification to start earning.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isPending) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Wallet Card
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                            onClick = onGoToWallet,
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Withdrawable Balance", style = MaterialTheme.typography.labelSmall)
+                                    Text("₦${"%,.2f".format(walletBalance)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                }
+                                Row {
+                                    TextButton(onClick = onGoToInsights) { Text("Insights", style = MaterialTheme.typography.labelSmall) }
+                                    TextButton(onClick = onGoToWallet) { Text("Wallet", style = MaterialTheme.typography.labelSmall) }
+                                }
+                            }
+                        }
+                        
+                        // Status Toggle
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isOnline) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
                             )
-                        )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(), 
+                                horizontalArrangement = Arrangement.SpaceBetween, 
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isOnline) "You are Online" else "You are Offline", 
+                                    style = MaterialTheme.typography.titleMedium, 
+                                    color = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                )
+                                Switch(
+                                    checked = isOnline,
+                                    onCheckedChange = { checked ->
+                                        val targetStatus = if (checked) "ONLINE" else "OFFLINE"
+                                        coroutineScope.launch {
+                                            isStatusLoading = true
+                                            try {
+                                                var state: String? = null
+                                                if (checked) {
+                                                    try {
+                                                        val loc = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+                                                        state = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                            try { Geocoder(context, Locale.getDefault()).getFromLocation(loc?.latitude ?: 0.0, loc?.longitude ?: 0.0, 1)?.firstOrNull()?.adminArea } catch (e: Exception) { null }
+                                                        }
+                                                    } catch (e: SecurityException) {}
+                                                }
+                                                apiService.updateStatus(FulfillerStatusRequest(online_status = targetStatus, current_state = state))
+                                                isOnline = checked
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                                            } finally { isStatusLoading = false }
+                                        }
+                                    },
+                                    enabled = !isStatusLoading && kycStatus == "VERIFIED"
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(text = "Available Offers", style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
+                // 3. Offers List
                 if (isOnline) {
-                    Text(text = "Available Offers", style = MaterialTheme.typography.titleLarge)
-                    Spacer(modifier = Modifier.height(8.dp))
                     if (offers.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Searching for nearby orders...")
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text("Searching for nearby orders...", color = Color.Gray)
+                            }
                         }
                     } else {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(offers) { offer ->
+                        items(offers) { offer ->
+                            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                                 IncomingOfferComponent(
                                     offer = offer,
                                     onAccept = {
@@ -402,19 +422,11 @@ fun FulfillerDashboardScreen(
                                             try {
                                                 isLoading = true
                                                 val response = apiService.acceptOrder(offer.id ?: "", emptyMap())
-                                                if (response.status == "MATCHED" || response.status == "QUEUED") {
-                                                    onAcceptOffer(offer.id ?: "")
-                                                } else {
-                                                    android.widget.Toast.makeText(context, "Mission no longer available", android.widget.Toast.LENGTH_SHORT).show()
-                                                    fetchDashboardData()
-                                                }
+                                                if (response.status == "MATCHED" || response.status == "QUEUED") onAcceptOffer(offer.id ?: "")
+                                                else fetchDashboardData()
                                             } catch (e: Exception) {
-                                                val error = com.ng.pikop.core.network.ErrorUtils.parseError(e)
-                                                android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
-                                                fetchDashboardData()
-                                            } finally {
-                                                isLoading = false
-                                            }
+                                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                                            } finally { isLoading = false }
                                         }
                                     },
                                     onDecline = { offers = offers.filter { it.id != offer.id } }
@@ -423,10 +435,14 @@ fun FulfillerDashboardScreen(
                         }
                     }
                 } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = if (kycStatus == "VERIFIED") "Go online to start receiving offers." else "Verify your account to start receiving offers.")
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text(text = if (kycStatus == "VERIFIED") "Go online to start receiving offers." else "Verify your account to start receiving offers.", textAlign = TextAlign.Center)
+                        }
                     }
                 }
+                
+                item { Spacer(modifier = Modifier.height(40.dp)) }
             }
         }
     }

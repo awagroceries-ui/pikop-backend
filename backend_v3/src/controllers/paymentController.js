@@ -281,6 +281,79 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
 };
 
 /**
+ * Activates a V2 Commerce Order (Multi-item Support)
+ */
+const activatePaidCommerceOrder = async (client, metadata, reference, channel) => {
+    const m = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+    const qId = m.quote_id;
+
+    // 1. Fetch Quote with Metadata
+    const { rows: quotes } = await client.query("SELECT * FROM quotes WHERE id = $1", [qId]);
+    if (quotes.length === 0) throw new Error('Quote not found');
+    const q = quotes[0];
+    const qMeta = typeof q.metadata === 'string' ? JSON.parse(q.metadata) : q.metadata;
+
+    const initialStatus = m.scheduled_at ? 'SCHEDULED' : 'SEARCHING';
+    const items = qMeta.items || [];
+
+    // 2. Create Order
+    const orderRes = await client.query(
+        `INSERT INTO orders (
+            order_type, user_id, status, item_description,
+            pickup_address, delivery_address, pickup_location, delivery_location,
+            total_fare, item_price, delivery_fee, platform_fee_amount,
+            payment_status, payment_reference, payment_channel,
+            seller_id, product_id, menu_item_id, escrow_status,
+            merchant_commission_amount, scheduled_at, coupon_id
+        ) VALUES (
+            'pickup_delivery', $1, $2, $3,
+            $4, $5, $6, $7,
+            $8, $9, $10, $11,
+            'PAID', $12, $13,
+            $14, $15, $16, 'held',
+            $17, $18, $19
+        ) RETURNING id`,
+        [
+            m.user_id, initialStatus, q.item_description,
+            q.pickup_address, q.delivery_address, q.pickup_location, q.delivery_location,
+            q.total_fare, (q.total_fare - 1200), 1200, 0, // Simplified for v2 init, should match quote calc exactly
+            reference, channel,
+            items[0]?.merchant_user_id, // Primary seller
+            items[0]?.type === 'product' ? items[0].id : null,
+            items[0]?.type === 'meal' ? items[0].id : null,
+            0, // merchant_commission_amount - should be calculated
+            m.scheduled_at || null,
+            qMeta.promo_id || null
+        ]
+    );
+
+    const orderId = orderRes.rows[0].id;
+
+    // 3. Insert into order_items
+    for (const item of items) {
+        await client.query(
+            `INSERT INTO order_items (order_id, product_id, menu_item_id, name, quantity, unit_price, total_price)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+                orderId,
+                item.type === 'product' ? item.id : null,
+                item.type === 'meal' ? item.id : null,
+                item.name,
+                item.quantity,
+                item.price,
+                parseFloat(item.price) * item.quantity
+            ]
+        );
+    }
+
+    // 4. Ledger
+    const walletId = await walletService.ensureWalletExists(client, 'USER', items[0].merchant_user_id);
+    await walletService.recordEntry(client, walletId, 'CREDIT', (q.total_fare - 1200), 'ESCROW_HOLD', `Order #${orderId}`, orderId, 'pending');
+
+    return orderId;
+};
+
+/**
  * Standard Webhook Handler.
  */
 const handleWebhook = async (req, res) => {
@@ -381,13 +454,13 @@ const handleWebhook = async (req, res) => {
                     total_fare, item_price, delivery_fee, platform_fee_amount,
                     payment_status, payment_reference, payment_channel,
                     seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount,
-                    scheduled_at, dispatch_commission_amount
+                    scheduled_at, dispatch_commission_amount, coupon_id
                 ) VALUES (
                     'pickup_delivery', $1, $2, $3,
                     $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326)::geography, ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography,
                     $10, $11, $12, $13,
                     'PAID', $14, $15,
-                    $16, $17, $18, 'held', $19, $20, $21
+                    $16, $17, $18, 'held', $19, $20, $21, $22
                 ) RETURNING id`,
                 [
                     m.user_id, initialStatus, m.item_description,
@@ -397,7 +470,8 @@ const handleWebhook = async (req, res) => {
                     m.merchant_user_id, (m.item_type === 'product' ? m.item_id : null), (m.item_type === 'meal' ? m.item_id : null),
                     m.merchant_commission_amount || 0.0,
                     m.scheduled_at || null,
-                    dispatchCommissionAmount
+                    dispatchCommissionAmount,
+                    m.promo_id || null
                 ]
             );
 
@@ -418,6 +492,24 @@ const handleWebhook = async (req, res) => {
         } catch (e) {
             await client.query('ROLLBACK');
             console.error('❌ Commerce Activation FAILED:', e.message);
+            return res.sendStatus(500);
+        } finally { client.release(); }
+    }
+
+    // 5. Handle Commerce Order V2 (Multi-item)
+    if (m?.type === 'COMMERCE_ORDER_V2') {
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
+            const existing = await client.query("SELECT id FROM orders WHERE payment_reference = $1", [reference]);
+            if (existing.rows.length === 0) {
+                await activatePaidCommerceOrder(client, m, reference, channel);
+            }
+            await client.query('COMMIT');
+            return res.sendStatus(200);
+        } catch (e) {
+            await client.query('ROLLBACK');
+            console.error('❌ Commerce V2 Activation FAILED:', e.message);
             return res.sendStatus(500);
         } finally { client.release(); }
     }

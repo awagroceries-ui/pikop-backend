@@ -35,6 +35,7 @@ fun CommerceCheckoutScreen(
     itemId: String,
     itemType: String,
     navController: NavController,
+    useCart: Boolean = false,
     onSuccess: () -> Unit,
     onCelebration: () -> Unit = {},
     onBack: () -> Unit
@@ -121,9 +122,10 @@ fun CommerceCheckoutScreen(
     }
 
     // Dynamic Price Logic (Initial heuristic for UI before final quote)
+    val itemBasePrice = if (useCart) com.ng.pikop.core.cart.CartManager.totalAmount else (item?.price ?: 0.0)
     val deliveryFee = if (deliveryAddress.isBlank()) 0.0 else 1200.0
-    val platformFee = (item?.price ?: 0.0) * 0.10
-    val totalAmount = (item?.price ?: 0.0) + deliveryFee + platformFee
+    val platformFee = itemBasePrice * 0.10
+    val totalAmount = itemBasePrice + deliveryFee + platformFee
 
     Scaffold(
         topBar = {
@@ -314,8 +316,9 @@ fun CommerceCheckoutScreen(
                             isPlacingOrder = true
                             try {
                                 val response = apiService.initializeCommerceOrder(CommerceOrderRequest(
-                                    item_id = itemId,
-                                    item_type = itemType,
+                                    items = if (useCart) com.ng.pikop.core.cart.CartManager.items.map { mapOf("id" to it.item.id, "quantity" to it.quantity, "type" to it.item.item_type) } else null,
+                                    item_id = if (useCart) null else itemId,
+                                    item_type = if (useCart) null else itemType,
                                     delivery_address = deliveryAddress,
                                     lat = deliveryLat,
                                     lng = deliveryLng,

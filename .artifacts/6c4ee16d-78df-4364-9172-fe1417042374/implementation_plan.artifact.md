@@ -1,54 +1,65 @@
-# Implementation Plan - System Hardening & Bug Fixes
+# Implementation Plan - Advanced Feature Suite
 
-This plan addresses critical race conditions, idempotency gaps, and security risks identified during the comprehensive audit.
+This plan covers the next major evolution of the Pikop platform, focusing on user engagement, merchant growth, and operational efficiency.
 
 ## Proposed Changes
 
-### 1. Backend: Financial & State Hardening
+### 1. 🔗 Merchant Store Links (Direct-to-Shop)
+- **Backend**:
+    - [MODIFY] `vendors` and `kitchens` tables: Add `store_slug` (unique).
+    - [MODIFY] `merchantController.js`: Auto-generate slug on profile setup and create `GET /api/v1/merchants/slug/:slug` to resolve storefront details.
+- **Android**:
+    - [MODIFY] `AndroidManifest.xml`: Register deep link scheme `pikop://store/{slug}`.
+    - [MODIFY] `MerchantPortalScreen.kt`: Add a "Share My Store" card that generates the link using the system share sheet.
+    - [MODIFY] `MainActivity.kt`: Handle the deep link and navigate directly to the `StorefrontScreen` with the resolved merchant ID.
 
-#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
-- **Fix Duplicate Creation**: Move the "Order already exists" check *inside* the database transaction for both regular and commerce orders.
-- **Unique References**: Ensure `payment_reference` has a unique constraint at the DB level (if not already present) to prevent duplicate inserts even under extreme race conditions.
+### 2. 🎫 Merchant-Specific Promotions (Store Coupons)
+- **Backend**:
+    - [MODIFY] `coupons` table: Add `merchant_id` (nullable). If set, the coupon only applies to items from that specific merchant.
+    - [MODIFY] `marketplaceController.js` & `kitchenController.js`: Update checkout validation to verify store-specific coupons.
+- **Android**:
+    - [MODIFY] `MerchantPortalScreen.kt`: Add a "Promotions" tab where merchants can create, toggle, and view usage stats for their own store coupons.
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **Fix Acceptance Race Condition**: In `acceptOrder`, lock the fulfiller's row (`SELECT FOR UPDATE` on `fulfillers`) before checking if they have active orders. This prevents a fulfiller from being assigned two missions simultaneously.
+### 3. 🌓 Full Dark Mode Support (Premium UI Pass)
+- **Android**:
+    - [MODIFY] `Theme.kt`: Define a robust `darkColorScheme` using Pikop's secondary colors (Gold/Orange) as functional accents to ensure accessibility.
+    - [REFACTOR] Global UI pass: Replace hardcoded `Color.White` or `Color.Black` in all feature screens with semantic theme colors (e.g., `MaterialTheme.colorScheme.surface`, `onSurface`, `primaryContainer`).
 
-#### [MODIFY] [scheduledOrderJob.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/jobs/scheduledOrderJob.js)
-- **Batch Processing**: Add a `LIMIT 50` to the scheduled order update to prevent massive spikes from overwhelming the dispatcher.
+### 🤖 AI-Powered Support Assistant (Pikop Agent)
+- **Backend**:
+    - [NEW] `POST /api/v1/support/ask`: Connects user queries to Gemini 1.5 Flash. It will use a "RAG" (Retrieval-Augmented Generation) approach by passing the top 3 relevant FAQ articles as context to the AI.
+- **Android**:
+    - [MODIFY] `SupportHubScreen.kt`: Add a floating "Ask Pikop" chat bubble that opens an interactive AI assistant.
 
----
+### 🛒 Multi-Item Shopping Cart
+- **Android**:
+    - [NEW] `CartManager`: A local Room database or DataStore to track `(productId, quantity, merchantId)`.
+    - [MODIFY] Storefronts: Change "Buy Now" to "Add to Cart" and add a persistent Cart overlay.
+- **Backend**:
+    - [MODIFY] `commerceController.js`: Update `initializeCommerceOrder` to process an array of items and calculate the total weight/fare for the batch.
 
-### 2. Backend: Security & Stability
-
-#### [MODIFY] [marketplaceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/marketplaceController.js) & [kitchenController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/kitchenController.js)
-- **Restrict Data Exposure**: Update `getVendorDetails` and `getKitchenDetails` to only return necessary public fields (business name, city, category, description, profile photo) rather than `SELECT *`.
-
-#### [MODIFY] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
-- **Safe JSON Parsing**: Wrap `JSON.parse(item.operating_hours)` in a try-catch block within the `getDiscovery` mapping logic to prevent a 500 error if operating hours data is malformed.
-
----
-
-### 3. Android App: Reliability & Error Handling
-
-#### [MODIFY] [SupportHubScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/SupportHubScreen.kt)
-- **Error Feedback**: Update `fetchArticles` to show an error message and a "Retry" button if the API call fails, instead of just remaining empty.
-
-#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
-- **State Guarding**: Ensure that sensitive buttons (like "Verify Delivery") are disabled while an API call is in progress to prevent duplicate status updates from the app side.
+### 🗺️ In-App Route Rendering for Agents
+- **Android**:
+    - [MODIFY] `ActiveOrderScreen.kt`: Use the Google Maps Directions API to fetch and draw a `Polyline` representing the optimized path.
 
 ---
 
 ## User Review Required
 
-> [!CAUTION]
-> **Database Locking**
-> Using `SELECT FOR UPDATE` on fulfillers during order acceptance will serialize assignment for that specific agent. This is necessary for data integrity but means if an agent's connection is extremely laggy, it might briefly lock their record. This is acceptable for the benefit of preventing double-assignment.
+> [!IMPORTANT]
+> **Database Migration**
+> Adding `store_slug` and `merchant_id` to coupons requires a schema update. I will handle this via a new migration file.
+
+> [!NOTE]
+> **Dark Mode Assets**
+> I will use programmatic tinting for icons where possible. If any custom illustrations (like the Pikop logo) need dark-mode specific versions, I will flag them.
+
+---
 
 ## Verification Plan
 
-### Automated Tests (Scripts)
-- **Concurrency Test**: Run 5 simultaneous "accept" requests for the same fulfiller on different orders. Confirm only 1 is assigned as primary and others are queued correctly.
-- **Webhook Replay**: Trigger the same Paystack `charge.success` webhook twice for a commerce order. Confirm only 1 order is created in the database.
-
 ### Manual Verification
-- **App Resilience**: Temporarily disconnect the internet while loading the Help Center. Confirm the "Retry" button appears and correctly re-fetches content when reconnected.
+1.  **Deep Link Test**: Generate a store link as a Merchant. Click it from a WhatsApp/SMS message. Verify it opens the correct store in Pikop.
+2.  **Dark Mode Toggle**: Switch system theme to Dark. Verify all screens (Checkout, Tracking, Wallet) are perfectly legible and brand-consistent.
+3.  **Promo Gating**: Create a Merchant Coupon. Try using it on a different merchant's item. Verify it is rejected with "This coupon is only valid for [Store Name]".
+4.  **AI Accuracy**: Ask the AI "What is the 10% fee?". Confirm it correctly references the "COD Platform Fee" from the FAQ.

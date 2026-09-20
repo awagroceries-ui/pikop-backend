@@ -39,7 +39,8 @@ import kotlinx.coroutines.tasks.await
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StorefrontScreen(
-    onItemClick: (DiscoveryItem) -> Unit
+    onItemClick: (DiscoveryItem) -> Unit,
+    onViewCart: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -97,98 +98,116 @@ fun StorefrontScreen(
         fetchDiscovery()
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        // Search Header
-        Surface(
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    if (isCityLive) "Discover $currentCity" else "Coming Soon to $currentCity",
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search products, meals, or shops") },
-                    leadingIcon = { Icon(Icons.Default.Search, null) },
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
-                    ),
-                    singleLine = true
-                )
-            }
-        }
-
-        // Category Horizontal Scroll
-        LazyRow(
-            modifier = Modifier.padding(vertical = 12.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(categories) { category ->
-                FilterChip(
-                    selected = selectedCategory == category,
-                    onClick = { selectedCategory = category },
-                    label = { Text(category) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    )
-                )
-            }
-        }
-
-        // Discovery Grid
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (items.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                    if (!isCityLive) {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = com.ng.pikop.ui.theme.PikopGold.copy(alpha = 0.1f)),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, com.ng.pikop.ui.theme.PikopGold)
-                        ) {
-                            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Celebration, null, modifier = Modifier.size(48.dp), tint = com.ng.pikop.ui.theme.PikopGold)
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Pikop is arriving soon in $currentCity!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                                Text("We're currently setting up our local merchant network. Want to be the first to know?", style = MaterialTheme.typography.bodySmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp))
-                                Button(
-                                    onClick = { showWaitlistDialog = true },
-                                    colors = ButtonDefaults.buttonColors(containerColor = com.ng.pikop.ui.theme.PikopGold, contentColor = Color.Black)
-                                ) {
-                                    Text("NOTIFY ME", fontWeight = FontWeight.ExtraBold)
-                                }
-                            }
-                        }
-                    } else {
-                        Icon(Icons.Default.Storefront, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
-                        Text("No items found nearby.", color = Color.Gray)
+    Scaffold(
+        floatingActionButton = {
+            if (com.ng.pikop.core.cart.CartManager.items.isNotEmpty()) {
+                FloatingActionButton(
+                    onClick = onViewCart,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    BadgedBox(
+                        badge = { Badge { Text("${com.ng.pikop.core.cart.CartManager.items.size}") } }
+                    ) {
+                        Icon(Icons.Default.ShoppingCart, "View Cart")
                     }
                 }
             }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+        }
+    ) { padding ->
+        Column(modifier = Modifier.padding(padding).fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            // Search Header
+            Surface(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                items(items) { item ->
-                    DiscoveryItemCard(item = item, onClick = { onItemClick(item) })
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        if (isCityLive) "Discover $currentCity" else "Coming Soon to $currentCity",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search products, meals, or shops") },
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent
+                        ),
+                        singleLine = true
+                    )
+                }
+            }
+
+            // Category Horizontal Scroll
+            LazyRow(
+                modifier = Modifier.padding(vertical = 12.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(categories) { category ->
+                    FilterChip(
+                        selected = selectedCategory == category,
+                        onClick = { selectedCategory = category },
+                        label = { Text(category) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
+            }
+
+            // Discovery Grid
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (items.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                        if (!isCityLive) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = com.ng.pikop.ui.theme.PikopGold.copy(alpha = 0.1f)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, com.ng.pikop.ui.theme.PikopGold)
+                            ) {
+                                Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.Celebration, null, modifier = Modifier.size(48.dp), tint = com.ng.pikop.ui.theme.PikopGold)
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text("Pikop is arriving soon in $currentCity!", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    Text("We're currently setting up our local merchant network. Want to be the first to know?", style = MaterialTheme.typography.bodySmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp))
+                                    Button(
+                                        onClick = { showWaitlistDialog = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = com.ng.pikop.ui.theme.PikopGold, contentColor = Color.Black)
+                                    ) {
+                                        Text("NOTIFY ME", fontWeight = FontWeight.ExtraBold)
+                                    }
+                                }
+                            }
+                        } else {
+                            Icon(Icons.Default.Storefront, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
+                            Text("No items found nearby.", color = Color.Gray)
+                        }
+                    }
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(items) { item ->
+                        DiscoveryItemCard(item = item, onClick = { onItemClick(item) })
+                    }
                 }
             }
         }
@@ -301,7 +320,21 @@ fun DiscoveryItemCard(item: DiscoveryItem, onClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.ExtraBold
                     )
-                    if (item.distance_km != null) {
+                    
+                    if (item.is_open) {
+                        Surface(
+                            onClick = { 
+                                com.ng.pikop.core.cart.CartManager.addItem(item)
+                            },
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            shape = CircleShape,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    } else if (item.distance_km != null) {
                         Text(
                             text = "${"%.1f".format(item.distance_km)}km",
                             style = MaterialTheme.typography.labelSmall,

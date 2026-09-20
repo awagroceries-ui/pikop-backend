@@ -727,14 +727,20 @@ const createOrder = async (req, res) => {
             const couponRes = await client.query("SELECT * FROM coupons WHERE id = $1 AND is_active = true", [promo_id]);
             if (couponRes.rows.length > 0) {
                 const c = couponRes.rows[0];
-                couponId = c.id;
-                const calculatedDiscount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : deliveryFee * (parseFloat(c.discount_value) / 100);
 
-                // Rule: Promo only discounts delivery fee, never item price or platform fee.
-                discount = Math.min(calculatedDiscount, deliveryFee);
-                deliveryFee = Math.max(0, deliveryFee - discount);
+                // v4.7 Hardening: Dispatch missions are platform-wide. Block store-specific coupons.
+                if (c.merchant_id || c.kitchen_id) {
+                    console.log(`[Order] Store-specific coupon ${c.code} rejected for Dispatch mission.`);
+                } else {
+                    couponId = c.id;
+                    const calculatedDiscount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : deliveryFee * (parseFloat(c.discount_value) / 100);
 
-                console.log(`[Order] Applied Promo: ${c.code}. Discount: ${discount}. New Delivery Fee: ${deliveryFee}`);
+                    // Rule: Promo only discounts delivery fee, never item price or platform fee.
+                    discount = Math.min(calculatedDiscount, deliveryFee);
+                    deliveryFee = Math.max(0, deliveryFee - discount);
+
+                    console.log(`[Order] Applied Promo: ${c.code}. Discount: ${discount}. New Delivery Fee: ${deliveryFee}`);
+                }
             }
         }
 

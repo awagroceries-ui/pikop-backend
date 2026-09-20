@@ -376,6 +376,15 @@ fun ActiveOrderScreen(
                                     if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
                                 )
                             )
+                            
+                            // Route Polyline (v4.7 Enhancement)
+                            fulfillerLocation?.let { 
+                                Polyline(
+                                    points = listOf(it, targetLatLng),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    width = 8f
+                                )
+                            }
                         }
                     }
                     

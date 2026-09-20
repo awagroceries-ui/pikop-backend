@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.KnowledgeBaseArticle
@@ -36,6 +37,12 @@ fun SupportHubScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var activeGroup by remember { mutableStateOf(if (userRole == "MERCHANT") "MERCHANT" else if (userRole == "FULFILLER") "FULFILLER" else "CUSTOMER") }
+    
+    // AI Assistant State
+    var showAiChat by remember { mutableStateOf(false) }
+    var aiQuestion by remember { mutableStateOf("") }
+    var aiAnswer by remember { mutableStateOf<String?>(null) }
+    var isAiThinking by remember { mutableStateOf(false) }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -117,6 +124,22 @@ fun SupportHubScreen(
                 } else null,
                 shape = RoundedCornerShape(12.dp)
             )
+
+            // Pikop Agent AI Card (v4.7)
+            Card(
+                onClick = { showAiChat = true },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = PikopOrange.copy(alpha = 0.1f))
+            ) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AutoAwesome, null, tint = PikopOrange)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("Ask Pikop Agent", fontWeight = FontWeight.Bold, color = PikopOrange)
+                        Text("Instant answers powered by AI.", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    }
+                }
+            }
 
             // Live Chat Card
             Card(
@@ -208,6 +231,84 @@ fun SupportHubScreen(
                 }
             }
         }
+    }
+
+    if (showAiChat) {
+        AlertDialog(
+            onDismissRequest = { 
+                showAiChat = false
+                aiQuestion = ""
+                aiAnswer = null
+            },
+            title = { Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AutoAwesome, null, tint = PikopOrange)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Pikop AI Agent")
+            }},
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (aiAnswer != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                aiAnswer!!, 
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = aiQuestion,
+                        onValueChange = { aiQuestion = it },
+                        label = { Text("How can I help you?") },
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            if (isAiThinking) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else {
+                                IconButton(
+                                    onClick = {
+                                        scope.launch {
+                                            isAiThinking = true
+                                            try {
+                                                val res = apiService.askAiAssistant(mapOf("question" to aiQuestion))
+                                                aiAnswer = res["answer"]?.toString() ?: "I couldn't find an answer. Try rephrasing or chat with support."
+                                            } catch (e: Exception) {
+                                                aiAnswer = "Error connecting to AI. Please try again later."
+                                            }
+                                            isAiThinking = false
+                                        }
+                                    },
+                                    enabled = aiQuestion.isNotBlank()
+                                ) {
+                                    Icon(Icons.Default.Send, null, tint = PikopOrange)
+                                }
+                            }
+                        }
+                    )
+                    
+                    if (aiAnswer != null) {
+                        TextButton(
+                            onClick = onNavigateToChat,
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("Still need help? Chat with a human", fontSize = 11.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { 
+                    showAiChat = false
+                    aiQuestion = ""
+                    aiAnswer = null
+                }) { Text("Close") }
+            }
+        )
     }
 }
 

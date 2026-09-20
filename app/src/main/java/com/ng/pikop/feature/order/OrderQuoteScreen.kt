@@ -613,7 +613,7 @@ fun OrderQuoteScreen(
                         // Optional Item Insurance (v4.3)
                         if (insuranceFee > 0) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(8.dp)).padding(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp)).padding(8.dp)) {
                                 Checkbox(checked = isInsured, onCheckedChange = { isInsured = it })
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Protect this item", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
@@ -1073,7 +1073,7 @@ fun LocationInput(label: String, address: String?, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
     ) {

@@ -514,6 +514,24 @@ const resolveAccount = async (req, res) => {
     }
 };
 
+/**
+ * Returns clusters of high-demand zones for fulfillers (v4.7).
+ */
+const getDemandHeatmap = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT ST_Y(pickup_location::geometry) as lat, ST_X(pickup_location::geometry) as lng
+            FROM orders
+            WHERE status = 'SEARCHING'
+            AND created_at >= NOW() - INTERVAL '2 hours'
+            LIMIT 200
+        `);
+        res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   startIdentityVerification,
   updateFulfillerProfile,
@@ -526,5 +544,6 @@ module.exports = {
   getAvailableOffers,
   submitApplication,
   getBanks,
-  resolveAccount
+  resolveAccount,
+  getDemandHeatmap
 };

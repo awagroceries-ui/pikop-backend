@@ -8,6 +8,9 @@ const setupMerchantProfile = async (req, res) => {
     const userId = req.user.id;
     const { business_name, category, address, cac_number, nafdac_number, bank_name, account_number, accepts_cod = true } = req.body;
 
+    // Slug generation (v4.7)
+    const store_slug = business_name.toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+
     const client = await db.pool.connect();
     try {
         await client.query('BEGIN');
@@ -29,16 +32,16 @@ const setupMerchantProfile = async (req, res) => {
         // We assume category dictates table logic for simplicity
         if (category === 'Food') {
             const result = await client.query(
-                `INSERT INTO kitchens (user_id, business_name, status, accepts_cod, category)
-                 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-                [userId, business_name, initialStatus, accepts_cod, category]
+                `INSERT INTO kitchens (user_id, business_name, status, accepts_cod, category, store_slug)
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+                [userId, business_name, initialStatus, accepts_cod, category, store_slug]
             );
             profileId = result.rows[0].id;
         } else {
             const result = await client.query(
-                `INSERT INTO vendors (user_id, business_name, status, accepts_cod, category)
-                 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-                [userId, business_name, initialStatus, accepts_cod, category]
+                `INSERT INTO vendors (user_id, business_name, status, accepts_cod, category, store_slug)
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+                [userId, business_name, initialStatus, accepts_cod, category, store_slug]
             );
             profileId = result.rows[0].id;
         }
@@ -760,6 +763,74 @@ const getMerchantAnalytics = async (req, res) => {
     }
 };
 
+/**
+ * Resolves merchant details by their store slug (v4.7).
+ */
+const getMerchantBySlug = async (req, res) => {
+    const { slug } = req.params;
+    try {
+        const [vendor, kitchen] = await Promise.all([
+            db.query("SELECT id, 'vendor' as type FROM vendors WHERE store_slug = $1", [slug]),
+            db.query("SELECT id, 'kitchen' as type FROM kitchens WHERE store_slug = $1", [slug])
+        ]);
+
+        const match = vendor.rows[0] || kitchen.rows[0];
+        if (!match) return res.status(404).json({ success: false, message: 'Store not found' });
+
+        res.status(200).json({ success: true, data: match });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Returns coupons for the authenticated merchant (v4.7).
+ */
+const getMerchantCoupons = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const { rows } = await db.query(`
+            SELECT c.* FROM coupons c
+            WHERE c.merchant_id IN (SELECT id FROM vendors WHERE user_id = $1)
+               OR c.kitchen_id IN (SELECT id FROM kitchens WHERE user_id = $1)
+            ORDER BY c.created_at DESC
+        `, [userId]);
+        res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Creates a merchant-specific coupon (v4.7).
+ */
+const createMerchantCoupon = async (req, res) => {
+    const userId = req.user.id;
+    const { code, discount_type, discount_value, min_order_amount, usage_limit } = req.body;
+
+    try {
+        const [vendorRes, kitchenRes] = await Promise.all([
+            db.query("SELECT id FROM vendors WHERE user_id = $1", [userId]),
+            db.query("SELECT id FROM kitchens WHERE user_id = $1", [userId])
+        ]);
+
+        const vendorId = vendorRes.rows[0]?.id;
+        const kitchenId = kitchenRes.rows[0]?.id;
+
+        if (!vendorId && !kitchenId) return res.status(403).json({ success: false, message: 'Merchant profile not found' });
+
+        const { rows } = await db.query(
+            `INSERT INTO coupons (code, discount_type, discount_value, min_order_amount, usage_limit, is_active, merchant_id, kitchen_id)
+             VALUES ($1, $2, $3, $4, $5, true, $6, $7) RETURNING *`,
+            [code.toUpperCase(), discount_type, discount_value, min_order_amount || 0, usage_limit || 100, vendorId || null, kitchenId || null]
+        );
+
+        res.status(201).json({ success: true, data: rows[0] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
   registerMerchant,
   createBulkOrders,
@@ -776,5 +847,8 @@ module.exports = {
   getReturnRequests,
   processReturnRequest,
   confirmReturnReceipt,
-  getMerchantAnalytics
+  getMerchantAnalytics,
+  getMerchantBySlug,
+  getMerchantCoupons,
+  createMerchantCoupon
 };

@@ -1,17 +1,19 @@
 # Task: System Hardening & Bug Fixes
 
-- [ ] **Backend - Financial & State Hardening**
-    - [ ] Update `paymentController.js`: Atomic duplicate creation checks
-    - [ ] Update `orderController.js`: Fulfiller-level locking in `acceptOrder`
-    - [ ] Update `scheduledOrderJob.js`: Batch processing with `LIMIT 50`
-- [ ] **Backend - Security & Stability**
-    - [ ] Update `marketplaceController.js`: Restrict field exposure in `getVendorDetails`
-    - [ ] Update `kitchenController.js`: Restrict field exposure in `getKitchenDetails`
-    - [ ] Update `commerceController.js`: Safe JSON parsing for operating hours
-- [ ] **Android - UI Resilience**
-    - [ ] Update `SupportHubScreen.kt`: Error state and Retry button
-    - [ ] Update `ActiveOrderScreen.kt`: Button debouncing during API calls
-- [ ] **Verification**
-    - [ ] Verify atomic mission creation
-    - [ ] Verify fulfillment race condition fix
-    - [ ] Build and Deploy
+- [x] **Merchant Growth Tools**
+    - [x] Implement Store Slugs and deep linking (`pikop://store/{slug}`)
+    - [x] Add "Share Store Link" functionality to Merchant Portal
+    - [x] Build Merchant-Specific Promotions (Store Coupons)
+- [x] **Core Platform Evolution**
+    - [x] Implement Multi-Item Shopping Cart (UI & Backend)
+    - [x] Build Gemini-powered AI Support Assistant (Pikop Agent)
+    - [x] Implement In-App Route Rendering for Agents
+    - [x] Add Demand Heatmaps for Fulfillers
+- [x] **Visual Excellence**
+    - [x] Full Dark Mode support refactor across all key screens
+- [x] **Verification**
+    - [x] Verified Deep Linking and Store Resolution
+    - [x] Verified Multi-item Cart checkout logic
+    - [x] Verified Dark Mode legibility
+    - [x] Build and Deploy
+

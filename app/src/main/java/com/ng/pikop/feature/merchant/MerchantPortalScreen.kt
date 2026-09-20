@@ -1,5 +1,6 @@
 package com.ng.pikop.feature.merchant
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -23,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.*
+import com.ng.pikop.ui.theme.PikopGold
+import com.ng.pikop.ui.theme.PikopNearBlack
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -174,15 +177,16 @@ fun MerchantPortalScreen(
                 }
 
                 TabRow(
-                    selectedTabIndex = selectedTab.intValue,
+                    selectedTabIndex = minOf(selectedTab.intValue, 5),
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary
                 ) {
-                    Tab(selected = selectedTab.intValue == 0, onClick = { selectedTab.intValue = 0 }, text = { Text("Sales", fontSize = 12.sp) })
-                    Tab(selected = selectedTab.intValue == 1, onClick = { selectedTab.intValue = 1 }, text = { Text("Items", fontSize = 12.sp) })
-                    Tab(selected = selectedTab.intValue == 2, onClick = { selectedTab.intValue = 2 }, text = { Text("Insights", fontSize = 12.sp) })
-                    Tab(selected = selectedTab.intValue == 3, onClick = { selectedTab.intValue = 3 }, text = { Text("Returns", fontSize = 12.sp) })
-                    Tab(selected = selectedTab.intValue == 4, onClick = { selectedTab.intValue = 4 }, text = { Text("Bulk", fontSize = 12.sp) })
+                    Tab(selected = selectedTab.intValue == 0, onClick = { selectedTab.intValue = 0 }, text = { Text("Sales", fontSize = 11.sp) })
+                    Tab(selected = selectedTab.intValue == 1, onClick = { selectedTab.intValue = 1 }, text = { Text("Items", fontSize = 11.sp) })
+                    Tab(selected = selectedTab.intValue == 2, onClick = { selectedTab.intValue = 2 }, text = { Text("Insights", fontSize = 11.sp) })
+                    Tab(selected = selectedTab.intValue == 3, onClick = { selectedTab.intValue = 3 }, text = { Text("Returns", fontSize = 11.sp) })
+                    Tab(selected = selectedTab.intValue == 6, onClick = { selectedTab.intValue = 6 }, text = { Text("Promos", fontSize = 11.sp) })
+                    Tab(selected = selectedTab.intValue == 4, onClick = { selectedTab.intValue = 4 }, text = { Text("Bulk", fontSize = 11.sp) })
                 }
 
                 when (selectedTab.intValue) {
@@ -198,6 +202,7 @@ fun MerchantPortalScreen(
                         onRefresh = { fetchDashboard() }
                     )
                     4 -> BulkTabContent(dashboardData.value?.batches ?: emptyList())
+                    6 -> PromotionsTabContent() 
                     5 -> SettingsTabContent(
                         profile = merchantProfile.value,
                         onUpdateSettings = { acceptsCod, allowsReturns, windowDays ->
@@ -213,6 +218,18 @@ fun MerchantPortalScreen(
                                 } catch (_: Exception) {
                                     Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show()
                                 }
+                            }
+                        },
+                        onShareStore = {
+                            val slug = merchantProfile.value?.store_slug
+                            if (!slug.isNullOrBlank()) {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, "Check out my store on Pikop! Click here: pikop://store/$slug")
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share Store Link"))
+                            } else {
+                                Toast.makeText(context, "Store link not generated yet.", Toast.LENGTH_SHORT).show()
                             }
                         }
                     )
@@ -428,7 +445,8 @@ fun BatchItem(batch: MerchantBatch) {
 @Composable
 fun SettingsTabContent(
     profile: MerchantProfile?,
-    onUpdateSettings: (Boolean?, Boolean?, Int?) -> Unit
+    onUpdateSettings: (Boolean?, Boolean?, Int?) -> Unit,
+    onShareStore: () -> Unit
 ) {
     if (profile == null) return
 
@@ -440,6 +458,27 @@ fun SettingsTabContent(
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         Text("Business Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+        // Store Sharing Card (v4.7)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = PikopGold.copy(alpha = 0.1f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Promote Your Store", fontWeight = FontWeight.Bold)
+                Text("Share your unique store link with customers to drive direct orders.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = onShareStore,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = PikopGold, contentColor = PikopNearBlack)
+                ) {
+                    Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Share Store Link")
+                }
+            }
+        }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -618,5 +657,129 @@ fun ReturnRequestItem(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun PromotionsTabContent() {
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val apiService = remember { ApiService.create(tokenManager) }
+    val scope = rememberCoroutineScope()
+
+    var coupons by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var showCreateDialog by remember { mutableStateOf(false) }
+
+    fun fetch() {
+        scope.launch {
+            isLoading = true
+            try {
+                val res = apiService.getMerchantCoupons()
+                val data = res["data"] as? List<Map<String, Any>>
+                coupons = data ?: emptyList()
+            } catch (_: Exception) {}
+            isLoading = false
+        }
+    }
+
+    LaunchedEffect(Unit) { fetch() }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Store Promotions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Button(onClick = { showCreateDialog = true }) {
+                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("New Coupon")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (coupons.isEmpty()) {
+            EmptyStateView(
+                icon = Icons.Default.ConfirmationNumber,
+                title = "No Promotions Active",
+                description = "Create custom coupon codes to reward your regular customers and drive more sales."
+            )
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(coupons) { coupon ->
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column {
+                                Text(text = coupon["code"]?.toString() ?: "", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                                Text(
+                                    text = if (coupon["discount_type"] == "FIXED") "₦${coupon["discount_value"]} Off" else "${coupon["discount_value"]}% Off",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Badge(containerColor = if (coupon["is_active"] == true) PikopGold.copy(alpha = 0.2f) else Color.Gray.copy(alpha = 0.2f)) {
+                                Text(
+                                    if (coupon["is_active"] == true) "ACTIVE" else "INACTIVE",
+                                    color = if (coupon["is_active"] == true) PikopGold else Color.Gray,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showCreateDialog) {
+        var code by remember { mutableStateOf("") }
+        var value by remember { mutableStateOf("") }
+        var type by remember { mutableStateOf("FIXED") } // FIXED, PERCENTAGE
+
+        AlertDialog(
+            onDismissRequest = { showCreateDialog = false },
+            title = { Text("Create Store Coupon") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(value = code, onValueChange = { code = it.uppercase() }, label = { Text("Coupon Code (e.g. SAVE500)") }, modifier = Modifier.fillMaxWidth())
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = type == "FIXED", onClick = { type = "FIXED" }, label = { Text("₦ Naira") })
+                        FilterChip(selected = type == "PERCENTAGE", onClick = { type = "PERCENTAGE" }, label = { Text("% Percent") })
+                    }
+
+                    OutlinedTextField(
+                        value = value, 
+                        onValueChange = { value = it }, 
+                        label = { Text(if (type == "FIXED") "Discount Amount" else "Discount Percentage") }, 
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            try {
+                                apiService.createMerchantCoupon(mapOf(
+                                    "code" to code,
+                                    "discount_type" to type,
+                                    "discount_value" to (value.toDoubleOrNull() ?: 0.0)
+                                ))
+                                fetch()
+                                showCreateDialog = false
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    enabled = code.isNotBlank() && value.isNotBlank()
+                ) { Text("Create") }
+            },
+            dismissButton = { TextButton(onClick = { showCreateDialog = false }) { Text("Cancel") } }
+        )
     }
 }

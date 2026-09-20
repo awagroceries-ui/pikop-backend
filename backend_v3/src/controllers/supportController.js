@@ -114,9 +114,62 @@ const getMessages = async (req, res) => {
   }
 };
 
+/**
+ * Interactive AI Assistant using Gemini (v4.7).
+ */
+const askPikopAgent = async (req, res) => {
+    const { question } = req.body;
+    const userRole = req.user.role;
+
+    try {
+        // 1. Fetch relevant context from Knowledge Base (RAG-lite)
+        const { rows: articles } = await db.query(
+            `SELECT title, content FROM knowledge_base
+             WHERE is_active = true
+             AND (target_audience = $1 OR target_audience = 'BOTH')
+             ORDER BY priority DESC LIMIT 5`,
+            [userRole]
+        );
+
+        const context = articles.map(a => `Q: ${a.title}\nA: ${a.content}`).join('\n\n');
+
+        const prompt = `
+            Context: You are the Pikop Support Agent, a helpful AI assistant for the Pikop app (a Nigerian logistics and marketplace platform).
+            User Question: "${question}"
+            User Role: ${userRole}
+
+            Knowledge Base Context:
+            ${context}
+
+            Rules:
+            1. Use ONLY the information provided in the context if applicable.
+            2. If the context doesn't answer the question, be helpful but suggest contacting a human agent for complex issues.
+            3. Keep the tone friendly, professional, and concise. Use "₦" for currency.
+            4. Do not make up fake policies.
+
+            Response:
+        `;
+
+        const { GoogleGenerativeAI } = require("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+
+        res.status(200).json({ success: true, answer: responseText });
+
+    } catch (error) {
+        console.error('[GeminiAgent] Error:', error.message);
+        res.status(500).json({ success: false, message: 'AI Assistant is temporarily busy.' });
+    }
+};
+
 module.exports = {
   getKnowledgeBase,
+  getArticleById,
   getOrCreateConversation,
   getMessages,
-  getSupportInbox
+  getSupportInbox,
+  askPikopAgent
 };

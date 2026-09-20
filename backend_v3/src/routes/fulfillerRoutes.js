@@ -32,6 +32,7 @@ router.get('/profile', authenticateToken, fulfillerController.getProfile);
 router.patch('/profile', authenticateToken, fulfillerController.updateFulfillerProfile);
 router.post('/profile-photo', authenticateToken, upload.single('photo'), fulfillerController.uploadProfilePhoto);
 router.patch('/status', authenticateToken, fulfillerController.updateStatus);
+router.get('/demand-heatmap', authenticateToken, fulfillerController.getDemandHeatmap);
 router.get('/orders', authenticateToken, orderController.getFulfillerOrders);
 router.get('/offers', authenticateToken, fulfillerController.getAvailableOffers);
 router.post('/submit-application', authenticateToken, fulfillerController.submitApplication);

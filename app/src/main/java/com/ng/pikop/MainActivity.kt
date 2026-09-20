@@ -34,6 +34,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.FirebaseApp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.cart.CartManager
 import com.ng.pikop.feature.auth.*
 import com.ng.pikop.feature.chat.*
 import com.ng.pikop.feature.commerce.CommerceCheckoutScreen
@@ -191,7 +192,30 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         android.util.Log.d("PikopIntent", "Processing intent: $dataUri | navigate_to: $navigateTo | orderId: $orderId | conversationId: $conversationId")
 
         // 1. Handle Scheme-based Deep Links (e.g. pikop://payment/success)
-        // ... (existing deep link logic omitted for brevity, keeping it intact)
+        if (dataUri != null && dataUri.scheme == "pikop") {
+            if (dataUri.host == "payment" && dataUri.path == "/success") {
+                val reference = dataUri.getQueryParameter("reference") ?: ""
+                navController.navigate("confirm_payment/$reference")
+            } else if (dataUri.host == "store") {
+                val slug = dataUri.lastPathSegment
+                if (slug != null) {
+                    scope.launch {
+                        try {
+                            val api = ApiService.create(tokenManager)
+                            val res = api.getMerchantBySlug(slug)
+                            res.data?.let { merchant ->
+                                // Route to correct storefront with merchant filter
+                                val base = if (merchant.type == "vendor") "storefront_shop" else "storefront_food"
+                                navController.navigate("$base?merchantId=${merchant.id}")
+                                android.util.Log.d("DeepLink", "Resolved store: ${merchant.id} (${merchant.type})")
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("DeepLink", "Store resolution failed", e)
+                        }
+                    }
+                }
+            }
+        }
         
         if (accessToken != null && navigateTo != null) {
             when (navigateTo) {
@@ -871,8 +895,11 @@ fun MainAppScaffold(
                     )
                 }
             }
-            composable("storefront_food") {
+            composable("storefront_food?merchantId={merchantId}") { backStackEntry ->
+                val mId = backStackEntry.arguments?.getString("merchantId")
                 com.ng.pikop.feature.commerce.FoodStorefrontScreen(
+                    merchantId = mId,
+                    onViewCart = { navController.navigate("commerce_cart") },
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
                         navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
                     }
@@ -880,32 +907,52 @@ fun MainAppScaffold(
             }
             composable("storefront_groceries") {
                 com.ng.pikop.feature.commerce.GroceryStorefrontScreen(
+                    onViewCart = { navController.navigate("commerce_cart") },
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
                         navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
                     }
                 )
             }
-            composable("storefront_shop") {
+            composable("storefront_shop?merchantId={merchantId}") { backStackEntry ->
+                val mId = backStackEntry.arguments?.getString("merchantId")
                 com.ng.pikop.feature.commerce.ShopStorefrontScreen(
+                    merchantId = mId,
+                    onViewCart = { navController.navigate("commerce_cart") },
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
                         navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
                     }
+                )
+            }
+            composable("commerce_cart") {
+                com.ng.pikop.feature.commerce.CartScreen(
+                    onCheckout = {
+                        val firstItem = CartManager.items.firstOrNull()
+                        if (firstItem != null) {
+                            navController.navigate("commerce_checkout/${firstItem.item.id}/${firstItem.item.item_type}?useCart=true")
+                        }
+                    },
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(
-                route = "commerce_checkout/{itemId}/{itemType}",
+                route = "commerce_checkout/{itemId}/{itemType}?useCart={useCart}",
                 arguments = listOf(
                     navArgument("itemId") { type = NavType.StringType },
-                    navArgument("itemType") { type = NavType.StringType }
+                    navArgument("itemType") { type = NavType.StringType },
+                    navArgument("useCart") { type = NavType.BoolType; defaultValue = false }
                 )
             ) { backStackEntry ->
                 val itemId = backStackEntry.arguments?.getString("itemId") ?: ""
                 val itemType = backStackEntry.arguments?.getString("itemType") ?: "product"
+                val useCart = backStackEntry.arguments?.getBoolean("useCart") ?: false
+                
                 CommerceCheckoutScreen(
                     itemId = itemId,
                     itemType = itemType,
                     navController = navController,
+                    useCart = useCart,
                     onSuccess = { 
+                        CartManager.clear()
                         navController.navigate("main") { popUpTo(0) { inclusive = true } } 
                     },
                     onCelebration = onCelebration,

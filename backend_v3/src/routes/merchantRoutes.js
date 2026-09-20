@@ -8,12 +8,17 @@ const { authenticateMerchantKey } = require('../middleware/merchantAuth');
 router.post('/register', authenticateToken, merchantController.registerMerchant);
 router.post('/setup', authenticateToken, merchantController.setupMerchantProfile);
 router.patch('/settings', authenticateToken, merchantController.updateMerchantSettings);
+router.get('/slug/:slug', authenticateToken, merchantController.getMerchantBySlug);
 router.get('/dashboard', authenticateToken, merchantController.getSellerDashboard);
 router.get('/analytics', authenticateToken, merchantController.getMerchantAnalytics);
 router.get('/profile', authenticateToken, merchantController.getMerchantProfile);
 router.get('/my-batches', authenticateToken, merchantController.getMyBatches);
 router.get('/my-batches/:batchId', authenticateToken, merchantController.getBatchStatus);
 router.post('/orders/bulk-session', authenticateToken, merchantController.createBulkOrdersSession);
+
+// Promotion Management (v4.7)
+router.get('/coupons', authenticateToken, merchantController.getMerchantCoupons);
+router.post('/coupons', authenticateToken, merchantController.createMerchantCoupon);
 
 router.get('/orders', authenticateToken, merchantController.getIncomingOrders);
 router.patch('/orders/:id/status', authenticateToken, merchantController.updateOrderStatus);

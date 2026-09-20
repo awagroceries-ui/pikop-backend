@@ -701,7 +701,8 @@ data class MerchantProfile(
     val accepts_cod: Boolean = true,
     val allows_returns: Boolean = false,
     val return_window_days: Int = 7,
-    val return_policy_text: String? = null
+    val return_policy_text: String? = null,
+    val store_slug: String? = null
 )
 
 data class SetupMerchantRequest(
@@ -900,14 +901,16 @@ data class DiscoveryResponse(
 )
 
 data class CommerceOrderRequest(
-    val item_id: String,
-    val item_type: String, // product, meal
+    val items: List<Map<String, Any>>? = null,
+    val item_id: String? = null,
+    val item_type: String? = null, // product, meal
     val delivery_address: String,
     val lat: Double,
     val lng: Double,
     val city: String? = "Port Harcourt",
     val payment_method: String, // CARD, COD, WALLETPAY
-    val scheduled_at: String? = null
+    val scheduled_at: String? = null,
+    val promo_id: String? = null
 )
 
 data class PaymentInitializationRequest(
@@ -995,6 +998,9 @@ interface ApiService {
 
     @GET("api/v1/fulfillers/offers")
     suspend fun getOffers(): List<OfferResponse>
+
+    @GET("api/v1/fulfillers/demand-heatmap")
+    suspend fun getDemandHeatmap(): Map<String, Any>
 
     @GET("api/v1/fulfillers/banks")
     suspend fun getBanks(): BankResponse
@@ -1123,6 +1129,9 @@ interface ApiService {
     @POST("api/v1/support/conversations")
     suspend fun getOrCreateSupportConversation(): SupportConversation
 
+    @POST("api/v1/support/ask")
+    suspend fun askAiAssistant(@Body request: Map<String, String>): Map<String, Any>
+
     @GET("api/v1/support/conversations/{id}/messages")
     suspend fun getSupportMessages(@retrofit2.http.Path("id") id: String): List<ChatMessage>
 
@@ -1180,6 +1189,9 @@ interface ApiService {
     @GET("api/v1/merchants/profile")
     suspend fun getMerchantProfile(): MerchantProfileResponse
 
+    @GET("api/v1/merchants/slug/{slug}")
+    suspend fun getMerchantBySlug(@retrofit2.http.Path("slug") slug: String): MerchantProfileResponse
+
     @POST("api/v1/merchants/setup")
     suspend fun setupMerchantProfile(@Body request: SetupMerchantRequest): SetupMerchantResponse
 
@@ -1227,6 +1239,12 @@ interface ApiService {
     @GET("api/v1/merchants/my-batches/{id}")
     suspend fun getBatchDetails(@retrofit2.http.Path("id") id: String): BatchDetailsResponse
 
+    @GET("api/v1/merchants/coupons")
+    suspend fun getMerchantCoupons(): Map<String, Any>
+
+    @POST("api/v1/merchants/coupons")
+    suspend fun createMerchantCoupon(@Body request: Map<String, Any>): Map<String, Any>
+
     @POST("api/v1/merchants/orders/bulk-session")
     suspend fun createBulkOrders(@Body request: BulkOrderRequest): Map<String, Any>
 
@@ -1260,7 +1278,8 @@ interface ApiService {
         @Query("lng") lng: Double? = null,
         @Query("category") category: String? = null,
         @Query("query") query: String? = null,
-        @Query("item_type") item_type: String? = null
+        @Query("item_type") item_type: String? = null,
+        @Query("vendor_id") vendor_id: String? = null
     ): DiscoveryResponse
 
     @POST("api/v1/commerce/checkout/initialize")
