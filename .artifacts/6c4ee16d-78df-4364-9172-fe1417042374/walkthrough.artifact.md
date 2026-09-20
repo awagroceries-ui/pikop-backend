@@ -1,33 +1,49 @@
-# Walkthrough - System Hardening & Bug Fixes
+# Walkthrough - Advanced Feature Suite
 
-I have implemented a comprehensive set of hardening fixes across the Pikop ecosystem to ensure data integrity, prevent race conditions, and improve the resilience of the mobile application.
+I have completed the implementation of the "Advanced Feature Suite," a collection of high-impact tools designed to supercharge growth for merchants, improve operational efficiency for agents, and provide a premium experience for customers.
 
 ## Changes Made
 
-### 🔒 1. Backend: Financial & State Integrity
-- **Atomic Order Creation**: Moved the "Order already exists" idempotency check *inside* the database transaction for marketplace and standard orders in `paymentController.js`. This guarantees that even if multiple webhooks are delivered simultaneously, exactly one order is created per payment reference.
-- **Assignment Race Condition Fix**: In `orderController.js`, I added a `FOR UPDATE` lock on the fulfiller's record during the `acceptOrder` flow. This prevents a rare but critical race condition where an agent could be assigned two primary missions if they accepted both at the exact same microsecond.
-- **Scheduled Job Batching**: Added a `LIMIT 50` to the scheduled order activation job in `scheduledOrderJob.js`. This prevents potential memory spikes and ensures stable performance as the number of scheduled missions grows.
+### 🔗 1. Merchant Store Links (Direct-to-Shop)
+- **Deep Linking**: Implemented a new scheme `pikop://store/{slug}`. Merchants can now generate a unique link for their store (e.g., `pikop://store/mama-jay-kitchen`).
+- **One-Tap Access**: When a customer clicks this link, the Pikop app opens directly to that merchant's storefront, bypassing the generic discovery phase.
+- **Sharing**: Added a "Share Store Link" button in the **Merchant Portal Settings** for instant promotion on social media.
 
-### 🛡️ 2. Security & Stability
-- **Merchant Data Protection**: Updated `marketplaceController.js` and `kitchenController.js` to explicitly select only public-facing columns (name, city, description, etc.). This ensures internal merchant metadata is not leaked to the mobile client.
-- **Safe JSON Parsing**: Hardened the operating hours logic in `commerceController.js` with try-catch blocks. If a merchant's hours data is corrupted, the system will now log a warning and fallback gracefully instead of returning a 500 error.
+### 🎫 2. Merchant-Specific Promotions
+- **Store Coupons**: Merchants can now create their own discount codes that apply *only* to their store's items.
+- **Merchant Tab**: Added a **"Promos"** tab to the Seller Center where merchants can manage active deals, set spend limits, and track usage.
+- **Gated Validation**: The backend now validates that store-specific coupons are only used on the correct merchant's items during checkout.
 
-### 📱 3. Android: App Resilience
-- **Error Recovery**: Enhanced the `SupportHubScreen.kt` with a formal error state. If the knowledge base fails to load, users now see a clear "Cloud Off" icon with a **Retry** button.
-- **Button Debouncing**: Updated `ActiveOrderScreen.kt` and `TrackOrderScreen.kt` to disable critical action buttons (Verify Pickup, Complete Mission, Cancel) while an API call is in progress. This prevents users from accidentally double-triggering actions due to network lag.
-- **Visual Feedback**: Added loading indicators inside buttons during the "Confirmation" and "Verification" phases.
+### 🛒 3. Multi-Item Shopping Cart
+- **Persistent Cart**: Customers can now add multiple items from a single merchant to a cart before checking out.
+- **Cart UI**: Added a dedicated `CartScreen` and a "Floating Cart" button to the storefronts.
+- **Backend Scaling**: Implemented the `order_items` database table to track individual line items per mission, allowing for much more complex and profitable orders.
+
+### 🤖 4. AI-Powered Support Assistant (Pikop Agent)
+- **Gemini Integration**: Built an interactive AI Chatbot inside the **Support Hub**.
+- **Instant Knowledge**: The "Pikop Agent" uses our Knowledge Base as context to answer user questions instantly, 24/7.
+- **Seamless Handoff**: If the AI can't resolve an issue, it provides a direct link to chat with a human support member.
+
+### 🌓 5. Full Dark Mode Support
+- **Semantic Refactor**: Refactored the entire app UI to use Material 3 semantic colors.
+- **Premium Look**: The app now automatically adapts to the user's system theme, providing a sleek, high-contrast dark experience with Pikop Gold accents.
+
+### 🗺️ 6. Agent Map Enhancements
+- **Route Rendering**: Agents now see a solid route line from their location to the pickup/delivery point directly on the mission screen.
+- **Demand Heatmaps**: Agents can toggle a "Demand Hotspots" view on their dashboard to see where orders are currently concentrated across the city.
 
 ## Verification Results
-- **Atomic Creation**: [VERIFIED] Replaying a payment webhook reference results in a "Skipping" log and no duplicate database entries.
-- **Fulfillment Locking**: [VERIFIED] Simultaneous acceptance requests are now serialized correctly by the database.
-- **App Resilience**: [VERIFIED] The app correctly handles network timeouts in the Help Center and prevents multiple clicks on mission status updates.
-- **Build Status**: [SUCCESS] Successfully compiled and verified the Android app.
+- **Deep Linking**: [VERIFIED] Store links correctly resolve and navigate to filtered storefronts.
+- **Promos**: [VERIFIED] Merchant coupons are restricted to the owner's store.
+- **Cart**: [VERIFIED] Multi-item checkout correctly calculates totals and records all items.
+- **Dark Mode**: [VERIFIED] All primary screens are legible and beautiful in Dark Mode.
+- **Build Status**: [SUCCESS] Successfully compiled the Android app.
 
 ## Deployment Instructions
-To activate these hardening fixes on your production VPS:
+To activate these new features on your production VPS:
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
+npm run migrate:up
 pm2 restart pikop-v3
 ```
