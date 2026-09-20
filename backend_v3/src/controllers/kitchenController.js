@@ -69,7 +69,10 @@ const getKitchens = async (req, res) => {
 const getKitchenDetails = async (req, res) => {
   const { id } = req.params;
   try {
-    const kitchen = await db.query("SELECT * FROM kitchens WHERE id = $1", [id]);
+    const kitchen = await db.query(
+        "SELECT id, business_name, status, city, cuisine_type, description, pickup_address_id FROM kitchens WHERE id = $1",
+        [id]
+    );
     if (kitchen.rows.length === 0) return res.status(404).json({ success: false, message: 'Kitchen not found' });
 
     const menu = await db.query("SELECT * FROM menu_items WHERE kitchen_id = $1 AND available = true", [id]);

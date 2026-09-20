@@ -301,8 +301,8 @@ const acceptOrder = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Fetch fulfiller ID for this user
-    const fRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1", [userId]);
+    // 1. Fetch and Lock fulfiller row (prevents race condition for double assignment)
+    const fRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1 FOR UPDATE", [userId]);
     if (fRes.rows.length === 0) return res.status(403).json({ success: false, message: 'Fulfiller profile not found' });
     const fulfillerId = fRes.rows[0].id;
 

@@ -1,15 +1,17 @@
-# Task: Success Celebration Animation
+# Task: System Hardening & Bug Fixes
 
-- [ ] **Core Animation Component**
-    - [ ] Create `SuccessCelebrationOverlay.kt` with brand colors and single-burst logic
-    - [ ] Implement `CelebrationViewModel.kt` for global state management
-    - [ ] Add "Reduce Motion" accessibility fallback
-- [ ] **Milestone Integration**
-    - [ ] Add Overlay to `MainActivity.kt`
-    - [ ] Trigger on successful Dispatch/Marketplace checkout (`OrderQuoteScreen.kt`, `CommerceCheckoutScreen.kt`)
-    - [ ] Trigger on first product listed (`AddEditProductScreen.kt`)
-    - [ ] Trigger on Fulfiller streak/milestones (`TrackOrderScreen.kt`)
+- [ ] **Backend - Financial & State Hardening**
+    - [ ] Update `paymentController.js`: Atomic duplicate creation checks
+    - [ ] Update `orderController.js`: Fulfiller-level locking in `acceptOrder`
+    - [ ] Update `scheduledOrderJob.js`: Batch processing with `LIMIT 50`
+- [ ] **Backend - Security & Stability**
+    - [ ] Update `marketplaceController.js`: Restrict field exposure in `getVendorDetails`
+    - [ ] Update `kitchenController.js`: Restrict field exposure in `getKitchenDetails`
+    - [ ] Update `commerceController.js`: Safe JSON parsing for operating hours
+- [ ] **Android - UI Resilience**
+    - [ ] Update `SupportHubScreen.kt`: Error state and Retry button
+    - [ ] Update `ActiveOrderScreen.kt`: Button debouncing during API calls
 - [ ] **Verification**
-    - [ ] Verify non-strobe requirement
-    - [ ] Verify Reduce Motion fallback
+    - [ ] Verify atomic mission creation
+    - [ ] Verify fulfillment race condition fix
     - [ ] Build and Deploy

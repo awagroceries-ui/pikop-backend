@@ -1,55 +1,54 @@
-# Implementation Plan - Success Celebration Animation
+# Implementation Plan - System Hardening & Bug Fixes
 
-This plan introduces a reusable, brand-colored success celebration animation triggered during key milestones across the app.
+This plan addresses critical race conditions, idempotency gaps, and security risks identified during the comprehensive audit.
 
 ## Proposed Changes
 
-### 🎨 1. Reusable Animation Component
+### 1. Backend: Financial & State Hardening
 
-#### [NEW] [SuccessCelebrationOverlay](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/ui/components/SuccessCelebrationOverlay.kt)
-- **Visuals**: A smooth, single-burst particle effect using the Pikop brand palette (`PikopGreen`, `PikopLemonGreen`, `PikopGold`, `PikopOrange`).
-- **Safety**: No strobing or rapid flickering. A single scale and fade-out transition.
-- **Accessibility**:
-    - Automatically detects system "Reduce Motion" settings.
-    - Fallback: Shows a static, high-contrast success checkmark icon with a gentle fade-in, omitting the particle burst.
-- **Auto-dismiss**: Animation automatically clears after 2 seconds or on a screen tap.
+#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
+- **Fix Duplicate Creation**: Move the "Order already exists" check *inside* the database transaction for both regular and commerce orders.
+- **Unique References**: Ensure `payment_reference` has a unique constraint at the DB level (if not already present) to prevent duplicate inserts even under extreme race conditions.
 
-#### [NEW] [CelebrationViewModel](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/ui/components/CelebrationViewModel.kt)
-- A simple, singleton-scoped ViewModel to trigger the celebration state globally.
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- **Fix Acceptance Race Condition**: In `acceptOrder`, lock the fulfiller's row (`SELECT FOR UPDATE` on `fulfillers`) before checking if they have active orders. This prevents a fulfiller from being assigned two missions simultaneously.
+
+#### [MODIFY] [scheduledOrderJob.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/jobs/scheduledOrderJob.js)
+- **Batch Processing**: Add a `LIMIT 50` to the scheduled order update to prevent massive spikes from overwhelming the dispatcher.
 
 ---
 
-### 🚀 2. Integration into Milestone Moments
+### 2. Backend: Security & Stability
 
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Add `SuccessCelebrationOverlay` as a top-level component above the `NavHost` to ensure it can overlay any screen.
+#### [MODIFY] [marketplaceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/marketplaceController.js) & [kitchenController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/kitchenController.js)
+- **Restrict Data Exposure**: Update `getVendorDetails` and `getKitchenDetails` to only return necessary public fields (business name, city, category, description, profile photo) rather than `SELECT *`.
 
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- Trigger celebration on successful mission activation (standard and scheduled).
+#### [MODIFY] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
+- **Safe JSON Parsing**: Wrap `JSON.parse(item.operating_hours)` in a try-catch block within the `getDiscovery` mapping logic to prevent a 500 error if operating hours data is malformed.
 
-#### [MODIFY] [CommerceCheckoutScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/CommerceCheckoutScreen.kt)
-- Trigger celebration on successful order placement.
+---
 
-#### [MODIFY] [AddEditProductScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/AddEditProductScreen.kt)
-- Trigger celebration when a new product is successfully saved.
+### 3. Android App: Reliability & Error Handling
 
-#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt)
-- Trigger celebration when a Customer's order moves to `DELIVERED` or `RELEASED`.
+#### [MODIFY] [SupportHubScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/SupportHubScreen.kt)
+- **Error Feedback**: Update `fetchArticles` to show an error message and a "Retry" button if the API call fails, instead of just remaining empty.
+
+#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
+- **State Guarding**: Ensure that sensitive buttons (like "Verify Delivery") are disabled while an API call is in progress to prevent duplicate status updates from the app side.
 
 ---
 
 ## User Review Required
 
-> [!IMPORTANT]
-> **Trigger Frequency**
-> As per instructions, this animation will ONLY trigger for the first time a user completes these actions or for specific milestones (e.g., first order, first product). Routine repeated actions will continue to use standard toasts or snackbars.
+> [!CAUTION]
+> **Database Locking**
+> Using `SELECT FOR UPDATE` on fulfillers during order acceptance will serialize assignment for that specific agent. This is necessary for data integrity but means if an agent's connection is extremely laggy, it might briefly lock their record. This is acceptable for the benefit of preventing double-assignment.
 
 ## Verification Plan
 
+### Automated Tests (Scripts)
+- **Concurrency Test**: Run 5 simultaneous "accept" requests for the same fulfiller on different orders. Confirm only 1 is assigned as primary and others are queued correctly.
+- **Webhook Replay**: Trigger the same Paystack `charge.success` webhook twice for a commerce order. Confirm only 1 order is created in the database.
+
 ### Manual Verification
-1.  **Visual Polish**: Verify the animation uses all four brand colors and is a single smooth burst.
-2.  **Accessibility**:
-    - Turn on "Remove animations" in Android developer settings.
-    - Verify only the static checkmark appears.
-3.  **Non-Blocking**: Tap the screen while the animation is playing to confirm it dismisses and allows interaction with the UI below.
-4.  **Milestone Test**: Create a new product. Verify the celebration plays. Edit an existing product. Verify NO celebration plays (routine action).
+- **App Resilience**: Temporarily disconnect the internet while loading the Help Center. Confirm the "Retry" button appears and correctly re-fetches content when reconnected.

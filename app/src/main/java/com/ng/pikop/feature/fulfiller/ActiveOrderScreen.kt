@@ -92,6 +92,7 @@ fun ActiveOrderScreen(
     // Timer for "Mark Failed" (10-minute wait)
     var secondsAtDestination by remember { mutableStateOf(0) }
     var isArrived by remember { mutableStateOf(false) }
+    var isActionLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(isArrived) {
         if (isArrived) {
@@ -481,7 +482,8 @@ fun ActiveOrderScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !isLoading && pickupCode.length == 4
                             ) {
-                                Text("Verify Pickup")
+                                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                else Text("Verify Pickup")
                             }
                         } else if (isDeliveryPhase) {
                             PhaseCard(
@@ -520,9 +522,11 @@ fun ActiveOrderScreen(
                                             } finally { isLoading = false }
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isLoading
                                 ) {
-                                    Text("Confirm Arrival at Destination")
+                                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                    else Text("Confirm Arrival at Destination")
                                 }
                             }
 
@@ -535,18 +539,21 @@ fun ActiveOrderScreen(
                                 Button(
                                     onClick = {
                                         coroutineScope.launch {
+                                            isActionLoading = true
                                             try {
                                                 apiService.requestConsent(orderId, mapOf("note" to "Arrived at destination"))
                                                 Toast.makeText(context, "Consent link sent to recipient.", Toast.LENGTH_SHORT).show()
                                             } catch (e: Exception) {
                                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
-                                            }
+                                            } finally { isActionLoading = false }
                                         }
                                     },
                                     modifier = Modifier.weight(1f),
+                                    enabled = !isActionLoading && !isLoading,
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                                 ) {
-                                    Text("Request Consent", fontSize = 12.sp)
+                                    if (isActionLoading) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onSecondary)
+                                    else Text("Request Consent", fontSize = 12.sp)
                                 }
 
                                 Button(
@@ -577,7 +584,8 @@ fun ActiveOrderScreen(
                                     enabled = isWaitComplete && !isLoading,
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                                 ) {
-                                    if (isWaitComplete) Text("Mark Failed", fontSize = 12.sp)
+                                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                                    else if (isWaitComplete) Text("Mark Failed", fontSize = 12.sp)
                                     else Text("Wait ${remainingWait}s", fontSize = 12.sp)
                                 }
                             }
@@ -683,7 +691,8 @@ fun ActiveOrderScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     enabled = !isLoading && deliveryCode.length == 4 && deliveryPhotoUri != null
                                 ) {
-                                    Text("Complete Mission")
+                                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                    else Text("Complete Mission")
                                 }
                             }
                         } else if (isAwaitingRelease) {

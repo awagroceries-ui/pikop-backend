@@ -299,6 +299,7 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
     
     var orderDetails by remember { mutableStateOf<OrderDetailsResponse?>(null) }
     var isConfirming by remember { mutableStateOf(false) }
+    var isActionLoading by remember { mutableStateOf(false) }
     var showDisputeDialog by remember { mutableStateOf(false) }
     var showRatingDialog by remember { mutableStateOf(false) }
     var showFulfillerProfile by remember { mutableStateOf(false) }
@@ -523,22 +524,25 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                         confirmButton = { 
                             Button(
                                 onClick = { 
-                                    scope.launch { 
+                                    coroutineScope.launch { 
+                                        isActionLoading = true
                                         try { 
                                             val response = apiService.cancelOrder(orderId, mapOf("reason" to "User requested cancellation"))
                                             android.widget.Toast.makeText(context, response.message ?: "Mission Aborted", android.widget.Toast.LENGTH_LONG).show()
                                             onRefresh() 
+                                            showCancelConfirm = false 
                                         } catch (e: Exception) {
                                             val errorMsg = com.ng.pikop.core.network.ErrorUtils.parseError(e)
                                             android.util.Log.e("TrackOrder", "Cancel failed: $errorMsg", e)
                                             android.widget.Toast.makeText(context, errorMsg, android.widget.Toast.LENGTH_LONG).show()
-                                        } 
+                                        } finally { isActionLoading = false }
                                     }
-                                    showCancelConfirm = false 
                                 }, 
+                                enabled = !isActionLoading,
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                             ) { 
-                                Text("Confirm Abort") 
+                                if (isActionLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                                else Text("Confirm Abort") 
                             } 
                         }, 
                         dismissButton = { 

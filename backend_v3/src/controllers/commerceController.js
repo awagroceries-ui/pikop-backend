@@ -65,14 +65,18 @@ const getDiscovery = async (req, res) => {
         let nextOpen = null;
 
         if (item.operating_hours) {
-            const hours = typeof item.operating_hours === 'string' ? JSON.parse(item.operating_hours) : item.operating_hours;
-            const today = new Date().getDay(); // 0-6 (Sun-Sat)
-            const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][today];
-            const config = hours[dayKey] || hours['all'];
+            try {
+                const hours = typeof item.operating_hours === 'string' ? JSON.parse(item.operating_hours) : item.operating_hours;
+                const today = new Date().getDay(); // 0-6 (Sun-Sat)
+                const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][today];
+                const config = hours[dayKey] || hours['all'];
 
-            if (config) {
-                isOpen = isWithinWindow(nowTime, config.open, config.close);
-                nextOpen = config.open;
+                if (config) {
+                    isOpen = isWithinWindow(nowTime, config.open, config.close);
+                    nextOpen = config.open;
+                }
+            } catch (e) {
+                console.warn(`[Commerce] Failed to parse operating hours for item ${item.id}:`, e.message);
             }
         }
 

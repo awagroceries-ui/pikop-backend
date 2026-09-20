@@ -33,6 +33,7 @@ fun SupportHubScreen(
 ) {
     var articles by remember { mutableStateOf<List<KnowledgeBaseArticle>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var activeGroup by remember { mutableStateOf(if (userRole == "MERCHANT") "MERCHANT" else if (userRole == "FULFILLER") "FULFILLER" else "CUSTOMER") }
     
@@ -44,9 +45,12 @@ fun SupportHubScreen(
     fun fetchArticles() {
         scope.launch {
             isLoading = true
+            errorMessage = null
             try {
                 articles = apiService.getKnowledgeBase(activeGroup)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                errorMessage = "Failed to load help articles. Check your connection."
+            }
             isLoading = false
         }
     }
@@ -162,6 +166,20 @@ fun SupportHubScreen(
 
             if (isLoading) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = PikopOrange)
+            } else if (errorMessage != null) {
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxWidth().padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.CloudOff, null, modifier = Modifier.size(64.dp), tint = Color.Gray)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(errorMessage!!, textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(onClick = { fetchArticles() }) {
+                        Text("Retry")
+                    }
+                }
             } else if (categories.isEmpty()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text(if (searchQuery.isEmpty()) "No help articles found." else "No results for '$searchQuery'", color = Color.Gray)

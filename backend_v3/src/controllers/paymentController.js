@@ -353,6 +353,14 @@ const handleWebhook = async (req, res) => {
         try {
             await client.query('BEGIN');
 
+            // 4.0 Idempotency Check: Prevent duplicate orders for the same reference
+            const existing = await client.query("SELECT id FROM orders WHERE payment_reference = $1", [reference]);
+            if (existing.rows.length > 0) {
+                console.log(`[Commerce] Order already exists for reference ${reference}. Skipping.`);
+                await client.query('COMMIT');
+                return res.sendStatus(200);
+            }
+
             const addrRes = await client.query("SELECT * FROM addresses WHERE id = $1", [m.pickup_address_id]);
             const pAddr = addrRes.rows[0];
 

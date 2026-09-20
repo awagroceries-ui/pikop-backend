@@ -8,13 +8,15 @@ const processScheduledOrders = async () => {
     console.log('[ScheduledJob] Checking for due scheduled missions...');
 
     try {
-        const { rows: dueOrders } = await db.query(`
             UPDATE orders
             SET status = 'SEARCHING'
-            WHERE status = 'SCHEDULED'
-              AND scheduled_at <= (CURRENT_TIMESTAMP AT TIME ZONE 'Africa/Lagos' + INTERVAL '30 minutes')
+            WHERE id IN (
+                SELECT id FROM orders
+                WHERE status = 'SCHEDULED'
+                  AND scheduled_at <= (CURRENT_TIMESTAMP AT TIME ZONE 'Africa/Lagos' + INTERVAL '30 minutes')
+                LIMIT 50
+            )
             RETURNING *
-        `);
 
         for (const order of dueOrders) {
             console.log(`[ScheduledJob] Activating Mission #${order.id}`);

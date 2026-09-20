@@ -69,7 +69,10 @@ const getMarketplace = async (req, res) => {
 const getVendorDetails = async (req, res) => {
     const { id } = req.params;
     try {
-        const vendor = await db.query("SELECT * FROM vendors WHERE id = $1", [id]);
+        const vendor = await db.query(
+            "SELECT id, business_name, status, city, description, pickup_address_id FROM vendors WHERE id = $1",
+            [id]
+        );
         if (vendor.rows.length === 0) return res.status(404).json({ success: false, message: 'Vendor not found' });
 
         const products = await db.query("SELECT * FROM products WHERE vendor_id = $1 AND active = true", [id]);
