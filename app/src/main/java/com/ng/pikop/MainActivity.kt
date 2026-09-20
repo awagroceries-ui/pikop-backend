@@ -18,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
@@ -371,7 +370,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
 
         composable("login") {
             LoginScreen(
-                onLoginSuccess = { role ->
+                onLoginSuccess = { _ ->
                     navController.navigate("main") { popUpTo("login") { inclusive = true } }
                 },
                 onUnverified = { email, role ->

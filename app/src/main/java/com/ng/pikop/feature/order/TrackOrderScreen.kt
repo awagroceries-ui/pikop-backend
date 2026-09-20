@@ -388,7 +388,16 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
                     Text(text = if (eta != null) "Arriving in $eta mins" else "Status: ${currentStatus.replace('_', ' ')}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text(text = "Order #$orderId", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                    Text(
+                        text = "Order #$orderId", 
+                        style = MaterialTheme.typography.bodySmall, 
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        modifier = Modifier.clickable {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Order ID", orderId))
+                            android.widget.Toast.makeText(context, "Order ID copied", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    )
                 }
                 Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) {
                     Icon(imageVector = Icons.AutoMirrored.Filled.DirectionsBike, contentDescription = null, modifier = Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)

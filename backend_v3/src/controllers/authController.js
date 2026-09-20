@@ -73,7 +73,7 @@ const signup = async (req, res) => {
     // 5. Trigger Termii SMS OTP (External)
     const smsOtpRes = await smsService.sendOtp(normalizedPhone);
     if (smsOtpRes.success) {
-        console.log(`[Auth] SMS OTP successfully triggered for ${user.email}`);
+        console.log(`[Auth] SMS OTP successfully triggered for user_id: ${user.id}`);
         await client.query("UPDATE users SET kyc_provider_ref = $1 WHERE id = $2", [smsOtpRes.pinId, user.id]);
     } else {
         console.warn(`[Auth] SMS OTP failed to trigger for ${user.email}. Error: ${smsOtpRes.error}`);
@@ -95,7 +95,7 @@ const signup = async (req, res) => {
     }
 
     // 8. DEFERRED: Email OTP is now a fallback. Only Welcome email is sent after verification.
-    console.log(`[Auth] Signup success for ${email}. SMS OTP triggered. Email OTP deferred as fallback.`);
+    console.log(`[Auth] Signup success for user_id: ${user.id}. SMS OTP triggered.`);
 
     res.status(201).json({
       success: true,

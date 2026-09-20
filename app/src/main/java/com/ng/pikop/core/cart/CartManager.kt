@@ -11,14 +11,14 @@ data class CartItem(
 object CartManager {
     val items = mutableStateListOf<CartItem>()
     
-    val merchantId: String? get() = items.firstOrNull()?.item?.vendor_id?.ifBlank { items.firstOrNull()?.item?.id } // Simplified logic
+    val merchantId: String? get() = items.firstOrNull()?.item?.vendor_id?.ifBlank { items.firstOrNull()?.item?.id } 
     
     val totalAmount: Double get() = items.sumOf { it.item.price * it.quantity }
     
-    fun addItem(newItem: DiscoveryItem) {
+    fun addItem(newItem: DiscoveryItem): Boolean {
         val currentMerchant = items.firstOrNull()?.item?.vendor_id
-        if (currentMerchant != null && currentMerchant != newItem.vendor_id) {
-            // Policy: Only one merchant at a time. This should be handled by UI prompt.
+        if (!currentMerchant.isNullOrBlank() && currentMerchant != newItem.vendor_id) {
+            return false
         }
         
         val existing = items.find { it.item.id == newItem.id }
@@ -27,6 +27,7 @@ object CartManager {
         } else {
             items.add(CartItem(newItem, 1))
         }
+        return true
     }
     
     fun removeItem(itemId: String) {
@@ -42,6 +43,8 @@ object CartManager {
             removeItem(itemId)
             return
         }
-        items.find { it.item.id == itemId }?.quantity = newQuantity
+        items.find { it.item.id == itemId }?.let { 
+            it.quantity = newQuantity
+        }
     }
 }

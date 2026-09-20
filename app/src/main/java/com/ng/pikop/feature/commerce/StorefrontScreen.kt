@@ -206,7 +206,14 @@ fun StorefrontScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(items) { item ->
-                        DiscoveryItemCard(item = item, onClick = { onItemClick(item) })
+                        DiscoveryItemCard(
+                            item = item, 
+                            onClick = { onItemClick(item) },
+                            onCartError = {
+                                // Handled via state or toast
+                                Toast.makeText(context, "You can only add items from one store at a time. Clear your cart to switch.", Toast.LENGTH_LONG).show()
+                            }
+                        )
                     }
                 }
             }
@@ -253,7 +260,7 @@ fun WaitlistDialog(cityName: String, onDismiss: () -> Unit, onConfirm: (String) 
 }
 
 @Composable
-fun DiscoveryItemCard(item: DiscoveryItem, onClick: () -> Unit) {
+fun DiscoveryItemCard(item: DiscoveryItem, onClick: () -> Unit, onCartError: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(enabled = item.is_open) { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -324,7 +331,8 @@ fun DiscoveryItemCard(item: DiscoveryItem, onClick: () -> Unit) {
                     if (item.is_open) {
                         Surface(
                             onClick = { 
-                                com.ng.pikop.core.cart.CartManager.addItem(item)
+                                val success = com.ng.pikop.core.cart.CartManager.addItem(item)
+                                if (!success) onCartError()
                             },
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                             shape = CircleShape,

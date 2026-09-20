@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -424,7 +425,15 @@ fun ActiveOrderScreen(
                     }
                     
                     Text(text = "Active Mission", style = MaterialTheme.typography.headlineMedium)
-                    Text(text = "Order ID: #$orderId", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = "Order ID: #$orderId", 
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.clickable {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Order ID", orderId))
+                            Toast.makeText(context, "Order ID copied", Toast.LENGTH_SHORT).show()
+                        }
+                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
 

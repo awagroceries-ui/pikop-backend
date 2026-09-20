@@ -14,7 +14,6 @@ const startIdentityVerification = async (req, res) => {
   const normalizedProvider = provider.toLowerCase();
 
   console.log(`[KYC] User ${userId} requested verification via: ${normalizedProvider}`);
-  console.log(`[KYC] Request Body:`, JSON.stringify(req.body));
 
   try {
     // 1. Fetch user info for initiation

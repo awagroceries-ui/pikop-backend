@@ -8,6 +8,7 @@ const processScheduledOrders = async () => {
     console.log('[ScheduledJob] Checking for due scheduled missions...');
 
     try {
+        const { rows: dueOrders } = await db.query(`
             UPDATE orders
             SET status = 'SEARCHING'
             WHERE id IN (
@@ -17,6 +18,7 @@ const processScheduledOrders = async () => {
                 LIMIT 50
             )
             RETURNING *
+        `);
 
         for (const order of dueOrders) {
             console.log(`[ScheduledJob] Activating Mission #${order.id}`);

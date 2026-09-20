@@ -21,7 +21,7 @@ const login = async (req, res) => {
     const admin = rows[0];
     const match = await bcrypt.compare(password, admin.password_hash);
 
-    console.log(`[Admin] Login attempt: user=${username} | match=${match} | hash_preview=${admin.password_hash.substring(0, 10)}...`);
+    console.log(`[Admin] Login attempt for user='${username}' - Result: ${match ? 'SUCCESS' : 'FAIL'}`);
 
     if (!match) return res.render('login', { error: 'Invalid credentials', layout: false });
 
@@ -400,22 +400,26 @@ const addTrafficCorridor = async (req, res) => {
 const updateKYCStatus = async (req, res) => {
     const { id } = req.params;
     const { status, note } = req.body; // status: VERIFIED, REJECTED
+    const client = await db.pool.connect();
     try {
+        await client.query('BEGIN');
         const newStatus = status === 'VERIFIED' ? 'active' : 'suspended';
 
         // Use explicit parameter indices to avoid type deduction ambiguity in Postgres
-        await db.query(
+        await client.query(
             "UPDATE fulfillers SET kyc_status = $1, status = $2, approved_at = CASE WHEN $3 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $4",
             [status, newStatus, status, id]
         );
 
         // Audit log
-        await db.query(
+        await client.query(
             "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
             [req.session.adminId, 'UPDATE_KYC', 'fulfiller', id, JSON.stringify({ status, note })]
         );
 
-        // Fetch user email to send KYC status notification
+        await client.query('COMMIT');
+
+        // Fetch user email to send KYC status notification (Out of transaction)
         try {
             const { rows: fUser } = await db.query(
                 "SELECT u.email, u.full_name, f.primary_class FROM fulfillers f JOIN users u ON u.id = f.user_id WHERE f.id = $1",
@@ -437,7 +441,10 @@ const updateKYCStatus = async (req, res) => {
 
         res.redirect('/admin/kyc');
     } catch (error) {
+        await client.query('ROLLBACK');
         res.status(500).send(error.message);
+    } finally {
+        client.release();
     }
 };
 
@@ -447,26 +454,28 @@ const updateKYCStatus = async (req, res) => {
 const updateMerchantKYCStatus = async (req, res) => {
     const { type, id } = req.params; // type: vendor, kitchen
     const { status, note } = req.body; // status: VERIFIED, REJECTED
+    const client = await db.pool.connect();
     try {
+        await client.query('BEGIN');
         const table = type === 'kitchen' ? 'kitchens' : 'vendors';
         const newStatus = status === 'VERIFIED' ? 'active' : 'suspended';
 
-          await db.query(
+          await client.query(
               `UPDATE ${table} SET status = $1, approved_at = CASE WHEN $2 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $3`,
               [newStatus, status, id]
           );
 
           // Role Upgrade: Ensure user role is updated to MERCHANT on approval, preserving higher privileges
           if (status === 'VERIFIED') {
-              const { rows: mRes } = await db.query(`SELECT user_id FROM ${table} WHERE id = $1`, [id]);
+              const { rows: mRes } = await client.query(`SELECT user_id FROM ${table} WHERE id = $1`, [id]);
               if (mRes.length > 0) {
-                  const { rows: uRes } = await db.query("SELECT role FROM users WHERE id = $1", [mRes[0].user_id]);
+                  const { rows: uRes } = await client.query("SELECT role FROM users WHERE id = $1", [mRes[0].user_id]);
                   const currentRole = uRes[0]?.role;
 
                   // Only upgrade if currently a CUSTOMER or unassigned.
                   // If they are FULFILLER or CORPORATE, they keep that role but gain merchant capabilities (v4.5 Hardening)
                   if (currentRole === 'CUSTOMER') {
-                      await db.query("UPDATE users SET role = 'MERCHANT' WHERE id = $1", [mRes[0].user_id]);
+                      await client.query("UPDATE users SET role = 'MERCHANT' WHERE id = $1", [mRes[0].user_id]);
                       console.log(`[Admin] Role upgraded to MERCHANT for user ${mRes[0].user_id}`);
                   } else {
                       console.log(`[Admin] User ${mRes[0].user_id} is already ${currentRole}. Merchant capabilities unlocked without role overwrite.`);
@@ -475,12 +484,14 @@ const updateMerchantKYCStatus = async (req, res) => {
           }
 
         // Audit log
-        await db.query(
+        await client.query(
             "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
             [req.session.adminId, 'UPDATE_MERCHANT_KYC', type, id, JSON.stringify({ status, note })]
         );
 
-        // Fetch merchant/user info for welcome email
+        await client.query('COMMIT');
+
+        // Fetch merchant/user info for welcome email (Out of transaction)
         try {
             const { rows: mUser } = await db.query(
                 `SELECT u.email, u.full_name, m.category, m.accepts_cod
@@ -499,7 +510,10 @@ const updateMerchantKYCStatus = async (req, res) => {
 
         res.redirect(`/admin/${type}s`);
     } catch (error) {
+        await client.query('ROLLBACK');
         res.status(500).send(error.message);
+    } finally {
+        client.release();
     }
 };
 
