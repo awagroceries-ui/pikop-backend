@@ -20,6 +20,7 @@ import kotlinx.coroutines.delay
 fun PaymentConfirmationScreen(
     reference: String,
     onConfirmed: (String) -> Unit,
+    onCelebration: () -> Unit = {},
     onFailed: (String) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -43,6 +44,7 @@ fun PaymentConfirmationScreen(
                     orderId = if (rawId is Double) rawId.toInt().toString() else rawId?.toString()
                     
                     status = "success"
+                    onCelebration()
                     delay(1500)
                     onConfirmed(orderId ?: "")
                     return@LaunchedEffect

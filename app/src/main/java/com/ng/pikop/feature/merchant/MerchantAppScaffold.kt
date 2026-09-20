@@ -23,7 +23,8 @@ fun MerchantAppScaffold(
     userEmail: String,
     userName: String,
     userRole: String,
-    tokenManager: TokenManager
+    tokenManager: TokenManager,
+    onCelebration: () -> Unit = {}
 ) {
     val nestedNavController = rememberNavController()
     val scope = rememberCoroutineScope()
@@ -81,6 +82,7 @@ fun MerchantAppScaffold(
                     onAddItem = { type, id -> rootNavController.navigate("add_edit_product/$type/$id") },
                     onEditItem = { type, mId, pId -> rootNavController.navigate("add_edit_product/$type/$mId?productId=$pId") },
                     onCreateBatch = { rootNavController.navigate("bulk_dispatch") },
+                    onCelebration = onCelebration,
                     onBack = { }
                 )
             }
@@ -91,6 +93,7 @@ fun MerchantAppScaffold(
                     onAddItem = { type, id -> rootNavController.navigate("add_edit_product/$type/$id") },
                     onEditItem = { type, mId, pId -> rootNavController.navigate("add_edit_product/$type/$mId?productId=$pId") },
                     onCreateBatch = { rootNavController.navigate("bulk_dispatch") },
+                    onCelebration = onCelebration,
                     onBack = { }
                 )
             }

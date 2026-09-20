@@ -31,6 +31,7 @@ fun MerchantPortalScreen(
     onAddItem: (String, String) -> Unit, // merchantType, merchantId
     onEditItem: (String, String, String) -> Unit, // merchantType, merchantId, productId
     onCreateBatch: () -> Unit,
+    onCelebration: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -49,11 +50,24 @@ fun MerchantPortalScreen(
         errorMessage.value = null
         scope.launch {
             try {
+                val prevProfile = merchantProfile.value
+                val prevSalesCount = dashboardData.value?.sales?.size ?: 0
+
                 val profileRes = apiService.getMerchantProfile()
                 merchantProfile.value = profileRes.data
                 
                 val response = apiService.getMerchantDashboard()
                 dashboardData.value = response.data
+
+                // Milestone Celebrations (v4.6)
+                val currentProfile = merchantProfile.value
+                val currentSales = dashboardData.value?.sales ?: emptyList()
+
+                if (currentProfile?.status == "active" && prevProfile != null && prevProfile.status != "active") {
+                    onCelebration()
+                } else if (currentSales.size == 1 && prevSalesCount == 0) {
+                    onCelebration()
+                }
             } catch (e: Exception) {
                 errorMessage.value = "Failed to load dashboard: ${e.message}"
                 android.util.Log.e("MerchantUI", "Load error", e)

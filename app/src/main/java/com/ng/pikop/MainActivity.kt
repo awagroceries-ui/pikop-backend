@@ -48,6 +48,8 @@ import com.ng.pikop.feature.growth.GrowthRewardsScreen
 import com.ng.pikop.feature.merchant.MerchantPortalScreen
 import com.ng.pikop.feature.wallet.WalletScreen
 import com.ng.pikop.feature.wallet.WithdrawalScreen
+import com.ng.pikop.ui.components.CelebrationViewModel
+import com.ng.pikop.ui.components.SuccessCelebrationOverlay
 import com.ng.pikop.ui.theme.PikopTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
@@ -102,6 +104,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
     val navController = rememberNavController()
+    val celebrationViewModel: CelebrationViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val scope = rememberCoroutineScope()
@@ -307,7 +310,10 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
     }
 
-    NavHost(navController = navController, startDestination = "splash") {
+    val showCelebration by celebrationViewModel.showCelebration.collectAsState()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
             SplashScreen(onAnimationFinished = {
                 if (accessToken != null) {
@@ -475,7 +481,8 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                     userEmail = userEmail ?: "",
                     userName = userName ?: "",
                     userRole = userRole ?: "MERCHANT",
-                    tokenManager = tokenManager
+                    tokenManager = tokenManager,
+                    onCelebration = { celebrationViewModel.trigger() }
                 )
             } else if (userRole == "FLEET_PARTNER") {
                 FleetPartnerDashboardScreen(
@@ -508,7 +515,8 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                     userRole = userRole ?: "CUSTOMER",
                     referralCode = referralCode ?: "",
                     kycStatus = kycStatus,
-                    tokenManager = tokenManager
+                    tokenManager = tokenManager,
+                    onCelebration = { celebrationViewModel.trigger() }
                 )
             }
         }
@@ -533,12 +541,16 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
         composable("track_order/{orderId}") { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
-            TrackOrderScreen(orderId = orderId)
+            TrackOrderScreen(
+                orderId = orderId,
+                onCelebration = { celebrationViewModel.trigger() }
+            )
         }
         composable("confirm_payment/{reference}") { backStackEntry ->
             val reference = backStackEntry.arguments?.getString("reference") ?: ""
             PaymentConfirmationScreen(
                 reference = reference,
+                onCelebration = { celebrationViewModel.trigger() },
                 onConfirmed = { orderId ->
                     if (orderId.isNotBlank()) {
                         navController.navigate("track_order/$orderId") {
@@ -568,6 +580,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                         popUpTo("main") { inclusive = true }
                     }
                 },
+                onCelebration = { celebrationViewModel.trigger() },
                 onNavigateToPayment = { url, qId, pLat, pLng, dLat, dLng, itemUrl, pSum, dSum, rName, rPhone, notes, promoId ->
                     CheckoutHelper.activeQuote = CheckoutHelper.CheckoutData(
                         url = url,
@@ -635,7 +648,12 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             )
         }
         composable("profile_edit") { ProfileEditScreen(onBack = { navController.popBackStack() }) }
-        composable("growth_rewards") { GrowthRewardsScreen(onBack = { navController.popBackStack() }) }
+        composable("growth_rewards") { 
+            GrowthRewardsScreen(
+                onBack = { navController.popBackStack() },
+                onCelebration = { celebrationViewModel.trigger() }
+            ) 
+        }
         composable("merchant_portal") {
             MerchantPortalScreen(
                 onAddItem = { type, id -> navController.navigate("add_edit_product/$type/$id") },
@@ -665,6 +683,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 merchantId = mId,
                 productId = pId,
                 onSuccess = { navController.popBackStack() },
+                onCelebration = { celebrationViewModel.trigger() },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -729,6 +748,12 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
 
         // Removed internal payment_webview in favor of external intent
     }
+
+    SuccessCelebrationOverlay(
+        isVisible = showCelebration,
+        onDismiss = { celebrationViewModel.dismiss() }
+    )
+}
 }
 
 @Composable
@@ -740,7 +765,8 @@ fun MainAppScaffold(
     userRole: String,
     referralCode: String,
     kycStatus: String? = null,
-    tokenManager: TokenManager
+    tokenManager: TokenManager,
+    onCelebration: () -> Unit = {}
 ) {
     val nestedNavController = rememberNavController()
     val scope = rememberCoroutineScope()
@@ -825,6 +851,7 @@ fun MainAppScaffold(
                         onGoToKyc = { navController.navigate("kyc_upload") },
                         onGoToInsights = { navController.navigate("insights") },
                         onGoToAbout = { nestedNavController.navigate("account") },
+                        onCelebration = onCelebration,
                         onLogout = {} 
                     )
                 } else {
@@ -881,6 +908,7 @@ fun MainAppScaffold(
                     onSuccess = { 
                         navController.navigate("main") { popUpTo(0) { inclusive = true } } 
                     },
+                    onCelebration = onCelebration,
                     onBack = { navController.popBackStack() }
                 )
             }

@@ -22,7 +22,10 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GrowthRewardsScreen(onBack: () -> Unit) {
+fun GrowthRewardsScreen(
+    onCelebration: () -> Unit = {},
+    onBack: () -> Unit
+) {
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { ApiService.create(tokenManager) }
@@ -184,6 +187,7 @@ fun GrowthRewardsScreen(onBack: () -> Unit) {
                             try {
                                 apiService.redeemPoints(RedeemPointsRequest(stats?.total_points ?: 0))
                                 refreshData()
+                                onCelebration()
                                 android.widget.Toast.makeText(context, "Points Redeemed!", android.widget.Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
                                 android.widget.Toast.makeText(context, "Redemption failed", android.widget.Toast.LENGTH_SHORT).show()

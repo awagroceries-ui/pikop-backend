@@ -36,6 +36,7 @@ fun CommerceCheckoutScreen(
     itemType: String,
     navController: NavController,
     onSuccess: () -> Unit,
+    onCelebration: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -325,9 +326,11 @@ fun CommerceCheckoutScreen(
                                 if (selectedPaymentMethod == "CARD" && !response.authorization_url.isNullOrBlank()) {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(response.authorization_url))
                                     context.startActivity(intent)
+                                    onCelebration()
                                     onSuccess() // Navigates back to main. Real flow would verify via webhook/intent
                                 } else if ((selectedPaymentMethod == "COD" || selectedPaymentMethod == "WALLET") && !response.order_id.isNullOrBlank()) {
                                     Toast.makeText(context, if (selectedPaymentMethod == "WALLET") "Payment Successful!" else "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
+                                    onCelebration()
                                     navController.navigate("track_order/${response.order_id}") {
                                         popUpTo("main") { inclusive = false }
                                     }

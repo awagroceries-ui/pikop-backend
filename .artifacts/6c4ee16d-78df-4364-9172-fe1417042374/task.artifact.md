@@ -1,14 +1,15 @@
-# Task: Fix Missing FAQ Answers
+# Task: Success Celebration Animation
 
-- [ ] **Backend Hardening**
-    - [x] Create `getArticleById` endpoint logic
-    - [x] Update `supportRoutes.js`
-    - [x] Generate `1726730000000_fix_faq_content.js` migration from latest MD
-- [ ] **Android API & Models**
-    - [x] Update `ApiService.kt` with `getArticleById`
-- [ ] **Android UI Fixes**
-    - [x] Update `FaqDetailScreen.kt` to fetch by ID (Fixes "Missing Answer" for multi-role users)
+- [ ] **Core Animation Component**
+    - [ ] Create `SuccessCelebrationOverlay.kt` with brand colors and single-burst logic
+    - [ ] Implement `CelebrationViewModel.kt` for global state management
+    - [ ] Add "Reduce Motion" accessibility fallback
+- [ ] **Milestone Integration**
+    - [ ] Add Overlay to `MainActivity.kt`
+    - [ ] Trigger on successful Dispatch/Marketplace checkout (`OrderQuoteScreen.kt`, `CommerceCheckoutScreen.kt`)
+    - [ ] Trigger on first product listed (`AddEditProductScreen.kt`)
+    - [ ] Trigger on Fulfiller streak/milestones (`TrackOrderScreen.kt`)
 - [ ] **Verification**
-    - [ ] Run migration on server
-    - [ ] Verify full content display for all user groups
+    - [ ] Verify non-strobe requirement
+    - [ ] Verify Reduce Motion fallback
     - [ ] Build and Deploy

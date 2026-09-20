@@ -49,7 +49,8 @@ data class OrderStatusStep(
 fun TrackOrderScreen(
     orderId: String, 
     pickup: LatLng? = null, 
-    delivery: LatLng? = null
+    delivery: LatLng? = null,
+    onCelebration: () -> Unit = {}
 ) {
     var pickupLoc by remember { mutableStateOf(pickup) }
     var deliveryLoc by remember { mutableStateOf(delivery) }
@@ -232,7 +233,7 @@ fun TrackOrderScreen(
         sheetContainerColor = MaterialTheme.colorScheme.surface,
         sheetContentColor = MaterialTheme.colorScheme.primary,
         sheetContent = {
-            TrackingBottomSheetContent(orderId, etaMinutes, history, fulfillerProfile, tokenManager, fetchHistory)
+            TrackingBottomSheetContent(orderId, etaMinutes, history, fulfillerProfile, tokenManager, onCelebration, fetchHistory)
         }
     ) { padding ->
         Surface(
@@ -291,7 +292,7 @@ fun TrackOrderScreen(
 }
 
 @Composable
-fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>, profile: FulfillerPublicProfile?, tokenManager: TokenManager, onRefresh: () -> Unit) {
+fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>, profile: FulfillerPublicProfile?, tokenManager: TokenManager, onCelebration: () -> Unit = {}, onRefresh: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
@@ -305,9 +306,16 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
 
     LaunchedEffect(orderId, refreshKey) {
         try {
+            val prevStatus = orderDetails?.status
             val res = apiService.getOrderDetails(orderId)
             val data = res.data ?: res
             orderDetails = data
+            
+            // Celebration on Completion (v4.6)
+            if ((data.status == "DELIVERED" || data.status == "RELEASED") && 
+                prevStatus != null && prevStatus != "DELIVERED" && prevStatus != "RELEASED") {
+                onCelebration()
+            }
             
             // Auto-show rating if delivered and not yet rated
             if ((data.status == "DELIVERED" || data.status == "RELEASED") && data.customer_rating == null) {

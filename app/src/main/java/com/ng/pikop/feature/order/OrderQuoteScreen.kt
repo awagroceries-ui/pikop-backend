@@ -49,6 +49,7 @@ fun OrderQuoteScreen(
     userName: String = "",
     userPhone: String = "",
     onOrderComplete: (String) -> Unit,
+    onCelebration: () -> Unit = {},
     onNavigateToPayment: (url: String, quoteId: String, pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemUrl: String, pSum: String, dSum: String, rName: String, rPhone: String, notes: String?, promoId: String?) -> Unit
 ) {
     var pickupAddress by rememberSaveable { mutableStateOf("") }
@@ -760,6 +761,7 @@ fun OrderQuoteScreen(
                                         surgeMultiplier = result?.surge_multiplier
                                     )
                                     if (success) {
+                                        onCelebration()
                                         onOrderComplete("CORPORATE")
                                     } else {
                                         Toast.makeText(context, "Failed to finalize corporate order", Toast.LENGTH_SHORT).show()
@@ -790,6 +792,7 @@ fun OrderQuoteScreen(
                                         surgeMultiplier = result?.surge_multiplier
                                     )
                                     if (success) {
+                                        onCelebration()
                                         onOrderComplete("WALLET")
                                     } else {
                                         Toast.makeText(context, "Wallet payment failed", Toast.LENGTH_SHORT).show()
@@ -846,6 +849,7 @@ fun OrderQuoteScreen(
                                             val response = apiService.createOrder(request)
                                             if (response.status == "SEARCHING" || response.status == "AWAITING_PAYMENT" || response.status == "PAYMENT_CAPTURED" || response.status == "SCHEDULED") {
                                                 Toast.makeText(context, if (scheduledAt != null) "Mission Scheduled for 06:00 AM" else if (isZeroUpfront) "Mission Created! Recipient will pay to activate." else "Mission Activated Successfully!", Toast.LENGTH_LONG).show()
+                                                onCelebration()
                                                 onOrderComplete("FREE")
                                             } else {
                                                 Toast.makeText(context, "Server Error: Could not process mission", Toast.LENGTH_LONG).show()

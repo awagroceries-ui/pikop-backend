@@ -46,6 +46,7 @@ fun FulfillerDashboardScreen(
     onGoToKyc: () -> Unit,
     onGoToInsights: () -> Unit,
     onGoToAbout: () -> Unit,
+    onCelebration: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     var isOnline by remember { mutableStateOf(false) }
@@ -82,8 +83,23 @@ fun FulfillerDashboardScreen(
                 isLoading = true
                 // 1. Fetch Profile to set correct Online State
                 val profile = apiService.getFulfillerProfile()
+                val prevStreak = profileData?.current_streak_days ?: 0
+                val prevCompleted = profileData?.stats?.total_completed ?: 0
+                
                 profileData = profile.data ?: profile
                 isOnline = profileData?.online_status == "ONLINE"
+
+                // Milestone Celebrations (v4.6)
+                val newStreak = profileData?.current_streak_days ?: 0
+                val newCompleted = profileData?.stats?.total_completed ?: 0
+                
+                if ((newStreak == 7 && prevStreak < 7) || (newStreak == 30 && prevStreak < 30)) {
+                    onCelebration()
+                } else if (newCompleted == 1 && prevCompleted == 0) {
+                    onCelebration()
+                } else if (profileData?.kyc_status == "VERIFIED" && (kycStatus == "PENDING" || kycStatus == "NOT_STARTED")) {
+                    onCelebration()
+                }
                 
                 // 2. Sync Wallet & History
                 val wallet = apiService.getWalletInfo()

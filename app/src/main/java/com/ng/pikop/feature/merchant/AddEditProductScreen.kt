@@ -40,6 +40,7 @@ fun AddEditProductScreen(
     merchantId: String,
     productId: String? = null,
     onSuccess: () -> Unit,
+    onCelebration: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -297,6 +298,7 @@ fun AddEditProductScreen(
                                 }
 
                                 Toast.makeText(context, "Item Saved Successfully!", Toast.LENGTH_SHORT).show()
+                                if (productId == null) onCelebration()
                                 onSuccess()
                             } catch (e: Exception) {
                                 val errorMsg = ErrorUtils.parseError(e)
