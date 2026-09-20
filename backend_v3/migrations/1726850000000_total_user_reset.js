@@ -10,7 +10,8 @@ exports.up = (pgm) => {
   pgm.sql("DELETE FROM returns");
   pgm.sql("DELETE FROM emergency_alerts");
   pgm.sql("DELETE FROM sms_logs");
-  pgm.sql("DELETE FROM fcm_logs");
+  pgm.sql("DELETE FROM notifications");
+  pgm.sql("DELETE FROM user_fcm_tokens");
   pgm.sql("DELETE FROM audit_logs");
   pgm.sql("DELETE FROM landmark_suggestions");
   pgm.sql("DELETE FROM expansion_waitlist");
