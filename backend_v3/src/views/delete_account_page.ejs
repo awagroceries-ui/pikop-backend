@@ -17,6 +17,14 @@
         </div>
 
         <div class="mb-3">
+            <label for="request_type" class="form-label fw-bold">Request Type</label>
+            <select class="form-select form-select-lg" id="request_type" name="request_type" required>
+                <option value="FULL_ACCOUNT">Delete Full Account & All Personal Data</option>
+                <option value="SPECIFIC_DATA">Delete Specific Data Only (e.g. Saved Addresses, Location Logs)</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
             <label for="role" class="form-label fw-bold">Account Type</label>
             <select class="form-select form-select-lg" id="role" name="role" required>
                 <option value="CUSTOMER">Customer</option>
