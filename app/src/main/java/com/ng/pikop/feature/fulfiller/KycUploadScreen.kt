@@ -426,43 +426,63 @@ fun PersonalDetailsStep(
         }
     }
 
+    // Nigeria States and Major Cities mapping
+    val locations = remember {
+        mapOf(
+            "Lagos" to listOf("Ikeja", "Lekki", "Victoria Island", "Surulere", "Ikorodu", "Ajah", "Badagry"),
+            "Rivers" to listOf("Port Harcourt", "Obio-Akpor", "Eleme", "Bonny", "Onne"),
+            "FCT" to listOf("Abuja Municipal", "Gwarinpa", "Wuse", "Asokoro", "Maitama", "Kubwa", "Gwagwalada"),
+            "Oyo" to listOf("Ibadan", "Ogbomosho", "Oyo Town"),
+            "Kano" to listOf("Kano City"),
+            "Delta" to listOf("Asaba", "Warri", "Sapele"),
+            "Edo" to listOf("Benin City"),
+            "Anambra" to listOf("Awka", "Onitsha", "Nnewi"),
+            "Enugu" to listOf("Enugu City", "Nsukka"),
+            "Kaduna" to listOf("Kaduna City", "Zaria"),
+            "Ogun" to listOf("Abeokuta", "Ijebu-Ode", "Sango Ota"),
+            "Akwa Ibom" to listOf("Uyo", "Eket")
+        )
+    }
+
+    var stateExpanded by remember { mutableStateOf(false) }
+    var cityExpanded by remember { mutableStateOf(false) }
+    var selectedState by remember { mutableStateOf("") }
+    var selectedCity by remember { mutableStateOf("") }
+
+    // Derive address from State and City if empty or updated
+    LaunchedEffect(selectedState, selectedCity) {
+        if (selectedState.isNotBlank() && selectedCity.isNotBlank()) {
+            onAddressChange("$selectedCity, $selectedState State")
+        }
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Personal Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text("We need a few more details to activate your account.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
 
-        Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
-            OutlinedTextField(
-                value = dob,
-                onValueChange = {},
-                readOnly = true,
-                enabled = true,
-                label = { Text("Date of Birth") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledBorderColor = MaterialTheme.colorScheme.outline
-                ),
-                leadingIcon = { 
-                    Icon(Icons.Default.Cake, null, tint = MaterialTheme.colorScheme.primary) 
-                },
-                placeholder = { Text("Select Date") }
-            )
-            // Overlay a transparent clickable layer to reliably trigger the picker and block keyboard
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(Color.Transparent)
-                    .clickable { 
-                        android.util.Log.d("KycOnboarding", "Date Picker Triggered")
-                        showDatePicker = true 
-                    }
-            )
-        }
+        // Date of Birth
+        OutlinedTextField(
+            value = dob,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Date of Birth") },
+            modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
+            enabled = false, // Disable typing, only click trigger via Box
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledLeadingIconColor = MaterialTheme.colorScheme.primary,
+                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            leadingIcon = { Icon(Icons.Default.Cake, null) },
+            placeholder = { Text("Select Date") },
+            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        )
+        // Since clickable doesn't work on disabled text fields well in some versions, wrap in Box
+        Box(modifier = Modifier.fillMaxWidth().offset(y = (-72).dp).height(56.dp).clickable { showDatePicker = true })
 
+        // Gender Dropdown
         var genderExpanded by remember { mutableStateOf(false) }
         val genders = listOf("Male", "Female", "Other")
         ExposedDropdownMenuBox(
@@ -494,12 +514,76 @@ fun PersonalDetailsStep(
             }
         }
 
+        // State Dropdown
+        ExposedDropdownMenuBox(
+            expanded = stateExpanded,
+            onExpandedChange = { stateExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = selectedState,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("State of Operation") },
+                leadingIcon = { Icon(Icons.Default.LocationOn, null) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = stateExpanded) },
+                modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
+            )
+            ExposedDropdownMenu(
+                expanded = stateExpanded,
+                onDismissRequest = { stateExpanded = false }
+            ) {
+                locations.keys.sorted().forEach { state ->
+                    DropdownMenuItem(
+                        text = { Text(state) },
+                        onClick = {
+                            selectedState = state
+                            selectedCity = "" // Reset city
+                            stateExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // City Dropdown
+        if (selectedState.isNotBlank()) {
+            ExposedDropdownMenuBox(
+                expanded = cityExpanded,
+                onExpandedChange = { cityExpanded = it }
+            ) {
+                OutlinedTextField(
+                    value = selectedCity,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Primary City") },
+                    leadingIcon = { Icon(Icons.Default.LocationCity, null) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cityExpanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
+                )
+                ExposedDropdownMenu(
+                    expanded = cityExpanded,
+                    onDismissRequest = { cityExpanded = false }
+                ) {
+                    locations[selectedState]?.sorted()?.forEach { city ->
+                        DropdownMenuItem(
+                            text = { Text(city) },
+                            onClick = {
+                                selectedCity = city
+                                cityExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
         OutlinedTextField(
             value = address,
             onValueChange = onAddressChange,
-            label = { Text("Home Address") },
+            label = { Text("Residential Address Detail") },
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Default.Home, null) },
+            placeholder = { Text("Street, House No, etc.") },
             minLines = 2
         )
     }

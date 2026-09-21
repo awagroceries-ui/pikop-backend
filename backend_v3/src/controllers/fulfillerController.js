@@ -483,8 +483,8 @@ const submitApplication = async (req, res) => {
 
         res.status(200).json({ success: true, message: 'Application submitted successfully', data: rows[0] });
     } catch (error) {
-        console.error('[KYC Submit] Error:', error.message);
-        res.status(500).json({ success: false, message: error.message });
+        console.error('[KYC Submit] FATAL Error:', error.stack || error.message);
+        res.status(500).json({ success: false, message: 'Submission failed. Internal server error.' });
     }
 };
 

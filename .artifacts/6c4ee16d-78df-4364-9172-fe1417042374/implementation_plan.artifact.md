@@ -1,61 +1,48 @@
-# Implementation Plan - Final Comprehensive Audit & Hardening
+# Implementation Plan - Bug Fixes & UX Polish
 
-This plan covers the final set of refinements and security hardening required before the Pikop platform is ready for Playstore and production use.
+This plan addresses several critical issues identified across the Customer, Fulfiller, and Merchant modules, along with Play Store readiness.
 
 ## Proposed Changes
 
-### 1. Security & Privacy Hardening (Backend)
+### 1. Customer Module: Missions Tab Fix
+#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
+- Wire up the `onNewDelivery` callback for `OrdersDashboardScreen` to navigate to `"order_quote"`. This will fix the inactive "Send Something Now" and "+" buttons.
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
-- Remove sensitive login logs that include `hash_preview` and the result of the `match` boolean.
-- Use `console.info` or specialized logging levels for non-critical flow tracing.
+### 2. Pikop AI Agent: Connection Error
+#### [MODIFY] [supportController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/supportController.js)
+- Add explicit error logging for the Gemini AI service.
+- Ensure the `GEMINI_API_KEY` is validated before attempting a connection.
 
-#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js) & [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
-- Redact PII (Personal Identifiable Information) from console logs in the KYC and Signup flows. Never log full request bodies that contain Passports, DOBs, or plain passwords.
+### 3. Fulfiller Onboarding: UX & Form Fixes
+#### [MODIFY] [KycUploadScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/KycUploadScreen.kt)
+- **Date Picker**: Refactor the trigger to be more reliable by removing the transparent overlay and making the `OutlinedTextField` itself clickable.
+- **Gender Selection**: Fix the `ExposedDropdownMenuBox` implementation to ensure the dropdown menu anchors correctly and is visible.
+- **City/State Selector**: Add a two-stage dropdown for Nigeria States and their major cities (Lagos, Port Harcourt, Abuja, Kano, Ibadan, etc.) to replace the generic "Home Address" field for better data collection.
 
----
+#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
+- Add detailed error logging in `submitApplication` to debug the 500 error reported by the user.
 
-### 2. Operational Stability (Backend)
+### 4. Merchant Verification: Null Constraint Fix
+#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
+- Update `setupMerchantProfile` to fetch the authenticated user's email and include it as the `contact_email` in the `INSERT` statements for both `kitchens` and `vendors`. This resolves the "null value violates not-null constraint" error.
 
-#### [REFACTOR] Multi-row Database Transactions
-Ensure the following flows are fully atomic using `BEGIN/COMMIT`:
-- **`updateKYCStatus`**: Updates both `fulfillers` and `users` roles.
-- **`processMissionSettlement`**: (Confirmed already using transactions, will do a final sanity check).
-
-#### [MODIFY] [scheduledOrderJob.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/jobs/scheduledOrderJob.js)
-- Wrap the job execution in a try-catch to ensure one failed activation doesn't kill the entire interval loop.
-
----
-
-### 3. Android App: Final Polish & UX
-
-#### [REFACTOR] Cleanup Noise
-- Resolve the 15+ "Unused Parameter/Variable" warnings identified in `MainActivity.kt`, `FulfillerDashboardScreen.kt`, and `SupportHubScreen.kt` to ensure clean, maintainable code.
-
-#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt) & [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
-- Add a "Tap to Copy" feature for the **Order ID**. Users and Agents often need this when contacting support.
-
-#### [MODIFY] [CommerceCheckoutScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/CommerceCheckoutScreen.kt)
-- Add a "Clear Cart" warning dialog if a user tries to add an item from a different merchant while their cart is non-empty.
-
----
-
-## User Review Required
-
-> [!IMPORTANT]
-> **Production Logging**
-> In production, `console.log` entries are often captured by log management tools. Redacting PII now is a critical step for NDPA (Nigeria Data Protection Act) compliance.
-
-> [!NOTE]
-> **Order ID Visibility**
-> Making the Order ID easy to copy reduces friction for your support team significantly.
+### 5. Play Store Release: Signed APK
+#### [ACTION] Build Signed APK
+- Execute the Gradle `assembleRelease` task to generate a signed APK in addition to the existing AAB. This is required for Play Console's initial package name verification in some regions.
 
 ---
 
 ## Verification Plan
 
+### Automated Tests
+- **Build Verification**: Run `./gradlew assembleRelease` to confirm both AAB and APK generation.
+
 ### Manual Verification
-1.  **Security Audit**: Verify that logs on the VPS no longer show hashes or full KYC payloads.
-2.  **UX Polish**: Verify the "Order ID" is copyable.
-3.  **Cart Integrity**: Try to add a "Kitchen" meal to a cart containing "Groceries" items. Confirm the "Clear Cart" prompt appears correctly.
-4.  **Dark Mode Sanity**: Perform one last check of the `PaymentConfirmationScreen` in Dark Mode to ensure the "Success" state is visible.
+1.  **Missions Tab**: Tap "Send Something Now" and "+" buttons. Verify they open the Quote screen.
+2.  **AI Agent**: Ask a question. Verify a response is received from Gemini.
+3.  **Fulfiller Onboarding**:
+    - Open Date Picker. Confirm it shows a calendar.
+    - Open Gender dropdown. Confirm it shows options.
+    - Select a State and then a City from the new dropdowns.
+    - Submit the form and verify success (no 500 error).
+4.  **Merchant Verification**: Submit the business setup form. Verify it saves correctly without a database error.

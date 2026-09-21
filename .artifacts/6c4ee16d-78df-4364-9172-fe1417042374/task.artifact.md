@@ -1,16 +1,21 @@
-# Task: Final Playstore Hardening
+# Task: Bug Fixes & UX Polish
 
-- [ ] **Backend Security & Redaction**
-    - [ ] Redact sensitive info in `authController.js` (Signup/Login logs)
-    - [ ] Redact sensitive info in `adminController.js` (Login hash logs)
-    - [ ] Redact PII in `fulfillerController.js` (KYC logs)
-- [ ] **Backend Operational Stability**
-    - [ ] Ensure atomicity in `updateKYCStatus` (Admin)
-    - [ ] Harden `scheduledOrderJob.js` with try-catch and batch safety
-- [ ] **Android UI Refinement**
-    - [ ] Add "Tap to Copy" for Order ID in `TrackOrderScreen.kt`
-    - [ ] Add "Tap to Copy" for Order ID in `ActiveOrderScreen.kt`
-    - [ ] Implement "Clear Cart" warning in Storefront screens
-    - [ ] Resolve unused code warnings across main screens
-- [ ] **Final Verification**
-    - [ ] Build and Deploy
+- [ ] **Customer Module Fixes**
+    - [ ] Wire up `onNewDelivery` in `MainActivity.kt` for `OrdersDashboardScreen`
+- [ ] **AI Agent Stabilization**
+    - [ ] Update `supportController.js` with better error handling and logging
+- [ ] **Fulfiller Onboarding (Android)**
+    - [ ] Refactor Date Picker trigger in `KycUploadScreen.kt`
+    - [ ] Fix Gender selector alignment and visibility
+    - [ ] Implement State/City dropdown selection logic
+- [ ] **Fulfiller Onboarding (Backend)**
+    - [ ] Debug and fix the 500 error in `submitApplication` in `fulfillerController.js`
+- [ ] **Merchant Module Fixes**
+    - [ ] Fix `contact_email` null constraint in `setupMerchantProfile` in `merchantController.js`
+- [ ] **Release Assets**
+    - [ ] Generate a signed production APK
+- [ ] **Verification**
+    - [ ] Verify fix for Missions tab buttons
+    - [ ] Verify AI Agent functionality
+    - [ ] Test end-to-end fulfiller onboarding
+    - [ ] Test merchant business verification

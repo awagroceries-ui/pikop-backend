@@ -965,7 +965,15 @@ fun MainAppScaffold(
                         onNavigateToActiveOrder = { id -> navController.navigate("active_order/$id") }
                     )
                 } else {
-                    OrdersDashboardScreen(userEmail, {}, { id -> navController.navigate("track_order/$id") }, {}, {}, {}, {})
+                    OrdersDashboardScreen(
+                        userEmail = userEmail ?: "",
+                        onNewDelivery = { navController.navigate("order_quote") },
+                        onTrackOrder = { id -> navController.navigate("track_order/$id") },
+                        onManageAddresses = { nestedNavController.navigate("account") },
+                        onGoToWallet = { nestedNavController.navigate("wallet") },
+                        onGoToAbout = { nestedNavController.navigate("account") },
+                        onLogout = {}
+                    )
                 }
             }
             composable("wallet") {

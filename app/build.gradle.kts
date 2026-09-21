@@ -117,6 +117,7 @@ dependencies {
     implementation(libs.maps.compose)
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
+    implementation("com.google.android.play:integrity:1.6.0")
     implementation(libs.socket.io.client)
     implementation(libs.google.places)
     implementation(platform(libs.firebase.bom))

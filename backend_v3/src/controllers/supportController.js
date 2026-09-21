@@ -151,7 +151,14 @@ const askPikopAgent = async (req, res) => {
         `;
 
         const { GoogleGenerativeAI } = require("@google/generative-ai");
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const apiKey = process.env.GEMINI_API_KEY;
+
+        if (!apiKey) {
+            console.error('[GeminiAgent] FATAL: GEMINI_API_KEY is missing from environment.');
+            return res.status(500).json({ success: false, message: 'AI Service configuration error.' });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
         const result = await model.generateContent(prompt);
@@ -160,7 +167,7 @@ const askPikopAgent = async (req, res) => {
         res.status(200).json({ success: true, answer: responseText });
 
     } catch (error) {
-        console.error('[GeminiAgent] Error:', error.message);
+        console.error('[GeminiAgent] Error details:', error.response?.data || error.stack || error.message);
         res.status(500).json({ success: false, message: 'AI Assistant is temporarily busy.' });
     }
 };
