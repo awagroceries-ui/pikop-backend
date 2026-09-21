@@ -1,0 +1,44 @@
+<h2 class="text-center mb-3">Request Account & Data Deletion</h2>
+<p class="text text-center text-muted mb-4">
+    If you wish to delete your Pikop account and all associated personal data, please fill out the form below.
+    This request applies to Customers, Fulfillers, and Merchants.
+</p>
+
+<% if (typeof message !== 'undefined' && message) { %>
+    <div class="alert alert-success text-center p-4 rounded-4 shadow-sm mb-4">
+        <h4>Request Submitted</h4>
+        <p class="mb-0"><%= message %></p>
+    </div>
+<% } else { %>
+    <form action="/legal/delete-account" method="POST" class="mt-4">
+        <div class="mb-3">
+            <label for="identifier" class="form-label fw-bold">Registered Email Address or Phone Number</label>
+            <input type="text" class="form-control form-control-lg" id="identifier" name="identifier" required placeholder="e.g. user@example.com or 08012345678">
+        </div>
+
+        <div class="mb-3">
+            <label for="role" class="form-label fw-bold">Account Type</label>
+            <select class="form-select form-select-lg" id="role" name="role" required>
+                <option value="CUSTOMER">Customer</option>
+                <option value="FULFILLER">Fulfiller / Agent</option>
+                <option value="MERCHANT">Merchant / Seller</option>
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label for="reason" class="form-label fw-bold">Reason for Leaving (Optional)</label>
+            <textarea class="form-control" id="reason" name="reason" rows="3" placeholder="Tell us why you want to delete your account..."></textarea>
+        </div>
+
+        <div class="p-3 bg-light rounded-3 mb-4 small text-muted">
+            <strong>What happens when you delete your account?</strong>
+            <ul class="mb-0 mt-2">
+                <li>Your personal profile (Name, Email, Phone, Home Address) will be permanently deleted.</li>
+                <li>Your saved payment methods, address book, and active wallet balance will be removed.</li>
+                <li>Historical transaction logs may be anonymized and retained as required by financial regulations.</li>
+            </ul>
+        </div>
+
+        <button type="submit" class="btn btn-success btn-lg w-100 fw-bold py-3">Submit Deletion Request</button>
+    </form>
+<% } %>

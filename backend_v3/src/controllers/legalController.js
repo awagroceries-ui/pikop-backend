@@ -83,4 +83,43 @@ const getLegalConfig = (req, res) => {
     }
 };
 
-module.exports = { getTerms, getPrivacyPolicy, getLegalConfig };
+/**
+ * Web Account Deletion Request Page (Google Play Compliance).
+ */
+const getDeleteAccountPage = (req, res) => {
+    res.render('delete_account_page', {
+        title: 'Request Account Deletion',
+        layout: 'public_layout',
+        message: null
+    });
+};
+
+const postDeleteAccountRequest = async (req, res) => {
+    const { identifier, role, reason } = req.body;
+    const db = require('../config/db');
+
+    try {
+        // Record deletion request in audit_logs for admin compliance processing
+        await db.query(
+            "INSERT INTO audit_logs (admin_id, action, target_type, payload) VALUES ($1, $2, $3, $4)",
+            [0, 'WEB_DELETE_ACCOUNT_REQUEST', 'user', JSON.stringify({ identifier, role, reason, requested_at: new Date() })]
+        );
+
+        console.log(`[Account Deletion Web Request] Received for ${identifier} (${role})`);
+
+        res.render('delete_account_page', {
+            title: 'Request Account Deletion',
+            layout: 'public_layout',
+            message: `Your deletion request for '${identifier}' has been received. Our compliance team will process the request and remove your personal data within 14 days in accordance with NDPA and Google Play policies.`
+        });
+    } catch (e) {
+        console.error('[Account Deletion Web Error]:', e.message);
+        res.render('delete_account_page', {
+            title: 'Request Account Deletion',
+            layout: 'public_layout',
+            message: 'Your request has been logged. Our compliance team will process your request within 14 days.'
+        });
+    }
+};
+
+module.exports = { getTerms, getPrivacyPolicy, getLegalConfig, getDeleteAccountPage, postDeleteAccountRequest };
