@@ -1,21 +1,11 @@
-# Task: Bug Fixes & UX Polish
+# Task: Production Fixes for Fulfiller Signup & Merchant Account Updates
 
-- [ ] **Customer Module Fixes**
-    - [ ] Wire up `onNewDelivery` in `MainActivity.kt` for `OrdersDashboardScreen`
-- [ ] **AI Agent Stabilization**
-    - [ ] Update `supportController.js` with better error handling and logging
-- [ ] **Fulfiller Onboarding (Android)**
-    - [ ] Refactor Date Picker trigger in `KycUploadScreen.kt`
-    - [ ] Fix Gender selector alignment and visibility
-    - [ ] Implement State/City dropdown selection logic
-- [ ] **Fulfiller Onboarding (Backend)**
-    - [ ] Debug and fix the 500 error in `submitApplication` in `fulfillerController.js`
-- [ ] **Merchant Module Fixes**
-    - [ ] Fix `contact_email` null constraint in `setupMerchantProfile` in `merchantController.js`
-- [ ] **Release Assets**
-    - [ ] Generate a signed production APK
-- [ ] **Verification**
-    - [ ] Verify fix for Missions tab buttons
-    - [ ] Verify AI Agent functionality
-    - [ ] Test end-to-end fulfiller onboarding
-    - [ ] Test merchant business verification
+- [ ] **Fulfiller Signup Fix**
+    - [ ] Create migration `1726860000000_make_fulfiller_password_nullable.js`
+    - [ ] Update `authController.js` to pass `passwordHash` in `INSERT INTO fulfillers`
+- [ ] **Merchant Account Update Fix**
+    - [ ] Expand `updateMerchantSettings` in `merchantController.js` to handle `allows_returns`, `return_window_days`, `return_policy_text`, `business_name`, `category`, `address`
+    - [ ] Add null-safe fallback for `store_slug` generation
+- [ ] **Verification & Deployment**
+    - [ ] Verify syntax on modified files using `node -c`
+    - [ ] Commit and push changes to GitHub

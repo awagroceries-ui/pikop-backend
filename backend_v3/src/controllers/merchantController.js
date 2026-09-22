@@ -9,7 +9,7 @@ const setupMerchantProfile = async (req, res) => {
     const { business_name, category, address, cac_number, nafdac_number, bank_name, account_number, accepts_cod = true } = req.body;
 
     // Slug generation (v4.7)
-    const store_slug = business_name.toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+    const store_slug = (business_name || 'store').toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
 
     const client = await db.pool.connect();
     try {
@@ -458,20 +458,75 @@ const createBulkOrdersSession = async (req, res) => {
 };
 
 /**
- * Updates merchant settings (e.g. COD preference, Operating Hours).
+ * Updates merchant settings (e.g. COD preference, Return policy, Operating Hours).
  */
 const updateMerchantSettings = async (req, res) => {
     const userId = req.user.id;
-    const { accepts_cod, operating_hours } = req.body;
+    const {
+        accepts_cod,
+        allows_returns,
+        return_window_days,
+        return_policy_text,
+        operating_hours,
+        business_name,
+        category
+    } = req.body;
+
+    const newSlug = business_name ? business_name.toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') : null;
 
     try {
         const queries = [
-            db.query("UPDATE vendors SET accepts_cod = COALESCE($1, accepts_cod), operating_hours = COALESCE($2, operating_hours) WHERE user_id = $3", [accepts_cod, operating_hours ? JSON.stringify(operating_hours) : null, userId]),
-            db.query("UPDATE kitchens SET accepts_cod = COALESCE($1, accepts_cod), operating_hours = COALESCE($2, operating_hours) WHERE user_id = $3", [accepts_cod, operating_hours ? JSON.stringify(operating_hours) : null, userId])
+            db.query(
+                `UPDATE vendors
+                 SET accepts_cod = COALESCE($1, accepts_cod),
+                     allows_returns = COALESCE($2, allows_returns),
+                     return_window_days = COALESCE($3, return_window_days),
+                     return_policy_text = COALESCE($4, return_policy_text),
+                     operating_hours = COALESCE($5, operating_hours),
+                     business_name = COALESCE($6, business_name),
+                     category = COALESCE($7, category),
+                     store_slug = COALESCE($8, store_slug)
+                 WHERE user_id = $9`,
+                [
+                    accepts_cod !== undefined ? accepts_cod : null,
+                    allows_returns !== undefined ? allows_returns : null,
+                    return_window_days !== undefined ? return_window_days : null,
+                    return_policy_text !== undefined ? return_policy_text : null,
+                    operating_hours ? JSON.stringify(operating_hours) : null,
+                    business_name || null,
+                    category || null,
+                    newSlug,
+                    userId
+                ]
+            ),
+            db.query(
+                `UPDATE kitchens
+                 SET accepts_cod = COALESCE($1, accepts_cod),
+                     allows_returns = COALESCE($2, allows_returns),
+                     return_window_days = COALESCE($3, return_window_days),
+                     return_policy_text = COALESCE($4, return_policy_text),
+                     operating_hours = COALESCE($5, operating_hours),
+                     business_name = COALESCE($6, business_name),
+                     category = COALESCE($7, category),
+                     store_slug = COALESCE($8, store_slug)
+                 WHERE user_id = $9`,
+                [
+                    accepts_cod !== undefined ? accepts_cod : null,
+                    allows_returns !== undefined ? allows_returns : null,
+                    return_window_days !== undefined ? return_window_days : null,
+                    return_policy_text !== undefined ? return_policy_text : null,
+                    operating_hours ? JSON.stringify(operating_hours) : null,
+                    business_name || null,
+                    category || null,
+                    newSlug,
+                    userId
+                ]
+            )
         ];
         await Promise.all(queries);
         res.status(200).json({ success: true, message: 'Settings updated successfully.' });
     } catch (error) {
+        console.error('[MerchantSettings] Update error:', error.message);
         res.status(500).json({ success: false, message: error.message });
     }
 };

@@ -47,13 +47,13 @@ const signup = async (req, res) => {
 
         await client.query(
             `INSERT INTO fulfillers (
-                user_id, full_name, email, phone, primary_class,
+                user_id, full_name, email, phone, password_hash, primary_class,
                 date_of_birth, home_address, gender,
                 registration_number, make, model, color,
                 fleet_partner_id
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
             [
-                user.id, full_name, email, normalizedPhone, (primary_class || 'rider').toLowerCase(),
+                user.id, full_name, email, normalizedPhone, passwordHash, (primary_class || 'rider').toLowerCase(),
                 date_of_birth, home_address, gender,
                 registration_number, make, model, color,
                 fleetPartnerId

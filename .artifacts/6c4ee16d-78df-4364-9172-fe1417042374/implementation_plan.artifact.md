@@ -1,48 +1,44 @@
-# Implementation Plan - Bug Fixes & UX Polish
+# Implementation Plan - Production Fixes for Fulfiller Signup & Merchant Account Updates
 
-This plan addresses several critical issues identified across the Customer, Fulfiller, and Merchant modules, along with Play Store readiness.
+This plan addresses two critical production issues preventing Fulfillers from completing signup and Merchants from updating their account settings.
 
 ## Proposed Changes
 
-### 1. Customer Module: Missions Tab Fix
-#### [MODIFY] [MainActivity.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/MainActivity.kt)
-- Wire up the `onNewDelivery` callback for `OrdersDashboardScreen` to navigate to `"order_quote"`. This will fix the inactive "Send Something Now" and "+" buttons.
+### 1. Fulfiller Signup Fix (Backend & DB Schema)
 
-### 2. Pikop AI Agent: Connection Error
-#### [MODIFY] [supportController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/supportController.js)
-- Add explicit error logging for the Gemini AI service.
-- Ensure the `GEMINI_API_KEY` is validated before attempting a connection.
+#### [NEW] [1726860000000_make_fulfiller_password_nullable.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726860000000_make_fulfiller_password_nullable.js)
+- Create a migration to alter `fulfillers.password_hash` to be nullable (`notNull: false`). Since authentication relies on `users.password_hash`, requiring it in `fulfillers` causes a database constraint violation during registration.
 
-### 3. Fulfiller Onboarding: UX & Form Fixes
-#### [MODIFY] [KycUploadScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/KycUploadScreen.kt)
-- **Date Picker**: Refactor the trigger to be more reliable by removing the transparent overlay and making the `OutlinedTextField` itself clickable.
-- **Gender Selection**: Fix the `ExposedDropdownMenuBox` implementation to ensure the dropdown menu anchors correctly and is visible.
-- **City/State Selector**: Add a two-stage dropdown for Nigeria States and their major cities (Lagos, Port Harcourt, Abuja, Kano, Ibadan, etc.) to replace the generic "Home Address" field for better data collection.
+#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
+- Update `INSERT INTO fulfillers` in the `signup()` method to explicitly pass `passwordHash`. Combining this with the schema migration guarantees 100% resilience against registration failures.
 
-#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
-- Add detailed error logging in `submitApplication` to debug the 500 error reported by the user.
+---
 
-### 4. Merchant Verification: Null Constraint Fix
+### 2. Merchant Account Update Fix (Backend & API)
+
 #### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
-- Update `setupMerchantProfile` to fetch the authenticated user's email and include it as the `contact_email` in the `INSERT` statements for both `kitchens` and `vendors`. This resolves the "null value violates not-null constraint" error.
+- **`updateMerchantSettings`**: Expand the endpoint to update `allows_returns`, `return_window_days`, `return_policy_text`, `business_name`, `category`, and `address` in addition to `accepts_cod` and `operating_hours`.
+- **Slug Safety**: Ensure `store_slug` generation handles null or empty `business_name` safely using fallback strings to prevent runtime TypeErrors.
 
-### 5. Play Store Release: Signed APK
-#### [ACTION] Build Signed APK
-- Execute the Gradle `assembleRelease` task to generate a signed APK in addition to the existing AAB. This is required for Play Console's initial package name verification in some regions.
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Database Migration Required**
+> Applying this fix on your server will require running `npm run migrate:up` to apply `1726860000000_make_fulfiller_password_nullable.js`.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- **Build Verification**: Run `./gradlew assembleRelease` to confirm both AAB and APK generation.
+- Build and verify backend syntax using `node -c` on all updated controllers and migration scripts.
 
 ### Manual Verification
-1.  **Missions Tab**: Tap "Send Something Now" and "+" buttons. Verify they open the Quote screen.
-2.  **AI Agent**: Ask a question. Verify a response is received from Gemini.
-3.  **Fulfiller Onboarding**:
-    - Open Date Picker. Confirm it shows a calendar.
-    - Open Gender dropdown. Confirm it shows options.
-    - Select a State and then a City from the new dropdowns.
-    - Submit the form and verify success (no 500 error).
-4.  **Merchant Verification**: Submit the business setup form. Verify it saves correctly without a database error.
+1.  **Fulfiller Signup**: Register a new Fulfiller account in the app. Verify that signup succeeds, OTP is sent, and the `fulfillers` record is created without 500 errors.
+2.  **Merchant Settings**:
+    - Open Merchant Portal > Settings.
+    - Toggle "Accept Cash on Delivery" and "Allow Marketplace Returns".
+    - Change return window days and tap "Update Settings".
+    - Refresh the dashboard to confirm settings persist in the database.
