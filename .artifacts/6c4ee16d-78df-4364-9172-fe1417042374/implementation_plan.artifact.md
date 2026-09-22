@@ -1,44 +1,31 @@
-# Implementation Plan - Production Fixes for Fulfiller Signup & Merchant Account Updates
+# Implementation Plan - Fix Quote Fetch 500 Error
 
-This plan addresses two critical production issues preventing Fulfillers from completing signup and Merchants from updating their account settings.
+This plan addresses the "service temporarily unavailable: error 500" occurring when fetching a delivery quote.
 
 ## Proposed Changes
 
-### 1. Fulfiller Signup Fix (Backend & DB Schema)
+### 1. Backend: Quote Generation Sanitization & Outer Exception Guard
 
-#### [NEW] [1726860000000_make_fulfiller_password_nullable.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726860000000_make_fulfiller_password_nullable.js)
-- Create a migration to alter `fulfillers.password_hash` to be nullable (`notNull: false`). Since authentication relies on `users.password_hash`, requiring it in `fulfillers` causes a database constraint violation during registration.
-
-#### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
-- Update `INSERT INTO fulfillers` in the `signup()` method to explicitly pass `passwordHash`. Combining this with the schema migration guarantees 100% resilience against registration failures.
-
----
-
-### 2. Merchant Account Update Fix (Backend & API)
-
-#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
-- **`updateMerchantSettings`**: Expand the endpoint to update `allows_returns`, `return_window_days`, `return_policy_text`, `business_name`, `category`, and `address` in addition to `accepts_cod` and `operating_hours`.
-- **Slug Safety**: Ensure `store_slug` generation handles null or empty `business_name` safely using fallback strings to prevent runtime TypeErrors.
+#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
+- **Outer Try-Catch**: Wrap the entire `getQuote` handler in an outer `try-catch` block. If any unhandled exception occurs, log the full stack trace and return a clear JSON error response instead of crashing with a 500 status code.
+- **Sanitize `undefined` Values**: PostgreSQL node-postgres driver throws a fatal error if any element in a `db.query()` parameter array is `undefined`. Sanitize all parameters (`pickup_state`, `pickup_landmark`, `delivery_landmark`, `recipient_phone`, `userId`, etc.) using nullish coalescing (`|| null` / `|| ''`) before passing them to database queries.
+- **Surge Query Guard**: Guard the surge calculation queries (`demandRes`, `supplyRes`) so they only query by `pickup_state` when a valid state string is present.
 
 ---
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Database Migration Required**
-> Applying this fix on your server will require running `npm run migrate:up` to apply `1726860000000_make_fulfiller_password_nullable.js`.
+> **Deployment Requirement**
+> Applying this fix on your server will require pulling the latest changes from Git and restarting PM2 (`pm2 restart pikop-v3`).
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Build and verify backend syntax using `node -c` on all updated controllers and migration scripts.
+- Syntax check `orderController.js` using `node -c`.
 
 ### Manual Verification
-1.  **Fulfiller Signup**: Register a new Fulfiller account in the app. Verify that signup succeeds, OTP is sent, and the `fulfillers` record is created without 500 errors.
-2.  **Merchant Settings**:
-    - Open Merchant Portal > Settings.
-    - Toggle "Accept Cash on Delivery" and "Allow Marketplace Returns".
-    - Change return window days and tap "Update Settings".
-    - Refresh the dashboard to confirm settings persist in the database.
+1. Test quote generation in the app with incomplete fields (e.g. no landmarks or state specified).
+2. Confirm the quote calculates successfully and returns a valid `quote_id` without 500 errors.

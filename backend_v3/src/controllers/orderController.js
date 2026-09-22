@@ -16,278 +16,305 @@ const BAD_WORDS = ['spam', 'test', 'nonsense', 'fake', 'dummy']; // Simplified V
  * Generates a dynamic, distance-based quote.
  */
 const getQuote = async (req, res) => {
-  const {
-    pickup_address, delivery_address, item_description,
-    pickup_lat, pickup_lng, delivery_lat, delivery_lng,
-    item_price = 0, initiator_role = 'PAYER', recipient_phone,
-    pickup_state, pickup_landmark, delivery_landmark
-  } = req.body;
-  const userId = req.user?.id;
-
-  // 1. Calculate Distance using PostGIS Geography (Superior precision for V3)
-  let distanceKm = 0;
   try {
-    const distRes = await db.query(
-      "SELECT ST_Distance(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography) / 1000 as dist",
-      [pickup_lng, pickup_lat, delivery_lng, delivery_lat]
-    );
-    distanceKm = parseFloat(distRes.rows[0].dist || 0);
-  } catch (e) {
-    console.error('[Quote] Distance error:', e.message);
-  }
+    const {
+      pickup_address, delivery_address, item_description,
+      pickup_lat, pickup_lng, delivery_lat, delivery_lng,
+      item_price = 0, initiator_role = 'PAYER', recipient_phone,
+      pickup_state, pickup_landmark, delivery_landmark
+    } = req.body;
 
-  // 2. Classify Size via Gemini v3
-  const aiResult = await geminiService.classifyItemSize(item_description);
-  const sizeTier = aiResult.size_tier || 'MEDIUM';
+    // Sanitize parameters to guarantee NO 'undefined' is ever passed to db.query()
+    const safeUserId = req.user?.id || null;
+    const safePickupAddress = pickup_address || '';
+    const safeDeliveryAddress = delivery_address || '';
+    const safeItemDescription = item_description || '';
+    const safePickupLat = parseFloat(pickup_lat) || 0.0;
+    const safePickupLng = parseFloat(pickup_lng) || 0.0;
+    const safeDeliveryLat = parseFloat(delivery_lat) || 0.0;
+    const safeDeliveryLng = parseFloat(delivery_lng) || 0.0;
+    const safeItemPrice = parseFloat(item_price) || 0.0;
+    const safeInitiatorRole = initiator_role || 'PAYER';
+    const safeRecipientPhone = recipient_phone || null;
+    const safePickupState = pickup_state || null;
+    const safePickupLandmark = pickup_landmark || null;
+    const safeDeliveryLandmark = delivery_landmark || null;
 
-  // 2.1 Determine Eligible Fulfiller Classes based on Size
-  const sizeToClassMap = {
-    'SMALL': ['agent', 'rider'],
-    'MEDIUM': ['rider', 'driver'],
-    'LARGE': ['driver']
-  };
-  const requiredClasses = sizeToClassMap[sizeTier] || ['rider', 'driver'];
-
-  // 3. Apply Dynamic Pricing Dynamics (v3.5.1 Settings-Linked)
-  let baseFees = { 'SMALL': 400, 'MEDIUM': 800, 'LARGE': 1500 };
-  let perKmRate = 110;
-  let roadWindingFactor = 1.15;
-  let codFeeRate = 0.10; // Default 10%
-  let trafficMultiplier = 1.0;
-  let weatherMultiplier = 1.0;
-
-  try {
-    const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate', 'cod_fee_rate')");
-    settingsRes.rows.forEach(r => {
-        if (r.key === 'base_fare_small') baseFees['SMALL'] = parseFloat(r.value);
-        if (r.key === 'base_fare_medium') baseFees['MEDIUM'] = parseFloat(r.value);
-        if (r.key === 'base_fare_large') baseFees['LARGE'] = parseFloat(r.value);
-        if (r.key === 'per_km_rate') perKmRate = parseFloat(r.value);
-        if (r.key === 'cod_fee_rate') codFeeRate = parseFloat(r.value);
-    });
-
-    // 3.1 Check Weather Multiplier from Pickup Zone
-    const zoneRes = await db.query(`
-        SELECT id, weather_multiplier, is_dispatch_paused
-        FROM zones
-        WHERE ST_Intersects(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geometry, boundary::geometry)
-        LIMIT 1
-    `, [pickup_lng, pickup_lat]);
-
-    if (zoneRes.rows.length > 0) {
-        if (zoneRes.rows[0].is_dispatch_paused) {
-            return res.status(403).json({ success: false, message: 'Dispatch is temporarily paused in this zone due to severe conditions.' });
-        }
-        weatherMultiplier = parseFloat(zoneRes.rows[0].weather_multiplier || 1.0);
-    }
-
-    // 3.2 Check Traffic Corridor Multipliers
-    // Logic: Find any active corridor that connects the pickup and delivery points
-    const now = new Date();
-    const day = now.getDay(); // 0-6
-    const hour = now.getHours();
-    const timeStr = `${hour}:${now.getMinutes().toString().padStart(2,'0')}`;
-
-    const corridorRes = await db.query(`
-        SELECT tc.time_windows
-        FROM traffic_corridors tc
-        WHERE tc.is_active = true
-          AND ST_Intersects(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geometry, (SELECT boundary::geometry FROM zones WHERE id = tc.pickup_zone_id))
-          AND ST_Intersects(ST_SetSRID(ST_MakePoint($3, $4), 4326)::geometry, (SELECT boundary::geometry FROM zones WHERE id = tc.delivery_zone_id))
-    `, [pickup_lng, pickup_lat, delivery_lng, delivery_lat]);
-
-    corridorRes.rows.forEach(c => {
-        const windows = c.time_windows || [];
-        windows.forEach(w => {
-            if (parseInt(w.day_of_week) === day) {
-                if (timeStr >= w.start_time && timeStr <= w.end_time) {
-                    trafficMultiplier = Math.max(trafficMultiplier, parseFloat(w.multiplier));
-                }
-            }
-        });
-    });
-
-    // 3.3 Dynamic Surge Pricing (v4.3)
-    let surgeMultiplier = 1.0;
+    // 1. Calculate Distance using PostGIS Geography
+    let distanceKm = 0;
     try {
-        const [demandRes, supplyRes, maxSurgeRes, manualSurgeRes] = await Promise.all([
-            db.query("SELECT COUNT(*) FROM orders WHERE pickup_state = $1 AND status = 'SEARCHING'", [pickup_state]),
-            db.query("SELECT COUNT(*) FROM fulfillers WHERE current_state = $1 AND online_status = 'ONLINE' AND kyc_status = 'VERIFIED'", [pickup_state]),
-            db.query("SELECT value FROM settings WHERE key = 'max_surge_multiplier'"),
-            db.query("SELECT value FROM settings WHERE key = 'manual_surge_multiplier'")
-        ]);
-
-        const demand = parseInt(demandRes.rows[0].count);
-        const supply = parseInt(supplyRes.rows[0].count);
-        const maxSurge = parseFloat(maxSurgeRes.rows[0]?.value || '3.0');
-        const manualSurge = parseFloat(manualSurgeRes.rows[0]?.value || '1.0');
-
-        if (supply > 0 && demand > supply) {
-            surgeMultiplier = Math.min(demand / supply, maxSurge);
-        }
-        surgeMultiplier = Math.max(surgeMultiplier, manualSurge);
-    } catch (e) {
-        console.warn('[Quote] Surge calc failed:', e.message);
-    }
-
-    // 3.4 Optional Item Insurance (v4.3)
-    let insuranceFee = 0;
-    try {
-        const [rateRes, minValRes] = await Promise.all([
-            db.query("SELECT value FROM settings WHERE key = 'insurance_rate'"),
-            db.query("SELECT value FROM settings WHERE key = 'insurance_min_item_value'")
-        ]);
-        const rate = parseFloat(rateRes.rows[0]?.value || '0.04');
-        const minVal = parseFloat(minValRes.rows[0]?.value || '10000');
-
-        if (parseFloat(item_price) >= minVal) {
-            insuranceFee = parseFloat(item_price) * rate;
-        }
-    } catch (e) {
-        console.warn('[Quote] Insurance calc failed:', e.message);
-    }
-
-  } catch (e) {
-    console.warn('[Quote] Pricing fetch failed, using fallback pricing.', e.message);
-  }
-
-  const base_fare = baseFees[aiResult.size_tier] || baseFees['MEDIUM'];
-  const effectiveDistance = distanceKm * roadWindingFactor;
-
-  // Apply Multipliers: (Base + Dist) * Weather * Traffic * Surge
-  const raw_delivery_fee = (base_fare + (effectiveDistance * perKmRate)) * weatherMultiplier * trafficMultiplier * surgeMultiplier;
-  const delivery_fee = Math.ceil(raw_delivery_fee);
-
-  // 4. Reliable Account Lookup (In-App vs Guest) - DETERMINES RECIPIENT TYPE
-  let recipient_type = 'GUEST';
-  let recipient_user_id = null;
-  if (recipient_phone) {
-      const normalized = normalizePhone(recipient_phone);
-      const userMatch = await db.query("SELECT id FROM users WHERE phone = $1", [normalized]);
-      if (userMatch.rows.length > 0) {
-          recipient_type = 'APP_USER';
-          recipient_user_id = userMatch.rows[0].id;
-      }
-  }
-
-  // 5. Secure Pay / Escrow Fee Logic (DYNAMIZED)
-  const platform_fee_amount = PlatformConfig.roundFee(item_price * codFeeRate);
-
-  // FIXED RULE: The person paying for the item (Buyer) ALWAYS bears the fee.
-  const fee_payer = 'PAYER';
-
-  // 5.1 Guest SMS Charge (DYNAMIZED)
-  let sms_charge_amount = 0;
-  if (recipient_type === 'GUEST') {
-      try {
-          const smsRes = await db.query("SELECT value FROM settings WHERE key = 'guest_sms_charge'");
-          sms_charge_amount = parseFloat(smsRes.rows[0]?.value || '50');
-      } catch (e) {
-          sms_charge_amount = 50;
-      }
-  }
-
-  // 5.2 Calculate UPFRONT Total (What the initiator pays NOW)
-  // FIXED: For COD missions, Buyer pays EVERYTHING. Seller pays 0.
-  const isPayerInitiator = initiator_role === 'PAYER';
-  const isSecurePay = parseFloat(item_price) > 0;
-
-  let total_payable;
-  if (isSecurePay) {
-      total_payable = isPayerInitiator ? (parseFloat(item_price) + platform_fee_amount + delivery_fee + sms_charge_amount) : 0;
-  } else {
-      // Non-COD: Initiator always pays delivery
-      total_payable = delivery_fee + sms_charge_amount;
-  }
-
-  // 5.3 Calculate Recipient Total (For Seller-initiated COD)
-  const recipient_total = (isSecurePay && !isPayerInitiator) ? (parseFloat(item_price) + platform_fee_amount + delivery_fee + sms_charge_amount) : 0;
-
-  console.log(`[Quote] User: ${userId} | Item: ${item_price} | Upfront: ${total_payable} | Recipient Pays: ${recipient_total}`);
-
-  // 6. Save Quote
-    const quoteRes = await db.query(
-    `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state, sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark, insurance_fee, surge_multiplier)
-     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-     RETURNING id, expires_at`,
-    [userId, pickup_address, delivery_address, pickup_lng, pickup_lat, delivery_lng, delivery_lat, item_description, sizeTier, total_payable, pickup_state, sms_charge_amount, requiredClasses, pickup_landmark, delivery_landmark, insuranceFee, surgeMultiplier]
-  );
-
-  // 6. Security Analysis: Daylight Window & Driver Availability
-  let restrictedDispatch = false;
-  let driversCount = 0;
-  let isLive = true;
-  let cityRules = null;
-
-  try {
-      // 6.1 Check if City/State is Live (Nationwide Readiness v4.2)
-      const stateClean = (pickup_state || '').split(' ')[0].trim();
-      const cityClean = (pickup_address || '').split(',').reverse()[1]?.trim() || '';
-
-      const liveCheck = await db.query(
-          "SELECT * FROM operating_cities WHERE is_active = true AND (state_name ILIKE $1 OR name ILIKE $2 OR name ILIKE $1) LIMIT 1",
-          [`%${stateClean}%`, `%${cityClean}%`]
+      const distRes = await db.query(
+        "SELECT ST_Distance(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography) / 1000 as dist",
+        [safePickupLng, safePickupLat, safeDeliveryLng, safeDeliveryLat]
       );
+      distanceKm = parseFloat(distRes.rows[0]?.dist || 0);
+    } catch (e) {
+      console.error('[Quote] Distance error:', e.message);
+    }
 
-      if (liveCheck.rows.length === 0) {
-          isLive = false;
-          console.log(`[Quote] Gating: Location ${pickup_address} (${stateClean}) is not currently active.`);
-      } else {
-          cityRules = liveCheck.rows[0];
+    // 2. Classify Size via Gemini v3
+    const aiResult = await geminiService.classifyItemSize(safeItemDescription);
+    const sizeTier = aiResult?.size_tier || 'MEDIUM';
+
+    // 2.1 Determine Eligible Fulfiller Classes based on Size
+    const sizeToClassMap = {
+      'SMALL': ['agent', 'rider'],
+      'MEDIUM': ['rider', 'driver'],
+      'LARGE': ['driver']
+    };
+    const requiredClasses = sizeToClassMap[sizeTier] || ['rider', 'driver'];
+
+    // 3. Apply Dynamic Pricing Dynamics (Settings-Linked)
+    let baseFees = { 'SMALL': 400, 'MEDIUM': 800, 'LARGE': 1500 };
+    let perKmRate = 110;
+    let roadWindingFactor = 1.15;
+    let codFeeRate = 0.10; // Default 10%
+    let trafficMultiplier = 1.0;
+    let weatherMultiplier = 1.0;
+
+    try {
+      const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('base_fare_small', 'base_fare_medium', 'base_fare_large', 'per_km_rate', 'cod_fee_rate')");
+      settingsRes.rows.forEach(r => {
+          if (r.key === 'base_fare_small') baseFees['SMALL'] = parseFloat(r.value);
+          if (r.key === 'base_fare_medium') baseFees['MEDIUM'] = parseFloat(r.value);
+          if (r.key === 'base_fare_large') baseFees['LARGE'] = parseFloat(r.value);
+          if (r.key === 'per_km_rate') perKmRate = parseFloat(r.value);
+          if (r.key === 'cod_fee_rate') codFeeRate = parseFloat(r.value);
+      });
+
+      // 3.1 Check Weather Multiplier from Pickup Zone
+      const zoneRes = await db.query(`
+          SELECT id, weather_multiplier, is_dispatch_paused
+          FROM zones
+          WHERE ST_Intersects(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geometry, boundary::geometry)
+          LIMIT 1
+      `, [safePickupLng, safePickupLat]);
+
+      if (zoneRes.rows.length > 0) {
+          if (zoneRes.rows[0].is_dispatch_paused) {
+              return res.status(403).json({ success: false, message: 'Dispatch is temporarily paused in this zone due to severe conditions.' });
+          }
+          weatherMultiplier = parseFloat(zoneRes.rows[0].weather_multiplier || 1.0);
       }
 
-      const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('daylight_dispatch_start', 'daylight_dispatch_end')");
-      const settings = {};
-      settingsRes.rows.forEach(r => settings[r.key] = r.value);
+      // 3.2 Check Traffic Corridor Multipliers
+      const now = new Date();
+      const day = now.getDay();
+      const hour = now.getHours();
+      const timeStr = `${hour}:${now.getMinutes().toString().padStart(2,'0')}`;
 
-      const nowTime = getWATTimeStr();
-      const dayStart = cityRules?.daylight_start || settings['daylight_dispatch_start'] || '06:00';
-      const dayEnd = cityRules?.daylight_end || settings['daylight_dispatch_end'] || '18:00';
+      const corridorRes = await db.query(`
+          SELECT tc.time_windows
+          FROM traffic_corridors tc
+          WHERE tc.is_active = true
+            AND ST_Intersects(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geometry, (SELECT boundary::geometry FROM zones WHERE id = tc.pickup_zone_id))
+            AND ST_Intersects(ST_SetSRID(ST_MakePoint($3, $4), 4326)::geometry, (SELECT boundary::geometry FROM zones WHERE id = tc.delivery_zone_id))
+      `, [safePickupLng, safePickupLat, safeDeliveryLng, safeDeliveryLat]);
 
-      if (!isWithinWindow(nowTime, dayStart, dayEnd)) {
-          restrictedDispatch = true;
-          // Count only drivers in the same state/radius
-          const statePattern = `%${(pickup_state || '').split(' ')[0]}%`;
-          const driversRes = await db.query(
-              `SELECT COUNT(*) FROM fulfillers
-               WHERE online_status = 'ONLINE' AND kyc_status = 'VERIFIED'
-               AND primary_class = 'driver' AND current_state ILIKE $1
-               AND ST_DWithin(current_location, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, 20000)`,
-              [statePattern, pickup_lng, pickup_lat]
-          );
-          driversCount = parseInt(driversRes.rows[0].count);
+      corridorRes.rows.forEach(c => {
+          const windows = c.time_windows || [];
+          windows.forEach(w => {
+              if (parseInt(w.day_of_week) === day) {
+                  if (timeStr >= w.start_time && timeStr <= w.end_time) {
+                      trafficMultiplier = Math.max(trafficMultiplier, parseFloat(w.multiplier));
+                  }
+              }
+          });
+      });
+
+      // 3.3 Dynamic Surge Pricing
+      let surgeMultiplier = 1.0;
+      try {
+          if (safePickupState) {
+              const [demandRes, supplyRes, maxSurgeRes, manualSurgeRes] = await Promise.all([
+                  db.query("SELECT COUNT(*) FROM orders WHERE pickup_state = $1 AND status = 'SEARCHING'", [safePickupState]),
+                  db.query("SELECT COUNT(*) FROM fulfillers WHERE current_state = $1 AND online_status = 'ONLINE' AND kyc_status = 'VERIFIED'", [safePickupState]),
+                  db.query("SELECT value FROM settings WHERE key = 'max_surge_multiplier'"),
+                  db.query("SELECT value FROM settings WHERE key = 'manual_surge_multiplier'")
+              ]);
+
+              const demand = parseInt(demandRes.rows[0]?.count || 0);
+              const supply = parseInt(supplyRes.rows[0]?.count || 0);
+              const maxSurge = parseFloat(maxSurgeRes.rows[0]?.value || '3.0');
+              const manualSurge = parseFloat(manualSurgeRes.rows[0]?.value || '1.0');
+
+              if (supply > 0 && demand > supply) {
+                  surgeMultiplier = Math.min(demand / supply, maxSurge);
+              }
+              surgeMultiplier = Math.max(surgeMultiplier, manualSurge);
+          }
+      } catch (e) {
+          console.warn('[Quote] Surge calc failed:', e.message);
       }
-  } catch (e) {
-      console.error('[Quote] Gating check error:', e.message);
+
+      // 3.4 Optional Item Insurance
+      let insuranceFee = 0;
+      try {
+          const [rateRes, minValRes] = await Promise.all([
+              db.query("SELECT value FROM settings WHERE key = 'insurance_rate'"),
+              db.query("SELECT value FROM settings WHERE key = 'insurance_min_item_value'")
+          ]);
+          const rate = parseFloat(rateRes.rows[0]?.value || '0.04');
+          const minVal = parseFloat(minValRes.rows[0]?.value || '10000');
+
+          if (safeItemPrice >= minVal) {
+              insuranceFee = safeItemPrice * rate;
+          }
+      } catch (e) {
+          console.warn('[Quote] Insurance calc failed:', e.message);
+      }
+
+    } catch (e) {
+      console.warn('[Quote] Pricing fetch failed, using fallback pricing.', e.message);
+    }
+
+    const base_fare = baseFees[sizeTier] || baseFees['MEDIUM'];
+    const effectiveDistance = distanceKm * roadWindingFactor;
+
+    // Apply Multipliers
+    const raw_delivery_fee = (base_fare + (effectiveDistance * perKmRate)) * weatherMultiplier * trafficMultiplier * surgeMultiplier;
+    const delivery_fee = Math.ceil(raw_delivery_fee);
+
+    // 4. Reliable Account Lookup (In-App vs Guest)
+    let recipient_type = 'GUEST';
+    let recipient_user_id = null;
+    if (safeRecipientPhone) {
+        const normalized = normalizePhone(safeRecipientPhone);
+        if (normalized) {
+            const userMatch = await db.query("SELECT id FROM users WHERE phone = $1", [normalized]);
+            if (userMatch.rows.length > 0) {
+                recipient_type = 'APP_USER';
+                recipient_user_id = userMatch.rows[0].id;
+            }
+        }
+    }
+
+    // 5. Secure Pay / Escrow Fee Logic
+    const platform_fee_amount = PlatformConfig.roundFee(safeItemPrice * codFeeRate);
+    const fee_payer = 'PAYER';
+
+    // 5.1 Guest SMS Charge
+    let sms_charge_amount = 0;
+    if (recipient_type === 'GUEST') {
+        try {
+            const smsRes = await db.query("SELECT value FROM settings WHERE key = 'guest_sms_charge'");
+            sms_charge_amount = parseFloat(smsRes.rows[0]?.value || '50');
+        } catch (e) {
+            sms_charge_amount = 50;
+        }
+    }
+
+    // 5.2 Calculate UPFRONT Total
+    const isPayerInitiator = safeInitiatorRole === 'PAYER';
+    const isSecurePay = safeItemPrice > 0;
+
+    let total_payable;
+    if (isSecurePay) {
+        total_payable = isPayerInitiator ? (safeItemPrice + platform_fee_amount + delivery_fee + sms_charge_amount) : 0;
+    } else {
+        total_payable = delivery_fee + sms_charge_amount;
+    }
+
+    // 5.3 Calculate Recipient Total
+    const recipient_total = (isSecurePay && !isPayerInitiator) ? (safeItemPrice + platform_fee_amount + delivery_fee + sms_charge_amount) : 0;
+
+    console.log(`[Quote] User: ${safeUserId} | Item: ${safeItemPrice} | Upfront: ${total_payable} | Recipient Pays: ${recipient_total}`);
+
+    // 6. Save Quote
+    const quoteRes = await db.query(
+      `INSERT INTO quotes (user_id, pickup_address, delivery_address, pickup_location, delivery_location, item_description, size_tier, total_fare, pickup_state, sms_charge_amount, required_fulfiller_classes, pickup_landmark, delivery_landmark, insurance_fee, surge_multiplier)
+       VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+       RETURNING id, expires_at`,
+      [
+        safeUserId, safePickupAddress, safeDeliveryAddress,
+        safePickupLng, safePickupLat, safeDeliveryLng, safeDeliveryLat,
+        safeItemDescription, sizeTier, total_payable,
+        safePickupState, sms_charge_amount, requiredClasses,
+        safePickupLandmark, safeDeliveryLandmark, insuranceFee, surgeMultiplier
+      ]
+    );
+
+    // 7. Security Analysis: Daylight Window & Driver Availability
+    let restrictedDispatch = false;
+    let driversCount = 0;
+    let isLive = true;
+    let cityRules = null;
+
+    try {
+        const stateClean = (safePickupState || '').split(' ')[0].trim();
+        const cityClean = (safePickupAddress || '').split(',').reverse()[1]?.trim() || '';
+
+        const liveCheck = await db.query(
+            "SELECT * FROM operating_cities WHERE is_active = true AND (state_name ILIKE $1 OR name ILIKE $2 OR name ILIKE $1) LIMIT 1",
+            [`%${stateClean}%`, `%${cityClean}%`]
+        );
+
+        if (liveCheck.rows.length === 0) {
+            isLive = false;
+            console.log(`[Quote] Gating: Location ${safePickupAddress} (${stateClean}) is not currently active.`);
+        } else {
+            cityRules = liveCheck.rows[0];
+        }
+
+        const settingsRes = await db.query("SELECT key, value FROM settings WHERE key IN ('daylight_dispatch_start', 'daylight_dispatch_end')");
+        const settings = {};
+        settingsRes.rows.forEach(r => settings[r.key] = r.value);
+
+        const nowTime = getWATTimeStr();
+        const dayStart = cityRules?.daylight_start || settings['daylight_dispatch_start'] || '06:00';
+        const dayEnd = cityRules?.daylight_end || settings['daylight_dispatch_end'] || '18:00';
+
+        if (!isWithinWindow(nowTime, dayStart, dayEnd)) {
+            restrictedDispatch = true;
+            const statePattern = `%${(safePickupState || '').split(' ')[0]}%`;
+            const driversRes = await db.query(
+                `SELECT COUNT(*) FROM fulfillers
+                 WHERE online_status = 'ONLINE' AND kyc_status = 'VERIFIED'
+                 AND primary_class = 'driver' AND current_state ILIKE $1
+                 AND ST_DWithin(current_location, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, 20000)`,
+                [statePattern, safePickupLng, safePickupLat]
+            );
+            driversCount = parseInt(driversRes.rows[0]?.count || 0);
+        }
+    } catch (e) {
+        console.error('[Quote] Gating check error:', e.message);
+    }
+
+    res.status(200).json({
+      success: true,
+      quote_id: quoteRes.rows[0].id,
+      size_tier: sizeTier,
+      distance_km: distanceKm.toFixed(2),
+      item_price: safeItemPrice,
+      delivery_fee,
+      platform_fee_amount,
+      sms_charge_amount,
+      weather_multiplier: weatherMultiplier,
+      traffic_multiplier: trafficMultiplier,
+      surge_multiplier: surgeMultiplier,
+      insurance_fee: insuranceFee,
+      fee_payer,
+      total_fare: total_payable,
+      recipient_payable: recipient_total,
+      required_fulfiller_classes: requiredClasses,
+      restricted_dispatch: restrictedDispatch,
+      drivers_count: driversCount,
+      is_live: isLive,
+      requires_permit: cityRules?.requires_rider_permit || false,
+      payer_info: {
+          type: recipient_type,
+          user_id: recipient_user_id
+      },
+      expires_at: quoteRes.rows[0].expires_at
+    });
+
+  } catch (error) {
+    console.error('[Quote] FATAL Error:', error.stack || error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Unable to calculate delivery quote. Please check your addresses and try again.'
+    });
   }
-
-  res.status(200).json({
-    success: true,
-    quote_id: quoteRes.rows[0].id,
-    size_tier: sizeTier,
-    distance_km: distanceKm.toFixed(2),
-    item_price,
-    delivery_fee,
-    platform_fee_amount,
-    sms_charge_amount,
-    weather_multiplier: weatherMultiplier,
-    traffic_multiplier: trafficMultiplier,
-    surge_multiplier: surgeMultiplier,
-    insurance_fee: insuranceFee,
-    fee_payer,
-    total_fare: total_payable,
-    recipient_payable: recipient_total,
-    required_fulfiller_classes: requiredClasses,
-    restricted_dispatch: restrictedDispatch,
-    drivers_count: driversCount,
-    is_live: isLive,
-    requires_permit: cityRules?.requires_rider_permit || false,
-    payer_info: {
-        type: recipient_type, // Map back to UI expectations
-        user_id: recipient_user_id
-    },
-    expires_at: quoteRes.rows[0].expires_at
-  });
 };
 
 /**
