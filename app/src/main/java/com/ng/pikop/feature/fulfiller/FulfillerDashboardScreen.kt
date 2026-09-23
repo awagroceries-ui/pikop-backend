@@ -252,6 +252,42 @@ fun FulfillerDashboardScreen(
                     }
                 }
 
+                // Active Mission Resume Banner
+                val activeMission = history.firstOrNull { 
+                    val s = it.status?.uppercase() ?: ""
+                    s in listOf("MATCHED", "ACCEPTED", "PICKED_UP", "IN_TRANSIT", "ASSIGNED", "QUEUED") 
+                }
+
+                if (activeMission != null) {
+                    item {
+                        Card(
+                            onClick = { onAcceptOffer(activeMission.id.toString()) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.DirectionsBike, null, tint = Color.White, modifier = Modifier.size(32.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("ACTIVE MISSION IN PROGRESS 🚀", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+                                    Text("Order #${activeMission.id} • ${activeMission.status?.uppercase()}", color = Color.White.copy(alpha = 0.9f), fontSize = 11.sp)
+                                }
+                                Button(
+                                    onClick = { onAcceptOffer(activeMission.id.toString()) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = com.ng.pikop.ui.theme.PikopGold, contentColor = Color.Black)
+                                ) {
+                                    Text("RESUME", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // 2. Dash Content
                 item {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -435,8 +471,17 @@ fun FulfillerDashboardScreen(
                                             try {
                                                 isLoading = true
                                                 val response = apiService.acceptOrder(offer.id ?: "", emptyMap())
-                                                if (response.status == "MATCHED" || response.status == "QUEUED") onAcceptOffer(offer.id ?: "")
-                                                else fetchDashboardData()
+                                                val claimedStatus = response.status ?: response.data?.status
+                                                val isSuccess = claimedStatus == "MATCHED" || claimedStatus == "QUEUED" || 
+                                                                response.message?.contains("Accepted", ignoreCase = true) == true || 
+                                                                response.message?.contains("Claimed", ignoreCase = true) == true
+                                                
+                                                if (isSuccess) {
+                                                    Toast.makeText(context, "Mission Accepted!", Toast.LENGTH_SHORT).show()
+                                                    onAcceptOffer(offer.id ?: "")
+                                                } else {
+                                                    fetchDashboardData()
+                                                }
                                             } catch (e: Exception) {
                                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
                                             } finally { isLoading = false }

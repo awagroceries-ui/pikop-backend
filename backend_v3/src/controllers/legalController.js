@@ -122,4 +122,25 @@ const postDeleteAccountRequest = async (req, res) => {
     }
 };
 
-module.exports = { getTerms, getPrivacyPolicy, getLegalConfig, getDeleteAccountPage, postDeleteAccountRequest };
+const getFulfillerTerms = async (req, res) => {
+    try {
+        let filePath = path.join(__dirname, '../../public/legal/Pikop_Fulfiller_Conduct_and_Terms.md');
+        if (!fs.existsSync(filePath)) {
+            filePath = path.join(__dirname, '../../public/legal/Pikop_Terms_and_Conditions.md');
+        }
+
+        const markdown = fs.readFileSync(filePath, 'utf8');
+        res.render('legal_pages', {
+            title: 'Fulfiller Conduct Policy & Terms',
+            content: convertMarkdownToHtml(markdown),
+            layout: 'public_layout',
+            adminUsername: null,
+            role: null
+        });
+    } catch (e) {
+        console.error('[Legal] Fulfiller Terms Load Error:', e.message);
+        res.status(500).send(`Error loading Fulfiller Terms: ${e.message}`);
+    }
+};
+
+module.exports = { getTerms, getFulfillerTerms, getPrivacyPolicy, getLegalConfig, getDeleteAccountPage, postDeleteAccountRequest };

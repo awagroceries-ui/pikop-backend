@@ -391,14 +391,17 @@ const acceptOrder = async (req, res) => {
 
     await client.query('COMMIT');
 
+    const resStatus = activeCheck.rows.length > 0 ? 'QUEUED' : 'MATCHED';
+
     // Notify participants via socket
     const socketService = require('../services/socketService');
-    socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: activeCheck.rows.length > 0 ? 'QUEUED' : 'MATCHED' });
+    socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: resStatus });
 
     res.status(200).json({
       success: true,
+      status: resStatus,
       message: activeCheck.rows.length > 0 ? 'Added to Queue' : 'Mission Accepted',
-      data: { status: activeCheck.rows.length > 0 ? 'QUEUED' : 'MATCHED' }
+      data: { status: resStatus }
     });
 
   } catch (error) {

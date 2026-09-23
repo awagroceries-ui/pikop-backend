@@ -3,6 +3,8 @@ const router = express.Router();
 const legalController = require('../controllers/legalController');
 
 router.get('/terms', legalController.getTerms);
+router.get('/terms/fulfiller', legalController.getFulfillerTerms);
+router.get('/terms-fulfiller', legalController.getFulfillerTerms);
 router.get('/privacy', legalController.getPrivacyPolicy);
 router.get('/delete-account', legalController.getDeleteAccountPage);
 router.post('/delete-account', legalController.postDeleteAccountRequest);

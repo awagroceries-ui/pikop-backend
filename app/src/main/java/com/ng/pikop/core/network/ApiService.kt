@@ -162,7 +162,12 @@ data class OrderResponse(
     val order_id: String? = null,
     val status: String? = null,
     val tracking_url: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val data: OrderResponseData? = null
+)
+
+data class OrderResponseData(
+    val status: String? = null
 )
 
 data class StatusHistoryItem(

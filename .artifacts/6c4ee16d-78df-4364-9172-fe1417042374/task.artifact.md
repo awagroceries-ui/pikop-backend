@@ -1,24 +1,17 @@
-# Task: Execute Production Fixes & Real-Road Map Navigation
+# Task: Fulfiller Conduct Policy Route & Order Acceptance Fix
 
-- [x] **1. Fulfiller Order Acceptance Fix (`orderController.js`)**
-    - [x] Update `acceptOrder` allowed status check & idempotent assignment
-- [x] **2 & 3. Role Selector UI Updates (`UserTypeSelectionScreen.kt`)**
-    - [x] Fix Business Account icon contrast for Dark Mode
-    - [x] Compact layout (80dp logo, 105dp card, 32dp icons) for zero-scroll UI
-- [x] **4. In-App Account Deletion Fix (`authController.js`)**
-    - [x] Fix subquery in `deleteAccount` & timestamp anonymization
-- [x] **5. Admin User Account Deletion (`adminRoutes.js`, `adminController.js`, `views/`)**
-    - [x] Add `/admin/users/:id/force-delete` route and handler
-    - [x] Add Delete User Account button to `customer_detail.ejs` and `fulfiller_detail.ejs`
-- [x] **6. Strict Email Validation (`authController.js` & Signup Screens)**
-    - [x] Add email regex check in backend `signup()`
-    - [x] Add email regex check on all 5 Android signup screens
-- [x] **7. Demand Hotspot Location Resolution (`FulfillerDashboardScreen.kt`)**
-    - [x] Resolve map camera to Fulfiller's actual coordinates/state
-- [x] **8. Real-Road Network Map Navigation (`TrackOrderScreen.kt` & `ActiveOrderScreen.kt`)**
-    - [x] Replace straight dashed lines with real road network navigation polylines
-- [x] **Verification & Deployment**
-    - [x] Verify JS syntax using `node -c`
-    - [x] Build release App Bundle (`app-release.aab`)
-    - [x] Install release APK on connected Samsung Galaxy device
-    - [x] Commit and push all changes to GitHub
+- [ ] **1. Fulfiller Conduct Policy Route (`legalRoutes.js`, `legalController.js`, `app.js`, `MainActivity.kt`)**
+    - [ ] Add `/terms/fulfiller` and `/legal/terms/fulfiller` routes in `legalRoutes.js`
+    - [ ] Implement `getFulfillerTerms` in `legalController.js`
+    - [ ] Mount `/terms` in `app.js`
+    - [ ] Update `terms_viewer/{showFulfillerTerms}` in `MainActivity.kt` to point to `/legal/terms/fulfiller`
+- [ ] **2. Fulfiller Mission Acceptance Fix (`orderController.js`, `ApiService.kt`, `FulfillerDashboardScreen.kt`)**
+    - [ ] Return top-level `status` in `acceptOrder` response in `orderController.js`
+    - [ ] Add `data: OrderResponseData?` to `OrderResponse` in `ApiService.kt`
+    - [ ] Update `onAccept` handler in `FulfillerDashboardScreen.kt` to check `response.status ?: response.data?.status` and navigate to `active_order/$orderId`
+    - [ ] Add "Active Mission in Progress" banner at top of `FulfillerDashboardScreen.kt`
+- [ ] **Verification & Deployment**
+    - [ ] Verify JS syntax using `node -c`
+    - [ ] Build release App Bundle (`app-release.aab`)
+    - [ ] Install release APK on connected Samsung Galaxy device
+    - [ ] Commit and push all changes to GitHub

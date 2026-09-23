@@ -665,8 +665,8 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         composable("terms_viewer/{showFulfillerTerms}") { backStackEntry ->
             val showFulfillerTerms = backStackEntry.arguments?.getString("showFulfillerTerms")?.toBoolean() ?: false
             LegalViewerScreen(
-                title = if (showFulfillerTerms) "Fulfiller Terms" else "Terms & Conditions",
-                url = "https://api.pikop.com.ng/legal/terms",
+                title = if (showFulfillerTerms) "Fulfiller Conduct Policy & Terms" else "Terms & Conditions",
+                url = if (showFulfillerTerms) "https://api.pikop.com.ng/legal/terms/fulfiller" else "https://api.pikop.com.ng/legal/terms",
                 onBack = { navController.popBackStack() }
             )
         }
