@@ -286,13 +286,31 @@ fun TrackOrderScreen(
                         }
                         
                         if (pickupLoc != null && deliveryLoc != null) {
-                            Polyline(points = listOf(pickupLoc!!, deliveryLoc!!), color = Color.Gray, width = 5f, pattern = listOf(Dash(20f), Gap(10f)))
+                            val fulLoc = animatedFulfillerLoc ?: pickupLoc!!
+                            val activeRoute: List<LatLng> = remember(fulLoc, pickupLoc) { createRoadPolyline(fulLoc, pickupLoc!!) }
+                            val destinationRoute: List<LatLng> = remember(pickupLoc, deliveryLoc) { createRoadPolyline(pickupLoc!!, deliveryLoc!!) }
+                            
+                            Polyline(points = activeRoute, color = MaterialTheme.colorScheme.primary, width = 10f)
+                            Polyline(points = destinationRoute, color = Color.Gray, width = 6f, pattern = listOf(Dash(20f), Gap(10f)))
                         }
                     }
                 }
             }
         }
     }
+}
+
+fun createRoadPolyline(start: LatLng, end: LatLng): List<LatLng> {
+    val points = mutableListOf<LatLng>()
+    points.add(start)
+    val midLat = (start.latitude + end.latitude) / 2
+    val midLng = (start.longitude + end.longitude) / 2
+    val offsetLat = (end.latitude - start.latitude) * 0.15
+    val offsetLng = (end.longitude - start.longitude) * -0.15
+    points.add(LatLng(start.latitude + offsetLat, midLng))
+    points.add(LatLng(midLat, end.longitude + offsetLng))
+    points.add(end)
+    return points
 }
 
 fun getScaledMarkerIcon(context: android.content.Context, resId: Int, sizeDp: Int = 38): BitmapDescriptor {

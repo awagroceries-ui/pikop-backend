@@ -21,7 +21,7 @@
                 <%= fulfiller.primary_class %> - <%= fulfiller.tier %>
             </div>
 
-            <div class="row text-center mt-3 pt-3 border-top">
+            <div class="row text-center mt-3 pt-3 border-top mb-3">
                 <div class="col-6 border-end">
                     <div class="text-muted smaller uppercase">Rating</div>
                     <div class="fw-bold text-warning">★ <%= parseFloat(fulfiller.rating_avg).toFixed(1) %></div>
@@ -31,6 +31,12 @@
                     <div class="fw-bold"><%= fulfiller.rating_count %></div>
                 </div>
             </div>
+
+            <form action="/admin/users/<%= fulfiller.user_id %>/force-delete" method="POST" onsubmit="return confirm('WARNING: Are you sure you want to PERMANENTLY DELETE this fulfiller account and all associated data? This action cannot be undone.');">
+                <button type="submit" class="btn btn-sm btn-outline-danger w-100 fw-bold">
+                    🗑️ Delete User Account
+                </button>
+            </form>
         </div>
     </div>
 

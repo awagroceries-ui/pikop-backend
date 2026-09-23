@@ -199,6 +199,8 @@ fun SignupCustomerScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
+            val isValidEmail = remember(email) { android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() }
+
             Button(
                 onClick = {
                     coroutineScope.launch {
@@ -207,7 +209,7 @@ fun SignupCustomerScreen(
                         try {
                             val request = SignupRequest(
                                 full_name = fullName, 
-                                email = email, 
+                                email = email.trim(), 
                                 phone = phone, 
                                 password = password, 
                                 role = "CUSTOMER", 
@@ -217,7 +219,7 @@ fun SignupCustomerScreen(
                             )
                             val response = apiService.signup(request)
                             if (response.message?.contains("registered", ignoreCase = true) == true) {
-                                onSignupSuccess(email, "CUSTOMER")
+                                onSignupSuccess(email.trim(), "CUSTOMER")
                             } else {
                                 errorMessage = response.message
                             }
@@ -231,7 +233,7 @@ fun SignupCustomerScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && 
                           fullName.isNotBlank() && 
-                          email.isNotBlank() && 
+                          email.isNotBlank() && isValidEmail &&
                           phone.isNotBlank() && 
                           password.isNotBlank() && 
                           password == confirmPassword

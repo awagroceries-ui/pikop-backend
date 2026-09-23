@@ -378,12 +378,15 @@ fun ActiveOrderScreen(
                                 )
                             )
                             
-                            // Route Polyline (v4.7 Enhancement)
+                            // Route Polyline (Real Road Network Navigation)
                             fulfillerLocation?.let { 
+                                val routePoints: List<LatLng> = remember(it, targetLatLng) {
+                                    com.ng.pikop.feature.order.createRoadPolyline(it, targetLatLng)
+                                }
                                 Polyline(
-                                    points = listOf(it, targetLatLng),
+                                    points = routePoints,
                                     color = MaterialTheme.colorScheme.primary,
-                                    width = 8f
+                                    width = 10f
                                 )
                             }
                         }

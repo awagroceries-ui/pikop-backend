@@ -20,6 +20,12 @@
                 <span class="text-muted smaller d-block">Joined</span>
                 <span class="small"><%= new Date(customer.created_at).toLocaleString() %></span>
             </div>
+            <hr>
+            <form action="/admin/users/<%= customer.id %>/force-delete" method="POST" onsubmit="return confirm('WARNING: Are you sure you want to PERMANENTLY DELETE this user account and all associated data? This action cannot be undone.');">
+                <button type="submit" class="btn btn-sm btn-outline-danger w-100 fw-bold">
+                    🗑️ Delete User Account
+                </button>
+            </form>
         </div>
     </div>
 

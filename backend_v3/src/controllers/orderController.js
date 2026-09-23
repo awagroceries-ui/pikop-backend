@@ -342,7 +342,7 @@ const acceptOrder = async (req, res) => {
 
     // 2. Atomic claim using SELECT FOR UPDATE
     const { rows } = await client.query(
-        "SELECT id, status FROM orders WHERE id = $1 FOR UPDATE",
+        "SELECT id, status, fulfiller_id FROM orders WHERE id = $1 FOR UPDATE",
         [orderId]
     );
 
@@ -351,7 +351,18 @@ const acceptOrder = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    if (rows[0].status !== 'SEARCHING' && rows[0].status !== 'PAYMENT_CAPTURED') {
+    // IDEMPOTENT CLAIM: If order is already assigned to THIS fulfiller, return success immediately
+    if (rows[0].fulfiller_id === fulfillerId) {
+        await client.query('COMMIT');
+        return res.status(200).json({
+            success: true,
+            message: 'Mission Already Claimed',
+            data: { status: rows[0].status || 'MATCHED' }
+        });
+    }
+
+    const claimableStatuses = ['SEARCHING', 'PAYMENT_CAPTURED', 'PAID', 'PROCESSING', 'CONFIRMED', 'SCHEDULED', 'QUEUED', 'PENDING'];
+    if (!claimableStatuses.includes(rows[0].status)) {
         await client.query('ROLLBACK');
         return res.status(400).json({ success: false, message: 'Order is no longer available' });
     }

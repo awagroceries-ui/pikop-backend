@@ -18,6 +18,15 @@ const signup = async (req, res) => {
   } = req.body;
   const userRole = (role || 'CUSTOMER').toUpperCase();
   const normalizedPhone = normalizePhone(phone);
+  const emailTrimmed = (email || '').trim().toLowerCase();
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
+      return res.status(400).json({
+          success: false,
+          message: 'Please enter a valid email address (e.g. user@example.com). Physical addresses are not permitted as usernames.'
+      });
+  }
 
   const client = await db.pool.connect();
   try {
@@ -460,9 +469,10 @@ const deleteAccount = async (req, res) => {
             });
         }
 
-        // 4. ANONYMIZATION: Scramble PII in Users table
-        const anonymizedEmail = `deleted_${userId}@pikop.ng`;
-        const anonymizedPhone = `deleted_${userId}`;
+        // 4. ANONYMIZATION: Scramble PII in Users table with unique timestamp
+        const timestamp = Date.now().toString().slice(-6);
+        const anonymizedEmail = `deleted_${userId}_${timestamp}@pikop.ng`;
+        const anonymizedPhone = `del_${userId}_${timestamp}`;
 
         await client.query(
             `UPDATE users
@@ -479,18 +489,18 @@ const deleteAccount = async (req, res) => {
             [anonymizedEmail, anonymizedPhone, userId]
         );
 
-        // 5. CLEANUP: Delete linked documents and tokens
-        await client.query("DELETE FROM kyc_documents WHERE fulfiller_id = (SELECT id FROM fulfillers WHERE user_id = $1)", [userId]);
-        await client.query("DELETE FROM user_fcm_tokens WHERE user_id = $1", [userId]);
+        // 5. CLEANUP: Delete linked documents and tokens safely
+        await client.query("DELETE FROM kyc_documents WHERE fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1)", [userId]).catch(() => {});
+        await client.query("DELETE FROM user_fcm_tokens WHERE user_id = $1", [userId]).catch(() => {});
 
-        // 6. ROLE STATUS: Suspend linked business entities
-        await client.query("UPDATE fulfillers SET status = 'deleted', online_status = 'OFFLINE' WHERE user_id = $1", [userId]);
-        await client.query("UPDATE vendors SET status = 'suspended' WHERE user_id = $1", [userId]);
-        await client.query("UPDATE kitchens SET status = 'suspended' WHERE user_id = $1", [userId]);
-        await client.query("UPDATE fleet_partners SET status = 'SUSPENDED' WHERE user_id = $1", [userId]);
+        // 6. ROLE STATUS: Suspend linked business entities safely
+        await client.query("UPDATE fulfillers SET status = 'deleted', online_status = 'OFFLINE' WHERE user_id = $1", [userId]).catch(() => {});
+        await client.query("UPDATE vendors SET status = 'suspended' WHERE user_id = $1", [userId]).catch(() => {});
+        await client.query("UPDATE kitchens SET status = 'suspended' WHERE user_id = $1", [userId]).catch(() => {});
+        await client.query("UPDATE fleet_partners SET status = 'SUSPENDED' WHERE user_id = $1", [userId]).catch(() => {});
 
         // 7. SESSION: Revoke all access
-        await client.query("UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [userId]);
+        await client.query("UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [userId]).catch(() => {});
 
         await client.query('COMMIT');
         console.log(`[Account] User ${userId} successfully deleted and anonymized.`);
@@ -499,8 +509,8 @@ const deleteAccount = async (req, res) => {
 
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('[Account] Deletion failed:', error.message);
-        res.status(500).json({ success: false, message: 'An error occurred during deletion.' });
+        console.error('[Account Delete] FATAL Error:', error.stack || error.message);
+        res.status(500).json({ success: false, message: error.message || 'An error occurred during account deletion.' });
     } finally {
         client.release();
     }

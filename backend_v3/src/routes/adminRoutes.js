@@ -54,6 +54,7 @@ router.post('/fulfillers/:id/status', adminController.updateFulfillerStatus);
 router.get('/customers', adminController.getCustomers);
 router.get('/customers/:id', adminController.getCustomerDetail);
 router.post('/customers/:id/status', adminController.updateCustomerStatus);
+router.post('/users/:id/force-delete', adminController.forceDeleteUser);
 
 // Transactions & Ledger Audit
 router.get('/transactions', adminController.getTransactions);

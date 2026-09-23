@@ -1260,6 +1260,49 @@ const getReturnsAdmin = async (req, res) => {
     }
 };
 
+/**
+ * Admin Action: Force Delete/Purge User Account.
+ */
+const forceDeleteUser = async (req, res) => {
+    const { id } = req.params;
+    const adminId = req.session.adminId || 0;
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Delete associated records first
+        await client.query("DELETE FROM otp_verifications WHERE user_id = $1", [id]).catch(() => {});
+        await client.query("DELETE FROM user_fcm_tokens WHERE user_id = $1", [id]).catch(() => {});
+        await client.query("DELETE FROM user_sessions WHERE user_id = $1", [id]).catch(() => {});
+        await client.query("DELETE FROM kyc_documents WHERE fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1)", [id]).catch(() => {});
+        await client.query("DELETE FROM fulfillers WHERE user_id = $1", [id]).catch(() => {});
+        await client.query("DELETE FROM vendors WHERE user_id = $1", [id]).catch(() => {});
+        await client.query("DELETE FROM kitchens WHERE user_id = $1", [id]).catch(() => {});
+        await client.query("DELETE FROM fleet_partners WHERE user_id = $1", [id]).catch(() => {});
+
+        // Delete user
+        await client.query("DELETE FROM users WHERE id = $1", [id]);
+
+        // Audit Log
+        await client.query(
+            "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+            [adminId, 'ADMIN_FORCE_DELETE_USER', 'user', id, JSON.stringify({ deleted_at: new Date() })]
+        ).catch(() => {});
+
+        await client.query('COMMIT');
+        console.log(`[Admin] User Account #${id} FORCE DELETED by Admin`);
+
+        res.redirect('/admin/customers');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[Admin] Force delete error:', error.message);
+        res.status(500).send(`Failed to delete user account: ${error.message}`);
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -1314,5 +1357,6 @@ module.exports = {
   getCorporateAdmin,
   updateCorporateStatus,
   getAuditLogsAdmin,
-  getReturnsAdmin
+  getReturnsAdmin,
+  forceDeleteUser
 };

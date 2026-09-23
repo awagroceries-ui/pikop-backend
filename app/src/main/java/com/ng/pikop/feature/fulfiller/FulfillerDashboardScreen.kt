@@ -196,13 +196,27 @@ fun FulfillerDashboardScreen(
                 position = CameraPosition.fromLatLngZoom(LatLng(6.5244, 3.3792), 12f)
             }
 
+            LaunchedEffect(Unit) {
+                try {
+                    val location = fusedLocationClient.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+                    if (location != null) {
+                        cameraPositionState.animate(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(LatLng(location.latitude, location.longitude), 12f))
+                    }
+                } catch (_: SecurityException) {
+                } catch (_: Exception) {}
+            }
+
             LaunchedEffect(showHotspots) {
                 if (showHotspots) {
                     try {
                         val res = apiService.getDemandHeatmap()
                         @Suppress("UNCHECKED_CAST")
                         val data = res["data"] as? List<Map<String, Any>>
-                        hotspots = data?.map { LatLng((it["lat"] as? Number)?.toDouble() ?: 0.0, (it["lng"] as? Number)?.toDouble() ?: 0.0) } ?: emptyList()
+                        val parsedHotspots = data?.map { LatLng((it["lat"] as? Number)?.toDouble() ?: 0.0, (it["lng"] as? Number)?.toDouble() ?: 0.0) } ?: emptyList()
+                        hotspots = parsedHotspots
+                        if (parsedHotspots.isNotEmpty()) {
+                            cameraPositionState.animate(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(parsedHotspots.first(), 12f))
+                        }
                     } catch (_: Exception) {}
                 }
             }

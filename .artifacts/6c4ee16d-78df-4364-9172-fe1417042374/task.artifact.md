@@ -1,18 +1,24 @@
-# Task: Admin Panel Refinements & Feature Complete Enhancements
+# Task: Execute Production Fixes & Real-Road Map Navigation
 
-- [x] **Admin Routes (`adminRoutes.js`)**
-    - [x] Add routes for `/admin/knowledge-base`, `/admin/corporate`, `/admin/audit-logs`, `/admin/returns`
-- [x] **Admin Controller (`adminController.js`)**
-    - [x] Implement AI Knowledge Base management methods
-    - [x] Implement Corporate Accounts management methods
-    - [x] Implement Audit Logs & Compliance Requests viewer method
-    - [x] Implement Marketplace Returns dashboard method
-- [x] **EJS View Templates (`views/`)**
-    - [x] Create `knowledge_base_admin.ejs`
-    - [x] Create `corporate_admin.ejs`
-    - [x] Create `audit_logs_admin.ejs`
-    - [x] Create `returns_admin.ejs`
-    - [x] Update `layout.ejs` sidebar with navigation links
-- [x] **Verification & Deployment**
-    - [x] Verify syntax on modified files using `node -c`
-    - [x] Commit and push changes to GitHub
+- [ ] **1. Fulfiller Order Acceptance Fix (`orderController.js`)**
+    - [ ] Update `acceptOrder` allowed status check & idempotent assignment
+- [ ] **2 & 3. Role Selector UI Updates (`UserTypeSelectionScreen.kt`)**
+    - [ ] Fix Business Account icon contrast for Dark Mode
+    - [ ] Compact layout (80dp logo, 105dp card, 32dp icons) for zero-scroll UI
+- [ ] **4. In-App Account Deletion Fix (`authController.js`)**
+    - [ ] Fix subquery in `deleteAccount` & timestamp anonymization
+- [ ] **5. Admin User Account Deletion (`adminRoutes.js`, `adminController.js`, `views/`)**
+    - [ ] Add `/admin/users/:id/force-delete` route and handler
+    - [ ] Add Delete User Account button to `customer_detail.ejs` and `fulfiller_detail.ejs`
+- [ ] **6. Strict Email Validation (`authController.js` & Signup Screens)**
+    - [ ] Add email regex check in backend `signup()`
+    - [ ] Add email regex check on all 5 Android signup screens
+- [ ] **7. Demand Hotspot Location Resolution (`FulfillerDashboardScreen.kt`)**
+    - [ ] Resolve map camera to Fulfiller's actual coordinates/state
+- [ ] **8. Real-Road Network Map Navigation (`TrackOrderScreen.kt` & `ActiveOrderScreen.kt`)**
+    - [ ] Replace straight dashed lines with real road network navigation polylines
+- [ ] **Verification & Deployment**
+    - [ ] Verify JS syntax using `node -c`
+    - [ ] Build release App Bundle (`app-release.aab`)
+    - [ ] Install release APK on connected Samsung Galaxy device
+    - [ ] Commit and push all changes to GitHub
