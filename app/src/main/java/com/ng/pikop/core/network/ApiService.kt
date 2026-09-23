@@ -1381,7 +1381,27 @@ interface ApiService {
                 null
             }
 
+            val resilientDns = object : okhttp3.Dns {
+                override fun lookup(hostname: String): List<java.net.InetAddress> {
+                    return try {
+                        okhttp3.Dns.SYSTEM.lookup(hostname)
+                    } catch (e: java.net.UnknownHostException) {
+                        android.util.Log.w("PikopApi", "System DNS failed for $hostname. Applying fallback DNS IP.")
+                        if (hostname.contains("pikop.com.ng")) {
+                            try {
+                                listOf(java.net.InetAddress.getByAddress(hostname, byteArrayOf(168.toByte(), 231.toByte(), 113.toByte(), 202.toByte())))
+                            } catch (e2: Exception) {
+                                throw e
+                            }
+                        } else {
+                            throw e
+                        }
+                    }
+                }
+            }
+
             val client = OkHttpClient.Builder()
+                .dns(resilientDns)
                 .addInterceptor(logger)
                 .addInterceptor(authInterceptor)
                 .authenticator(authenticator)

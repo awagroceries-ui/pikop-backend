@@ -674,9 +674,9 @@ fun OrderQuoteScreen(
                                     QuoteRequest(
                                         pickup_address = pickupAddress, 
                                         delivery_address = deliveryAddress, 
-                                        pickup_landmark = pickupLandmark,
-                                        delivery_landmark = deliveryLandmark,
-                                        item_description = description, 
+                                        pickup_landmark = pickupLandmark.ifBlank { "Main Gate" },
+                                        delivery_landmark = deliveryLandmark.ifBlank { "Main Entrance" },
+                                        item_description = description.ifBlank { "Package Delivery" }, 
                                         pickup_lat = pickupLatLng?.latitude ?: 0.0, 
                                         pickup_lng = pickupLatLng?.longitude ?: 0.0, 
                                         delivery_lat = deliveryLatLng?.latitude ?: 0.0, 
@@ -684,7 +684,7 @@ fun OrderQuoteScreen(
                                         item_price = if (isSecurePay) itemPrice.toDoubleOrNull() ?: 0.0 else 0.0,
                                         initiator_role = if (isSecurePay) initiatorRole else "PAYER",
                                         recipient_phone = if (isSecurePay) recipientPhone else null,
-                                        pickup_state = pickupState
+                                        pickup_state = (pickupState ?: "Lagos").ifBlank { "Lagos" }
                                     )
                                 )
                                 if (response.success && response.quote_id != null) {
@@ -706,8 +706,7 @@ fun OrderQuoteScreen(
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    enabled = !isLoading && pickupAddress.isNotBlank() && deliveryAddress.isNotBlank() && 
-                              pickupLandmark.length >= 3 && deliveryLandmark.length >= 3 && itemPhotoUri != null,
+                    enabled = !isLoading && pickupAddress.isNotBlank() && deliveryAddress.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary, 
                         contentColor = MaterialTheme.colorScheme.onPrimary
