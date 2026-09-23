@@ -318,7 +318,7 @@ fun KycUploadScreen(
                                         if (internalPhotoFile.exists()) {
                                             currentStep = 3 // Optimistic Advance
                                             val compressed = ImageUtils.compressFile(context, internalPhotoFile)
-                                            val body = MultipartBody.Part.createFormData("file", "profile.jpg", compressed.asRequestBody("image/*".toMediaTypeOrNull()))
+                                            val body = MultipartBody.Part.createFormData("photo", "profile.jpg", compressed.asRequestBody("image/*".toMediaTypeOrNull()))
                                             api.uploadProfilePhoto(body)
                                             viewModel.refreshProfile()
                                         }

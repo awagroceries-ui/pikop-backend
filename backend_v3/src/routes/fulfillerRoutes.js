@@ -30,7 +30,7 @@ router.get('/ping', (req, res) => res.send('FULFILLER ROUTES ACTIVE'));
 // Fleet Operations
 router.get('/profile', authenticateToken, fulfillerController.getProfile);
 router.patch('/profile', authenticateToken, fulfillerController.updateFulfillerProfile);
-router.post('/profile-photo', authenticateToken, upload.single('photo'), fulfillerController.uploadProfilePhoto);
+router.post('/profile-photo', authenticateToken, upload.any(), fulfillerController.uploadProfilePhoto);
 router.patch('/status', authenticateToken, fulfillerController.updateStatus);
 router.get('/demand-heatmap', authenticateToken, fulfillerController.getDemandHeatmap);
 router.get('/orders', authenticateToken, orderController.getFulfillerOrders);

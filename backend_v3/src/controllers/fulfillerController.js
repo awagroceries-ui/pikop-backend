@@ -449,18 +449,20 @@ const getAvailableOffers = async (req, res) => {
  */
 const uploadProfilePhoto = async (req, res) => {
     const userId = req.user.id;
-    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+    const file = req.file || (req.files && req.files.length > 0 ? req.files[0] : null);
+    if (!file) return res.status(400).json({ success: false, message: 'No file uploaded' });
 
-    const photoUrl = `/uploads/${req.file.filename}`;
+    const photoUrl = `/uploads/${file.filename}`;
 
     try {
         // Update both tables to keep profile in sync across schemas
         await db.query("UPDATE users SET profile_photo_url = $1 WHERE id = $2", [photoUrl, userId]);
         await db.query("UPDATE fulfillers SET profile_photo_url = $1 WHERE user_id = $2", [photoUrl, userId]);
 
-        res.status(200).json({ success: true, url: photoUrl });
+        res.status(200).json({ success: true, url: photoUrl, profile_photo_url: photoUrl });
     } catch (error) {
-        throw error;
+        console.error('[UploadPhoto] Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
