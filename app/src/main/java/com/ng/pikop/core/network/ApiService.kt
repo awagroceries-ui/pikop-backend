@@ -529,7 +529,8 @@ data class CreateCorporateRequest(
     val billing_email: String,
     val billing_type: String = "prepaid_wallet",
     val cac_number: String? = null,
-    val business_address: String? = null
+    val business_address: String? = null,
+    val cac_document_url: String? = null
 )
 
 data class CorporateStaff(

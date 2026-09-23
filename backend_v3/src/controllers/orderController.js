@@ -1115,7 +1115,7 @@ const verifyDelivery = async (req, res) => {
 
     try {
         const { rows } = await db.query(
-            "SELECT id, status, delivery_code_hash, user_id, item_price, escrow_status FROM orders WHERE id = $1",
+            "SELECT id, status, delivery_code_hash, user_id, item_price, escrow_status, fulfiller_id FROM orders WHERE id = $1",
             [id]
         );
 
@@ -1147,6 +1147,11 @@ const verifyDelivery = async (req, res) => {
             "UPDATE orders SET status = $1, delivered_at = CURRENT_TIMESTAMP, pod_photo_url = $2 WHERE id = $3",
             [nextStatus, delivery_photo_url || null, id]
         );
+
+        // Promote any queued mission for this fulfiller now that current mission is delivered
+        if (order.fulfiller_id) {
+            promoteQueuedMission(order.fulfiller_id).catch(e => console.error('[VerifyDelivery] Queue Promotion Error:', e.message));
+        }
 
         // Set grace period if escrow
         if (isEscrow) {
@@ -1384,39 +1389,69 @@ const rateCustomer = async (req, res) => {
 /**
  * Returns missions assigned to or completed by a fulfiller.
  */
+const promoteQueuedMission = async (fulfillerId) => {
+    if (!fulfillerId) return;
+    try {
+        const { rows: queued } = await db.query(
+            `SELECT id FROM orders
+             WHERE queued_for_fulfiller_id = $1 AND status = 'QUEUED'
+             ORDER BY created_at ASC LIMIT 1`,
+            [fulfillerId]
+        );
+        if (queued.length > 0) {
+            const nextOrderId = queued[0].id;
+            await db.query(
+                `UPDATE orders
+                 SET fulfiller_id = $1, status = 'MATCHED', matched_at = CURRENT_TIMESTAMP
+                 WHERE id = $2`,
+                [fulfillerId, nextOrderId]
+            );
+            console.log(`[QueuePromotion] Order #${nextOrderId} promoted to MATCHED for Fulfiller #${fulfillerId}`);
+
+            try {
+                const socketService = require('../services/socketService');
+                socketService.getIO().to(`order_${nextOrderId}`).emit("status_updated", { orderId: nextOrderId, status: 'MATCHED' });
+            } catch (e) {}
+        }
+    } catch (e) {
+        console.error('[QueuePromotion] Error:', e.message);
+    }
+};
+
+/**
+ * Returns missions assigned to or completed by a fulfiller.
+ */
 const getFulfillerOrders = async (req, res) => {
     const userId = req.user.id;
     const { filter = 'all' } = req.query;
 
     try {
-        // 1. Fetch fulfiller profile to get the internal DB ID
-        // Robust check: Ensure userId is treated as integer
         const { rows: fulfiller } = await db.query("SELECT id FROM fulfillers WHERE user_id = $1::integer", [userId]);
         if (fulfiller.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller profile not found' });
 
         const fId = fulfiller[0].id;
 
-        // 2. Prepare Status Filter
+        // Prepare Status Filter
         let statusFilter = "";
         const f = filter.toLowerCase();
         if (f === 'active') {
-            statusFilter = "AND o.status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED')";
+            statusFilter = "AND o.status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'QUEUED')";
+        } else if (f === 'queued') {
+            statusFilter = "AND (o.status = 'QUEUED' OR o.queued_for_fulfiller_id = $1)";
         } else if (f === 'completed') {
             statusFilter = "AND o.status IN ('DELIVERED', 'RELEASED')";
         }
 
-        // 3. Query all missions for this agent
-        // Calculation: 75% share for agent (from the original delivery fee)
         const { rows } = await db.query(
             `SELECT o.*,
              ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
              ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng,
              ROUND(COALESCE(o.original_delivery_fee, o.delivery_fee, o.total_fare) * 0.75, 2) as earnings
              FROM orders o
-             WHERE (o.fulfiller_id = $1 OR o.queued_for_fulfiller_id = $1)
+             WHERE (o.fulfiller_id = $1 OR o.queued_for_fulfiller_id = $1 OR o.fulfiller_id = $2::integer OR o.queued_for_fulfiller_id = $2::integer)
              ${statusFilter}
              ORDER BY o.created_at DESC`,
-            [fId]
+            [fId, userId]
         );
 
         console.log(`[FulfillerOrders] Agent ${fId} (User: ${userId}) | Filter: ${filter} | Found: ${rows.length}`);

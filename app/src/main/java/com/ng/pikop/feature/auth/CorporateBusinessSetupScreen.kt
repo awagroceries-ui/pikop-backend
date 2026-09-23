@@ -32,6 +32,7 @@ fun CorporateBusinessSetupScreen(
     var cacNumber by remember { mutableStateOf("") }
     var businessAddress by remember { mutableStateOf("") }
     var billingEmail by remember { mutableStateOf("") }
+    var cacDocumentUrl by remember { mutableStateOf("") }
     
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -65,7 +66,7 @@ fun CorporateBusinessSetupScreen(
             )
             
             Text(
-                text = "Step 2: Tell us about your company.",
+                text = "Step 2: Tell us about your company and attach proof.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )
@@ -106,6 +107,33 @@ fun CorporateBusinessSetupScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = cacDocumentUrl,
+                onValueChange = { cacDocumentUrl = it },
+                label = { Text("CAC Certificate URL / Document Proof Link") },
+                placeholder = { Text("https://...") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "ℹ️ Submitted corporate profiles undergo manual verification by Pikop Admin before account activation.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -115,7 +143,7 @@ fun CorporateBusinessSetupScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
@@ -127,7 +155,8 @@ fun CorporateBusinessSetupScreen(
                                 company_name = companyName,
                                 billing_email = billingEmail,
                                 cac_number = cacNumber,
-                                business_address = businessAddress
+                                business_address = businessAddress,
+                                cac_document_url = cacDocumentUrl.ifBlank { null }
                             )
                             val response = apiService.setupCorporateProfile(request)
                             if (response.success == true) {

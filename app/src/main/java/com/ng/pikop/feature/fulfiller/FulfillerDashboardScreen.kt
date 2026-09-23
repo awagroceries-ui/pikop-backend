@@ -255,7 +255,11 @@ fun FulfillerDashboardScreen(
                 // Active Mission Resume Banner
                 val activeMission = history.firstOrNull { 
                     val s = it.status?.uppercase() ?: ""
-                    s.isNotBlank() && s !in listOf("DELIVERED", "CANCELLED", "RELEASED", "REFUNDED", "RECIPIENT_ABSENT") 
+                    s.isNotBlank() && s != "QUEUED" && s !in listOf("DELIVERED", "CANCELLED", "RELEASED", "REFUNDED", "RECIPIENT_ABSENT") 
+                }
+
+                val queuedMission = history.firstOrNull { 
+                    (it.status?.uppercase() ?: "") == "QUEUED"
                 }
 
                 if (activeMission != null) {
@@ -264,7 +268,7 @@ fun FulfillerDashboardScreen(
                             onClick = { onAcceptOffer(activeMission.id.toString()) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
                             Row(
@@ -282,6 +286,36 @@ fun FulfillerDashboardScreen(
                                     colors = ButtonDefaults.buttonColors(containerColor = com.ng.pikop.ui.theme.PikopGold, contentColor = Color.Black)
                                 ) {
                                     Text("RESUME", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (queuedMission != null) {
+                    item {
+                        Card(
+                            onClick = { onAcceptOffer(queuedMission.id.toString()) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.HourglassTop, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(32.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("QUEUED MISSION WAITING ⏳", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer, fontSize = 12.sp)
+                                    Text("Order #${queuedMission.id} • Next in Queue", color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.9f), fontSize = 11.sp)
+                                }
+                                Button(
+                                    onClick = { onAcceptOffer(queuedMission.id.toString()) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = com.ng.pikop.ui.theme.PikopGold, contentColor = Color.Black)
+                                ) {
+                                    Text("START", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                 }
                             }
                         }

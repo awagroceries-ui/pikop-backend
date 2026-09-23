@@ -6,7 +6,7 @@ const walletService = require('../services/walletService');
  */
 const setupCorporateProfile = async (req, res) => {
     const userId = req.user.id;
-    const { company_name, cac_number, business_address, billing_email, billing_type } = req.body;
+    const { company_name, cac_number, business_address, billing_email, billing_type, cac_document_url } = req.body;
 
     const client = await db.pool.connect();
     try {
@@ -20,18 +20,28 @@ const setupCorporateProfile = async (req, res) => {
             accountId = existing.rows[0].id;
             await client.query(
                 `UPDATE corporate_accounts
-                 SET company_name = $1, cac_number = $2, business_address = $3, billing_email = $4, billing_type = $5, status = 'ACTIVE'
-                 WHERE id = $6`,
-                [company_name, cac_number, business_address, billing_email, billing_type || 'prepaid_wallet', accountId]
+                 SET company_name = $1, cac_number = $2, business_address = $3, billing_email = $4,
+                     billing_type = $5, cac_document_url = COALESCE($6, cac_document_url), status = 'PENDING_VERIFICATION'
+                 WHERE id = $7`,
+                [company_name, cac_number, business_address, billing_email, billing_type || 'prepaid_wallet', cac_document_url || null, accountId]
             );
         } else {
             const insRes = await client.query(
-                `INSERT INTO corporate_accounts (owner_user_id, company_name, cac_number, business_address, billing_email, billing_type, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE')
+                `INSERT INTO corporate_accounts (owner_user_id, company_name, cac_number, business_address, billing_email, billing_type, cac_document_url, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING_VERIFICATION')
                  RETURNING id`,
-                [userId, company_name, cac_number, business_address, billing_email, billing_type || 'prepaid_wallet']
+                [userId, company_name, cac_number, business_address, billing_email, billing_type || 'prepaid_wallet', cac_document_url || null]
             );
             accountId = insRes.rows[0].id;
+        }
+
+        // Store CAC document entry in kyc_documents if provided
+        if (cac_document_url) {
+            await client.query(
+                `INSERT INTO kyc_documents (user_id, doc_type, file_url, status)
+                 VALUES ($1, 'CAC_CERTIFICATE', $2, 'PENDING')`,
+                [userId, cac_document_url]
+            );
         }
 
         // 2. Add Owner as Admin in Sub-Accounts

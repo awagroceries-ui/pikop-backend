@@ -1206,6 +1206,7 @@ const getCorporateAdmin = async (req, res) => {
     try {
         const { rows } = await db.query(`
             SELECT ca.*, u.full_name as owner_name, u.email as owner_email, u.phone as owner_phone,
+                   COALESCE(ca.cac_document_url, (SELECT file_url FROM kyc_documents WHERE user_id = ca.owner_user_id AND doc_type = 'CAC_CERTIFICATE' ORDER BY created_at DESC LIMIT 1)) as doc_url,
                    (SELECT COUNT(*) FROM corporate_sub_accounts WHERE corporate_account_id = ca.id) as staff_count
             FROM corporate_accounts ca
             JOIN users u ON u.id = ca.owner_user_id
@@ -1219,11 +1220,17 @@ const getCorporateAdmin = async (req, res) => {
 
 const updateCorporateStatus = async (req, res) => {
     const { id } = req.params;
-    const { is_active, monthly_credit_limit } = req.body;
+    const { status, is_active } = req.body;
+    let targetStatus = status;
+    if (!targetStatus && is_active !== undefined) {
+        targetStatus = (is_active === 'true' || is_active === true) ? 'ACTIVE' : 'SUSPENDED';
+    }
+    targetStatus = targetStatus || 'ACTIVE';
+
     try {
         await db.query(
-            "UPDATE corporate_accounts SET is_active = $1, monthly_credit_limit = COALESCE($2, monthly_credit_limit) WHERE id = $3",
-            [is_active === 'true', monthly_credit_limit ? parseFloat(monthly_credit_limit) : null, id]
+            "UPDATE corporate_accounts SET status = $1 WHERE id = $2",
+            [targetStatus, id]
         );
         res.redirect('/admin/corporate');
     } catch (error) {
