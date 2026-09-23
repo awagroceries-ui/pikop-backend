@@ -1,13 +1,13 @@
-# Task: Execute Fulfiller Conduct Policy Web Route & Business Account Setup Fixes
+# Task: Fix Fulfiller Order Offer Visibility & Merchant KYC Document Schema
 
-- [ ] **1. Fulfiller Terms & Conduct Web Route Resolution (`legalRoutes.js`, `legalController.js`, `app.js`)**
-    - [ ] Add `/fulfiller`, `/terms/fulfiller`, `/terms-fulfiller` in `legalRoutes.js`
-    - [ ] Add direct top-level fallbacks for `/terms/fulfiller` in `app.js`
-    - [ ] Update `getFulfillerTerms` in `legalController.js`
-- [ ] **2. Business Account Setup Fix (`corporateController.js` & Migration)**
-    - [ ] Create migration `1726880000000_add_unique_constraint_to_corporate_accounts.js`
-    - [ ] Replace `ON CONFLICT` in `corporateController.js` with explicit SELECT/UPDATE/INSERT
-    - [ ] Set `is_active = true` on corporate account creation
+- [ ] **1. Fulfiller Order Offer Visibility (`fulfillerController.js`)**
+    - [ ] Select `current_state` in initial Fulfiller query
+    - [ ] Expand order status filter in `getAvailableOffers` to include `PAID`, `CONFIRMED`, `PENDING`
+    - [ ] Add SQL null-safety guards for `required_fulfiller_classes` and `last_ping_at`
+- [ ] **2. Merchant Signup & KYC Document Schema Fix (`merchantController.js` & Migration)**
+    - [ ] Create migration `1726890000000_add_user_id_to_kyc_documents.js`
+    - [ ] Make `fulfiller_id` NULLABLE and add `user_id` column to `kyc_documents`
+    - [ ] Update CAC and NAFDAC document inserts in `merchantController.js`
 - [ ] **Verification & Deployment**
     - [ ] Verify JS syntax using `node -c`
     - [ ] Build release App Bundle (`app-release.aab`)

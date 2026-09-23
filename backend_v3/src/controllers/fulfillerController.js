@@ -395,7 +395,7 @@ const getAvailableOffers = async (req, res) => {
 
   try {
     const { rows: fulfiller } = await db.query(
-      "SELECT id, online_status, primary_class FROM fulfillers WHERE user_id = $1",
+      "SELECT id, online_status, primary_class, current_state FROM fulfillers WHERE user_id = $1",
       [userId]
     );
 
@@ -408,36 +408,33 @@ const getAvailableOffers = async (req, res) => {
     }
 
     const fulfillerId = fulfiller[0].id;
+    const fulfillerStatePattern = `%${(fulfiller[0].current_state || '').split(' ')[0]}%`;
 
-    // Fetch active SEARCHING or PAYMENT_CAPTURED orders (unassigned or queued for this fulfiller)
-    // CRITICAL: Filter by Same State, 20km Radius, and exclude stale fulfillers.
-    // ADDED: Size-based Class Eligibility and Zone-based Okada restrictions.
-    // REFINED: Case-insensitive state matching for higher visibility.
+    // Fetch active unassigned or queued orders for this fulfiller
     const { rows } = await db.query(
       `SELECT o.id, o.pickup_address, o.delivery_address, o.total_fare, o.item_photo_url, o.created_at,
        o.collect_on_delivery_amount,
-       ST_Distance(f.current_location::geography, o.pickup_location::geography) / 1000 as distance_km,
+       COALESCE(ST_Distance(f.current_location::geography, o.pickup_location::geography) / 1000, 0) as distance_km,
        ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
        ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng
        FROM orders o
        CROSS JOIN fulfillers f
        LEFT JOIN zones z ON ST_Intersects(o.pickup_location::geometry, z.boundary::geometry)
        WHERE f.id = $1
-       AND o.status IN ('SEARCHING', 'PAYMENT_CAPTURED')
+       AND o.status IN ('SEARCHING', 'PAYMENT_CAPTURED', 'PAID', 'CONFIRMED', 'PENDING')
        AND (o.fulfiller_id IS NULL OR o.queued_for_fulfiller_id = $1)
-       AND o.pickup_state ILIKE $2 -- Resilient state matching
-       AND ST_DWithin(f.current_location::geography, o.pickup_location::geography, 20000)
-       AND f.last_ping_at > NOW() - interval '30 minutes'
+       AND (o.pickup_state IS NULL OR o.pickup_state ILIKE $2 OR $2 = '%%')
+       AND (f.current_location IS NULL OR ST_DWithin(f.current_location::geography, o.pickup_location::geography, 50000))
 
-       -- Class-based Eligibility (from Size Tier)
-       AND f.primary_class = ANY(o.required_fulfiller_classes)
+       -- Class-based Eligibility (from Size Tier with null-safety)
+       AND (o.required_fulfiller_classes IS NULL OR cardinality(o.required_fulfiller_classes) = 0 OR f.primary_class = ANY(o.required_fulfiller_classes))
 
        -- Zone-based Restrictions (e.g. No Okada in certain Lagos LGAs)
        AND (z.id IS NULL OR f.primary_class = ANY(z.allowed_fulfiller_classes))
 
        ORDER BY o.created_at DESC
        LIMIT 20`,
-      [fulfillerId, `%${(fulfiller[0].current_state || '').split(' ')[0]}%`]
+      [fulfillerId, fulfillerStatePattern]
     );
 
     res.status(200).json(rows);

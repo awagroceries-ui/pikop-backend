@@ -1,38 +1,43 @@
-# Implementation Plan - Legal Route Fallbacks & Business Account Setup Fix
+# Implementation Plan - Order Dispatch Visibility & Merchant Verification Fixes
 
-This plan fixes the "Cannot GET /terms/fulfiller" routing conflict and resolves the PostgreSQL ON CONFLICT constraint error on Business Account "COMPLETE SETUP".
+This plan resolves the Fulfiller order offer query restrictions and fixes the missing `user_id` column error in `kyc_documents` during Merchant signup verification.
 
 ## Proposed Changes
 
-### 1. Fulfiller Terms & Conduct Web Route Resolution
-#### [MODIFY] [legalRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/legalRoutes.js)
-- Add sub-route handlers `/fulfiller`, `/terms/fulfiller`, `/terms-fulfiller` mapping to `legalController.getFulfillerTerms`.
-
-#### [MODIFY] [app.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/app.js)
-- Add direct top-level route fallbacks for `app.get('/terms/fulfiller', ...)` and `app.get('/terms-fulfiller', ...)` so all URL permutations (`/terms/fulfiller`, `/legal/terms/fulfiller`, `/terms-fulfiller`) return `200 OK` with the Fulfiller Conduct Policy.
+### 1. Fulfiller Order Offer Visibility
+#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
+- **Select State**: Include `current_state` in initial Fulfiller lookup:
+  `SELECT id, online_status, primary_class, current_state FROM fulfillers WHERE user_id = $1`
+- **Expand Order Statuses**: Expand `getAvailableOffers` order status filter from `['SEARCHING', 'PAYMENT_CAPTURED']` to `['SEARCHING', 'PAYMENT_CAPTURED', 'PAID', 'CONFIRMED', 'PENDING']`.
+- **Null Safety Guards**:
+  - Handle null `required_fulfiller_classes`:
+    `(o.required_fulfiller_classes IS NULL OR cardinality(o.required_fulfiller_classes) = 0 OR f.primary_class = ANY(o.required_fulfiller_classes))`
+  - Handle null or stale `last_ping_at`:
+    `(f.last_ping_at IS NULL OR f.last_ping_at > NOW() - interval '2 hours')`
+  - Fallback location handling for `f.current_location` when `ST_DWithin` is evaluated.
 
 ---
 
-### 2. Business Account Setup & "COMPLETE SETUP" Button Fix
-#### [MODIFY] [corporateController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/corporateController.js)
-- Fix SQL query in `setupCorporateProfile`:
-  - Replace `ON CONFLICT (owner_user_id)` with an explicit `SELECT` check to check if an account exists for `owner_user_id`, executing an `UPDATE` or `INSERT` cleanly without throwing PostgreSQL constraint errors.
-  - Set `is_active = true` so the corporate account activates immediately upon setup submission.
+### 2. Merchant Signup & KYC Document Schema Fix
+#### [NEW] [1726890000000_add_user_id_to_kyc_documents.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726890000000_add_user_id_to_kyc_documents.js)
+- Create migration to:
+  1. Make `fulfiller_id` NULLABLE in `kyc_documents`.
+  2. Add `user_id` integer column referencing `users(id) ON DELETE CASCADE`.
 
-#### [NEW] [1726880000000_add_unique_constraint_to_corporate_accounts.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726880000000_add_unique_constraint_to_corporate_accounts.js)
-- Add migration to add `UNIQUE (owner_user_id)` constraint on `corporate_accounts` table.
+#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
+- Ensure CAC and NAFDAC document inserts use the new `user_id` column in `kyc_documents` without throwing SQL missing column errors.
 
 ---
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Business Account Verification**
-> Submitting the "COMPLETE SETUP" form will now immediately activate the company account, create the corporate wallet, assign the user as `ADMIN` in `corporate_sub_accounts`, and load the Corporate Dashboard without errors.
+> **Database Migration**
+> Executing this fix requires applying migration `1726890000000_add_user_id_to_kyc_documents.js` on the database server.
 
 > [!NOTE]
 > **Deployment Requirement**
-> Applying these updates requires running `git pull origin main && npm run migrate:up && pm2 restart pikop-v3` on your VPS server.
+> Deploying these updates requires running `git pull origin main && npm run migrate:up && pm2 restart pikop-v3` on your VPS server.
 
 ---
 
@@ -40,9 +45,8 @@ This plan fixes the "Cannot GET /terms/fulfiller" routing conflict and resolves 
 
 ### Automated Tests
 - Verify Node.js syntax for all modified controller files using `node -c`.
-- Test `/terms/fulfiller` endpoint using `curl` / `node`.
-- Test corporate setup payload using `node` script.
+- Execute test script against `getAvailableOffers` and `setupMerchantProfile` endpoints.
 
 ### Manual Verification
-1. **Terms Link**: Tap "Fulfiller Terms" in app. Confirm policy loads without "Cannot GET" error.
-2. **Business Account Setup**: Open Corporate Account setup screen, fill company details, tap "COMPLETE SETUP". Confirm setup completes and opens Corporate Dashboard.
+1. **Fulfiller Dashboard**: Create a new dispatch or commerce order as a Customer. Switch to Fulfiller app and verify the new order request appears under "Available Offers".
+2. **Merchant Verification**: Sign up as a new Merchant/Food Vendor, enter CAC / NAFDAC numbers, and tap "SUBMIT FOR VERIFICATION". Verify setup completes cleanly and displays "Business setup submitted successfully".

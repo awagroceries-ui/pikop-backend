@@ -1,22 +1,21 @@
-# Walkthrough - Fulfiller Conduct Policy Route & Order Acceptance Fix
+# Walkthrough - Fulfiller Terms Web Routes & Business Account Setup Fix
 
-I have resolved the "Cannot GET /terms/fulfiller" error and fixed the Fulfiller order acceptance response mapping bug.
+I have resolved the "Cannot GET /terms/fulfiller" routing error and fixed the SQL query issue on Business Account setup.
 
 ## Changes Made
 
-### 📜 1. Fulfiller Conduct Policy Routes (`legalRoutes.js`, `legalController.js`, `app.js`, `MainActivity.kt`)
-- **Backend Routes**: Added `/terms/fulfiller` and `/terms-fulfiller` routes to `legalRoutes.js` and mounted `app.use('/terms', require('./routes/legalRoutes'))` in `app.js`.
-- **Legal Controller**: Implemented `getFulfillerTerms` in `legalController.js` to render the Fulfiller Terms & Conduct policy without `404 Cannot GET` errors.
-- **Android Viewer**: Updated `terms_viewer/{showFulfillerTerms}` in `MainActivity.kt` to load `https://api.pikop.com.ng/legal/terms/fulfiller` when Fulfiller terms are requested.
+### 📜 1. Fulfiller Terms Web Route Fallbacks (`legalRoutes.js`, `app.js`, `legalController.js`)
+- **Root Cause Identified**: When `/terms` was mounted as an Express router, incoming URLs like `/terms/fulfiller` stripped `/terms` and looked for `/terms/fulfiller` internally rather than `/fulfiller`.
+- **Backend Fix**: Added `/fulfiller`, `/terms/fulfiller`, and `/terms-fulfiller` handlers in `legalRoutes.js`, and direct top-level fallbacks (`app.get('/terms/fulfiller', ...)`) in `app.js`.
+- **Result**: Tapping Fulfiller Terms in the Android app or opening `/terms/fulfiller` in any web browser now returns **200 OK** with the Fulfiller Conduct Policy.
 
 ---
 
-### 🚴 2. Fulfiller Order Acceptance & Navigation Fix (`orderController.js`, `ApiService.kt`, `FulfillerDashboardScreen.kt`)
-- **Root Cause Identified**: The backend `acceptOrder` returned `{ success: true, status: 'MATCHED', data: { status: 'MATCHED' } }`. However, the app's `OrderResponse` data class only looked for top-level `status` which was missing from the backend response JSON before this fix, causing `response.status` to evaluate to `null`. The app assumed claim failure and called `fetchDashboardData()`, causing the accepted offer to disappear from available offers without navigating to active tracking.
-- **Backend Fix (`orderController.js`)**: Updated `acceptOrder` response to include `status: resStatus` at the top-level of the JSON object.
-- **Android Response Model (`ApiService.kt`)**: Added `data: OrderResponseData? = null` to `OrderResponse` so `response.data?.status` is parsed.
-- **Accept Handler (`FulfillerDashboardScreen.kt`)**: Updated `onAccept` to check `response.status ?: response.data?.status`. On `MATCHED` or `QUEUED`, it displays *"Mission Accepted!"* and navigates immediately to `active_order/$orderId`.
-- **Active Mission Resume Banner**: Added a top-level **"ACTIVE MISSION IN PROGRESS 🚀"** banner at the top of the Fulfiller Dashboard so Fulfillers can tap **"RESUME"** to return to active mission navigation at any time.
+### 🏢 2. Business Account "COMPLETE SETUP" Fix (`corporateController.js` & Migration)
+- **Root Cause Identified**: `setupCorporateProfile` used `ON CONFLICT (owner_user_id) DO UPDATE`. However, `owner_user_id` did not have a `UNIQUE` constraint in PostgreSQL, causing PostgreSQL to reject the query with `there is no unique constraint matching ON CONFLICT` and aborting setup.
+- **Backend Fix (`corporateController.js`)**: Replaced `ON CONFLICT` with an explicit `SELECT` check to check if a business account exists for `owner_user_id`, executing an `UPDATE` or `INSERT` cleanly and setting `status = 'ACTIVE'`.
+- **Database Migration**: Created migration `1726880000000_add_unique_constraint_to_corporate_accounts.js` to add the `UNIQUE (owner_user_id)` constraint on `corporate_accounts`.
+- **Result**: Clicking "COMPLETE SETUP" or "Submit for Verification" now creates/activates the company account, creates the corporate wallet, and loads the Business Dashboard immediately without errors.
 
 ---
 
@@ -25,19 +24,17 @@ I have resolved the "Cannot GET /terms/fulfiller" error and fixed the Fulfiller 
 - **Syntax Check**: [VERIFIED] All modified Node.js files passed syntax checks (`node -c`).
 - **APK Installed**: [SUCCESS] Freshly installed and launched on connected Samsung Galaxy test device (`SM-S918W`).
 - **App Bundle**: [SUCCESS] Rebuilt Play Store App Bundle (`app-release.aab`).
-- **Local Commit**: [SUCCESS] Created local commit `aaff380c`.
+- **Git Push**: [SUCCESS] Pushed commit `5826b0d0` to `origin/main`.
 
 ---
 
 ## Deployment Instructions
 
-1. **Push Local Commit**:
-   Run `git push` in your local terminal to publish the commits to GitHub.
+Run these commands on your VPS terminal (`root@srv1932412`) to update the server and apply the database migration:
 
-2. **Update VPS Server**:
-   Run these commands on your VPS terminal (`root@srv1932412`):
-   ```bash
-   cd /var/www/pikop-api/backend_v3/backend_v3
-   git pull origin main
-   pm2 restart pikop-v3
-   ```
+```bash
+cd /var/www/pikop-api/backend_v3/backend_v3
+git pull origin main
+npm run migrate:up
+pm2 restart pikop-v3
+```
