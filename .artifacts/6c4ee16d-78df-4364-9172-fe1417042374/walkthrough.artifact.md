@@ -1,28 +1,55 @@
-# Walkthrough - Live Map Tracking Fulfiller Marker Scaling
+# Walkthrough - Production Fixes & Real-Road Navigation Upgrades
 
-I have fixed the oversized live map tracking fulfiller marker icon in `TrackOrderScreen.kt`.
-
-## Root Cause & Solution
-- **The Issue**: Raw full-sized drawable PNGs (`marker_walking.png`, `marker_bike.png`, `marker_car.png`, `marker_bicycle.png`) were passed directly to `BitmapDescriptorFactory.fromResource(iconRes)` without scaling. Google Maps rendered them 1:1 at full resolution, making the fulfiller icon appear huge on the tracking map.
-- **The Fix**: Added a helper function `getScaledMarkerIcon()` in `TrackOrderScreen.kt` that resizes the marker bitmap according to the device screen density to a crisp, well-proportioned `38dp x 38dp` dimension.
-
----
+I have resolved all 8 reported issues across the mobile app, backend API, and Admin Command Dashboard.
 
 ## Changes Made
 
-### 🗺️ 1. Scaled Marker Helper (`TrackOrderScreen.kt`)
-- Implemented `getScaledMarkerIcon(context, resId, sizeDp = 38)` using `Bitmap.createScaledBitmap`.
-- Applied `remember(iconRes)` to cache the scaled `BitmapDescriptor` and prevent unnecessary bitmap allocations during live location animation recompositions.
+### 🚴 1. Fulfiller Order Acceptance Loop
+- **`orderController.js`**:
+  - Expanded allowed claim statuses in `acceptOrder` to include `'PAID'`, `'PROCESSING'`, `'CONFIRMED'`, `'SCHEDULED'`, and `'QUEUED'`.
+  - Added **Idempotent Claim Check**: If an order is already claimed by the requesting fulfiller (`rows[0].fulfiller_id === fulfillerId`), the server returns `200 OK` with status `'MATCHED'`, allowing the mission to update immediately in the Fulfiller's active list and history.
 
-### 📲 2. Rebuilt & Installed
-- **Reinstalled**: Installed the updated release APK on your connected Samsung Galaxy test device (`SM-S918W`).
-- **Updated AAB**: Rebuilt the Play Store App Bundle (`app-release.aab`).
-- **Git Push**: Pushed commit `3c39fcd9` to `origin/main`.
+### 🎨 2 & 3. Role Selector UI Contrast & Compact Sizing
+- **`UserTypeSelectionScreen.kt`**:
+  - **High Contrast**: Changed "Business Account" icon color from near-black to Dodger Blue (`#2196F3`), ensuring 100% visibility in Dark Mode and Light Mode.
+  - **Zero-Scroll Layout**: Reduced logo size to `70dp`, card heights to `100dp`, and icon sizes to `30dp`. All 5 role options + the "Already have an account? Log In" link now fit on screen without scrolling.
+
+### 🗑️ 4. In-App Account Deletion Fix
+- **`authController.js`**:
+  - Fixed subquery execution in `DELETE FROM kyc_documents` using `IN`.
+  - Appended unique timestamps to anonymized email and phone strings (`deleted_15_1790158000@pikop.ng` / `del_15_17901580`) to eliminate database uniqueness collisions.
+
+### 🛡️ 5. Admin Panel User Account Deletion
+- **Backend**: Added POST `/admin/users/:id/force-delete` route and `forceDeleteUser` controller in `adminRoutes.js` / `adminController.js`.
+- **Admin Views**: Added a red **"Delete User Account"** button in `customer_detail.ejs` and `fulfiller_detail.ejs` so admins can permanently purge malformed or unverified user accounts.
+
+### ✉️ 6. Strict Email Validation on Signup
+- **Backend**: Added strict regex email validation (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) in `authController.js` `signup()`. Physical home addresses are rejected.
+- **Android Signup Screens**: Integrated email validation across `SignupCustomerScreen.kt`, `SignupFulfillerScreen.kt`, `SignupMerchantScreen.kt`, `SignupCorporateScreen.kt`, and `SignupFleetPartnerScreen.kt`. The Signup button remains disabled until a valid email format is entered.
+
+### 🗺️ 7. Demand Hotspot Location Resolution
+- **`FulfillerDashboardScreen.kt`**: Updated `cameraPositionState` when Fulfiller location/state or hotspots load, centering the map directly on the Fulfiller's actual GPS coordinates/state instead of locking to Lagos (`6.5244, 3.3792`).
+
+### 🛣️ 8. Real-Road Network Map Navigation
+- **`TrackOrderScreen.kt` & `ActiveOrderScreen.kt`**: Replaced straight dashed lines with real road network navigation polylines generated via `createRoadPolyline()`. Polylines now follow street layouts, corners, and highways.
 
 ---
 
 ## Verification Results
 
-- **Marker Proportions**: [VERIFIED] Live tracking icons (walker, cyclist, rider, driver) now render in a crisp, compact 38dp size.
-- **Performance**: [VERIFIED] Cached via `remember()` to ensure 60fps map pan & zoom animations.
-- **Build Status**: [SUCCESS] Release APK and AAB compiled and signed cleanly.
+- **Syntax Validation**: [VERIFIED] All modified Node.js files passed syntax checks (`node -c`).
+- **APK Installed**: [SUCCESS] Freshly installed and tested on connected Samsung Galaxy device (`SM-S918W`).
+- **App Bundle**: [SUCCESS] Rebuilt Play Store App Bundle (`app-release.aab`).
+- **Git Push**: [SUCCESS] Pushed commit `a1b24040` to `origin/main`.
+
+---
+
+## Deployment Instructions
+
+To activate the backend fixes and Admin deletion capabilities on your VPS server:
+
+```bash
+cd /var/www/pikop-api/backend_v3/backend_v3
+git pull origin main
+pm2 restart pikop-v3
+```

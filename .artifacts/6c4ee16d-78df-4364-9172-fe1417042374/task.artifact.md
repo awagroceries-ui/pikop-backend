@@ -1,24 +1,24 @@
 # Task: Execute Production Fixes & Real-Road Map Navigation
 
-- [ ] **1. Fulfiller Order Acceptance Fix (`orderController.js`)**
-    - [ ] Update `acceptOrder` allowed status check & idempotent assignment
-- [ ] **2 & 3. Role Selector UI Updates (`UserTypeSelectionScreen.kt`)**
-    - [ ] Fix Business Account icon contrast for Dark Mode
-    - [ ] Compact layout (80dp logo, 105dp card, 32dp icons) for zero-scroll UI
-- [ ] **4. In-App Account Deletion Fix (`authController.js`)**
-    - [ ] Fix subquery in `deleteAccount` & timestamp anonymization
-- [ ] **5. Admin User Account Deletion (`adminRoutes.js`, `adminController.js`, `views/`)**
-    - [ ] Add `/admin/users/:id/force-delete` route and handler
-    - [ ] Add Delete User Account button to `customer_detail.ejs` and `fulfiller_detail.ejs`
-- [ ] **6. Strict Email Validation (`authController.js` & Signup Screens)**
-    - [ ] Add email regex check in backend `signup()`
-    - [ ] Add email regex check on all 5 Android signup screens
-- [ ] **7. Demand Hotspot Location Resolution (`FulfillerDashboardScreen.kt`)**
-    - [ ] Resolve map camera to Fulfiller's actual coordinates/state
-- [ ] **8. Real-Road Network Map Navigation (`TrackOrderScreen.kt` & `ActiveOrderScreen.kt`)**
-    - [ ] Replace straight dashed lines with real road network navigation polylines
-- [ ] **Verification & Deployment**
-    - [ ] Verify JS syntax using `node -c`
-    - [ ] Build release App Bundle (`app-release.aab`)
-    - [ ] Install release APK on connected Samsung Galaxy device
-    - [ ] Commit and push all changes to GitHub
+- [x] **1. Fulfiller Order Acceptance Fix (`orderController.js`)**
+    - [x] Update `acceptOrder` allowed status check & idempotent assignment
+- [x] **2 & 3. Role Selector UI Updates (`UserTypeSelectionScreen.kt`)**
+    - [x] Fix Business Account icon contrast for Dark Mode
+    - [x] Compact layout (80dp logo, 105dp card, 32dp icons) for zero-scroll UI
+- [x] **4. In-App Account Deletion Fix (`authController.js`)**
+    - [x] Fix subquery in `deleteAccount` & timestamp anonymization
+- [x] **5. Admin User Account Deletion (`adminRoutes.js`, `adminController.js`, `views/`)**
+    - [x] Add `/admin/users/:id/force-delete` route and handler
+    - [x] Add Delete User Account button to `customer_detail.ejs` and `fulfiller_detail.ejs`
+- [x] **6. Strict Email Validation (`authController.js` & Signup Screens)**
+    - [x] Add email regex check in backend `signup()`
+    - [x] Add email regex check on all 5 Android signup screens
+- [x] **7. Demand Hotspot Location Resolution (`FulfillerDashboardScreen.kt`)**
+    - [x] Resolve map camera to Fulfiller's actual coordinates/state
+- [x] **8. Real-Road Network Map Navigation (`TrackOrderScreen.kt` & `ActiveOrderScreen.kt`)**
+    - [x] Replace straight dashed lines with real road network navigation polylines
+- [x] **Verification & Deployment**
+    - [x] Verify JS syntax using `node -c`
+    - [x] Build release App Bundle (`app-release.aab`)
+    - [x] Install release APK on connected Samsung Galaxy device
+    - [x] Commit and push all changes to GitHub

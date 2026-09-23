@@ -931,18 +931,24 @@ const updateOrderStatus = async (req, res) => {
         if (status === 'DELIVERED') {
             await client.query("UPDATE orders SET payment_status = 'PAID' WHERE id = $1", [id]);
 
-            // 1. Settle Delivery Fee for Fulfiller (Decoupled)
+            // 1. Settle Delivery Fee for Fulfiller (Isolated via SAVEPOINT to prevent transaction abort)
             try {
+                await client.query('SAVEPOINT settlement_sp');
                 await walletService.processMissionSettlement(id, client);
+                await client.query('RELEASE SAVEPOINT settlement_sp');
             } catch (e) {
+                await client.query('ROLLBACK TO SAVEPOINT settlement_sp').catch(() => {});
                 console.error('[Admin] Fulfiller settlement on force complete failed:', e.message);
             }
 
-            // 2. Release Item Price Escrow if applicable
+            // 2. Release Item Price Escrow if applicable (Isolated via SAVEPOINT to prevent transaction abort)
             if (order && order.escrow_status === 'held') {
                 try {
+                    await client.query('SAVEPOINT escrow_sp');
                     await walletService.releaseEscrow(id, client);
+                    await client.query('RELEASE SAVEPOINT escrow_sp');
                 } catch (e) {
+                    await client.query('ROLLBACK TO SAVEPOINT escrow_sp').catch(() => {});
                     console.error('[Admin] Escrow release on force complete failed:', e.message);
                 }
             }
