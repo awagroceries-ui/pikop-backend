@@ -121,11 +121,23 @@ fun CommerceCheckoutScreen(
         }.show()
     }
 
-    // Dynamic Price Logic (Initial heuristic for UI before final quote)
+    // Promo Code State
+    var promoCodeInput by remember { mutableStateOf("") }
+    var activePromo by remember { mutableStateOf<PromoValidationResponse?>(null) }
+    var isValidatingPromo by remember { mutableStateOf(false) }
+
+    // Dynamic Price Logic
     val itemBasePrice = if (useCart) com.ng.pikop.core.cart.CartManager.totalAmount else (item?.price ?: 0.0)
     val deliveryFee = if (deliveryAddress.isBlank()) 0.0 else 1200.0
-    val platformFee = itemBasePrice * 0.10
-    val totalAmount = itemBasePrice + deliveryFee + platformFee
+    val platformFee = if (selectedPaymentMethod == "COD") itemBasePrice * 0.10 else 0.0
+    val baseTotal = itemBasePrice + deliveryFee + platformFee
+
+    val promoDiscount = if (activePromo == null) 0.0
+        else if ((activePromo?.value ?: 0.0) >= 100.0) baseTotal
+        else if (activePromo?.discount_type == "fixed") activePromo?.value ?: 0.0
+        else minOf(deliveryFee * ((activePromo?.value ?: 0.0) / 100.0), deliveryFee)
+
+    val totalAmount = maxOf(0.0, baseTotal - promoDiscount)
 
     Scaffold(
         topBar = {
@@ -289,7 +301,53 @@ fun CommerceCheckoutScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // Promo Code Field
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = promoCodeInput,
+                        onValueChange = { promoCodeInput = it.uppercase() },
+                        label = { Text("Promo Code (e.g. TESTER100)") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                isValidatingPromo = true
+                                try {
+                                    val res = apiService.validatePromoCode(mapOf("code" to promoCodeInput, "amount" to baseTotal.toString()))
+                                    if (res.promo_id != null) {
+                                        activePromo = res
+                                        Toast.makeText(context, res.message ?: "Promo Applied!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Invalid Coupon Code", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
+                                } finally { isValidatingPromo = false }
+                            }
+                        },
+                        enabled = !isValidatingPromo && promoCodeInput.isNotBlank()
+                    ) {
+                        if (isValidatingPromo) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                        else Text("Apply")
+                    }
+                }
+
+                if (activePromo != null) {
+                    Text(
+                        "Promo Active: -₦${"%,.2f".format(promoDiscount)}",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
                 Text("Payment Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
                 Card(
@@ -297,9 +355,12 @@ fun CommerceCheckoutScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CommercePriceRow("Item Price", item!!.price)
+                        CommercePriceRow("Item Price", itemBasePrice)
                         CommercePriceRow("Delivery Fee", deliveryFee)
                         CommercePriceRow("Escrow service fee", platformFee)
+                        if (promoDiscount > 0) {
+                            CommercePriceRow("Discount", -promoDiscount)
+                        }
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Total Payable", fontWeight = FontWeight.Bold)
@@ -322,8 +383,9 @@ fun CommerceCheckoutScreen(
                                     delivery_address = deliveryAddress,
                                     lat = deliveryLat,
                                     lng = deliveryLng,
-                                    payment_method = if (selectedPaymentMethod == "WALLET") "WALLETPAY" else selectedPaymentMethod,
-                                    scheduled_at = scheduledAt
+                                    payment_method = if (totalAmount == 0.0) "FREE" else if (selectedPaymentMethod == "WALLET") "WALLETPAY" else selectedPaymentMethod,
+                                    scheduled_at = scheduledAt,
+                                    promo_id = activePromo?.promo_id
                                 ))
 
                                 if (selectedPaymentMethod == "CARD" && !response.authorization_url.isNullOrBlank()) {

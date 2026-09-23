@@ -31,7 +31,39 @@ const initializePayment = async (req, res) => {
     }
 
     let koboAmount = Math.round(parseFloat(amount) * 100);
-    if (koboAmount < 100) return res.status(400).json({ success: false, message: 'Invalid amount' });
+
+    // 0-Amount Bypass (100% Tester Coupon / Free Order)
+    if (koboAmount <= 0) {
+        console.log(`[Paystack] Zero amount requested for Quote ${quote_id}. Activating directly via 100% free bypass.`);
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
+            const freeMetadata = {
+                quote_id,
+                user_id: userId,
+                item_price: parseFloat(item_price || 0),
+                delivery_fee: 0,
+                platform_fee_amount: 0,
+                fee_payer: fee_payer || 'PAYER',
+                initiator_role: fee_payer || 'PAYER',
+                seller_phone: seller_phone || null,
+                payer_id: payer_id || null,
+                promo_id: promo_id || null,
+                recipient_name: user?.full_name || 'Recipient',
+                recipient_phone: user?.phone || '000'
+            };
+            const freeRef = `FREE_TESTER_${Date.now()}`;
+            const orderId = await activatePaidMission(client, freeMetadata, freeRef, 'promo');
+            await client.query('COMMIT');
+            return res.status(200).json({ success: true, status: 'PAID', order_id: orderId, reference: freeRef });
+        } catch (e) {
+            await client.query('ROLLBACK');
+            console.error('[Paystack] Free Activation Failed:', e.message);
+            return res.status(500).json({ success: false, message: 'Free order activation failed.' });
+        } finally {
+            client.release();
+        }
+    }
 
     const userRes = await db.query("SELECT full_name, phone FROM users WHERE id = $1", [userId]);
     const user = userRes.rows[0];

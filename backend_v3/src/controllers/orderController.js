@@ -760,24 +760,30 @@ const createOrder = async (req, res) => {
                     console.log(`[Order] Store-specific coupon ${c.code} rejected for Dispatch mission.`);
                 } else {
                     couponId = c.id;
-                    const calculatedDiscount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : deliveryFee * (parseFloat(c.discount_value) / 100);
+                    const discountVal = parseFloat(c.discount_value || 0);
 
-                    // Rule: Promo only discounts delivery fee, never item price or platform fee.
-                    discount = Math.min(calculatedDiscount, deliveryFee);
-                    deliveryFee = Math.max(0, deliveryFee - discount);
-
-                    console.log(`[Order] Applied Promo: ${c.code}. Discount: ${discount}. New Delivery Fee: ${deliveryFee}`);
+                    // 100% Universal Tester Coupon Check (TESTER100)
+                    if (c.discount_type === 'PERCENTAGE' && discountVal >= 100) {
+                        discount = itemPriceNum + deliveryFee + platformFeeNum;
+                        deliveryFee = 0;
+                        console.log(`[Order] Applied 100% Universal Coupon: ${c.code}. Full Order Fare Waived!`);
+                    } else {
+                        const calculatedDiscount = c.discount_type === 'FIXED' ? discountVal : deliveryFee * (discountVal / 100);
+                        discount = Math.min(calculatedDiscount, deliveryFee);
+                        deliveryFee = Math.max(0, deliveryFee - discount);
+                        console.log(`[Order] Applied Promo: ${c.code}. Discount: ${discount}. New Delivery Fee: ${deliveryFee}`);
+                    }
                 }
             }
         }
 
-        const finalFare = itemPriceNum + deliveryFee + platformFeeNum;
+        const finalFare = Math.max(0, itemPriceNum + deliveryFee + platformFeeNum - discount);
 
         // 4. Determine Initial Status
-        // Rule: If scheduled, status is SCHEDULED.
+        // Rule: If 0 fare (100% discount/free), status becomes SEARCHING immediately.
         // Rule: If receiver is an app user, require acknowledgment before fulfiller search.
         const isReceiverAppUser = q.payer_info?.type === 'APP_USER' || recipient_payable > 0;
-        let initialStatus = isReceiverAppUser ? 'PENDING_ACKNOWLEDGMENT' : (finalFare === 0 ? 'AWAITING_PAYMENT' : 'PAYMENT_CAPTURED');
+        let initialStatus = isReceiverAppUser ? 'PENDING_ACKNOWLEDGMENT' : (finalFare === 0 ? 'SEARCHING' : 'PAYMENT_CAPTURED');
 
         if (scheduled_at) {
             const scheduledDate = new Date(scheduled_at);

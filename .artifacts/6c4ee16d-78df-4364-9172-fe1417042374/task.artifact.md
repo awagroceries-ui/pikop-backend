@@ -1,9 +1,14 @@
-# Task: Fix Quote Fetch 500 Error
+# Task: Implement 100% Universal Tester Coupon (`TESTER100`)
 
-- [ ] **Backend Quote Handler Fix**
-    - [ ] Wrap `getQuote` in top-level `try-catch` block
-    - [ ] Sanitize all optional query parameters (`pickup_state`, `pickup_landmark`, `delivery_landmark`, `recipient_phone`, `userId`) from `undefined` to `null`
-    - [ ] Guard surge calculation queries against `undefined` state
-- [ ] **Verification & Deployment**
-    - [ ] Verify syntax using `node -c`
+- [ ] **Database Migration (Seed)**
+    - [ ] Create `1726870000000_seed_universal_tester_coupon.js` for `TESTER100`
+- [ ] **Backend Pricing & Activation Engines**
+    - [ ] Update `orderController.js` for 100% discount on full order fare
+    - [ ] Update `commerceController.js` for 100% discount & zero-cost checkout bypass
+    - [ ] Update `paymentController.js` for zero-amount payment initialization guard
+- [ ] **Android App Updates**
+    - [ ] Update `OrderQuoteScreen.kt` to discount full fare for 100% percentage promos
+- [ ] **Terminal Build & Verification**
+    - [ ] Verify JS syntax using `node -c`
+    - [ ] Build release bundle via terminal (`./gradlew :app:bundleRelease`)
     - [ ] Commit and push changes to GitHub

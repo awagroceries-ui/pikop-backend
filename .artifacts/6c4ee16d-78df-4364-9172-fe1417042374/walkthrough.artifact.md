@@ -1,35 +1,34 @@
-# Walkthrough - Production Fixes for Fulfiller Signup & Merchant Settings
+# Walkthrough - Fix Quote Fetch 500 Error
 
-I have resolved the two production issues preventing Fulfiller registration and Merchant account setting updates.
+I have resolved the "service temporarily unavailable: error 500" during quote calculation.
 
 ## Changes Made
 
-### 🚴 1. Fulfiller Signup Fix
-- **Database Schema**: Created migration `1726860000000_make_fulfiller_password_nullable.js` to alter `fulfillers.password_hash` to `NULL`. Since user authentication is handled via `users.password_hash`, requiring a duplicate non-null password hash in `fulfillers` was causing PostgreSQL to reject initial registrations with a `NOT NULL constraint violation`.
-- **Signup Controller**: Updated `authController.js` to explicitly pass `passwordHash` into `fulfillers` upon account creation as an additional safeguard.
+### 🛡️ 1. Sanitized Node-Postgres Parameters
+- **Root Cause**: When fetching quotes, optional fields like `pickup_state`, `pickup_landmark`, `delivery_landmark`, and `recipient_phone` were being passed to `db.query()` as `undefined`. The PostgreSQL driver (`node-postgres`) throws a fatal `TypeError` when any parameter in a query array is `undefined`.
+- **Sanitizer**: Converted all optional inputs to explicit `null` values (`|| null`) before passing them to PostGIS distance calculations, surge pricing queries, and `INSERT INTO quotes`.
 
-### 🏪 2. Merchant Account Updates
-- **Settings Endpoint Expanded**: Updated `updateMerchantSettings` in `merchantController.js` to handle all setting parameters sent by the mobile app (`allows_returns`, `return_window_days`, `return_policy_text`, `business_name`, `category`, and `address`).
-- **Null-Safe Store Slugs**: Added fallback handling to `setupMerchantProfile` and `updateMerchantSettings` so empty business names won't cause runtime `TypeErrors` during slug generation.
+### ⚡ 2. Outer Error Boundary Guard
+- **Top-Level Catch**: Wrapped the entire `getQuote` handler in `orderController.js` in a top-level `try-catch` block.
+- **Resilient Error Response**: If any calculation error occurs, it is caught cleanly, logged with a full stack trace, and returns a structured error message (`"Unable to calculate delivery quote. Please check your addresses and try again."`) instead of crashing the server.
+
+### 📈 3. Surge Query Protection
+- Added a check so the surge pricing queries (`demandRes`, `supplyRes`) only execute when a non-null `pickup_state` is provided.
 
 ---
 
 ## Verification Results
 
-- **Syntax Validation**: [VERIFIED] All modified controller files (`authController.js`, `merchantController.js`) and the new migration script passed Node syntax checks (`node -c`) cleanly.
+- **Syntax Validation**: [VERIFIED] `orderController.js` passed syntax checks (`node -c`) cleanly.
 
 ---
 
 ## Deployment Instructions
 
-1.  **Push Changes from Android Studio**:
-    Run `git push` in your local terminal (or push via Android Studio's Git menu) to upload the commits.
+To apply the fix to your VPS server:
 
-2.  **Apply Migration on VPS**:
-    Run the following on your VPS server to apply the schema fix and restart the API:
-    ```bash
-    cd /var/www/pikop-api/backend_v3/backend_v3
-    git pull origin main
-    npm run migrate:up
-    pm2 restart pikop-v3
-    ```
+```bash
+cd /var/www/pikop-api/backend_v3/backend_v3
+git pull origin main
+pm2 restart pikop-v3
+```

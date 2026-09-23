@@ -213,7 +213,7 @@ const initializeCommerceOrder = async (req, res) => {
             const escrowRateRes = await db.query("SELECT value FROM settings WHERE key = 'cod_fee_rate'");
             if (escrowRateRes.rows.length > 0) escrowRate = parseFloat(escrowRateRes.rows[0].value);
         } catch (e) {}
-        const platformFee = payment_method === 'COD' ? PlatformConfig.roundFee(totalItemPrice * escrowRate) : 0;
+        let platformFee = payment_method === 'COD' ? PlatformConfig.roundFee(totalItemPrice * escrowRate) : 0;
 
         // Seller-borne: Marketplace Commission (Applies always to reduce merchant payout)
         let commissionKey = 'shop_commission';
@@ -236,6 +236,7 @@ const initializeCommerceOrder = async (req, res) => {
         // 4.1 Handle Promo (v4.7 Hardening)
         let discount = 0;
         let finalDeliveryFee = deliveryFee;
+        let finalItemPrice = totalItemPrice;
         if (promo_id) {
             try {
                 const couponRes = await db.query("SELECT * FROM coupons WHERE id = $1 AND is_active = true", [promo_id]);
@@ -248,10 +249,20 @@ const initializeCommerceOrder = async (req, res) => {
                     const isGlobal = !c.merchant_id && !c.kitchen_id;
 
                     if (isGlobal || isMerchantMatch || isKitchenMatch) {
-                        const calculatedDiscount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : deliveryFee * (parseFloat(c.discount_value) / 100);
-                        discount = Math.min(calculatedDiscount, deliveryFee);
-                        finalDeliveryFee = Math.max(0, deliveryFee - discount);
-                        console.log(`[Commerce] Applied Promo: ${c.code}. Discount: ${discount}`);
+                        const discountVal = parseFloat(c.discount_value || 0);
+                        if (c.discount_type === 'PERCENTAGE' && discountVal >= 100) {
+                            // 100% Tester Coupon (TESTER100): Entire order is free
+                            discount = totalItemPrice + deliveryFee + platformFee;
+                            finalDeliveryFee = 0;
+                            finalItemPrice = 0;
+                            platformFee = 0;
+                            console.log(`[Commerce] Applied 100% Universal Coupon: ${c.code}. Full Order Waived!`);
+                        } else {
+                            const calculatedDiscount = c.discount_type === 'FIXED' ? discountVal : deliveryFee * (discountVal / 100);
+                            discount = Math.min(calculatedDiscount, deliveryFee);
+                            finalDeliveryFee = Math.max(0, deliveryFee - discount);
+                            console.log(`[Commerce] Applied Promo: ${c.code}. Discount: ${discount}`);
+                        }
                     } else {
                         console.warn(`[Commerce] Promo ${c.code} rejected: Does not match merchant ${item.vendor_id || item.kitchen_id}`);
                     }
@@ -259,7 +270,72 @@ const initializeCommerceOrder = async (req, res) => {
             } catch (e) { console.error('[Commerce] Promo check failed:', e.message); }
         }
 
-        const totalNaira = totalItemPrice + finalDeliveryFee + platformFee;
+        const totalNaira = Math.max(0, finalItemPrice + finalDeliveryFee + platformFee);
+
+        // --- ZERO FARE BYPASS (100% Tester Coupon) ---
+        if (totalNaira === 0 || payment_method === 'FREE') {
+            const client = await db.pool.connect();
+            try {
+                await client.query('BEGIN');
+
+                let dispatchCommissionRate = 0.25;
+                try {
+                    const commRes = await client.query("SELECT value FROM settings WHERE key = 'platform_commission'");
+                    if (commRes.rows.length > 0) dispatchCommissionRate = parseFloat(commRes.rows[0].value);
+                } catch (e) {}
+                const dispatchCommissionAmount = PlatformConfig.roundFee(finalDeliveryFee * dispatchCommissionRate);
+
+                const orderRes = await client.query(
+                    `INSERT INTO orders (
+                        order_type, user_id, status, item_description,
+                        pickup_address, delivery_address, pickup_location, delivery_location,
+                        total_fare, item_price, delivery_fee, platform_fee_amount,
+                        payment_status, payment_method, payment_channel,
+                        seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount,
+                        dispatch_commission_amount, scheduled_at, coupon_id
+                    ) VALUES (
+                        'pickup_delivery', $1, $18, $2,
+                        $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
+                        0, 0, 0, 0,
+                        'PAID', 'promo_free', 'promo',
+                        $13, $14, $15, 'not_applicable', 0, $16, $17, $19
+                    ) RETURNING id`,
+                    [
+                        userId, item.name,
+                        item.pickup_address, delivery_address, mLoc.lng, mLoc.lat, lng, lat,
+                        item.merchant_user_id, (item_type === 'product' ? item_id : null), (item_type === 'meal' ? item_id : null),
+                        dispatchCommissionAmount,
+                        scheduled_at ? 'SCHEDULED' : 'SEARCHING',
+                        scheduled_at || null,
+                        promo_id || null
+                    ]
+                );
+
+                const newOrderId = orderRes.rows[0].id;
+
+                for (const rItem of resolvedItems) {
+                    await client.query(
+                        `INSERT INTO order_items (order_id, product_id, menu_item_id, name, quantity, unit_price, total_price)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                        [newOrderId, rItem.type === 'product' ? rItem.id : null, rItem.type === 'meal' ? rItem.id : null, rItem.name, rItem.quantity, rItem.price, parseFloat(rItem.price) * rItem.quantity]
+                    );
+                }
+
+                await client.query('COMMIT');
+
+                const dispatchService = require('../services/dispatchService');
+                const updatedOrder = (await db.query("SELECT * FROM orders WHERE id = $1", [newOrderId])).rows[0];
+                const fulfillers = await dispatchService.findNearbyFulfillers(updatedOrder);
+                if (fulfillers.length > 0) dispatchService.broadcastOffer(updatedOrder, fulfillers).catch(() => {});
+
+                return res.status(200).json({ success: true, order_id: newOrderId.toString() });
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
+            }
+        }
 
         // --- COD FLOW (Bypass Paystack) ---
         if (payment_method === 'COD') {
