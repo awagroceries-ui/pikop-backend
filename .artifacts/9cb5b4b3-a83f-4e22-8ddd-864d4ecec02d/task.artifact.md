@@ -1,12 +1,9 @@
-# 📌 Task Checklist: Profile Photo Upload Multer Field Fix
+# 📌 Task Checklist: Add approved_at Column to Vendors and Kitchens
 
-- `[/]` Task 1: Backend Profile Photo Field Handling Fix
-  - `[ ]` Update `fulfillerRoutes.js` to use `upload.single('photo')` / flexible upload middleware
-  - `[ ]` Update `fulfillerController.js` (`uploadProfilePhoto`) to handle `req.file` or `req.files` flex field names
+- `[/]` Task 1: Database Migration & Controller Update
+  - `[ ]` Create database migration `1726920000000_add_approved_at_to_vendors_and_kitchens.js`
+  - `[ ]` Update `updateMerchantKYCStatus` in `adminController.js`
 
-- `[ ]` Task 2: Android App Image Upload Field Alignment
-  - `[ ]` Update `KycUploadScreen.kt` to send `"photo"` as field name in `MultipartBody.Part`
-
-- `[ ]` Task 3: Git & VPS Deployment
+- `[ ]` Task 2: Git Automation & VPS Deployment
   - `[ ]` Stage, commit, and push changes to GitHub `main`
   - `[ ]` Provide VPS deployment command prompts

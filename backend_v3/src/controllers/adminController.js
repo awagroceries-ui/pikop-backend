@@ -452,7 +452,8 @@ const updateKYCStatus = async (req, res) => {
  * Updates Merchant Business Verification Status.
  */
 const updateMerchantKYCStatus = async (req, res) => {
-    const { type, id } = req.params; // type: vendor, kitchen
+    const type = req.params.type || req.body.type;
+    const id = req.params.id || req.body.id;
     const { status, note } = req.body; // status: VERIFIED, REJECTED
     const client = await db.pool.connect();
     try {
@@ -460,10 +461,10 @@ const updateMerchantKYCStatus = async (req, res) => {
         const table = type === 'kitchen' ? 'kitchens' : 'vendors';
         const newStatus = status === 'VERIFIED' ? 'active' : 'suspended';
 
-          await client.query(
-              `UPDATE ${table} SET status = $1, approved_at = CASE WHEN $2 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $3`,
-              [newStatus, status, id]
-          );
+        await client.query(
+            `UPDATE ${table} SET status = $1, approved_at = CASE WHEN $2 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $3`,
+            [newStatus, status, id]
+        );
 
           // Role Upgrade: Ensure user role is updated to MERCHANT on approval, preserving higher privileges
           if (status === 'VERIFIED') {

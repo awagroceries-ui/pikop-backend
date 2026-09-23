@@ -1,45 +1,44 @@
-# 📋 Comprehensive System Audit & Stability Fix Plan
+# 📋 Implementation Plan: Merchant Hub Verification Queue "approved_at" Column Fix
 
-Based on real-time server logs, static code analysis, and architectural review, three critical issues/bugs have been identified across the Pikop ecosystem:
+Fix the Admin Dashboard Merchant Hub Verification Queue approval crash (`column "approved_at" does not exist`).
 
-1. **Multer Profile Photo Upload Field Mismatch (`MulterError: Unexpected field`)**:
-   - **Root Cause**: In `fulfillerRoutes.js`, the route `POST /profile-photo` expects a multipart field named `'photo'` (`upload.single('photo')`). However, in `KycUploadScreen.kt` (Android app), the multipart request sent field name `"file"` (`MultipartBody.Part.createFormData("file", ...)`).
-   - **Impact**: Fulfillers attempting to upload profile photos during KYC step 2 fail on the server with `MulterError: Unexpected field`.
+---
 
-2. **Prembly Webhook Signature Verification Warning**:
-   - **Root Cause**: `webhookController.js` validates Prembly webhooks by checking signature headers or fallback tokens, but returns invalid signature warnings for mismatched event payloads without gracefully falling back or returning proper HTTP 200/400.
+## 🔍 Root Cause Analysis
 
-3. **Termii SMS Validation & Error Handling**:
-   - **Root Cause**: Dummy test phone numbers (e.g., `+2349102345678`, `+2349178965412`) fail Termii phone number validation, triggering recurring error logs.
-   - **Fix**: Improve sanitizer/validator for test accounts (`123456` OTP bypass) to prevent unnecessary external SMS API calls for invalid test numbers.
+In `adminController.js` (`updateMerchantKYCStatus`), when an Admin approves or rejects a Merchant (Vendor or Kitchen), the controller executes:
+```sql
+UPDATE ${table} SET status = $1, approved_at = CASE WHEN $2 = 'VERIFIED' THEN CURRENT_TIMESTAMP ELSE approved_at END WHERE id = $3
+```
+where `${table}` is either `vendors` or `kitchens`.
+
+Unlike `fulfillers`, neither the `vendors` table nor the `kitchens` table has an `approved_at` column in the database schema. PostgreSQL rejects the query with:
+`error: column "approved_at" of relation "vendors" (or "kitchens") does not exist`
+resulting in an HTTP 500 error on the Admin Dashboard.
 
 ---
 
 ## 🛠️ Proposed Changes
 
-### Component 1: Backend Route & Controller Fixes
+### Database Migration
 
-#### [MODIFY] [fulfillerRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/fulfillerRoutes.js)
-- Allow `upload.fields([{ name: 'photo' }, { name: 'file' }])` or `upload.single('photo')` with fallback middleware in `fulfillerController.uploadProfilePhoto` so both field names `'photo'` and `'file'` are accepted seamlessly without Multer throwing an `Unexpected field` error.
-
-#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
-- Update `uploadProfilePhoto` to handle `req.file` or `req.files?.photo?.[0] || req.files?.file?.[0]`.
+#### [NEW] [1726920000000_add_approved_at_to_vendors_and_kitchens.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726920000000_add_approved_at_to_vendors_and_kitchens.js)
+- Add `approved_at` (`timestamp`) column to both `vendors` and `kitchens` tables if not already present.
 
 ---
 
-### Component 2: Android App Image Upload Field Alignment
+### Backend Admin Controller
 
-#### [MODIFY] [KycUploadScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/KycUploadScreen.kt)
-- Update `MultipartBody.Part.createFormData("photo", "profile.jpg", ...)` to match standard API field conventions.
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- Update `updateMerchantKYCStatus` to ensure `approved_at` is set cleanly upon approval and error handling is robust.
 
 ---
 
 ## 🧪 Verification Plan
 
 ### Automated & Manual Verification
-1. **Multer Profile Photo Upload Test**:
-   - Test `POST /api/v1/fulfillers/profile-photo` with both field name `'photo'` and field name `'file'`.
-   - Confirm profile photo is saved to `/uploads/` and user profile is updated with status `200 OK`.
-2. **Commit & Deploy**:
-   - Stage and commit changes to git, push to GitHub `main`.
-   - Deploy to production VPS and restart PM2 `pikop-v3`.
+1. Run database migration (`npm run migrate:up`).
+2. Verify `vendors` and `kitchens` tables include `approved_at` column.
+3. Test approving a merchant in the Admin Verification Queue (`/admin/merchant-kyc` or `/admin/vendors`).
+4. Confirm status changes to `active`, `approved_at` is set, user role is upgraded to `MERCHANT`, and welcome email is sent without 500 errors.
+5. Commit, push to GitHub `main`, and execute VPS deployment.
