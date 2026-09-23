@@ -110,4 +110,19 @@ router.get('/waitlist', adminController.getExpansionWaitlist);
 router.get('/emergency', adminController.getEmergencyDashboard);
 router.post('/emergency/:id/resolve', adminController.resolveEmergency);
 
+// AI Knowledge Base Management
+router.get('/knowledge-base', adminController.getKnowledgeBaseAdmin);
+router.post('/knowledge-base', adminController.createKnowledgeArticle);
+router.post('/knowledge-base/:id/toggle', adminController.toggleKnowledgeArticle);
+
+// Corporate Accounts
+router.get('/corporate', adminController.getCorporateAdmin);
+router.post('/corporate/:id/status', adminController.updateCorporateStatus);
+
+// Audit Logs & Compliance Requests
+router.get('/audit-logs', adminController.getAuditLogsAdmin);
+
+// Marketplace Returns Dashboard
+router.get('/returns', adminController.getReturnsAdmin);
+
 module.exports = router;

@@ -1157,6 +1157,109 @@ const resolveEmergency = async (req, res) => {
     }
 };
 
+/**
+ * AI Knowledge Base & Assistant Management
+ */
+const getKnowledgeBaseAdmin = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM knowledge_base ORDER BY priority DESC, created_at DESC");
+        res.render('knowledge_base_admin', { articles: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const createKnowledgeArticle = async (req, res) => {
+    const { title, content, category, target_audience, priority } = req.body;
+    try {
+        await db.query(
+            `INSERT INTO knowledge_base (title, content, category, target_audience, priority)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [title, content, category || 'GENERAL', target_audience || 'BOTH', parseInt(priority || 0)]
+        );
+        res.redirect('/admin/knowledge-base');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const toggleKnowledgeArticle = async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query("UPDATE knowledge_base SET is_active = NOT is_active WHERE id = $1", [id]);
+        res.redirect('/admin/knowledge-base');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Corporate Accounts Management
+ */
+const getCorporateAdmin = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT ca.*, u.full_name as owner_name, u.email as owner_email, u.phone as owner_phone,
+                   (SELECT COUNT(*) FROM corporate_sub_accounts WHERE corporate_account_id = ca.id) as staff_count
+            FROM corporate_accounts ca
+            JOIN users u ON u.id = ca.owner_user_id
+            ORDER BY ca.created_at DESC
+        `);
+        res.render('corporate_admin', { accounts: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+const updateCorporateStatus = async (req, res) => {
+    const { id } = req.params;
+    const { is_active, monthly_credit_limit } = req.body;
+    try {
+        await db.query(
+            "UPDATE corporate_accounts SET is_active = $1, monthly_credit_limit = COALESCE($2, monthly_credit_limit) WHERE id = $3",
+            [is_active === 'true', monthly_credit_limit ? parseFloat(monthly_credit_limit) : null, id]
+        );
+        res.redirect('/admin/corporate');
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Audit Logs & Compliance Deletion Requests
+ */
+const getAuditLogsAdmin = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT a.*, u.full_name as admin_name
+            FROM audit_logs a
+            LEFT JOIN users u ON u.id = a.admin_id
+            ORDER BY a.created_at DESC LIMIT 200
+        `);
+        res.render('audit_logs_admin', { logs: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
+/**
+ * Marketplace Returns & Disputes Overview
+ */
+const getReturnsAdmin = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT r.*, o.item_description, o.user_id, u.full_name as customer_name, u.phone as customer_phone
+            FROM returns r
+            JOIN orders o ON o.id = r.order_id
+            JOIN users u ON u.id = o.user_id
+            ORDER BY r.created_at DESC LIMIT 100
+        `);
+        res.render('returns_admin', { returnsList: rows });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -1204,5 +1307,12 @@ module.exports = {
   addTrafficCorridor,
   getCustomers,
   getCustomerDetail,
-  updateCustomerStatus
+  updateCustomerStatus,
+  getKnowledgeBaseAdmin,
+  createKnowledgeArticle,
+  toggleKnowledgeArticle,
+  getCorporateAdmin,
+  updateCorporateStatus,
+  getAuditLogsAdmin,
+  getReturnsAdmin
 };

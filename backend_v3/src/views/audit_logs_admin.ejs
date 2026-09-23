@@ -1,0 +1,44 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Audit Logs & Compliance Requests</h2>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                        <th>Target Type</th>
+                        <th>Admin / Actor</th>
+                        <th>Payload / Request Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (logs.length === 0) { %>
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">No audit log entries recorded.</td>
+                        </tr>
+                    <% } else { %>
+                        <% logs.forEach(log => { %>
+                            <tr class="<%= log.action.includes('DELETE') ? 'table-warning' : '' %>">
+                                <td class="small text-muted"><%= new Date(log.created_at).toLocaleString() %></td>
+                                <td>
+                                    <span class="badge bg-<%= log.action.includes('DELETE') ? 'danger' : 'dark' %>">
+                                        <%= log.action %>
+                                    </span>
+                                </td>
+                                <td><code><%= log.target_type %></code></td>
+                                <td><%= log.admin_name || 'System / Web' %></td>
+                                <td>
+                                    <pre class="mb-0 bg-light p-2 rounded small" style="max-width: 400px; max-height: 100px; overflow-y: auto;"><%= typeof log.payload === 'string' ? log.payload : JSON.stringify(log.payload, null, 2) %></pre>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

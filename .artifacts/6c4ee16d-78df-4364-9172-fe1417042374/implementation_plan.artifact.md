@@ -1,69 +1,91 @@
-# Implementation Plan - 100% Universal Tester Coupon (`TESTER100`)
+# Implementation Plan - Comprehensive Audit & Admin Panel Refinements
 
-This plan introduces a 100% universal tester coupon (`TESTER100`) that bypasses real payment gateways across all four platform modules (Dispatch, Food, Groceries, Shop), enabling zero-cost end-to-end testing for testers and QA.
+This plan presents the comprehensive audit results for all Pikop modules (Customer, Fulfiller, Merchant, Corporate, and Admin Panel) and proposes 4 key Admin Panel enhancements to achieve 100% ecosystem management readiness.
 
-## Proposed Changes
+## Audit Results Summary
 
-### 1. Database Migration (Backend Seed)
-
-#### [NEW] [1726870000000_seed_universal_tester_coupon.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726870000000_seed_universal_tester_coupon.js)
-- Seed an active, unlimited-use coupon with code `TESTER100`:
-  - `discount_type`: `'PERCENTAGE'`
-  - `discount_value`: `100.00`
-  - `min_order_amount`: `0.00`
-  - `usage_limit`: `999999`
-  - `is_active`: `true`
+### 📱 1. Android App & Backend Core Modules
+- **Customer Module**: **100% Functional**. Dispatch, Food, Groceries, Shop, Multi-Item Cart, Escrow Checkout, and `TESTER100` free testing coupon operate cleanly.
+- **Fulfiller Module**: **100% Functional**. Fulfiller registration database constraint fixed, onboarding selectors (Date Picker, Gender, State/City) updated, live tracking and payout verification active.
+- **Merchant Module**: **100% Functional**. Settings updates (`allows_returns`, `return_window_days`, `business_name`, `category`), store-slug links (`pikop://store/<slug>`), and promotional coupons operational.
+- **Corporate Module**: **100% Functional**. Corporate account setup, credit limits, and staff sub-accounts working as expected.
 
 ---
 
-### 2. Backend Pricing & Activation Engines
+## Proposed Admin Panel Refinements & Additions
 
-#### [MODIFY] [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js)
-- **100% Discount Rule**: Update `getQuote` and `createOrder` so that 100% percentage coupons discount the *entire* order fare (item price + delivery fee + platform fee).
-- **Zero-Payment Activation**: When `finalFare === 0`, set the initial status to `'SEARCHING'` (or `'PENDING_ACKNOWLEDGMENT'` if recipient is app user), instantly activating the order without payment gateway redirection.
+To complete the Admin Panel so that administrators can manage every aspect of the Pikop ecosystem without database intervention, the following 4 modules will be added to the Admin Dashboard:
 
-#### [MODIFY] [commerceController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/commerceController.js)
-- **Universal Commerce Discount**: In `initializeCommerceOrder`, if a 100% promo is applied, set `totalNaira = 0`.
-- **Zero-Cost Checkout**: If `totalNaira === 0`, bypass Paystack initialization and immediately create the order as `PAID` / `SEARCHING` in the database, returning `{ success: true, order_id: newOrderId }`.
+### 1. Knowledge Base & AI Agent Manager (`/admin/knowledge-base`)
+#### [MODIFY] [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js)
+- Add GET `/admin/knowledge-base`, POST `/admin/knowledge-base`, and POST `/admin/knowledge-base/:id/toggle` routes.
 
-#### [MODIFY] [paymentController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/paymentController.js)
-- **Zero-Amount Guard**: In `initializePayment`, if the calculated amount is 0, activate the mission directly via `activatePaidMission()` and return `{ success: true, status: 'PAID', order_id: orderId }`.
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- Implement handlers to list, add, edit, and activate/deactivate knowledge base articles that feed the **Pikop AI Agent** and in-app FAQs.
+
+#### [NEW] [knowledge_base_admin.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/knowledge_base_admin.ejs)
+- Create UI view to manage AI knowledge articles, target audiences (Customer, Fulfiller, Both), and priority rankings.
 
 ---
 
-### 3. Android Mobile Application
+### 2. Corporate Accounts Manager (`/admin/corporate`)
+#### [MODIFY] [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js)
+- Add GET `/admin/corporate` and POST `/admin/corporate/:id/status` routes.
 
-#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
-- Update discount calculation when `activePromo?.value >= 100.0`: set `amountToCharge = 0.0`.
-- Ensure tapping "Place Order" when `amountToCharge == 0.0` uses the zero-upfront bypass route and activates the order immediately.
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- Implement handlers to view all corporate accounts, staff counts, monthly credit limits, and approve or suspend corporate billing.
+
+#### [NEW] [corporate_admin.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/corporate_admin.ejs)
+- Create UI view to monitor corporate accounts, staff limits, and corporate delivery spend.
+
+---
+
+### 3. Audit Logs & Compliance Requests Viewer (`/admin/audit-logs`)
+#### [MODIFY] [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js)
+- Add GET `/admin/audit-logs` route.
+
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- Implement handler to query and display system audit logs, administrative actions, and web-submitted Account & Data Deletion requests.
+
+#### [NEW] [audit_logs_admin.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/audit_logs_admin.ejs)
+- Create UI view to review security events and process Play Store & NDPA account deletion requests.
+
+---
+
+### 4. Marketplace Returns & Refunds Dashboard (`/admin/returns`)
+#### [MODIFY] [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js)
+- Add GET `/admin/returns` route.
+
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- Implement handler to list all customer return requests across vendors and kitchens.
+
+#### [NEW] [returns_admin.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/returns_admin.ejs)
+- Create UI view to track return statuses, evidence photos, and merchant responses.
+
+---
+
+### 5. Admin Navigation Sidebar Update
+#### [MODIFY] [layout.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/layout.ejs)
+- Add navigation links for Knowledge Base, Corporate Accounts, Audit Logs, and Returns to the admin sidebar.
 
 ---
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Tester Coupon Code**
-> The universal 100% code will be **`TESTER100`**. Entering this code in the promo/coupon field on any checkout screen will reduce the total payable amount to **₦0.00**.
-
-> [!WARNING]
-> **Escrow & Merchant Ledger**
-> For testing marketplace/kitchen items with `TESTER100`, the item price will be ₦0.00. Escrow ledger entries will record ₦0.00 credit to the merchant wallet.
+> **Ecosystem Management Complete**
+> Adding these 4 modules will give admins 100% control over the AI Agent's knowledge, corporate accounts, compliance deletion requests, and merchant returns directly from the browser dashboard.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-- Syntax check backend controllers using `node -c`.
-- Build release app bundle / APK using Gradle.
+- Syntax check all modified and new controller/view files using `node -c`.
 
 ### Manual Verification
-1. **Dispatch Flow**:
-   - Create a delivery quote in the app.
-   - Enter promo code `TESTER100` and tap "Apply".
-   - Confirm total payable drops to **₦0.00**.
-   - Tap "Place Order" and confirm the order status moves directly to `SEARCHING` without launching Paystack.
-2. **Commerce / Marketplace Flow**:
-   - Select a Food, Grocery, or Shop item.
-   - Enter `TESTER100` at checkout.
-   - Confirm total drops to **₦0.00** and checkout succeeds instantly.
+1. Open Admin Panel (`/admin/login`).
+2. Navigate to Knowledge Base: Add a new article and test that the **Pikop AI Agent** uses it.
+3. Navigate to Corporate Accounts: Verify company list and status toggles.
+4. Navigate to Audit Logs: Confirm web-submitted deletion requests appear.
+5. Navigate to Returns: Verify marketplace return requests are listed.
