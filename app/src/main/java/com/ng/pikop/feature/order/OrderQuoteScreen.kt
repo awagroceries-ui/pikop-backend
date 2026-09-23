@@ -553,20 +553,22 @@ fun OrderQuoteScreen(
                     
                     // Promo Rule: Only applies to Delivery Fee, capped at Delivery Fee amount.
                     val deliveryFee = result.delivery_fee ?: 0.0
-                    val calculatedDiscount = if (promo == null) 0.0 
-                        else if (promo.discount_type == "fixed") promo.value ?: 0.0 
-                        else deliveryFee * ((promo.value ?: 0.0) / 100)
-                    
-                    val discount = minOf(calculatedDiscount, deliveryFee)
-                    
                     val itemPriceNum = result.item_price ?: 0.0
                     val platformFee = result.platform_fee_amount ?: 0.0
                     val smsCharge = result.sms_charge_amount ?: 0.0
                     val insuranceFee = result.insurance_fee ?: 0.0
                     
-                    // Logic: If user is Buyer, they pay everything. If Seller, they pay 0.
                     val isBuyer = initiatorRole == "PAYER"
-                    val amountToCharge = if (isBuyer) itemPriceNum + platformFee + (deliveryFee - discount) + smsCharge + (if (isInsured) insuranceFee else 0.0) else 0.0
+                    val totalFareSum = if (isBuyer) itemPriceNum + platformFee + deliveryFee + smsCharge + (if (isInsured) insuranceFee else 0.0) else 0.0
+                    
+                    val isFullFreePromo = promo != null && (promo.value ?: 0.0) >= 100.0
+                    val calculatedDiscount = if (promo == null) 0.0 
+                        else if (isFullFreePromo) totalFareSum
+                        else if (promo.discount_type == "fixed") promo.value ?: 0.0 
+                        else deliveryFee * ((promo.value ?: 0.0) / 100.0)
+                    
+                    val discount = if (isFullFreePromo) totalFareSum else minOf(calculatedDiscount, deliveryFee)
+                    val amountToCharge = maxOf(0.0, totalFareSum - discount)
 
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("Order Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

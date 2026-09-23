@@ -388,13 +388,14 @@ fun CommerceCheckoutScreen(
                                     promo_id = activePromo?.promo_id
                                 ))
 
-                                if (selectedPaymentMethod == "CARD" && !response.authorization_url.isNullOrBlank()) {
+                                if (selectedPaymentMethod == "CARD" && totalAmount > 0.0 && !response.authorization_url.isNullOrBlank()) {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(response.authorization_url))
                                     context.startActivity(intent)
                                     onCelebration()
                                     onSuccess() // Navigates back to main. Real flow would verify via webhook/intent
-                                } else if ((selectedPaymentMethod == "COD" || selectedPaymentMethod == "WALLET") && !response.order_id.isNullOrBlank()) {
-                                    Toast.makeText(context, if (selectedPaymentMethod == "WALLET") "Payment Successful!" else "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
+                                } else if ((selectedPaymentMethod == "COD" || selectedPaymentMethod == "WALLET" || totalAmount == 0.0) && !response.order_id.isNullOrBlank()) {
+                                    if (useCart) com.ng.pikop.core.cart.CartManager.clear()
+                                    Toast.makeText(context, if (totalAmount == 0.0) "100% Free Order Placed!" else if (selectedPaymentMethod == "WALLET") "Payment Successful!" else "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
                                     onCelebration()
                                     navController.navigate("track_order/${response.order_id}") {
                                         popUpTo("main") { inclusive = false }
