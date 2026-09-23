@@ -153,6 +153,8 @@ app.use('/api/v1/webhooks', require('./routes/webhookRoutes'));
 app.use('/api/v1/legal', require('./routes/legalRoutes'));
 app.use('/legal', require('./routes/legalRoutes')); // Web-friendly fallback
 app.use('/terms', require('./routes/legalRoutes')); // Root-level terms fallback
+app.get('/terms/fulfiller', require('./controllers/legalController').getFulfillerTerms);
+app.get('/terms-fulfiller', require('./controllers/legalController').getFulfillerTerms);
 
 // 6. Health & Base Routes
 app.get('/health', (req, res) => res.json({ status: 'UP', timestamp: new Date(), version: '3.0.0-core' }));

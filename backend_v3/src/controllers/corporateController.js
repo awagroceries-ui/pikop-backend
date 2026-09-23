@@ -12,20 +12,27 @@ const setupCorporateProfile = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 1. Create/Update Corporate Account
-        const { rows } = await client.query(
-            `INSERT INTO corporate_accounts (owner_user_id, company_name, cac_number, business_address, billing_email, billing_type)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             ON CONFLICT (owner_user_id) DO UPDATE SET
-                company_name = EXCLUDED.company_name,
-                cac_number = EXCLUDED.cac_number,
-                business_address = EXCLUDED.business_address,
-                billing_email = EXCLUDED.billing_email,
-                billing_type = EXCLUDED.billing_type
-             RETURNING id, status`,
-            [userId, company_name, cac_number, business_address, billing_email, billing_type || 'prepaid_wallet']
-        );
-        const accountId = rows[0].id;
+        // 1. Create/Update Corporate Account safely
+        const existing = await client.query("SELECT id FROM corporate_accounts WHERE owner_user_id = $1", [userId]);
+        let accountId;
+
+        if (existing.rows.length > 0) {
+            accountId = existing.rows[0].id;
+            await client.query(
+                `UPDATE corporate_accounts
+                 SET company_name = $1, cac_number = $2, business_address = $3, billing_email = $4, billing_type = $5, status = 'ACTIVE'
+                 WHERE id = $6`,
+                [company_name, cac_number, business_address, billing_email, billing_type || 'prepaid_wallet', accountId]
+            );
+        } else {
+            const insRes = await client.query(
+                `INSERT INTO corporate_accounts (owner_user_id, company_name, cac_number, business_address, billing_email, billing_type, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE')
+                 RETURNING id`,
+                [userId, company_name, cac_number, business_address, billing_email, billing_type || 'prepaid_wallet']
+            );
+            accountId = insRes.rows[0].id;
+        }
 
         // 2. Add Owner as Admin in Sub-Accounts
         await client.query(

@@ -1,15 +1,13 @@
-# Task: Fulfiller Conduct Policy Route & Order Acceptance Fix
+# Task: Execute Fulfiller Conduct Policy Web Route & Business Account Setup Fixes
 
-- [ ] **1. Fulfiller Conduct Policy Route (`legalRoutes.js`, `legalController.js`, `app.js`, `MainActivity.kt`)**
-    - [ ] Add `/terms/fulfiller` and `/legal/terms/fulfiller` routes in `legalRoutes.js`
-    - [ ] Implement `getFulfillerTerms` in `legalController.js`
-    - [ ] Mount `/terms` in `app.js`
-    - [ ] Update `terms_viewer/{showFulfillerTerms}` in `MainActivity.kt` to point to `/legal/terms/fulfiller`
-- [ ] **2. Fulfiller Mission Acceptance Fix (`orderController.js`, `ApiService.kt`, `FulfillerDashboardScreen.kt`)**
-    - [ ] Return top-level `status` in `acceptOrder` response in `orderController.js`
-    - [ ] Add `data: OrderResponseData?` to `OrderResponse` in `ApiService.kt`
-    - [ ] Update `onAccept` handler in `FulfillerDashboardScreen.kt` to check `response.status ?: response.data?.status` and navigate to `active_order/$orderId`
-    - [ ] Add "Active Mission in Progress" banner at top of `FulfillerDashboardScreen.kt`
+- [ ] **1. Fulfiller Terms & Conduct Web Route Resolution (`legalRoutes.js`, `legalController.js`, `app.js`)**
+    - [ ] Add `/fulfiller`, `/terms/fulfiller`, `/terms-fulfiller` in `legalRoutes.js`
+    - [ ] Add direct top-level fallbacks for `/terms/fulfiller` in `app.js`
+    - [ ] Update `getFulfillerTerms` in `legalController.js`
+- [ ] **2. Business Account Setup Fix (`corporateController.js` & Migration)**
+    - [ ] Create migration `1726880000000_add_unique_constraint_to_corporate_accounts.js`
+    - [ ] Replace `ON CONFLICT` in `corporateController.js` with explicit SELECT/UPDATE/INSERT
+    - [ ] Set `is_active = true` on corporate account creation
 - [ ] **Verification & Deployment**
     - [ ] Verify JS syntax using `node -c`
     - [ ] Build release App Bundle (`app-release.aab`)
