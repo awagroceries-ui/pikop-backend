@@ -121,7 +121,8 @@ fun FulfillerOrdersScreen(onBack: () -> Unit, onNavigateToActiveOrder: (String) 
 
 @Composable
 fun FulfillerOrderCard(order: FulfillerOrderResponse, onResume: (String) -> Unit) {
-    val canResume = order.status == "MATCHED" || order.status == "PICKED_UP" || order.status == "PAYMENT_CAPTURED"
+    val statusUpper = order.status?.uppercase() ?: ""
+    val canResume = statusUpper.isNotBlank() && statusUpper !in listOf("DELIVERED", "CANCELLED", "RELEASED", "REFUNDED", "RECIPIENT_ABSENT")
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(

@@ -1,13 +1,11 @@
-# Task: Fix Fulfiller Order Offer Visibility & Merchant KYC Document Schema
+# Task: Admin KYC Approval & Fulfiller Active Mission Persistence
 
-- [ ] **1. Fulfiller Order Offer Visibility (`fulfillerController.js`)**
-    - [ ] Select `current_state` in initial Fulfiller query
-    - [ ] Expand order status filter in `getAvailableOffers` to include `PAID`, `CONFIRMED`, `PENDING`
-    - [ ] Add SQL null-safety guards for `required_fulfiller_classes` and `last_ping_at`
-- [ ] **2. Merchant Signup & KYC Document Schema Fix (`merchantController.js` & Migration)**
-    - [ ] Create migration `1726890000000_add_user_id_to_kyc_documents.js`
-    - [ ] Make `fulfiller_id` NULLABLE and add `user_id` column to `kyc_documents`
-    - [ ] Update CAC and NAFDAC document inserts in `merchantController.js`
+- [ ] **1. Admin Verification Queue KYC Approval Schema Fix (`adminController.js` & Migration)**
+    - [ ] Create migration `1726900000000_ensure_approved_at_column.js`
+    - [ ] Update `updateKYCStatus` in `adminController.js`
+- [ ] **2. Fulfiller Active Mission Persistence & Resume (`FulfillerDashboardScreen.kt` & `FulfillerOrdersScreen.kt`)**
+    - [ ] Update active mission check in `FulfillerDashboardScreen.kt` to cover all active non-terminal statuses
+    - [ ] Update `canResume` logic in `FulfillerOrdersScreen.kt`
 - [ ] **Verification & Deployment**
     - [ ] Verify JS syntax using `node -c`
     - [ ] Build release App Bundle (`app-release.aab`)

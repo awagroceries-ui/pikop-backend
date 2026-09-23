@@ -255,7 +255,7 @@ fun FulfillerDashboardScreen(
                 // Active Mission Resume Banner
                 val activeMission = history.firstOrNull { 
                     val s = it.status?.uppercase() ?: ""
-                    s in listOf("MATCHED", "ACCEPTED", "PICKED_UP", "IN_TRANSIT", "ASSIGNED", "QUEUED") 
+                    s.isNotBlank() && s !in listOf("DELIVERED", "CANCELLED", "RELEASED", "REFUNDED", "RECIPIENT_ABSENT") 
                 }
 
                 if (activeMission != null) {

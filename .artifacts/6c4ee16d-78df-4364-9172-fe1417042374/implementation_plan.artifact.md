@@ -1,43 +1,48 @@
-# Implementation Plan - Order Dispatch Visibility & Merchant Verification Fixes
+# Implementation Plan - Admin KYC Approval & Fulfiller Active Mission Persistence
 
-This plan resolves the Fulfiller order offer query restrictions and fixes the missing `user_id` column error in `kyc_documents` during Merchant signup verification.
+This plan resolves the missing `approved_at` column error during Admin KYC approval and fixes the active mission persistence and "RESUME" functionality on the Fulfiller Dashboard and Delivery History screens.
 
 ## Proposed Changes
 
-### 1. Fulfiller Order Offer Visibility
-#### [MODIFY] [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js)
-- **Select State**: Include `current_state` in initial Fulfiller lookup:
-  `SELECT id, online_status, primary_class, current_state FROM fulfillers WHERE user_id = $1`
-- **Expand Order Statuses**: Expand `getAvailableOffers` order status filter from `['SEARCHING', 'PAYMENT_CAPTURED']` to `['SEARCHING', 'PAYMENT_CAPTURED', 'PAID', 'CONFIRMED', 'PENDING']`.
-- **Null Safety Guards**:
-  - Handle null `required_fulfiller_classes`:
-    `(o.required_fulfiller_classes IS NULL OR cardinality(o.required_fulfiller_classes) = 0 OR f.primary_class = ANY(o.required_fulfiller_classes))`
-  - Handle null or stale `last_ping_at`:
-    `(f.last_ping_at IS NULL OR f.last_ping_at > NOW() - interval '2 hours')`
-  - Fallback location handling for `f.current_location` when `ST_DWithin` is evaluated.
+### 1. Admin Verification Queue KYC Approval Schema Fix
+#### [NEW] [1726900000000_ensure_approved_at_column.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726900000000_ensure_approved_at_column.js)
+- Add migration to ensure `approved_at` timestamp column exists on `fulfillers` table:
+  `ALTER TABLE "fulfillers" ADD COLUMN IF NOT EXISTS "approved_at" timestamp;`
+
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js)
+- Update `updateKYCStatus` SQL query to set `approved_at = CURRENT_TIMESTAMP` when `status === 'VERIFIED'` without throwing missing column errors.
 
 ---
 
-### 2. Merchant Signup & KYC Document Schema Fix
-#### [NEW] [1726890000000_add_user_id_to_kyc_documents.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726890000000_add_user_id_to_kyc_documents.js)
-- Create migration to:
-  1. Make `fulfiller_id` NULLABLE in `kyc_documents`.
-  2. Add `user_id` integer column referencing `users(id) ON DELETE CASCADE`.
+### 2. Fulfiller Active Mission Persistence & Resume Functionality
+#### [MODIFY] [FulfillerDashboardScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerDashboardScreen.kt)
+- Expand active mission check in dashboard:
+  ```kotlin
+  val activeMission = history.firstOrNull {
+      val s = it.status?.uppercase() ?: ""
+      s.isNotBlank() && s !in listOf("DELIVERED", "CANCELLED", "RELEASED", "REFUNDED")
+  }
+  ```
+- Ensure the **"ACTIVE MISSION IN PROGRESS 🚀"** banner displays prominently at the top of the dashboard for any active un-completed mission, allowing one-tap resumption into `active_order/$orderId`.
 
-#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
-- Ensure CAC and NAFDAC document inserts use the new `user_id` column in `kyc_documents` without throwing SQL missing column errors.
+#### [MODIFY] [FulfillerOrdersScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerOrdersScreen.kt)
+- Expand `canResume` logic on Delivery History order cards:
+  ```kotlin
+  val canResume = order.status?.uppercase() !in listOf("DELIVERED", "CANCELLED", "RELEASED", "REFUNDED")
+  ```
+- Enable the **"RESUME"** button for all in-progress orders so Fulfillers can return to active mission navigation from the Delivery History screen at any time.
 
 ---
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Database Migration**
-> Executing this fix requires applying migration `1726890000000_add_user_id_to_kyc_documents.js` on the database server.
+> **Admin KYC Approval**
+> Approving a Fulfiller in the Admin Verification Queue will now record `approved_at = CURRENT_TIMESTAMP`, send the customized welcome email, and transition status to `VERIFIED` without errors.
 
 > [!NOTE]
 > **Deployment Requirement**
-> Deploying these updates requires running `git pull origin main && npm run migrate:up && pm2 restart pikop-v3` on your VPS server.
+> Deploying these updates requires building the updated Android App Bundle (`app-release.aab`), installing the release APK on the test device, and running `git pull origin main && npm run migrate:up && pm2 restart pikop-v3` on your VPS server.
 
 ---
 
@@ -45,8 +50,8 @@ This plan resolves the Fulfiller order offer query restrictions and fixes the mi
 
 ### Automated Tests
 - Verify Node.js syntax for all modified controller files using `node -c`.
-- Execute test script against `getAvailableOffers` and `setupMerchantProfile` endpoints.
+- Build release app bundle (`app-release.aab`) using Gradle.
 
 ### Manual Verification
-1. **Fulfiller Dashboard**: Create a new dispatch or commerce order as a Customer. Switch to Fulfiller app and verify the new order request appears under "Available Offers".
-2. **Merchant Verification**: Sign up as a new Merchant/Food Vendor, enter CAC / NAFDAC numbers, and tap "SUBMIT FOR VERIFICATION". Verify setup completes cleanly and displays "Business setup submitted successfully".
+1. **Admin Verification Queue**: Open `/admin/kyc` in Admin Dashboard, click "Approve" on a Fulfiller. Confirm approval succeeds and transitions Fulfiller to `VERIFIED`.
+2. **Fulfiller Active Mission Persistence**: Accept a mission as a Fulfiller, navigate back to the main dashboard or leave the app, reopen Fulfiller Dashboard. Confirm the **"ACTIVE MISSION IN PROGRESS"** banner is visible and tapping **"RESUME"** returns directly to active mission navigation.
