@@ -27,7 +27,7 @@ const getDiscovery = async (req, res) => {
     // Unified Query: General Products + Kitchen Menu Items
     const sql = `
       (
-        SELECT p.id, p.name, p.price, p.photo_url, p.category, p.description,
+        SELECT p.id::text, p.name, p.price, p.photo_url, p.category, p.description,
                v.business_name as vendor_name, v.id::text as vendor_id, 'product' as item_type,
                v.city, a.formatted_address as pickup_address, p.created_at, v.accepts_cod,
                v.operating_hours
