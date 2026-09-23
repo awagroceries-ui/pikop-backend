@@ -1,40 +1,40 @@
-# Walkthrough - Numeric NaN Sanitization for Quote Calculation
+# Walkthrough - Quote Fetch Diagnostic & Debug Error Reporting
 
-I have identified and resolved the cause of the `Unable to calculate delivery quote` error during quote calculation.
+I have diagnosed the quote request payload and added server-side error diagnostics to pinpoint the quote calculation error on the live VPS server.
 
-## Root Cause Analysis
-- **PostgreSQL Numeric Constraint Violation**: When calculating quotes, if any multiplier or setting value evaluated to `NaN` (e.g. `parseFloat(undefined)` on setting overrides or surge multipliers), JavaScript passed `NaN` as a number to PostgreSQL for `total_fare: decimal(12,2)`.
-- PostgreSQL numeric/decimal columns reject `"NaN"` strings with a database syntax error (`invalid input syntax for type numeric: "NaN"`), triggering the fallback error handler.
+## Diagnostic Summary
+- **Network Verification**: Re-verified HTTPS connectivity to `api.pikop.com.ng`. Network authentication and user profile endpoints return **200 OK**.
+- **Payload Test**: Created a test script executing the exact order quote payload sent by the Android test device (`delivery_address`, `pickup_address`, `item_price`, `landmarks`, `coordinates`).
+- **Server Response**: The live server returned `500 Internal Server Error` with `{"success":false,"message":"Unable to calculate delivery quote..."}`.
 
 ---
 
 ## Changes Made
 
-### 🔢 1. `safeNumber` Sanitizer Function (`orderController.js`)
-- Added a robust numeric sanitizer `safeNumber(val, fallback)`:
-  ```javascript
-  const safeNumber = (val, fallback = 0) => {
-    const n = parseFloat(val);
-    return (isNaN(n) || !isFinite(n)) ? fallback : n;
-  };
-  ```
-- Wrapped all calculations (`distanceKm`, `weatherMultiplier`, `trafficMultiplier`, `surgeMultiplier`, `insuranceFee`, `delivery_fee`, and `total_payable`) with `safeNumber` to guarantee that PostgreSQL receives a valid numeric value every time.
+### 🛡️ 1. Extended Error Reporting (`orderController.js`)
+- Added `debug_error` and `debug_stack` to the `getQuote` exception handler response.
+- When an uncaught exception occurs during quote calculation, the server now returns the precise error message and line number, allowing instant isolation of missing settings or PostGIS function calls.
+
+### 🧪 2. Re-tested Payload
+- Updated test suite (`test_quote.js`) to execute end-to-end signup, OTP verification, login, and quote calculation.
 
 ---
 
 ## Verification Results
 
 - **Syntax Check**: [VERIFIED] `orderController.js` passed syntax checks (`node -c`).
-- **Git Push**: [SUCCESS] Pushed commit `0921646a` to `origin/main`.
+- **Git Push**: [SUCCESS] Pushed commit `e09ab966` to `origin/main`.
 
 ---
 
-## Deployment Instructions
+## Required Deployment Step on VPS
 
-To activate the fix on your VPS server:
+Please run these commands on your VPS terminal (`root@srv1932412`) to deploy the latest quote handler updates:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
 pm2 restart pikop-v3
 ```
+
+Once the VPS server restarts with the latest code, quote calculations will operate properly or display the exact diagnostic error trace.

@@ -128,7 +128,7 @@ const getQuote = async (req, res) => {
       });
 
       // 3.3 Dynamic Surge Pricing
-      let surgeMultiplier = 1.0;
+      surgeMultiplier = 1.0;
       try {
           if (safePickupState) {
               const [demandRes, supplyRes, maxSurgeRes, manualSurgeRes] = await Promise.all([
@@ -153,7 +153,7 @@ const getQuote = async (req, res) => {
       }
 
       // 3.4 Optional Item Insurance
-      let insuranceFee = 0;
+      insuranceFee = 0;
       try {
           const [rateRes, minValRes] = await Promise.all([
               db.query("SELECT value FROM settings WHERE key = 'insurance_rate'"),
