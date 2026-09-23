@@ -1,55 +1,32 @@
-# Walkthrough - Comprehensive Audit & Admin Panel Refinements
+# Walkthrough - Resilient DNS & Quote Fetch Unblock
 
-I have completed a comprehensive audit across all mobile app modules and implemented 4 new management modules in the Admin Panel to achieve 100% ecosystem control.
+I have identified and resolved the root cause of the quote fetch failure on Android test devices.
 
-## Audit Results Summary
-
-### 📱 1. Mobile App & Backend Core Modules: **100% Functional**
-- **Customer Module**: Dispatch, Food, Groceries, Shop, Multi-Item Cart, Escrow Checkout, and `TESTER100` 100% free testing coupon operate without errors.
-- **Fulfiller Module**: Fulfiller signup constraint fixed, onboarding selectors (Date Picker, Gender, State/City) verified, and payout details active.
-- **Merchant Module**: Settings updates (`allows_returns`, `return_window_days`, `business_name`, `category`), unique store-slug links (`pikop://store/<slug>`), and promotional coupons verified.
-- **Corporate Module**: Account setup, monthly limits, and staff sub-accounts fully operational.
+## Root Cause Analysis
+Logcat analysis from the test device revealed two issues:
+1. **Device DNS Block / UnknownHostException**: On certain Android devices (especially Samsung with Private DNS or AdGuard/cellular proxies), the system DNS threw `java.net.UnknownHostException: Unable to resolve host "api.pikop.com.ng": No address associated with hostname` (`isBlocked=true`).
+2. **Button Gate Friction**: The "Get Fare Quote" button required landmark text (>= 3 chars) and a photo upload *before* calculating a price quote, leaving the button disabled for quick fare checks.
 
 ---
 
-## Admin Panel Refinements & Additions
+## Changes Made
 
-### 🤖 1. AI Knowledge Base Manager (`/admin/knowledge-base`)
-- **Routes & Controller**: Added `getKnowledgeBaseAdmin`, `createKnowledgeArticle`, and `toggleKnowledgeArticle` in `adminController.js`.
-- **UI View (`knowledge_base_admin.ejs`)**: Admins can now add, edit, toggle, and rank knowledge articles that feed the **Pikop AI Agent** (`askPikopAgent`) and in-app FAQs.
+### 🌐 1. Resilient OkHttp DNS Fallback (`ApiService.kt`)
+- **Custom OkHttp Dns**: Implemented a resilient fallback DNS provider in `ApiService.kt`. If the device's system DNS fails to resolve `api.pikop.com.ng` due to local DNS blocks or AdGuard proxies, OkHttp automatically falls back to `168.231.113.202` (your server's direct IP).
+- **HTTPS TLS Integrity**: Transmits over HTTPS with TLS SNI matching `api.pikop.com.ng`.
 
-### 🏢 2. Corporate Accounts Manager (`/admin/corporate`)
-- **Routes & Controller**: Added `getCorporateAdmin` and `updateCorporateStatus` in `adminController.js`.
-- **UI View (`corporate_admin.ejs`)**: Admins can view all corporate accounts, staff counts, monthly credit limits, and approve or suspend corporate accounts.
+### 🚀 2. Unblocked Fare Quote UI (`OrderQuoteScreen.kt`)
+- **Instant Fare Quotes**: Enabled the "Get Fare Quote" button as soon as pickup & delivery addresses are chosen (`pickupAddress.isNotBlank() && deliveryAddress.isNotBlank()`).
+- **Default Fallbacks**: Supplied safe default fallbacks for landmarks (`"Main Gate"`, `"Main Entrance"`) and state so users can calculate quotes friction-free.
 
-### 📋 3. Audit Logs & Compliance Requests Viewer (`/admin/audit-logs`)
-- **Routes & Controller**: Added `getAuditLogsAdmin` in `adminController.js`.
-- **UI View (`audit_logs_admin.ejs`)**: Admins can view system audit logs and process web-submitted Account & Data Deletion requests (for Play Store & NDPA compliance).
-
-### 📦 4. Marketplace Returns & Disputes Dashboard (`/admin/returns`)
-- **Routes & Controller**: Added `getReturnsAdmin` in `adminController.js`.
-- **UI View (`returns_admin.ejs`)**: Admins can monitor customer return requests, merchant notes, and refund statuses across all vendors and kitchens.
-
-### 🎨 5. Sidebar Navigation Updates
-- Updated `layout.ejs` to add navigation links for Knowledge Base, Corporate Accounts, Returns, and Audit Logs in the admin sidebar.
+### 📱 3. Fresh Installation & Bundle Rebuild
+- **Reinstalled**: Reinstalled the updated APK cleanly on your connected Samsung Galaxy device (`SM-S918W`).
+- **Updated AAB**: Rebuilt the Play Store App Bundle at `app/build/outputs/bundle/release/app-release.aab`.
 
 ---
 
 ## Verification Results
 
-- **Syntax Validation**: [VERIFIED] All modified controller files (`adminController.js`, `adminRoutes.js`) and new views passed Node.js syntax checks (`node -c`).
-- **Git Push**: [SUCCESS] Commits pushed to `origin/main` (commit `9221888f`).
-
----
-
-## Deployment Instructions
-
-To activate the 4 new Admin Panel modules on your production VPS:
-
-```bash
-cd /var/www/pikop-api/backend_v3/backend_v3
-git pull origin main
-pm2 restart pikop-v3
-```
-
-Admins can now manage the AI Agent, Corporate Accounts, Play Store Deletion Requests, and Marketplace Returns directly from the web dashboard! 🚀
+- **Logcat Verification**: [VERIFIED] Network requests now successfully connect to `api.pikop.com.ng` (200 OK).
+- **App Reinstalled**: [SUCCESS] Installed and launched cleanly on connected test phone.
+- **Git Push**: [SUCCESS] Pushed commit `788f2c2e` to `origin/main`.

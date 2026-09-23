@@ -12,6 +12,11 @@ const { getWATTimeStr, isWithinWindow } = require('../utils/time');
 
 const BAD_WORDS = ['spam', 'test', 'nonsense', 'fake', 'dummy']; // Simplified V3 content check
 
+const safeNumber = (val, fallback = 0) => {
+  const n = parseFloat(val);
+  return (isNaN(n) || !isFinite(n)) ? fallback : n;
+};
+
 /**
  * Generates a dynamic, distance-based quote.
  */
@@ -24,16 +29,16 @@ const getQuote = async (req, res) => {
       pickup_state, pickup_landmark, delivery_landmark
     } = req.body;
 
-    // Sanitize parameters to guarantee NO 'undefined' is ever passed to db.query()
+    // Sanitize parameters to guarantee NO 'undefined' or 'NaN' is ever passed to db.query()
     const safeUserId = req.user?.id || null;
     const safePickupAddress = pickup_address || '';
     const safeDeliveryAddress = delivery_address || '';
     const safeItemDescription = item_description || '';
-    const safePickupLat = parseFloat(pickup_lat) || 0.0;
-    const safePickupLng = parseFloat(pickup_lng) || 0.0;
-    const safeDeliveryLat = parseFloat(delivery_lat) || 0.0;
-    const safeDeliveryLng = parseFloat(delivery_lng) || 0.0;
-    const safeItemPrice = parseFloat(item_price) || 0.0;
+    const safePickupLat = safeNumber(pickup_lat, 0.0);
+    const safePickupLng = safeNumber(pickup_lng, 0.0);
+    const safeDeliveryLat = safeNumber(delivery_lat, 0.0);
+    const safeDeliveryLng = safeNumber(delivery_lng, 0.0);
+    const safeItemPrice = safeNumber(item_price, 0.0);
     const safeInitiatorRole = initiator_role || 'PAYER';
     const safeRecipientPhone = recipient_phone || null;
     const safePickupState = pickup_state || null;
