@@ -274,10 +274,14 @@ fun TrackOrderScreen(
                                 else -> com.ng.pikop.R.drawable.marker_bike // Default
                             }
                             
+                            val scaledIcon: BitmapDescriptor = remember(iconRes) {
+                                getScaledMarkerIcon(context, iconRes, sizeDp = 38)
+                            }
+                            
                             Marker(
                                 state = MarkerState(position = it), 
                                 title = "Agent", 
-                                icon = BitmapDescriptorFactory.fromResource(iconRes)
+                                icon = scaledIcon
                             ) 
                         }
                         
@@ -288,6 +292,22 @@ fun TrackOrderScreen(
                 }
             }
         }
+    }
+}
+
+fun getScaledMarkerIcon(context: android.content.Context, resId: Int, sizeDp: Int = 38): BitmapDescriptor {
+    return try {
+        val density = context.resources.displayMetrics.density
+        val sizePx = (sizeDp * density).toInt()
+        val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, resId)
+        if (bitmap != null) {
+            val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(bitmap, sizePx, sizePx, true)
+            BitmapDescriptorFactory.fromBitmap(scaledBitmap)
+        } else {
+            BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+        }
+    } catch (_: Exception) {
+        BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
     }
 }
 
