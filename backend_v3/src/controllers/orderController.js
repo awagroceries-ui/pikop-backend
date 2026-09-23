@@ -317,7 +317,9 @@ const getQuote = async (req, res) => {
     console.error('[Quote] FATAL Error:', error.stack || error.message);
     res.status(500).json({
       success: false,
-      message: 'Unable to calculate delivery quote. Please check your addresses and try again.'
+      message: 'Unable to calculate delivery quote. Please check your addresses and try again.',
+      debug_error: error.message,
+      debug_stack: error.stack
     });
   }
 };
