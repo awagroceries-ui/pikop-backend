@@ -46,6 +46,20 @@ const signup = async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // 0. Pre-flight Duplicate Check (Gating before Hash)
+    const { rows: existingUser } = await client.query(
+        "SELECT id, email, phone FROM users WHERE email = $1 OR phone = $2",
+        [emailTrimmed, normalizedPhone]
+    );
+
+    if (existingUser.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+            success: false,
+            message: 'An account with this email or phone number already exists.'
+        });
+    }
+
     // 1. Hash Password
     const passwordHash = await authService.hashPassword(password);
 

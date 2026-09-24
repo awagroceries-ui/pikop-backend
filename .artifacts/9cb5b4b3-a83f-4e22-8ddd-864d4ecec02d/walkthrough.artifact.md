@@ -1,38 +1,24 @@
-# 🚀 Walkthrough: Merchant Setup, Agent Onboarding, Admin Media, Account Deletion & Wallet Withdrawals
+# 🚀 Walkthrough: Account Self-Deletion Transaction Abort & Schema Fix
 
-Completed Merchant Paystack bank verification setup, Agent onboarding date picker & gender dropdown, Admin review media URL resolution, account deletion wallet check threshold fix, and user wallet withdrawals.
+Resolved the "current transaction is aborted" and `kyc_provider_ref` column errors occurring during Account Self-Deletion from the user mobile app.
 
 ---
 
 ## 🛠️ Summary of Implementation
 
-### 1. Merchant Setup Bank Verification
-- Updated [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt): Added `bank_code` and `account_name` to `SetupMerchantRequest`.
-- Updated [MerchantBusinessSetupScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/MerchantBusinessSetupScreen.kt): Added Paystack bank list dropdown (`getBanks()`) with search filter, 10-digit account auto-resolution (`resolveAccount()`), and verified account holder card.
-- Updated [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js): Persists `bank_code` and `account_name`.
+### 1. Database Migration
+- Created [1726930000000_add_kyc_provider_ref_to_users.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726930000000_add_kyc_provider_ref_to_users.js):
+  - Added the `kyc_provider_ref` (`varchar`) column to the `users` table. This prevents the schema missing column error when SMS OTP modules or the account deletion service attempts to modify it.
 
-### 2. Agent Onboarding Form UI Controls
-- Updated [SignupFulfillerScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/SignupFulfillerScreen.kt):
-  - Integrated Material 3 `DatePickerDialog` for Date of Birth (`dateOfBirth`).
-  - Integrated `ExposedDropdownMenuBox` for Gender selection (`Male`, `Female`, `Other`).
-
-### 3. Admin Dashboard Review Media Display
-- Updated [kyc_review.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/kyc_review.ejs) and [fulfiller_detail.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/fulfiller_detail.ejs):
-  - Added `resolveMediaUrl()` helper to format absolute host paths for relative `/uploads/...` files, Base64 data URIs, and Cloud/Prembly URLs.
-
-### 4. Account Self-Deletion & User Wallet Withdrawals
-- Updated [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js) (`deleteAccount`):
-  - Fixed floating point noise blocking account deletion when balance is `₦0.00` by using threshold comparison `bal >= 0.01 || pend >= 0.01`.
-- Updated [walletController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/walletController.js) (`requestWithdrawal`):
-  - Enabled withdrawals for all user roles (Customers, Merchants, Fulfillers).
-- Updated [WalletScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/wallet/WalletScreen.kt):
-  - Displays **Withdraw** button for any user role when `balance > 0`.
-  - Added interactive **UserWithdrawalDialog** for requesting payouts.
+### 2. Backend Controller Transaction Fix
+- Updated [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js):
+  - **`safeExec` Helper**: Ported the `SAVEPOINT` sub-transaction query wrapper over from the admin controller.
+  - **`deleteAccount`**: Wrapped all optional cascading cleanup operations (e.g., deleting `kyc_documents`, suspending `vendors` and `kitchens`, and deleting `fcm_tokens`) inside `safeExec`.
+  - If a foreign key is missing or a table drops empty rows during cleanup, PostgreSQL will bypass the exception without aborting the main anonymization `UPDATE users` statement.
 
 ---
 
-## 🧪 Device Verification & Deployment
+## 🧪 Git Automation & Deployment
 
-- Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
-- Installed and launched live on connected Wireless ADB device (**Samsung Galaxy S23 Ultra** @ `192.168.1.2:42447`).
-- Changes staged, committed (`12576939`), and pushed to GitHub `origin/main`.
+- Changes staged, committed (`caf5ff40`), and pushed to GitHub `origin/main`.
+- Deploy to VPS server using the provided commands.
