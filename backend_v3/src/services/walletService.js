@@ -418,11 +418,17 @@ const processReferralReward = async (client, userId) => {
  */
 const awardLoyaltyPoints = async (client, userId, amount) => {
     try {
+        if (!userId || isNaN(parseInt(userId))) return;
+
         // Increment global order count
         await client.query("UPDATE users SET total_orders_completed = total_orders_completed + 1 WHERE id = $1", [userId]);
 
-        const points = Math.floor(parseFloat(amount) / 100);
-        if (points <= 0) return;
+        const safeAmount = parseFloat(amount || 0);
+        if (isNaN(safeAmount) || safeAmount <= 0) return;
+
+        const points = Math.floor(safeAmount / 100);
+        if (isNaN(points) || points <= 0) return;
+
         await client.query(
             "INSERT INTO loyalty_ledger (user_id, points, entry_type, description) VALUES ($1, $2, 'EARN', $3)",
             [userId, points, `Earned from mission spending`]
