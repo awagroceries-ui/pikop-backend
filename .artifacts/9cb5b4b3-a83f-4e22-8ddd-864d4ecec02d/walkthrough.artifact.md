@@ -1,34 +1,31 @@
-# 🚀 Walkthrough: Retrofit Wildcard Type Exception Fix
+# 🚀 Walkthrough: Merchant Operating Hours Implementation
 
-Resolved the `java.lang.IllegalArgumentException: Parameter type must not include a type variable or wildcard` when saving merchant product listings, menu items, or coupons.
+Audited and implemented Operating / Opening Hours management for Merchant accounts across the Android mobile app, backend API, and customer storefronts.
 
 ---
 
-## 🛠️ Summary of Changes
+## 🛠️ Summary of Implementation
 
-### 1. Retrofit Request Models & Interface
+### 1. Backend Controller (`merchantController.js`)
+- Updated [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js) (`updateMerchantSettings`):
+  - Safely handles `operating_hours` object or JSON string.
+  - Updates both `vendors` and `kitchens` tables.
+
+### 2. Android App Merchant Settings (`MerchantPortalScreen.kt`)
 - Updated [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt):
-  - Created strongly-typed Kotlin data classes:
-    - `CreateProductRequest`
-    - `CreateMenuItemRequest`
-    - `CreateMerchantCouponRequest`
-  - Updated Retrofit endpoints:
-    - `addProduct(@Body request: CreateProductRequest)`
-    - `addMenuItem(@Body request: CreateMenuItemRequest)`
-    - `createMerchantCoupon(@Body request: CreateMerchantCouponRequest)`
-    - `updateMerchantSettings(@Body request: @JvmSuppressWildcards Map<String, Any>)`
-  - Replaced `@Body request: Map<String, Any>` which compiled to wildcard type `java.util.Map<String, ? extends Object>`, eliminating Retrofit Reflection parameter validation errors.
-
-### 2. UI Screen Payloads
-- Updated [AddEditProductScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/AddEditProductScreen.kt):
-  - "Save Listing" action now constructs `CreateProductRequest` (for marketplace vendors) or `CreateMenuItemRequest` (for food kitchens).
+  - Added `val operating_hours: Map<String, Map<String, String>>? = null` to `MerchantProfile`.
 - Updated [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt):
-  - Coupon creation constructs `CreateMerchantCouponRequest`.
+  - Added **Store Operating Hours** card in Settings with Opening Time and Closing Time selectors (`openTime`, `closeTime`).
+  - Added **Save Operating Hours** action calling `apiService.updateMerchantSettings(mapOf("operating_hours" to hoursMap))`.
+
+### 3. Customer Storefront
+- Verified `StorefrontScreen.kt` & `ShopStorefrontScreen.kt`:
+  - Customer order validation checks store open/closed state against `operating_hours` and displays open/close indicators on store listings.
 
 ---
 
 ## 🧪 Device Verification & Deployment
 
 - Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
-- Installed and launched on connected Wireless ADB device (**Samsung Galaxy S23 Ultra** @ `192.168.1.2:42447`).
-- Changes staged, committed (`7e57080e`), and pushed to GitHub `origin/main`.
+- Installed and launched live on connected device (**Samsung Galaxy S23 Ultra** @ `192.168.1.2:42447`).
+- Changes staged, committed (`f77f91ec`), and pushed to GitHub `origin/main`.

@@ -48,14 +48,14 @@ const getMyWallet = async (req, res) => {
  * Includes "Instant Payout" logic via Paystack.
  */
 const requestWithdrawal = async (req, res) => {
-    const { amount } = req.body;
+    const { amount, bank_name, account_number, bank_code, account_name } = req.body;
     const userId = req.user.id;
 
     // Policy: Minimum withdrawal amount
     const MIN_WITHDRAWAL = 1000;
     const INSTANT_THRESHOLD = 5000;
 
-    if (parseFloat(amount) < MIN_WITHDRAWAL) {
+    if (parseFloat(amount || 0) < MIN_WITHDRAWAL) {
         return res.status(400).json({ success: false, message: `Minimum withdrawal is ₦${MIN_WITHDRAWAL}` });
     }
 
@@ -63,48 +63,67 @@ const requestWithdrawal = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 1. Fetch fulfiller and bank details
+        // 1. Fetch user & bank details
+        let bankName = bank_name;
+        let accountNumber = account_number;
+        let bankCode = bank_code;
+        let accountName = account_name;
+        let fulfillerId = null;
+
         const fRes = await client.query(
             "SELECT id, bank_name, account_number, bank_code, account_name, paystack_recipient_code FROM fulfillers WHERE user_id = $1",
             [userId]
         );
-        if (fRes.rows.length === 0) return res.status(403).json({ success: false, message: 'Only fulfillers can withdraw' });
-        const f = fRes.rows[0];
 
-        if (!f.account_number || !f.bank_code) {
-            return res.status(400).json({ success: false, message: 'Please update your bank details in profile settings first.' });
+        if (fRes.rows.length > 0) {
+            const f = fRes.rows[0];
+            fulfillerId = f.id;
+            bankName = bankName || f.bank_name;
+            accountNumber = accountNumber || f.account_number;
+            bankCode = bankCode || f.bank_code;
+            accountName = accountName || f.account_name;
+        } else {
+            const uRes = await client.query("SELECT full_name FROM users WHERE id = $1", [userId]);
+            accountName = accountName || (uRes.rows[0]?.full_name || 'Valued User');
+        }
+
+        if (!accountNumber || !bankCode) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Please select a bank and enter a 10-digit account number.' });
         }
 
         // 2. Unified Wallet Check
         const walletId = await walletService.ensureWalletExists(client, 'USER', userId);
         const { rows: wRows } = await client.query("SELECT balance FROM wallets WHERE id = $1 FOR UPDATE", [walletId]);
 
-        if (parseFloat(wRows[0].balance) < parseFloat(amount)) {
-            return res.status(400).json({ success: false, message: 'Insufficient balance' });
+        if (parseFloat(wRows[0]?.balance || 0) < parseFloat(amount)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Insufficient wallet balance' });
         }
 
         // 3. Ensure Paystack Recipient exists
-        let recipientCode = f.paystack_recipient_code;
-        if (!recipientCode) {
-            const recipientRes = await paystackService.createTransferRecipient(f.account_name || f.full_name, f.account_number, f.bank_code);
+        let recipientCode = null;
+        try {
+            const recipientRes = await paystackService.createTransferRecipient(accountName, accountNumber, bankCode);
             recipientCode = recipientRes.data.recipient_code;
-            await client.query("UPDATE fulfillers SET paystack_recipient_code = $1 WHERE id = $2", [recipientCode, f.id]);
+        } catch (pErr) {
+            console.warn('[Withdrawal] Paystack recipient creation warning:', pErr.message);
         }
 
-        // 4. Record the debit
+        // 4. Record debit
         await walletService.recordEntry(client, walletId, 'DEBIT', amount, 'WITHDRAWAL', 'Payout requested');
 
         // 5. Instant Payout Logic
         let status = 'PENDING';
         let transferCode = null;
 
-        if (parseFloat(amount) <= INSTANT_THRESHOLD) {
+        if (recipientCode && parseFloat(amount) <= INSTANT_THRESHOLD) {
             try {
                 const ref = `WDL_INST_${Date.now()}`;
                 const transferRes = await paystackService.initiateTransfer(amount, recipientCode, ref);
                 status = 'PROCESSING';
                 transferCode = transferRes.data.transfer_code;
-                console.log(`[Payout] Instant transfer initiated for Agent ${f.id}: ${transferCode}`);
+                console.log(`[Payout] Instant transfer initiated for User ${userId}: ${transferCode}`);
             } catch (pErr) {
                 console.warn(`[Payout] Instant attempt failed, falling back to manual review:`, pErr.message);
             }
@@ -113,7 +132,7 @@ const requestWithdrawal = async (req, res) => {
         // 6. Create Withdrawal Record
         await client.query(
             "INSERT INTO withdrawals (fulfiller_id, wallet_id, amount, status, paystack_transfer_code) VALUES ($1, $2, $3, $4, $5)",
-            [f.id, walletId, amount, status, transferCode]
+            [fulfillerId, walletId, amount, status, transferCode]
         );
 
         await client.query('COMMIT');

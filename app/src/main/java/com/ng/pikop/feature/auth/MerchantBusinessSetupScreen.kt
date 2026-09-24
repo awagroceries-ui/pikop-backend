@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.ng.pikop.R
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.Bank
 import com.ng.pikop.core.network.ErrorUtils
 import com.ng.pikop.core.network.SetupMerchantRequest
 import kotlinx.coroutines.launch
@@ -38,10 +37,16 @@ fun MerchantBusinessSetupScreen(
     var cacNumber by remember { mutableStateOf("") }
     var nafdacNumber by remember { mutableStateOf("") }
     
-    var bankName by remember { mutableStateOf("") }
+    // Paystack Bank State
+    var banksList by remember { mutableStateOf<List<Bank>>(emptyList()) }
+    var selectedBank by remember { mutableStateOf<Bank?>(null) }
+    var bankSearchText by remember { mutableStateOf("") }
+    var expandedBankDropdown by remember { mutableStateOf(false) }
     var accountNumber by remember { mutableStateOf("") }
-    var acceptsCod by remember { mutableStateOf(true) }
+    var accountName by remember { mutableStateOf<String?>(null) }
+    var isResolvingAccount by remember { mutableStateOf(false) }
     
+    var acceptsCod by remember { mutableStateOf(true) }
     var expandedCategory by remember { mutableStateOf(false) }
     val categories = listOf("Food", "Groceries", "Shop")
     
@@ -50,6 +55,41 @@ fun MerchantBusinessSetupScreen(
     
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
+
+    // Fetch Paystack Bank List on Init
+    LaunchedEffect(Unit) {
+        try {
+            val response = apiService.getBanks()
+            if (response.status && response.data.isNotEmpty()) {
+                banksList = response.data
+            }
+        } catch (_: Exception) {}
+    }
+
+    // Auto-resolve Paystack Account Name when 10 digits entered
+    LaunchedEffect(accountNumber, selectedBank) {
+        if (accountNumber.length == 10 && selectedBank != null) {
+            isResolvingAccount = true
+            accountName = null
+            try {
+                val res = apiService.resolveAccount(
+                    mapOf(
+                        "account_number" to accountNumber,
+                        "bank_code" to selectedBank!!.code
+                    )
+                )
+                if (res.status && !res.data?.account_name.isNullOrBlank()) {
+                    accountName = res.data?.account_name
+                }
+            } catch (_: Exception) {
+                accountName = null
+            } finally {
+                isResolvingAccount = false
+            }
+        } else {
+            accountName = null
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -151,25 +191,83 @@ fun MerchantBusinessSetupScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Payout Details", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Text("Payout Details (Paystack Verified)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start), fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = bankName,
-                onValueChange = { bankName = it },
-                label = { Text("Bank Name") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Paystack Bank Dropdown
+            val filteredBanks = banksList.filter { 
+                it.name.contains(bankSearchText, ignoreCase = true) 
+            }
+
+            ExposedDropdownMenuBox(
+                expanded = expandedBankDropdown,
+                onExpandedChange = { expandedBankDropdown = it }
+            ) {
+                OutlinedTextField(
+                    value = selectedBank?.name ?: bankSearchText,
+                    onValueChange = { 
+                        bankSearchText = it
+                        selectedBank = null
+                        expandedBankDropdown = true 
+                    },
+                    label = { Text("Select Bank") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedBankDropdown) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                if (filteredBanks.isNotEmpty()) {
+                    ExposedDropdownMenu(
+                        expanded = expandedBankDropdown,
+                        onDismissRequest = { expandedBankDropdown = false }
+                    ) {
+                        filteredBanks.take(20).forEach { bank ->
+                            DropdownMenuItem(
+                                text = { Text(bank.name) },
+                                onClick = {
+                                    selectedBank = bank
+                                    bankSearchText = bank.name
+                                    expandedBankDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = accountNumber,
-                onValueChange = { accountNumber = it },
-                label = { Text("Account Number") },
+                onValueChange = { if (it.length <= 10 && it.all { c -> c.isDigit() }) accountNumber = it },
+                label = { Text("10-Digit Account Number") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    if (isResolvingAccount) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    }
+                }
             )
+
+            // Resolved Account Name Card
+            if (!accountName.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "✓ Verified: $accountName",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
             Text("Payment Preference", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
@@ -213,9 +311,11 @@ fun MerchantBusinessSetupScreen(
                                 address = businessAddress,
                                 cac_number = cacNumber.ifBlank { null },
                                 nafdac_number = nafdacNumber.ifBlank { null },
-                                bank_name = bankName,
+                                bank_name = selectedBank?.name ?: bankSearchText,
                                 account_number = accountNumber,
-                                accepts_cod = acceptsCod
+                                accepts_cod = acceptsCod,
+                                bank_code = selectedBank?.code,
+                                account_name = accountName
                             )
                             val response = apiService.setupMerchantProfile(request)
                             if (response.success == true) {
@@ -231,7 +331,7 @@ fun MerchantBusinessSetupScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && businessName.isNotBlank() && businessCategory.isNotBlank() && businessAddress.isNotBlank() && bankName.isNotBlank() && accountNumber.isNotBlank()
+                enabled = !isLoading && businessName.isNotBlank() && businessCategory.isNotBlank() && businessAddress.isNotBlank() && (selectedBank != null || bankSearchText.isNotBlank()) && accountNumber.length == 10
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(

@@ -1,11 +1,14 @@
 package com.ng.pikop.feature.auth
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +30,12 @@ import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ErrorUtils
 import com.ng.pikop.core.network.SignupRequest
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignupFulfillerScreen(
     category: String,
@@ -49,11 +57,17 @@ fun SignupFulfillerScreen(
     var cityRequiresPermit by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
-    // Extra fields
+    // Extra fields with native pickers
     var dateOfBirth by remember { mutableStateOf("") }
+    var showDatePickerDialog by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+
     var homeAddress by remember { mutableStateOf("") }
     var operatingCity by remember { mutableStateOf("") }
+
     var gender by remember { mutableStateOf("") }
+    var expandedGenderDropdown by remember { mutableStateOf(false) }
+    val genderOptions = listOf("Male", "Female", "Other")
     
     var registrationNumber by remember { mutableStateOf("") }
     var make by remember { mutableStateOf("") }
@@ -77,6 +91,28 @@ fun SignupFulfillerScreen(
                 val rules = apiService.getCityRules(operatingCity)
                 cityRequiresPermit = rules["requires_rider_permit"] as? Boolean ?: false
             } catch (_: Exception) {}
+        }
+    }
+
+    // Material 3 Date Picker Dialog
+    if (showDatePickerDialog) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePickerDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                        formatter.timeZone = TimeZone.getTimeZone("UTC")
+                        dateOfBirth = formatter.format(Date(millis))
+                    }
+                    showDatePickerDialog = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePickerDialog = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 
@@ -165,12 +201,27 @@ fun SignupFulfillerScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = dateOfBirth,
-                onValueChange = { dateOfBirth = it },
-                label = { Text("Date of Birth (YYYY-MM-DD)") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Native Material 3 Date Picker Field
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = dateOfBirth,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Date of Birth") },
+                    placeholder = { Text("Select Date") },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePickerDialog = true }) {
+                            Icon(Icons.Default.CalendarToday, contentDescription = "Pick Date")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { showDatePickerDialog = true }
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -192,12 +243,34 @@ fun SignupFulfillerScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = gender,
-                onValueChange = { gender = it },
-                label = { Text("Gender (Male/Female/Other)") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Gender Dropdown Selection
+            ExposedDropdownMenuBox(
+                expanded = expandedGenderDropdown,
+                onExpandedChange = { expandedGenderDropdown = it }
+            ) {
+                OutlinedTextField(
+                    value = gender,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Gender") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGenderDropdown) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedGenderDropdown,
+                    onDismissRequest = { expandedGenderDropdown = false }
+                ) {
+                    genderOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                gender = option
+                                expandedGenderDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
 
             if (isRiderOrDriver) {
                 Spacer(modifier = Modifier.height(24.dp))

@@ -6,7 +6,7 @@ const crypto = require('crypto');
  */
 const setupMerchantProfile = async (req, res) => {
     const userId = req.user.id;
-    const { business_name, category, address, cac_number, nafdac_number, bank_name, account_number, accepts_cod = true } = req.body;
+    const { business_name, category, address, cac_number, nafdac_number, bank_name, account_number, bank_code, account_name, accepts_cod = true } = req.body;
 
     // Slug generation (v4.7)
     const store_slug = (business_name || 'store').toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');

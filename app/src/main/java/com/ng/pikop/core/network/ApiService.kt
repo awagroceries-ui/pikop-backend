@@ -512,7 +512,11 @@ data class ChatMessage(
 
 data class WithdrawalRequest(
     val amount: Double,
-    val type: String // STANDARD, INSTANT
+    val type: String = "STANDARD", // STANDARD, INSTANT
+    val bank_name: String? = null,
+    val account_number: String? = null,
+    val bank_code: String? = null,
+    val account_name: String? = null
 )
 
 data class CorporateAccount(
@@ -753,7 +757,9 @@ data class SetupMerchantRequest(
     val nafdac_number: String? = null,
     val bank_name: String,
     val account_number: String,
-    val accepts_cod: Boolean = true
+    val accepts_cod: Boolean = true,
+    val bank_code: String? = null,
+    val account_name: String? = null
 )
 
 data class SetupMerchantResponse(

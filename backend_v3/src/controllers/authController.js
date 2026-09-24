@@ -441,16 +441,16 @@ const deleteAccount = async (req, res) => {
             });
         }
 
-        // 2. GATING: Check Wallet Balance
+        // 2. GATING: Check Wallet Balance (safely parse numbers and handle floating point noise)
         const { rows: wallet } = await client.query("SELECT balance, pending_balance FROM wallets WHERE owner_type = 'USER' AND owner_id = $1", [userId.toString()]);
         if (wallet.length > 0) {
-            const bal = parseFloat(wallet[0].balance);
-            const pend = parseFloat(wallet[0].pending_balance);
-            if (bal > 0 || pend > 0) {
+            const bal = Math.abs(parseFloat(wallet[0].balance || 0));
+            const pend = Math.abs(parseFloat(wallet[0].pending_balance || 0));
+            if (bal >= 0.01 || pend >= 0.01) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({
                     success: false,
-                    message: "You have a non-zero wallet balance. Please withdraw your funds before deleting your account."
+                    message: `You have a non-zero wallet balance (₦${bal.toFixed(2)}). Please withdraw your funds before deleting your account.`
                 });
             }
         }

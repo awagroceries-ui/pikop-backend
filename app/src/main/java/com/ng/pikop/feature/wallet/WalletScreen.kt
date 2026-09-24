@@ -2,7 +2,7 @@ package com.ng.pikop.feature.wallet
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.background
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CallMade
 import androidx.compose.material.icons.automirrored.filled.CallReceived
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,14 +20,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.ng.pikop.R
-import com.ng.pikop.core.datastore.TokenManager
-import com.ng.pikop.core.network.ApiService
-import com.ng.pikop.core.network.WalletTransaction
-import com.ng.pikop.core.network.WithdrawalRequest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.ng.pikop.R
+import com.ng.pikop.core.datastore.TokenManager
+import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.ErrorUtils
+import com.ng.pikop.core.network.WalletTransaction
+import com.ng.pikop.core.network.WithdrawalRequest
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -44,6 +44,7 @@ fun WalletScreen(
     var transactions by remember { mutableStateOf<List<WalletTransaction>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var showTopupDialog by remember { mutableStateOf(false) }
+    var showWithdrawDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -58,7 +59,7 @@ fun WalletScreen(
                 balance = response.balance ?: 0.0
                 pendingBalance = response.pending_balance ?: 0.0
                 transactions = response.transactions ?: emptyList()
-            } catch (e: Exception) {}
+            } catch (_: Exception) {}
             isLoading = false
         }
     }
@@ -126,9 +127,15 @@ fun WalletScreen(
                                 ) {
                                     Text("Top up")
                                 }
-                                if (isFulfiller && balance > 0) {
+                                if (balance > 0) {
                                     Button(
-                                        onClick = onNavigateToWithdrawal,
+                                        onClick = {
+                                            if (isFulfiller) {
+                                                onNavigateToWithdrawal()
+                                            } else {
+                                                showWithdrawDialog = true
+                                            }
+                                        },
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                     ) {
@@ -162,7 +169,31 @@ fun WalletScreen(
                             context.startActivity(intent)
                         }
                         showTopupDialog = false
-                    } catch (e: Exception) {}
+                    } catch (_: Exception) {}
+                }
+            }
+        )
+    }
+
+    if (showWithdrawDialog) {
+        UserWithdrawalDialog(
+            maxBalance = balance,
+            onDismiss = { showWithdrawDialog = false },
+            onConfirm = { amount ->
+                scope.launch {
+                    try {
+                        val res = apiService.requestWithdrawal(
+                            WithdrawalRequest(
+                                amount = amount,
+                                type = "STANDARD"
+                            )
+                        )
+                        Toast.makeText(context, res.message ?: "Withdrawal requested", Toast.LENGTH_LONG).show()
+                        showWithdrawDialog = false
+                        fetchWallet()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         )
@@ -198,6 +229,45 @@ fun TopupDialog(onDismiss: () -> Unit, onConfirm: (Double) -> Unit) {
 }
 
 @Composable
+fun UserWithdrawalDialog(
+    maxBalance: Double,
+    onDismiss: () -> Unit,
+    onConfirm: (Double) -> Unit
+) {
+    var amountText by remember { mutableStateOf("1000") }
+    val amountDouble = amountText.toDoubleOrNull() ?: 0.0
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Withdraw Wallet Funds") },
+        text = {
+            Column {
+                Text("Available Balance: ₦${"%,.2f".format(maxBalance)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Enter amount to withdraw to your bank account.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { if (it.all { c -> c.isDigit() }) amountText = it },
+                    label = { Text("Withdrawal Amount (₦)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(amountDouble) },
+                enabled = amountDouble >= 1000.0 && amountDouble <= maxBalance
+            ) { Text("Request Withdrawal") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
 fun TransactionItem(tx: WalletTransaction) {
     val isCredit = tx.entry_type == "CREDIT"
     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
@@ -205,7 +275,7 @@ fun TransactionItem(tx: WalletTransaction) {
             Icon(imageVector = if (isCredit) Icons.AutoMirrored.Filled.CallReceived else Icons.AutoMirrored.Filled.CallMade, contentDescription = null, tint = if (isCredit) Color(0xFF388E3C) else Color(0xFFC62828))
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = (tx.purpose ?: "Transaction").replace("_", " ").lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }, style = MaterialTheme.typography.bodyMedium)
+                Text(text = (tx.purpose ?: "Transaction").replace("_", " ").lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }, style = MaterialTheme.typography.bodyMedium)
                 Text(text = (tx.created_at ?: "").take(10), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
             Text(text = "${if (isCredit) "+" else "-"}₦${tx.amount ?: 0.0}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = if (isCredit) Color(0xFF388E3C) else Color(0xFFC62828))

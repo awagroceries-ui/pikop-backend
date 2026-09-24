@@ -1,3 +1,25 @@
+<%
+function resolveMediaUrl(url) {
+    if (!url) return '';
+    const cleanUrl = url.trim();
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://') || cleanUrl.startsWith('data:')) {
+        return cleanUrl;
+    }
+    const host = (typeof baseUrl !== 'undefined' && baseUrl) ? baseUrl.replace(/\/$/, '') : 'https://api.pikop.com.ng';
+    const path = cleanUrl.startsWith('/') ? cleanUrl : '/' + cleanUrl;
+    return host + path;
+}
+
+function isDisplayableImage(url) {
+    if (!url) return false;
+    const str = url.trim().toLowerCase();
+    if (str.startsWith('data:image/')) return true;
+    if (str.match(/\.(jpeg|jpg|gif|png|webp|svg|bmp)(\?.*)?$/i)) return true;
+    if (str.includes('/uploads/') || str.includes('cloudinary') || str.includes('amazonaws') || str.includes('prembly')) return true;
+    return false;
+}
+%>
+
 <div class="mb-5">
     <a href="/admin/kyc" class="btn btn-sm btn-outline-secondary mb-3">← Back to Queue</a>
     <h4 class="fw-bold mb-1 text-black">Review Fulfiller: <%= f.full_name %></h4>
@@ -21,9 +43,9 @@
                 </div>
                 <div class="col-md-4 text-end">
                     <% if (f.profile_photo_url) { %>
-                        <img src="<%= f.profile_photo_url.startsWith('http') ? f.profile_photo_url : baseUrl + f.profile_photo_url %>" class="rounded border" style="width: 80px; height: 80px; object-fit: cover;">
+                        <img src="<%= resolveMediaUrl(f.profile_photo_url) %>" class="rounded border" style="width: 80px; height: 80px; object-fit: cover;">
                     <% } else { %>
-                        <div class="bg-light rounded border d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <div class="bg-light rounded border d-flex align-items-center justify-content-center ms-auto" style="width: 80px; height: 80px;">
                             <span class="text-muted smaller">No Photo</span>
                         </div>
                     <% } %>
@@ -37,12 +59,11 @@
                         <% if (typeof f.kyc_details === 'object' && f.kyc_details !== null) { %>
                             <%
                                 const report = f.kyc_details;
-                                // Handle varying Prembly response structures
                                 const data = report.data || report;
-                                const firstName = data.first_name || data.firstName;
-                                const lastName = data.last_name || data.lastName;
+                                const firstName = data.first_name || data.firstName || '';
+                                const lastName = data.last_name || data.lastName || '';
                                 const dob = data.dob || data.dateOfBirth;
-                                const status = report.status || report.message;
+                                const status = report.status || report.message || 'Verified';
                             %>
 
                             <div class="col-md-6">
@@ -66,9 +87,9 @@
                                 <div class="col-md-12 mt-2">
                                     <span class="text-muted smaller d-block mb-1">Captured ID / Selfie</span>
                                     <div class="d-flex gap-2">
-                                        <% if (data.image) { %><img src="<%= data.image %>" class="rounded border" style="height: 120px; width: auto;"><% } %>
-                                        <% if (data.face_image) { %><img src="<%= data.face_image %>" class="rounded border" style="height: 120px; width: auto;"><% } %>
-                                        <% if (data.selfie) { %><img src="<%= data.selfie %>" class="rounded border" style="height: 120px; width: auto;"><% } %>
+                                        <% if (data.image) { %><img src="<%= resolveMediaUrl(data.image) %>" class="rounded border" style="height: 120px; width: auto; object-fit: contain;"><% } %>
+                                        <% if (data.face_image) { %><img src="<%= resolveMediaUrl(data.face_image) %>" class="rounded border" style="height: 120px; width: auto; object-fit: contain;"><% } %>
+                                        <% if (data.selfie) { %><img src="<%= resolveMediaUrl(data.selfie) %>" class="rounded border" style="height: 120px; width: auto; object-fit: contain;"><% } %>
                                     </div>
                                 </div>
                             <% } %>
@@ -122,15 +143,14 @@
                         <div class="col-md-6">
                             <div class="border rounded p-3 bg-light">
                                 <label class="text-muted smaller fw-bold uppercase d-block mb-2"><%= doc.doc_type.replace(/_/g, ' ') %></label>
-
-                                <% const isImage = doc.file_url.match(/\.(jpeg|jpg|gif|png)$/i); %>
-                                <% if (isImage) { %>
-                                    <div class="mb-2">
-                                        <img src="<%= doc.file_url.startsWith('http') ? doc.file_url : baseUrl + doc.file_url %>" class="rounded border w-100" style="height: 150px; object-fit: contain; background: white;">
+                                <% const mediaUrl = resolveMediaUrl(doc.file_url); %>
+                                <% if (isDisplayableImage(doc.file_url)) { %>
+                                    <div class="mb-2 text-center">
+                                        <img src="<%= mediaUrl %>" class="rounded border w-100" style="height: 160px; object-fit: contain; background: white;">
                                     </div>
                                 <% } %>
 
-                                <a href="<%= doc.file_url.startsWith('http') ? doc.file_url : baseUrl + doc.file_url %>" target="_blank" class="btn btn-sm btn-pikop-outline w-100 mb-2">VIEW FULL DOCUMENT</a>
+                                <a href="<%= mediaUrl %>" target="_blank" class="btn btn-sm btn-pikop-outline w-100 mb-2">VIEW FULL DOCUMENT</a>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="badge bg-secondary smaller"><%= doc.status %></span>
                                     <span class="smaller text-muted">Expires: <%= doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString() : 'N/A' %></span>
