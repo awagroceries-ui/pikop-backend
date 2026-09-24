@@ -1,78 +1,49 @@
-# 📋 Comprehensive Implementation Plan: Merchant Setup, Agent Onboarding, Admin Media, Account Deletion & Wallet Withdrawals
+# 📋 Implementation Plan: Account Self-Deletion Transaction Fix & Missing Column
 
-Fix merchant bank setup, agent onboarding UI controls, admin media rendering, user account self-deletion wallet balance checks, and enable wallet withdrawals for all user types.
+Address the continuing account deletion failures caused by transaction aborts (due to missing SAVEPOINTs during cleanup) and the `column "kyc_provider_ref" of relation "users" does not exist` PostgreSQL schema error.
 
 ---
 
-## 🔍 Root Cause & Requirements Summary
+## 🔍 Root Cause Analysis
 
-1. **Merchant Setup Bank Verification**:
-   - `MerchantBusinessSetupScreen.kt` lacked Paystack bank selection list (`getBanks()`) and automatic account holder name resolution (`resolveAccount()`).
-   - Fix: Add Paystack bank dropdown and account name resolution card in merchant setup, persisting `bank_code` and `account_name`.
+1. **Transaction Abort Error in `deleteAccount`**:
+   - In `authController.js` (`deleteAccount`), user account deletion/anonymization cascades optional cleanup tasks using `.catch(() => {})` inside an active PostgreSQL transaction block (`BEGIN`).
+   - If an optional cleanup query fails (e.g., trying to access a table or column that isn't fully migrated, or foreign key violations), PostgreSQL instantly marks the main transaction as `ABORTED`. All subsequent commands are ignored until `ROLLBACK`. Catching the promise error in Node.js does not recover the SQL transaction state.
+   - **Fix**: Replicate the `safeExec` `SAVEPOINT` pattern (introduced previously in `adminController.js`) inside `authController.js`.
 
-2. **Agent Onboarding UI Controls**:
-   - `SignupFulfillerScreen.kt` lacked native `DatePickerDialog` for Date of Birth and `ExposedDropdownMenuBox` for Gender.
-   - Fix: Integrate Material 3 `DatePickerDialog` for DOB and dropdown selection for Gender (`Male`, `Female`, `Other`).
-
-3. **Admin Dashboard Review Media Display**:
-   - Image URLs in `kyc_review.ejs`, `fulfiller_detail.ejs`, and `corporate_admin.ejs` failed due to relative path formatting or file extension checks.
-   - Fix: Implement `resolveMediaUrl()` helper to resolve absolute host paths, Base64 data URIs, and cloud URLs cleanly.
-
-4. **Account Self-Deletion Wallet Balance Gating**:
-   - In `authController.js` (`deleteAccount`), floating point string parsing (`bal > 0`) blocked account deletion for users whose wallet balance displayed as `₦0.00` (e.g. `0.0000001` or string noise).
-   - Fix: Use threshold comparison `bal >= 0.01 || pend >= 0.01` and display exact formatted balance in error message if non-zero.
-
-5. **Wallet Withdrawal Option for All User Types**:
-   - In `walletController.js` (`requestWithdrawal`), non-fulfillers were blocked with `Only fulfillers can withdraw`.
-   - In `WalletScreen.kt` (Android app), the "Withdraw" button was hidden for non-fulfillers.
-   - Fix: Enable `requestWithdrawal` for all user roles (Customers, Merchants, Fulfillers) and display the "Withdraw" button & dialog for any user with `balance > 0`.
+2. **Missing `kyc_provider_ref` Column on `users` Table**:
+   - The OTP verification flow (Termii SMS) uses `kyc_provider_ref` on the `users` table to store the `pinId` (`UPDATE users SET kyc_provider_ref = ...`).
+   - While `kyc_provider_ref` was previously added to the `fulfillers` table (for Prembly/Didit), it was never formally migrated onto the core `users` table.
+   - The `deleteAccount` anonymization query explicitly attempts to `SET kyc_provider_ref = NULL` on the `users` table, triggering `column "kyc_provider_ref" does not exist` and instantly crashing the transaction.
+   - **Fix**: Create a migration to add `kyc_provider_ref` to `users`.
 
 ---
 
 ## 🛠️ Proposed Changes
 
-### Android Mobile App (`:app`)
+### Component 1: Database Migration
 
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Update `SetupMerchantRequest` model to include `bank_code: String? = null` and `account_name: String? = null`.
-- Update `WithdrawalRequest` model to accept optional bank details (`bank_name`, `account_number`, `bank_code`, `account_name`).
-
-#### [MODIFY] [MerchantBusinessSetupScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/MerchantBusinessSetupScreen.kt)
-- Integrate Paystack bank list dropdown (`getBanks()`) with search filter.
-- Add account number auto-resolution trigger (`resolveAccount()`) and display verified account holder name.
-
-#### [MODIFY] [SignupFulfillerScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/SignupFulfillerScreen.kt)
-- Add Material 3 `DatePickerDialog` for Date of Birth.
-- Add `ExposedDropdownMenuBox` for Gender selection (`Male`, `Female`, `Other`).
-
-#### [MODIFY] [WalletScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/wallet/WalletScreen.kt)
-- Display **"Withdraw"** button for any user role when `balance > 0`.
-- Add interactive **WithdrawalDialog** allowing users to enter amount and request payout.
+#### [NEW] [1726930000000_add_kyc_provider_ref_to_users.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726930000000_add_kyc_provider_ref_to_users.js)
+- Add column `kyc_provider_ref` (`varchar(255)`) to `users` table.
 
 ---
 
-### Backend API & Admin Dashboard Views
+### Component 2: Backend Controller Fix
 
 #### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
-- Update `deleteAccount` to use threshold comparison `bal >= 0.01 || pend >= 0.01` and display exact formatted balance if non-zero.
-
-#### [MODIFY] [walletController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/walletController.js)
-- Update `requestWithdrawal` to support withdrawals for Customers, Merchants, and Fulfillers using profile or provided bank details.
-
-#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
-- Update `setupMerchantProfile` to accept and save `bank_code` and `account_name`.
-
-#### [MODIFY] [kyc_review.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/kyc_review.ejs), [fulfiller_detail.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/fulfiller_detail.ejs), [kyc_queue.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/kyc_queue.ejs), [corporate_admin.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/corporate_admin.ejs)
-- Ensure all media and image links resolve cleanly using `resolveMediaUrl()`.
+- Add `safeExec` helper function at the top of the file to execute queries within `SAVEPOINT` wrappers.
+- Update `deleteAccount`:
+  - Replace `.catch(() => {})` cleanup queries with `safeExec`.
+  - Ensure the main `UPDATE users ... SET kyc_provider_ref = NULL` executes safely now that the column exists.
 
 ---
 
 ## 🧪 Verification Plan
 
-### Manual & Device Testing
-1. **Account Self-Deletion Test**: Attempt account deletion on zero-balance account and verify success.
-2. **Wallet Withdrawal Test**: Verify "Withdraw" button appears on `WalletScreen.kt` for positive balance, submits request, and processes withdrawal.
-3. **Merchant Bank Verification**: Test Paystack bank dropdown and account name auto-resolution in Merchant setup.
-4. **Agent Onboarding UI Controls**: Test Date Picker dialog and Gender dropdown in Agent signup.
-5. **Admin Dashboard Media**: Verify photos and document previews on `/admin/kyc`, `/admin/kyc/:id`, and `/admin/fulfillers/:id`.
-6. **Git & VPS Deployment**: Stage, commit, push to GitHub `main`, restart PM2 on VPS, and deploy APK to device.
+1. Run database migration (`npm run migrate:up`).
+2. Verify the `users` table contains the `kyc_provider_ref` column.
+3. Test Account Deletion (Self-Delete) from the Mobile App:
+   - Go to Profile Settings -> Delete Account.
+   - Proceed with deletion on an account with a ₦0.00 wallet balance.
+   - Verify success response (`200 OK`) and that the user session is revoked, with no 500 transaction abort errors on the backend.
+4. Git commit and restart VPS server.

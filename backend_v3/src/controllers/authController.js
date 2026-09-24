@@ -6,6 +6,20 @@ const { normalizePhone } = require('../utils/phone');
 const crypto = require('crypto');
 
 /**
+ * Helper: Runs a sub-query inside a SAVEPOINT block to keep transaction active on error.
+ */
+const safeExec = async (client, sql, params, spName) => {
+    try {
+        await client.query(`SAVEPOINT ${spName}`);
+        await client.query(sql, params);
+        await client.query(`RELEASE SAVEPOINT ${spName}`);
+    } catch (e) {
+        await client.query(`ROLLBACK TO SAVEPOINT ${spName}`);
+        console.warn(`[SavepointBypass] Sub-operation ${spName} bypassed: ${e.message}`);
+    }
+};
+
+/**
  * Handles user registration.
  */
 const signup = async (req, res) => {
@@ -490,17 +504,17 @@ const deleteAccount = async (req, res) => {
         );
 
         // 5. CLEANUP: Delete linked documents and tokens safely
-        await client.query("DELETE FROM kyc_documents WHERE fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1)", [userId]).catch(() => {});
-        await client.query("DELETE FROM user_fcm_tokens WHERE user_id = $1", [userId]).catch(() => {});
+        await safeExec(client, "DELETE FROM kyc_documents WHERE fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1)", [userId], 'sp_kyc');
+        await safeExec(client, "DELETE FROM user_fcm_tokens WHERE user_id = $1", [userId], 'sp_fcm');
 
         // 6. ROLE STATUS: Suspend linked business entities safely
-        await client.query("UPDATE fulfillers SET status = 'deleted', online_status = 'OFFLINE' WHERE user_id = $1", [userId]).catch(() => {});
-        await client.query("UPDATE vendors SET status = 'suspended' WHERE user_id = $1", [userId]).catch(() => {});
-        await client.query("UPDATE kitchens SET status = 'suspended' WHERE user_id = $1", [userId]).catch(() => {});
-        await client.query("UPDATE fleet_partners SET status = 'SUSPENDED' WHERE user_id = $1", [userId]).catch(() => {});
+        await safeExec(client, "UPDATE fulfillers SET status = 'deleted', online_status = 'OFFLINE' WHERE user_id = $1", [userId], 'sp_ful');
+        await safeExec(client, "UPDATE vendors SET status = 'suspended' WHERE user_id = $1", [userId], 'sp_ven');
+        await safeExec(client, "UPDATE kitchens SET status = 'suspended' WHERE user_id = $1", [userId], 'sp_kit');
+        await safeExec(client, "UPDATE fleet_partners SET status = 'SUSPENDED' WHERE user_id = $1", [userId], 'sp_flt');
 
         // 7. SESSION: Revoke all access
-        await client.query("UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [userId]).catch(() => {});
+        await safeExec(client, "UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [userId], 'sp_sess');
 
         await client.query('COMMIT');
         console.log(`[Account] User ${userId} successfully deleted and anonymized.`);
