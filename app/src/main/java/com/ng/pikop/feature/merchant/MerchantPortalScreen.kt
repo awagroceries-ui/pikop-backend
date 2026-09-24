@@ -764,10 +764,10 @@ fun PromotionsTabContent() {
                     onClick = {
                         scope.launch {
                             try {
-                                apiService.createMerchantCoupon(mapOf(
-                                    "code" to code,
-                                    "discount_type" to type,
-                                    "discount_value" to (value.toDoubleOrNull() ?: 0.0)
+                                apiService.createMerchantCoupon(CreateMerchantCouponRequest(
+                                    code = code,
+                                    discount_type = type,
+                                    discount_value = value.toDoubleOrNull() ?: 0.0
                                 ))
                                 fetch()
                                 showCreateDialog = false

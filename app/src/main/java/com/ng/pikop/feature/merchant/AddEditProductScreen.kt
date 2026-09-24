@@ -249,22 +249,19 @@ fun AddEditProductScreen(
                                     }
                                 }
 
-                                val payload = mutableMapOf<String, Any>(
-                                    "name" to name,
-                                    "price" to price.toDouble(),
-                                    "description" to description,
-                                    "category" to category,
-                                    "photo_url" to (finalPhotoUrl ?: "")
-                                )
-
                                 if (merchantType == "vendor") {
-                                    payload["vendor_id"] = merchantId
-                                    payload["stock_quantity"] = stockQuantity.toIntOrNull() ?: 0
-                                    payload["unit"] = unit
-                                    payload["nafdac_number"] = nafdacNumber
-                                    
                                     if (productId == null) {
-                                        apiService.addProduct(payload)
+                                        apiService.addProduct(CreateProductRequest(
+                                            vendor_id = merchantId,
+                                            name = name,
+                                            price = price.toDoubleOrNull() ?: 0.0,
+                                            description = description.ifBlank { null },
+                                            category = category.ifBlank { null },
+                                            stock_quantity = stockQuantity.toIntOrNull() ?: 0,
+                                            unit = unit.ifBlank { "item" },
+                                            nafdac_number = nafdacNumber.ifBlank { null },
+                                            photo_url = finalPhotoUrl
+                                        ))
                                     } else {
                                         apiService.updateProduct(productId, ProductUpdateRequest(
                                             name = name,
@@ -278,12 +275,17 @@ fun AddEditProductScreen(
                                         ))
                                     }
                                 } else {
-                                    payload["kitchen_id"] = merchantId
-                                    payload["prep_time_minutes"] = prepTime.toIntOrNull() ?: 30
-                                    payload["available"] = available
-                                    
                                     if (productId == null) {
-                                        apiService.addMenuItem(payload)
+                                        apiService.addMenuItem(CreateMenuItemRequest(
+                                            kitchen_id = merchantId,
+                                            name = name,
+                                            price = price.toDoubleOrNull() ?: 0.0,
+                                            description = description.ifBlank { null },
+                                            category = category.ifBlank { null },
+                                            prep_time_minutes = prepTime.toIntOrNull() ?: 30,
+                                            photo_url = finalPhotoUrl,
+                                            available = available
+                                        ))
                                     } else {
                                         apiService.updateMenuItem(productId, MenuItemUpdateRequest(
                                             name = name,

@@ -1,19 +1,16 @@
-# 📌 Task Checklist: Fleet Deletion, Online Indicators & Merchant Management
+# 📌 Task Checklist: Merchant Listing Save Retrofit Wildcard Fix
 
-- `[x]` Task 1: Fix User Account Force Delete (`forceDeleteUser`)
-  - `[x]` Implement `SAVEPOINT` wrapper helper (`safeExec`) in `adminController.js`
-  - `[x]` Safely clean up FK dependencies (`orders`, `wallets`, `withdrawals`, `emergency_alerts`, `kyc_documents`, `corporate_sub_accounts`, `fleet_partner_invites`)
-  - `[x]` Ensure `DELETE FROM users WHERE id = $1` executes cleanly and commits
+- `[/]` Task 1: Add Request Data Classes & Update Retrofit Service
+  - `[ ]` Add `CreateProductRequest`, `CreateMenuItemRequest`, `CreateMerchantCouponRequest` in `ApiService.kt`
+  - `[ ]` Update `addProduct`, `addMenuItem`, `createMerchantCoupon`, `updateMerchantSettings` in `ApiService.kt`
 
-- `[x]` Task 2: Add Fleet Management Online/Offline Indicator
-  - `[x]` Update `fulfillers.ejs` to include `🟢 ONLINE` / `⚪ OFFLINE` indicator column
-  - `[x]` Update `fulfiller_detail.ejs` to display real-time `online_status` badge in profile card
+- `[ ]` Task 2: Update UI Screen Request Payloads
+  - `[ ]` Update `AddEditProductScreen.kt` to use `CreateProductRequest` and `CreateMenuItemRequest`
+  - `[ ]` Update `MerchantPortalScreen.kt` to use `CreateMerchantCouponRequest`
 
-- `[x]` Task 3: Admin Merchant Management (Suspend, Ban, Delete)
-  - `[x]` Implement `deleteMerchant` in `adminController.js`
-  - `[x]` Add route `POST /admin/merchants/:type/:id/delete` in `adminRoutes.js`
-  - `[x]` Update `vendors.ejs`, `kitchens.ejs`, and `merchants.ejs` with action buttons for **Suspend**, **Ban**, **Reactivate**, and **Delete**
+- `[ ]` Task 3: Build & Deploy to Connected Device
+  - `[ ]` Build debug APK (`app:assembleDebug`)
+  - `[ ]` Install and launch on device (`192.168.1.2:42447`)
 
-- `[x]` Task 4: Git Automation & VPS Deployment
-  - `[x]` Stage, commit, and push changes to GitHub `main`
-  - `[x]` Provide VPS deployment command prompts
+- `[ ]` Task 4: Git Automation
+  - `[ ]` Stage, commit, and push changes to GitHub `main`

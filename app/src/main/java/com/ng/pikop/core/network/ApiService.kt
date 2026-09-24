@@ -533,6 +533,39 @@ data class CreateCorporateRequest(
     val cac_document_url: String? = null
 )
 
+data class CreateProductRequest(
+    val vendor_id: String,
+    val name: String,
+    val price: Double,
+    val description: String? = null,
+    val category: String? = null,
+    val stock_quantity: Int? = 0,
+    val unit: String? = "item",
+    val nafdac_number: String? = null,
+    val photo_url: String? = null
+)
+
+data class CreateMenuItemRequest(
+    val kitchen_id: String,
+    val name: String,
+    val price: Double,
+    val description: String? = null,
+    val category: String? = null,
+    val prep_time_minutes: Int? = 30,
+    val photo_url: String? = null,
+    val available: Boolean? = true
+)
+
+data class CreateMerchantCouponRequest(
+    val code: String,
+    val discount_type: String = "fixed",
+    val discount_value: Double,
+    val min_order_amount: Double? = 0.0,
+    val max_discount_amount: Double? = null,
+    val usage_limit: Int? = null,
+    val expiry_date: String? = null
+)
+
 data class CorporateStaff(
     val id: Int? = null,
     val full_name: String? = null,
@@ -1219,7 +1252,7 @@ interface ApiService {
     suspend fun getCityRules(@retrofit2.http.Path("name") name: String): Map<String, Any>
     
     @PATCH("api/v1/merchants/settings")
-    suspend fun updateMerchantSettings(@Body request: Map<String, Any>): AuthResponse
+    suspend fun updateMerchantSettings(@Body request: @JvmSuppressWildcards Map<String, Any>): AuthResponse
     
     @POST("api/v1/orders/{orderId}/return")
     suspend fun requestReturn(@retrofit2.http.Path("orderId") orderId: String, @Body request: ReturnRequest): Map<String, Any>
@@ -1249,7 +1282,7 @@ interface ApiService {
     suspend fun getMerchantCoupons(): Map<String, Any>
 
     @POST("api/v1/merchants/coupons")
-    suspend fun createMerchantCoupon(@Body request: Map<String, Any>): Map<String, Any>
+    suspend fun createMerchantCoupon(@Body request: CreateMerchantCouponRequest): Map<String, Any>
 
     @POST("api/v1/merchants/orders/bulk-session")
     suspend fun createBulkOrders(@Body request: BulkOrderRequest): Map<String, Any>
@@ -1261,7 +1294,7 @@ interface ApiService {
     suspend fun getKitchenDetails(@retrofit2.http.Path("id") id: String): KitchenDetailsResponse
 
     @POST("api/v1/marketplace/products")
-    suspend fun addProduct(@Body request: Map<String, Any>): Map<String, Any>
+    suspend fun addProduct(@Body request: CreateProductRequest): Map<String, Any>
 
     @PATCH("api/v1/marketplace/products/{id}")
     suspend fun updateProduct(@retrofit2.http.Path("id") id: String, @Body request: ProductUpdateRequest): Map<String, Any>
@@ -1270,7 +1303,7 @@ interface ApiService {
     suspend fun deleteProduct(@retrofit2.http.Path("id") id: String): AuthResponse
 
     @POST("api/v1/kitchens/menu-items")
-    suspend fun addMenuItem(@Body request: Map<String, Any>): Map<String, Any>
+    suspend fun addMenuItem(@Body request: CreateMenuItemRequest): Map<String, Any>
 
     @PATCH("api/v1/kitchens/menu-items/{id}")
     suspend fun updateMenuItem(@retrofit2.http.Path("id") id: String, @Body request: MenuItemUpdateRequest): Map<String, Any>
