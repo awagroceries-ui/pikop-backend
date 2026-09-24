@@ -1,7 +1,7 @@
 # Pikop — Terms & Conditions
 
 
-*Last updated: September 15, 2026 — Version 0.1*
+*Last updated: September 24, 2026 — Version 0.2*
 
 ---
 
@@ -23,9 +23,9 @@ Pikop serves four categories of User, each with additional terms specific to the
 - **Receiver** — the party who physically receives the item and who confirms receipt and correctness.
 - **Fulfiller / Agent** — an individual providing pickup, transport, and delivery services through the Platform, registered under one of three categories: Foot Agent/Cyclist, Rider, or Driver.
 - **Merchant** — a business or individual registered to sell products through the Food, Groceries, or Shop modules.
-- **Platform Fee** — the 10% fee applied to the item price of a COD order, borne by the Payer.
-- **Marketplace Commission** — the category-based percentage (Food: 10%, Groceries: 5%, Shop: 10%) deducted from a Merchant's payout on every Marketplace sale, regardless of payment method.
-- **Dispatch Commission** — a 25% commission retained by Pikop from the delivery fee on every Dispatch mission (including the delivery-fee portion of a Marketplace order's unified checkout), with the remaining 75% paid to the Fulfiller who completed the mission.
+- **Platform Fee** — the 5% fee applied to the item price of a COD order, borne by the Payer.
+- **Marketplace Commission** — the 5% percentage deducted from a Merchant's payout on every Marketplace sale across all categories (Food, Groceries, Shop), regardless of payment method.
+- **Dispatch Commission** — a 20% commission retained by Pikop from the delivery fee on every Dispatch mission (including the delivery-fee portion of a Marketplace order's unified checkout), with the remaining 80% paid to the Fulfiller who completed the mission.
 - **Wallet** — the in-app ledger reflecting a User's pending and available balances.
 
 ## 3. Eligibility and Account Types
@@ -56,7 +56,7 @@ Fulfiller and Merchant accounts require identity and/or business verification be
 
 **5.4 Negotiated Release Terms.** A Seller may offer, and a Payer must explicitly accept before payment, a release term governing how quickly funds release after delivery: Immediate (on the Receiver's explicit confirmation, never on delivery-proof alone), Standard (the default grace-period model), or Extended (a longer grace period). The Payer's acceptance of the chosen term is recorded and may be relied upon by Pikop as evidence of what was agreed.
 
-**5.5 The COD Platform Fee.** A 10% fee, calculated on the item price only (never the delivery fee), applies to every COD order and is added to the amount the Payer pays at checkout. This fee is not deducted from the Seller's payout.
+**5.5 The COD Platform Fee.** A 5% fee, calculated on the item price only (never the delivery fee), applies to every COD order and is added to the amount the Payer pays at checkout. This fee is not deducted from the Seller's payout.
 
 **5.6 Guest (Non-App) Payers.** Where a Receiver or Payer does not use the Pikop app, Pikop may send payment links, delivery codes, and live-tracking links by SMS. Pikop does not operate a cash-collection model under any circumstances — every COD order is prepaid into escrow before pickup occurs.
 
@@ -71,31 +71,33 @@ Fulfiller and Merchant accounts require identity and/or business verification be
 
 **6.3 Mission Acceptance and Conduct.** Fulfillers see the mission type (delivery-only or delivery plus COD) and key details before accepting a mission. Once accepted, a mission remains assigned to the Fulfiller unless explicitly and deliberately cancelled; ordinary navigation within the app does not remove an accepted mission.
 
-**6.4 Earnings and Payout.** A Fulfiller's earnings consist of their share of the delivery fee for each completed mission: Pikop retains a 25% Dispatch Commission, and the Fulfiller receives the remaining 75%. Fulfiller earnings release upon confirmed completion of the mission and are **independent of the COD escrow status of the underlying order** — a dispute between Payer and Seller over an item's correctness does not delay, reduce, or otherwise affect a Fulfiller's earnings for having completed the delivery itself. Payout requires valid, verified bank account details on file.
+**6.4 Earnings and Payout.** A Fulfiller's earnings consist of their share of the delivery fee for each completed mission: Pikop retains a 20% Dispatch Commission, and the Fulfiller receives the remaining 80%. Fulfiller earnings release upon confirmed completion of the mission and are **independent of the COD escrow status of the underlying order** — a dispute between Payer and Seller over an item's correctness does not delay, reduce, or otherwise affect a Fulfiller's earnings for having completed the delivery itself. Payout requires valid, verified bank account details on file.
 
 ## 7. Merchant Terms
 
-**7.1 Categories and Commission.** Merchants register under Food, Groceries, or Shop, each carrying a distinct Marketplace Commission deducted from the Merchant's payout on every sale in that category: **Food 10%, Groceries 5%, Shop 10%**. Commission rates are set by Pikop and may be updated from time to time; the rate applied to a given order is the rate in effect at the time that order was placed, and is not altered retroactively.
+**7.1 Categories and Commission.** Merchants register under Food, Groceries, or Shop, with a unified 5% Marketplace Commission deducted from the Merchant's payout on every sale across all categories (**Food 5%, Groceries 5%, Shop 5%**). Commission rates are set by Pikop and may be updated from time to time on the Admin Panel; the rate applied to a given order is the rate in effect at the time that order was placed, and is not altered retroactively.
 
 **7.2 Onboarding and Verification.** Merchant onboarding requires (a) verification of the individual contact person operating the account, and (b) verification of the business itself, including business name, category, address, and bank details for payout. A NAFDAC registration number is requested only where the Merchant's category involves regulated consumables (packaged food, cosmetics, or similar); it is not required for Merchants outside those categories.
 
-**7.3 COD Acceptance.** Each Merchant elects, during onboarding and adjustable thereafter in account settings, whether to accept COD orders. Where a Merchant does not accept COD, only prepaid checkout is offered to Customers for that Merchant's products.
+**7.3 Operating Hours.** Merchants configure their daily operating opening and closing hours in business settings. Storefront listings dynamically display store status, and order requests outside operating hours are subject to scheduled next-opening fulfillment.
 
-**7.4 Product Listings.** Merchants are solely responsible for the accuracy of their product listings, including price, description, and availability. Listing prohibited, counterfeit, or unsafe items is a material breach of these Terms and grounds for immediate suspension.
+**7.4 COD Acceptance.** Each Merchant elects, during onboarding and adjustable thereafter in account settings, whether to accept COD orders. Where a Merchant does not accept COD, only prepaid checkout is offered to Customers for that Merchant's products.
+
+**7.5 Product Listings.** Merchants are solely responsible for the accuracy of their product listings, including price, description, and availability. Listing prohibited, counterfeit, or unsafe items is a material breach of these Terms and grounds for immediate suspension.
 
 ## 8. Fees Summary
 
 | Fee | Rate | Applies To | Borne By |
 |---|---|---|---|
-| COD Platform Fee | 10% of item price | COD orders only | Payer |
-| Food Marketplace Commission | 10% of item price | Every Food sale | Merchant |
+| COD Platform Fee | 5% of item price | COD orders only | Payer |
+| Food Marketplace Commission | 5% of item price | Every Food sale | Merchant |
 | Groceries Marketplace Commission | 5% of item price | Every Groceries sale | Merchant |
-| Shop Marketplace Commission | 10% of item price | Every Shop sale | Merchant |
-| Dispatch Commission | 25% of delivery fee | Every Dispatch mission, including the delivery-fee portion of Marketplace orders | Fulfiller (deducted from earnings; Fulfiller receives the remaining 75%) |
+| Shop Marketplace Commission | 5% of item price | Every Shop sale | Merchant |
+| Dispatch Commission | 20% of delivery fee | Every Dispatch mission, including the delivery-fee portion of Marketplace orders | Fulfiller (deducted from earnings; Fulfiller receives the remaining 80%) |
 | Guest SMS Charge | ₦50 per order requiring guest SMS | Orders involving a non-app Payer/Receiver | Payer |
 | Delivery Fee | Calculated per dispatch | All Dispatch and Marketplace orders | Payer |
 
-*All rates above reflect the current design as of this draft and are administratively configurable; the version in effect at the time of a given order governs that order.*
+*All rates above reflect current active platform fees as of this version and are administratively configurable on the Admin Panel; the version in effect at the time of a given order governs that order.*
 
 ## 9. Prohibited Conduct and Items
 

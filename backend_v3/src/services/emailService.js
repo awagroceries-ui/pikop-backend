@@ -121,6 +121,23 @@ const sendWelcomeEmail = async (to, name, role, data = {}) => {
     let title = 'Welcome to Pikop Logistics!';
     let contentHtml = '';
 
+    // Fetch dynamic rates from database settings with 5% / 20% fallbacks
+    const db = require('../config/db');
+    let codRate = 0.05;
+    let dispatchCommRate = 0.20;
+    let categoryComm = 0.05;
+
+    try {
+        const { rows } = await db.query("SELECT key, value FROM settings WHERE key IN ('cod_fee_rate', 'platform_commission', 'food_commission', 'groceries_commission', 'shop_commission')");
+        rows.forEach(r => {
+            if (r.key === 'cod_fee_rate') codRate = parseFloat(r.value);
+            if (r.key === 'platform_commission') dispatchCommRate = parseFloat(r.value);
+        });
+    } catch (e) {}
+
+    const agentShareStr = ((1 - dispatchCommRate) * 100).toFixed(0) + '%';
+    const codFeeStr = (codRate * 100).toFixed(0) + '%';
+
     if (role === 'CUSTOMER') {
         title = 'Welcome to Pikop Logistics!';
         contentHtml = `
@@ -138,7 +155,7 @@ const sendWelcomeEmail = async (to, name, role, data = {}) => {
                 </ul>
             </div>
 
-            <p class="text"><strong>Buyer Protection:</strong> With our Cash on Delivery (COD) and Escrow system, your funds are secured until you confirm receipt of your item.</p>
+            <p class="text"><strong>Buyer Protection:</strong> With our Cash on Delivery (COD) and Escrow system (${codFeeStr} platform fee), your funds are secured until you confirm receipt of your item.</p>
             <p class="text">View our full <a href="https://pikop.com.ng/terms">Terms & Conditions</a> and <a href="https://pikop.com.ng/privacy">Privacy Policy</a>.</p>
         `;
     }
@@ -154,7 +171,7 @@ const sendWelcomeEmail = async (to, name, role, data = {}) => {
                 <h3 style="margin-top: 0; color: #008751;">💡 How Missions Work:</h3>
                 <ul style="color: #374151; line-height: 1.8; margin-bottom: 0;">
                     <li><strong>Accepting:</strong> Toggle "Online" in the app to see nearby delivery offers.</li>
-                    <li><strong>Earning:</strong> Your earnings are calculated per mission and released to your wallet instantly upon delivery.</li>
+                    <li><strong>Earning (${agentShareStr} Share):</strong> You receive <strong>${agentShareStr}</strong> of the delivery fare per completed mission, released to your wallet instantly upon delivery.</li>
                     <li><strong>Conduct:</strong> Please review our <a href="https://pikop.com.ng/terms/fulfiller">Fulfiller Conduct Policy</a> to maintain your tier.</li>
                 </ul>
             </div>
@@ -166,11 +183,7 @@ const sendWelcomeEmail = async (to, name, role, data = {}) => {
         const merchantType = (data.category || 'Shop').toLowerCase();
         title = `Welcome to Pikop ${merchantType === 'food' ? 'Kitchens' : 'Marketplace'}!`;
 
-        let commission = PlatformConfig.COMMISSION.SHOP_PERCENTAGE;
-        if (merchantType === 'food') commission = PlatformConfig.COMMISSION.FOOD_PERCENTAGE;
-        if (merchantType === 'groceries') commission = PlatformConfig.COMMISSION.GROCERIES_PERCENTAGE;
-
-        const commissionStr = (commission * 100).toFixed(0) + '%';
+        const commissionStr = (categoryComm * 100).toFixed(0) + '%';
         const acceptsCod = data.accepts_cod === true;
 
         contentHtml = `
@@ -181,7 +194,7 @@ const sendWelcomeEmail = async (to, name, role, data = {}) => {
             <div style="background: #F9FAFB; padding: 24px; border-radius: 20px; border: 1px solid #E5E7EB; margin: 30px 0;">
                 <h3 style="margin-top: 0; color: #111827;">📊 Store Terms Summary:</h3>
                 <ul style="color: #4B5563; line-height: 1.8; margin-bottom: 0;">
-                    <li><strong>Commission:</strong> Pikop marketplace commission is <strong>${commissionStr}</strong> per sale.</li>
+                    <li><strong>Commission:</strong> Pikop marketplace commission is <strong>${commissionStr}</strong> per sale across all merchant categories.</li>
                     <li><strong>COD Status:</strong> You have opted <strong>${acceptsCod ? 'IN' : 'OUT'}</strong> for Cash on Delivery orders.</li>
                     <li><strong>Payouts:</strong> Sales funds are held in escrow and released to your available balance after the customer confirms receipt.</li>
                 </ul>
