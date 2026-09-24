@@ -1,33 +1,34 @@
-# 🚀 Walkthrough: Fleet Deletion Fix, Presence Badges & Merchant Management
+# 🚀 Walkthrough: Retrofit Wildcard Type Exception Fix
 
-Resolved user account force-deletion transaction abort errors, added presence indicators (`🟢 ONLINE` / `⚪ OFFLINE`) for agents, and implemented full Merchant Management capabilities (Suspend, Ban, Reactivate, Delete) on the Admin Dashboard.
+Resolved the `java.lang.IllegalArgumentException: Parameter type must not include a type variable or wildcard` when saving merchant product listings, menu items, or coupons.
 
 ---
 
 ## 🛠️ Summary of Changes
 
-### 1. User Account Force Delete (`forceDeleteUser`)
-- Updated [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js):
-  - Created `safeExec` helper executing cascading sub-deletions inside PostgreSQL `SAVEPOINT` blocks.
-  - Sub-operations (cleaning up `orders`, `wallets`, `withdrawals`, `emergency_alerts`, `kyc_documents`, `corporate_sub_accounts`, `fleet_partner_invites`) run safely without aborting the main transaction.
-  - User accounts (including `dr-keller@hotmail.com`) can now be force-deleted cleanly from the Admin Dashboard.
+### 1. Retrofit Request Models & Interface
+- Updated [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt):
+  - Created strongly-typed Kotlin data classes:
+    - `CreateProductRequest`
+    - `CreateMenuItemRequest`
+    - `CreateMerchantCouponRequest`
+  - Updated Retrofit endpoints:
+    - `addProduct(@Body request: CreateProductRequest)`
+    - `addMenuItem(@Body request: CreateMenuItemRequest)`
+    - `createMerchantCoupon(@Body request: CreateMerchantCouponRequest)`
+    - `updateMerchantSettings(@Body request: @JvmSuppressWildcards Map<String, Any>)`
+  - Replaced `@Body request: Map<String, Any>` which compiled to wildcard type `java.util.Map<String, ? extends Object>`, eliminating Retrofit Reflection parameter validation errors.
 
-### 2. Fleet Presence Indicators
-- Updated [fulfillers.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/fulfillers.ejs):
-  - Added **Presence** column displaying `🟢 ONLINE` (Green badge) or `⚪ OFFLINE` (Gray badge) for each agent in real-time.
-- Updated [fulfiller_detail.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/fulfiller_detail.ejs):
-  - Added presence badge header in agent profile card.
-
-### 3. Merchant Management Infrastructure
-- Updated [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js) & [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js):
-  - Implemented `deleteMerchant` handling removal of `vendors` or `kitchens` along with associated `products`, `menu_items`, `merchant_coupons`, and `marketplace_returns`.
-  - Added route `POST /admin/merchants/:type/:id/delete`.
-- Updated [vendors.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/vendors.ejs), [kitchens.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/kitchens.ejs), and [merchants.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/merchants.ejs):
-  - Added action buttons for **APPROVE**, **SUSPEND**, **BAN**, and **DELETE** across all merchant views.
+### 2. UI Screen Payloads
+- Updated [AddEditProductScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/AddEditProductScreen.kt):
+  - "Save Listing" action now constructs `CreateProductRequest` (for marketplace vendors) or `CreateMenuItemRequest` (for food kitchens).
+- Updated [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt):
+  - Coupon creation constructs `CreateMerchantCouponRequest`.
 
 ---
 
-## 🧪 Git Automation & Deployment
+## 🧪 Device Verification & Deployment
 
-- Changes staged, committed (`d53e1410`), and pushed to GitHub `origin/main`.
-- Deploy to VPS server using commands below.
+- Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
+- Installed and launched on connected Wireless ADB device (**Samsung Galaxy S23 Ultra** @ `192.168.1.2:42447`).
+- Changes staged, committed (`7e57080e`), and pushed to GitHub `origin/main`.

@@ -1,16 +1,17 @@
-# 📌 Task Checklist: Merchant Listing Save Retrofit Wildcard Fix
+# 📌 Task Checklist: Merchant Operating Hours Implementation
 
-- `[/]` Task 1: Add Request Data Classes & Update Retrofit Service
-  - `[ ]` Add `CreateProductRequest`, `CreateMenuItemRequest`, `CreateMerchantCouponRequest` in `ApiService.kt`
-  - `[ ]` Update `addProduct`, `addMenuItem`, `createMerchantCoupon`, `updateMerchantSettings` in `ApiService.kt`
+- `[/]` Task 1: Backend Controller Update (`merchantController.js`)
+  - `[ ]` Update `updateMerchantProfile` in `merchantController.js` to accept `operating_hours`
+  - `[ ]` Ensure JSON serialization & NULL safety for `operating_hours` in `vendors` and `kitchens` tables
 
-- `[ ]` Task 2: Update UI Screen Request Payloads
-  - `[ ]` Update `AddEditProductScreen.kt` to use `CreateProductRequest` and `CreateMenuItemRequest`
-  - `[ ]` Update `MerchantPortalScreen.kt` to use `CreateMerchantCouponRequest`
+- `[ ]` Task 2: Android App Merchant Settings UI (`MerchantPortalScreen.kt`)
+  - `[ ]` Add Operating Hours configuration card (Opening & Closing Time selectors) in `SettingsTabContent`
+  - `[ ]` Update `onUpdateSettings` handler to pass `operating_hours` in `updateMerchantSettings`
 
-- `[ ]` Task 3: Build & Deploy to Connected Device
-  - `[ ]` Build debug APK (`app:assembleDebug`)
-  - `[ ]` Install and launch on device (`192.168.1.2:42447`)
+- `[ ]` Task 3: Customer Storefront Display
+  - `[ ]` Update `StorefrontScreen.kt` & `ShopStorefrontScreen.kt` to display store Operating Hours badge
 
-- `[ ]` Task 4: Git Automation
+- `[ ]` Task 4: Device Deployment & Git Automation
+  - `[ ]` Build debug APK (`app:assembleDebug`) and deploy to connected device (`192.168.1.2:42447`)
   - `[ ]` Stage, commit, and push changes to GitHub `main`
+  - `[ ]` Provide VPS deployment command prompts

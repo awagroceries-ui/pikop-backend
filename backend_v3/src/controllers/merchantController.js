@@ -473,6 +473,7 @@ const updateMerchantSettings = async (req, res) => {
     } = req.body;
 
     const newSlug = business_name ? business_name.toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') : null;
+    const operatingHoursStr = typeof operating_hours === 'string' ? operating_hours : (operating_hours ? JSON.stringify(operating_hours) : null);
 
     try {
         const queries = [
@@ -492,7 +493,7 @@ const updateMerchantSettings = async (req, res) => {
                     allows_returns !== undefined ? allows_returns : null,
                     return_window_days !== undefined ? return_window_days : null,
                     return_policy_text !== undefined ? return_policy_text : null,
-                    operating_hours ? JSON.stringify(operating_hours) : null,
+                    operatingHoursStr,
                     business_name || null,
                     category || null,
                     newSlug,
@@ -515,7 +516,7 @@ const updateMerchantSettings = async (req, res) => {
                     allows_returns !== undefined ? allows_returns : null,
                     return_window_days !== undefined ? return_window_days : null,
                     return_policy_text !== undefined ? return_policy_text : null,
-                    operating_hours ? JSON.stringify(operating_hours) : null,
+                    operatingHoursStr,
                     business_name || null,
                     category || null,
                     newSlug,

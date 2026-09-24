@@ -741,7 +741,8 @@ data class MerchantProfile(
     val allows_returns: Boolean = false,
     val return_window_days: Int = 7,
     val return_policy_text: String? = null,
-    val store_slug: String? = null
+    val store_slug: String? = null,
+    val operating_hours: Map<String, Map<String, String>>? = null
 )
 
 data class SetupMerchantRequest(

@@ -220,6 +220,25 @@ fun MerchantPortalScreen(
                                 }
                             }
                         },
+                        onSaveOperatingHours = { openTime, closeTime ->
+                            scope.launch {
+                                try {
+                                    val hoursMap = mapOf(
+                                        "all" to mapOf(
+                                            "open" to openTime,
+                                            "close" to closeTime
+                                        )
+                                    )
+                                    apiService.updateMerchantSettings(mapOf(
+                                        "operating_hours" to hoursMap
+                                    ))
+                                    fetchDashboard()
+                                    Toast.makeText(context, "Operating Hours updated ($openTime - $closeTime)", Toast.LENGTH_SHORT).show()
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, "Failed to update operating hours", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
                         onShareStore = {
                             val slug = merchantProfile.value?.store_slug
                             if (!slug.isNullOrBlank()) {
@@ -446,9 +465,16 @@ fun BatchItem(batch: MerchantBatch) {
 fun SettingsTabContent(
     profile: MerchantProfile?,
     onUpdateSettings: (Boolean?, Boolean?, Int?) -> Unit,
+    onSaveOperatingHours: (String, String) -> Unit,
     onShareStore: () -> Unit
 ) {
     if (profile == null) return
+
+    val currentOpen = profile.operating_hours?.get("all")?.get("open") ?: "08:00"
+    val currentClose = profile.operating_hours?.get("all")?.get("close") ?: "20:00"
+
+    var openTime by remember(profile.operating_hours) { mutableStateOf(currentOpen) }
+    var closeTime by remember(profile.operating_hours) { mutableStateOf(currentClose) }
 
     Column(
         modifier = Modifier
@@ -476,6 +502,50 @@ fun SettingsTabContent(
                     Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Share Store Link")
+                }
+            }
+        }
+
+        // Operating Hours Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Store Operating Hours", fontWeight = FontWeight.Bold)
+                }
+                Text(
+                    "Set daily opening and closing hours for store order validation.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = openTime,
+                        onValueChange = { openTime = it },
+                        label = { Text("Opening Time") },
+                        placeholder = { Text("08:00") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = closeTime,
+                        onValueChange = { closeTime = it },
+                        label = { Text("Closing Time") },
+                        placeholder = { Text("20:00") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Button(
+                    onClick = { onSaveOperatingHours(openTime, closeTime) },
+                    modifier = Modifier.align(Alignment.End),
+                    enabled = openTime.isNotBlank() && closeTime.isNotBlank()
+                ) {
+                    Text("Save Operating Hours")
                 }
             }
         }

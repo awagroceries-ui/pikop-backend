@@ -1,57 +1,51 @@
-# 📋 Implementation Plan: Merchant Listing Save Retrofit Wildcard Type Fix
+# 📋 Implementation Plan: Merchant Operating/Opening Hours Audit & Feature Implementation
 
-Fix the "failed to save: parameter type must not include a type variable or wildcard" exception when creating new merchant items (products / menu items) or coupons.
+Audit and implement complete Operating/Opening Hours management for Merchant accounts across the Pikop platform.
 
 ---
 
-## 🔍 Root Cause Analysis
+## 🔍 Audit Findings
 
-In `ApiService.kt` (Android app), Retrofit endpoint declarations for creating products, menu items, coupons, and updating merchant settings used generic un-typed body maps:
-```kotlin
-@POST("api/v1/marketplace/products")
-suspend fun addProduct(@Body request: Map<String, Any>): Map<String, Any>
-
-@POST("api/v1/kitchens/menu-items")
-suspend fun addMenuItem(@Body request: Map<String, Any>): Map<String, Any>
-```
-In Kotlin JVM bytecode, `@Body request: Map<String, Any>` compiles to `java.util.Map<java.lang.String, ? extends java.lang.Object>`, which contains a wildcard (`?`).
-
-When Retrofit reflects on parameter types during method initialization, Retrofit strictly prohibits wildcards in `@Body` parameters and throws:
-`java.lang.IllegalArgumentException: Parameter type must not include a type variable or wildcard: java.util.Map<java.lang.String, ?>`
-
-This causes the "Save Listing" action on `AddEditProductScreen.kt` to throw an exception when tapping "Save Listing".
+1. **Database Schema**:
+   - Column `operating_hours` (`jsonb`) exists in both `vendors` and `kitchens` tables (defaulting to `{"all": {"open": "08:00", "close": "20:00"}}`).
+2. **Backend API**:
+   - `merchantController.js` includes `operating_hours` column support, but `updateMerchantProfile` (`PATCH /api/v1/merchants/settings`) needed explicit handling when payload passes JSON object structure.
+3. **Android App Gaps**:
+   - `MerchantPortalScreen.kt` (`SettingsTabContent`) currently lacks UI components for viewing or editing Operating Hours. Merchants are unable to set or customize their store opening/closing times.
+   - `apiService.updateMerchantSettings` does not include `operating_hours` in its request body.
 
 ---
 
 ## 🛠️ Proposed Changes
 
-### Android App (`:app`)
-
-#### [MODIFY] [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt)
-- Add strongly-typed Kotlin request data classes:
-  - `CreateProductRequest`
-  - `CreateMenuItemRequest`
-  - `CreateMerchantCouponRequest`
-- Update Retrofit service method parameters:
-  - `addProduct(@Body request: CreateProductRequest)`
-  - `addMenuItem(@Body request: CreateMenuItemRequest)`
-  - `createMerchantCoupon(@Body request: CreateMerchantCouponRequest)`
-  - `updateMerchantSettings(@Body request: @JvmSuppressWildcards Map<String, Any>)`
-
-#### [MODIFY] [AddEditProductScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/AddEditProductScreen.kt)
-- Update "Save Listing" click handler to instantiate and pass `CreateProductRequest` (for vendors) or `CreateMenuItemRequest` (for kitchens) instead of untyped `Map<String, Any>`.
+### Component 1: Android Mobile App (`:app`)
 
 #### [MODIFY] [MerchantPortalScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/merchant/MerchantPortalScreen.kt)
-- Update coupon creation handler to instantiate and pass `CreateMerchantCouponRequest`.
+- Add **Operating / Opening Hours** section in `SettingsTabContent`.
+- Provide interactive Opening Time and Closing Time selectors (e.g. `08:00` to `20:00`).
+- Pass `operating_hours` payload (`mapOf("all" to mapOf("open" to openTime, "close" to closeTime))`) to `apiService.updateMerchantSettings`.
+
+#### [MODIFY] [StorefrontScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/StorefrontScreen.kt) & [ShopStorefrontScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/commerce/ShopStorefrontScreen.kt)
+- Display Operating Hours badge (e.g. "🕒 Open: 08:00 AM - 08:00 PM") on store details headers.
+
+---
+
+### Component 2: Backend API Controller
+
+#### [MODIFY] [merchantController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/merchantController.js)
+- Update `updateMerchantProfile`:
+  - Accept `operating_hours` in request body.
+  - Store JSON stringified `operating_hours` in `vendors` or `kitchens` table.
+- Return `operating_hours` in `getMerchantDashboard`.
 
 ---
 
 ## 🧪 Verification Plan
 
-### Automated & Device Verification
-1. Compile `:app` debug build (`gradle_build("app:assembleDebug")`).
-2. Deploy APK to connected device.
-3. Open Merchant Portal -> Add Item screen (`AddEditProductScreen.kt`).
-4. Fill item name, price, description, category, and tap **"Save Listing"**.
-5. Verify item saves successfully with status Toast "Item Saved Successfully!" and no Retrofit wildcard parameter exceptions.
+### Manual & Device Testing
+1. Compile and deploy debug build to connected device (`192.168.1.2:42447`).
+2. Login as a Merchant (Vendor or Kitchen) and open **Merchant Portal -> Settings**.
+3. Change Opening Time to `07:30` and Closing Time to `21:30`, then save.
+4. Verify Toast "Settings updated" appears and values persist on refresh.
+5. Open Customer app -> Storefront and verify the updated Opening Hours badge displays correctly.
 6. Commit changes to Git and push to GitHub `main`.
