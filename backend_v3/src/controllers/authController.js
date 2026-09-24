@@ -28,7 +28,7 @@ const signup = async (req, res) => {
       primary_class, date_of_birth, home_address, gender,
       registration_number, make, model, color,
       terms_version, privacy_version,
-      fleet_invite_code
+      fleet_invite_code, current_state
   } = req.body;
   const userRole = (role || 'CUSTOMER').toUpperCase();
   const normalizedPhone = normalizePhone(phone);
@@ -87,13 +87,13 @@ const signup = async (req, res) => {
                 user_id, full_name, email, phone, password_hash, primary_class,
                 date_of_birth, home_address, gender,
                 registration_number, make, model, color,
-                fleet_partner_id
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                fleet_partner_id, current_state
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
             [
                 user.id, full_name, email, normalizedPhone, passwordHash, (primary_class || 'rider').toLowerCase(),
                 date_of_birth, home_address, gender,
                 registration_number, make, model, color,
-                fleetPartnerId
+                fleetPartnerId, current_state || null
             ]
         );
     }

@@ -32,6 +32,7 @@ data class SignupRequest(
     val make: String? = null,
     val model: String? = null,
     val color: String? = null,
+    val current_state: String? = null,
 
     // Legal Consent
     val terms_version: String? = "0.1",

@@ -63,7 +63,34 @@ fun SignupFulfillerScreen(
     val datePickerState = rememberDatePickerState()
 
     var homeAddress by remember { mutableStateOf("") }
+
+    // Nigeria State & City Location Mapping
+    val nigeriaLocations = remember {
+        mapOf(
+            "Lagos" to listOf("Ikeja", "Lekki", "Victoria Island", "Surulere", "Ikorodu", "Ajah", "Badagry"),
+            "Rivers" to listOf("Port Harcourt", "Obio-Akpor", "Eleme", "Bonny", "Onne"),
+            "FCT (Abuja)" to listOf("Abuja Municipal", "Gwarinpa", "Wuse", "Asokoro", "Maitama", "Kubwa", "Gwagwalada"),
+            "Oyo" to listOf("Ibadan", "Ogbomosho", "Oyo Town"),
+            "Kano" to listOf("Kano City"),
+            "Delta" to listOf("Asaba", "Warri", "Sapele"),
+            "Edo" to listOf("Benin City"),
+            "Anambra" to listOf("Awka", "Onitsha", "Nnewi"),
+            "Enugu" to listOf("Enugu City", "Nsukka"),
+            "Kaduna" to listOf("Kaduna City", "Zaria"),
+            "Ogun" to listOf("Abeokuta", "Ijebu-Ode", "Sango Ota"),
+            "Akwa Ibom" to listOf("Uyo", "Eket"),
+            "Abia" to listOf("Aba", "Umuahia"),
+            "Cross River" to listOf("Calabar"),
+            "Imo" to listOf("Owerri"),
+            "Plateau" to listOf("Jos")
+        )
+    }
+
+    var operatingState by remember { mutableStateOf("") }
+    var expandedStateDropdown by remember { mutableStateOf(false) }
+
     var operatingCity by remember { mutableStateOf("") }
+    var expandedCityDropdown by remember { mutableStateOf(false) }
 
     var gender by remember { mutableStateOf("") }
     var expandedGenderDropdown by remember { mutableStateOf(false) }
@@ -234,12 +261,75 @@ fun SignupFulfillerScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = operatingCity,
-                onValueChange = { operatingCity = it },
-                label = { Text("Operating City (e.g. Port Harcourt)") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Operating State Dropdown
+            ExposedDropdownMenuBox(
+                expanded = expandedStateDropdown,
+                onExpandedChange = { expandedStateDropdown = it }
+            ) {
+                OutlinedTextField(
+                    value = operatingState,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Operating State") },
+                    placeholder = { Text("Select State") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStateDropdown) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedStateDropdown,
+                    onDismissRequest = { expandedStateDropdown = false }
+                ) {
+                    nigeriaLocations.keys.forEach { state ->
+                        DropdownMenuItem(
+                            text = { Text(state) },
+                            onClick = {
+                                if (operatingState != state) {
+                                    operatingState = state
+                                    operatingCity = "" // Reset city when state changes
+                                }
+                                expandedStateDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Operating City Dropdown
+            val availableCities = nigeriaLocations[operatingState] ?: emptyList()
+
+            ExposedDropdownMenuBox(
+                expanded = expandedCityDropdown && operatingState.isNotBlank(),
+                onExpandedChange = { if (operatingState.isNotBlank()) expandedCityDropdown = it }
+            ) {
+                OutlinedTextField(
+                    value = operatingCity,
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = operatingState.isNotBlank(),
+                    label = { Text("Operating City") },
+                    placeholder = { Text(if (operatingState.isBlank()) "Select State First" else "Select City") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCityDropdown) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                if (availableCities.isNotEmpty()) {
+                    ExposedDropdownMenu(
+                        expanded = expandedCityDropdown,
+                        onDismissRequest = { expandedCityDropdown = false }
+                    ) {
+                        availableCities.forEach { city ->
+                            DropdownMenuItem(
+                                text = { Text(city) },
+                                onClick = {
+                                    operatingCity = city
+                                    expandedCityDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -407,8 +497,9 @@ fun SignupFulfillerScreen(
                                 referral_code = referralCode.ifBlank { null },
                                 primary_class = category,
                                 date_of_birth = dateOfBirth,
-                                home_address = "$homeAddress, $operatingCity",
+                                home_address = if (operatingState.isNotBlank()) "$homeAddress, $operatingCity, $operatingState State" else "$homeAddress, $operatingCity",
                                 gender = gender,
+                                current_state = operatingState.ifBlank { null },
                                 registration_number = if (isRiderOrDriver) registrationNumber else null,
                                 make = if (isRiderOrDriver) make else null,
                                 model = if (isRiderOrDriver) model else null,
@@ -436,7 +527,9 @@ fun SignupFulfillerScreen(
                           email.isNotBlank() && 
                           phone.isNotBlank() && 
                           password.isNotBlank() && 
-                          password == confirmPassword
+                          password == confirmPassword &&
+                          operatingState.isNotBlank() &&
+                          operatingCity.isNotBlank()
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
