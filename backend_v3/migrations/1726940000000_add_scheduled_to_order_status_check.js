@@ -1,0 +1,26 @@
+exports.up = (pgm) => {
+  pgm.sql(`
+    ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "orders_status_check";
+    ALTER TABLE "orders" ADD CONSTRAINT "orders_status_check"
+    CHECK (status IN (
+      'SEARCHING', 'MATCHED', 'QUEUED', 'PICKED_UP', 'IN_TRANSIT',
+      'ARRIVED_AT_DELIVERY', 'DELIVERED', 'CANCELLED', 'RECIPIENT_ABSENT',
+      'PAYMENT_PENDING', 'PAYMENT_CAPTURED', 'DELIVERED_PENDING_CONFIRMATION',
+      'CONFIRMED', 'DISPUTED', 'REFUNDED', 'RELEASED', 'SCHEDULED', 'PENDING',
+      'PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY'
+    ));
+  `);
+};
+
+exports.down = (pgm) => {
+  pgm.sql(`
+    ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "orders_status_check";
+    ALTER TABLE "orders" ADD CONSTRAINT "orders_status_check"
+    CHECK (status IN (
+      'SEARCHING', 'MATCHED', 'QUEUED', 'PICKED_UP', 'IN_TRANSIT',
+      'ARRIVED_AT_DELIVERY', 'DELIVERED', 'CANCELLED', 'RECIPIENT_ABSENT',
+      'PAYMENT_PENDING', 'PAYMENT_CAPTURED', 'DELIVERED_PENDING_CONFIRMATION',
+      'CONFIRMED', 'DISPUTED', 'REFUNDED', 'RELEASED'
+    ));
+  `);
+};

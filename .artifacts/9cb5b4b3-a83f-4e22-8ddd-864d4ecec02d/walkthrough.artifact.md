@@ -1,23 +1,26 @@
-# 🚀 VPS Production Notice
+# 🚀 Walkthrough: Account Deletion UX & Wallet Withdraw Button Visibility Fix
 
-In the most recent deployment, the database migration (`1726930000000_add_kyc_provider_ref_to_users.js`) was pushed to GitHub but was **not executed** on the VPS before the PM2 restart.
-
-Because the migration was skipped, the server is still throwing the `column "kyc_provider_ref" of relation "users" does not exist` PostgreSQL error during Sign Ups and Account Deletions.
+Clarified the deletion block error message for pending escrow vs available balance, and made the "Withdraw" button permanently visible on the mobile app wallet screen.
 
 ---
 
-### 🖥️ Action Required on Server
+## 🛠️ Summary of Implementation
 
-You must execute the database migration command explicitly on your VPS terminal (`root@srv1932412`).
+### 1. Backend Deletion Message Clarification
+- Updated [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js) (`deleteAccount`):
+  - Differentiates between Available Balance and Pending Escrow Balance.
+  - If a user has a `₦0.00` available balance but `₦1,500.00` pending in escrow, the error message explicitly states:
+    `You have remaining wallet funds (₦1500.00 pending in escrow). Please wait for your pending escrow funds to clear or be refunded before deleting your account.`
 
-Run these precise commands:
+### 2. Mobile App Wallet Screen UI
+- Updated [WalletScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/wallet/WalletScreen.kt):
+  - Made the **Withdraw** button permanently visible in the Wallet header for all user roles.
+  - Dynamically disables the button (`enabled = balance > 0`) when available balance is zero, reassuring users that the withdrawal feature exists on the platform.
 
-```bash
-cd /var/www/pikop-api/backend_v3/backend_v3
-git pull origin main
-npm run migrate:up
-pm2 restart pikop-v3
-pm2 logs pikop-v3 --lines 30
-```
+---
 
-Once `npm run migrate:up` creates the `kyc_provider_ref` column in the `users` table, the SQL crashes will immediately stop.
+## 🧪 Device Verification & Deployment
+
+- Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
+- Installed and launched live on connected Wireless ADB device (**Samsung Galaxy S23 Ultra** @ `192.168.1.2:42447`).
+- Changes staged, committed (`e9efc723`), and pushed to GitHub `origin/main`.
