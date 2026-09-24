@@ -1,6 +1,6 @@
 <div class="mb-5">
     <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Fleet Management</h3>
-    <p class="text-muted small">Manage delivery fulfillers, approval status, suspension, and account termination.</p>
+    <p class="text-muted small">Manage delivery fulfillers, presence status, approval status, suspension, and account termination.</p>
 </div>
 
 <div class="row g-4">
@@ -19,6 +19,7 @@
                             <tr>
                                 <th class="smaller uppercase text-muted">Fulfiller</th>
                                 <th class="smaller uppercase text-muted">Role</th>
+                                <th class="smaller uppercase text-muted">Presence</th>
                                 <th class="smaller uppercase text-muted">KYC Status</th>
                                 <th class="smaller uppercase text-muted">Account Status</th>
                                 <th class="smaller uppercase text-muted text-end">Actions</th>
@@ -32,7 +33,14 @@
                                         <div class="small text-muted"><%= f.email %> | <%= f.user_phone %></div>
                                     </td>
                                     <td>
-                                        <span class="badge bg-secondary"><%= f.primary_class || 'AGENT' %></span>
+                                        <span class="badge bg-secondary"><%= (f.primary_class || 'AGENT').toUpperCase() %></span>
+                                    </td>
+                                    <td>
+                                        <% if (f.online_status === 'ONLINE') { %>
+                                            <span class="badge bg-success text-white">🟢 ONLINE</span>
+                                        <% } else { %>
+                                            <span class="badge bg-secondary text-white">⚪ OFFLINE</span>
+                                        <% } %>
                                     </td>
                                     <td>
                                         <span class="badge <%= f.kyc_status === 'VERIFIED' ? 'bg-success' : 'bg-warning text-dark' %>">
@@ -41,34 +49,35 @@
                                     </td>
                                     <td>
                                         <span class="badge <%= f.status === 'active' ? 'bg-success' : f.status === 'suspended' ? 'bg-warning text-dark' : 'bg-danger' %>">
-                                            <%= f.status %>
+                                            <%= (f.status || 'ACTIVE').toUpperCase() %>
                                         </span>
                                     </td>
                                     <td class="text-end">
-                                        <div class="d-inline-flex gap-2">
+                                        <div class="d-inline-flex gap-2 align-items-center">
                                             <% if (f.status !== 'active') { %>
-                                                <form action="/admin/fulfillers/<%= f.id %>/status" method="POST">
+                                                <form action="/admin/fulfillers/<%= f.id %>/status" method="POST" class="d-inline">
                                                     <input type="hidden" name="status" value="active">
                                                     <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 11px;">Reactivate</button>
                                                 </form>
                                             <% } %>
                                             <% if (f.status !== 'suspended') { %>
-                                                <form action="/admin/fulfillers/<%= f.id %>/status" method="POST">
+                                                <form action="/admin/fulfillers/<%= f.id %>/status" method="POST" class="d-inline">
                                                     <input type="hidden" name="status" value="suspended">
                                                     <button type="submit" class="btn btn-sm btn-outline-warning py-0 px-2" style="font-size: 11px;">Suspend</button>
                                                 </form>
                                             <% } %>
                                             <% if (f.status !== 'terminated') { %>
-                                                <form action="/admin/fulfillers/<%= f.id %>/status" method="POST">
+                                                <form action="/admin/fulfillers/<%= f.id %>/status" method="POST" class="d-inline">
                                                     <input type="hidden" name="status" value="terminated">
                                                     <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 11px;">Terminate</button>
                                                 </form>
                                             <% } %>
-                                            <div class="col-md-2 text-end">
-                            <a href="/admin/fulfillers/<%= f.id %>" class="btn btn-sm btn-outline-primary fw-bold px-3">MANAGE</a>
-                        </div>
-                    </div>
-                                        <a href="/admin/kyc/<%= f.id %>" class="btn btn-sm btn-outline-primary py-0 px-2 ms-2" style="font-size: 11px;">View KYC</a>
+                                            <a href="/admin/fulfillers/<%= f.id %>" class="btn btn-sm btn-outline-primary fw-bold px-2 py-0" style="font-size: 11px;">Manage</a>
+                                            <a href="/admin/kyc/<%= f.id %>" class="btn btn-sm btn-outline-info fw-bold px-2 py-0" style="font-size: 11px;">KYC</a>
+                                            <form action="/admin/users/<%= f.user_id %>/force-delete" method="POST" class="d-inline" onsubmit="return confirm('Permanently delete this agent account and purge all data?')">
+                                                <button type="submit" class="btn btn-sm btn-danger py-0 px-2" style="font-size: 11px;">Delete</button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             <% }) %>

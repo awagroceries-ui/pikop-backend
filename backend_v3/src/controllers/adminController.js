@@ -1277,6 +1277,23 @@ const getReturnsAdmin = async (req, res) => {
 /**
  * Admin Action: Force Delete/Purge User Account.
  */
+/**
+ * Helper: Runs a sub-query inside a SAVEPOINT block to keep transaction active on error.
+ */
+const safeExec = async (client, sql, params, spName) => {
+    try {
+        await client.query(`SAVEPOINT ${spName}`);
+        await client.query(sql, params);
+        await client.query(`RELEASE SAVEPOINT ${spName}`);
+    } catch (e) {
+        await client.query(`ROLLBACK TO SAVEPOINT ${spName}`);
+        console.warn(`[SavepointBypass] Sub-operation ${spName} bypassed: ${e.message}`);
+    }
+};
+
+/**
+ * Admin Action: Force Delete/Purge User Account.
+ */
 const forceDeleteUser = async (req, res) => {
     const { id } = req.params;
     const adminId = req.session.adminId || 0;
@@ -1285,33 +1302,95 @@ const forceDeleteUser = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // Delete associated records first
-        await client.query("DELETE FROM otp_verifications WHERE user_id = $1", [id]).catch(() => {});
-        await client.query("DELETE FROM user_fcm_tokens WHERE user_id = $1", [id]).catch(() => {});
-        await client.query("DELETE FROM user_sessions WHERE user_id = $1", [id]).catch(() => {});
-        await client.query("DELETE FROM kyc_documents WHERE fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1)", [id]).catch(() => {});
-        await client.query("DELETE FROM fulfillers WHERE user_id = $1", [id]).catch(() => {});
-        await client.query("DELETE FROM vendors WHERE user_id = $1", [id]).catch(() => {});
-        await client.query("DELETE FROM kitchens WHERE user_id = $1", [id]).catch(() => {});
-        await client.query("DELETE FROM fleet_partners WHERE user_id = $1", [id]).catch(() => {});
+        // 1. Unlink or delete associated order dependencies
+        await safeExec(client, "UPDATE orders SET fulfiller_id = NULL, queued_for_fulfiller_id = NULL WHERE fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1) OR queued_for_fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1)", [id], 'sp_orders_ful');
+        await safeExec(client, "UPDATE orders SET vendor_id = NULL, kitchen_id = NULL WHERE vendor_id IN (SELECT id FROM vendors WHERE user_id = $1) OR kitchen_id IN (SELECT id FROM kitchens WHERE user_id = $1)", [id], 'sp_orders_merch');
+        await safeExec(client, "DELETE FROM emergency_alerts WHERE user_id = $1 OR fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1)", [id], 'sp_alerts');
+        await safeExec(client, "DELETE FROM withdrawals WHERE fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1)", [id], 'sp_withdrawals');
+        await safeExec(client, "DELETE FROM kyc_documents WHERE user_id = $1 OR fulfiller_id IN (SELECT id FROM fulfillers WHERE user_id = $1)", [id], 'sp_kyc');
+        await safeExec(client, "DELETE FROM wallets WHERE (owner_type = 'USER' AND owner_id = $1) OR (owner_type = 'FULFILLER' AND owner_id IN (SELECT id FROM fulfillers WHERE user_id = $1))", [id], 'sp_wallets');
+        await safeExec(client, "DELETE FROM corporate_sub_accounts WHERE user_id = $1", [id], 'sp_corp_sub');
+        await safeExec(client, "DELETE FROM corporate_accounts WHERE owner_user_id = $1", [id], 'sp_corp_acc');
+        await safeExec(client, "DELETE FROM fleet_partner_invites WHERE fleet_partner_id IN (SELECT id FROM fleet_partners WHERE user_id = $1)", [id], 'sp_fleet_invites');
 
-        // Delete user
+        // 2. Delete business entities
+        await safeExec(client, "DELETE FROM fulfillers WHERE user_id = $1", [id], 'sp_ful');
+        await safeExec(client, "DELETE FROM vendors WHERE user_id = $1", [id], 'sp_ven');
+        await safeExec(client, "DELETE FROM kitchens WHERE user_id = $1", [id], 'sp_kit');
+        await safeExec(client, "DELETE FROM fleet_partners WHERE user_id = $1", [id], 'sp_fleet');
+
+        // 3. Delete user session/token records
+        await safeExec(client, "DELETE FROM otp_verifications WHERE user_id = $1", [id], 'sp_otp');
+        await safeExec(client, "DELETE FROM user_fcm_tokens WHERE user_id = $1", [id], 'sp_fcm');
+        await safeExec(client, "DELETE FROM user_sessions WHERE user_id = $1", [id], 'sp_sess');
+
+        // 4. Delete user primary row
         await client.query("DELETE FROM users WHERE id = $1", [id]);
 
         // Audit Log
-        await client.query(
+        await safeExec(client,
             "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
-            [adminId, 'ADMIN_FORCE_DELETE_USER', 'user', id, JSON.stringify({ deleted_at: new Date() })]
-        ).catch(() => {});
+            [adminId, 'ADMIN_FORCE_DELETE_USER', 'user', id, JSON.stringify({ deleted_at: new Date() })],
+            'sp_audit'
+        );
 
         await client.query('COMMIT');
         console.log(`[Admin] User Account #${id} FORCE DELETED by Admin`);
 
-        res.redirect('/admin/customers');
+        const referer = req.get('Referer') || '/admin/customers';
+        res.redirect(referer);
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('[Admin] Force delete error:', error.message);
         res.status(500).send(`Failed to delete user account: ${error.message}`);
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * Admin Action: Delete Merchant Store (Vendor or Kitchen).
+ */
+const deleteMerchant = async (req, res) => {
+    const type = req.params.type || req.body.type; // vendor or kitchen
+    const id = req.params.id || req.body.id;
+    const adminId = req.session.adminId || 0;
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+        const isKitchen = type === 'kitchen';
+        const table = isKitchen ? 'kitchens' : 'vendors';
+
+        if (isKitchen) {
+            await safeExec(client, "DELETE FROM menu_items WHERE kitchen_id = $1", [id], 'sp_menu');
+            await safeExec(client, "DELETE FROM merchant_coupons WHERE kitchen_id = $1", [id], 'sp_coupons_kit');
+            await safeExec(client, "DELETE FROM marketplace_returns WHERE kitchen_id = $1", [id], 'sp_returns_kit');
+            await safeExec(client, "UPDATE orders SET kitchen_id = NULL WHERE kitchen_id = $1", [id], 'sp_orders_kit');
+        } else {
+            await safeExec(client, "DELETE FROM products WHERE vendor_id = $1", [id], 'sp_products');
+            await safeExec(client, "DELETE FROM merchant_coupons WHERE merchant_id = $1", [id], 'sp_coupons_ven');
+            await safeExec(client, "DELETE FROM marketplace_returns WHERE vendor_id = $1", [id], 'sp_returns_ven');
+            await safeExec(client, "UPDATE orders SET vendor_id = NULL WHERE vendor_id = $1", [id], 'sp_orders_ven');
+        }
+
+        await client.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
+
+        await safeExec(client,
+            "INSERT INTO audit_logs (admin_id, action, target_type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+            [adminId, 'ADMIN_DELETE_MERCHANT', type, id, JSON.stringify({ deleted_at: new Date() })],
+            'sp_audit_merch'
+        );
+
+        await client.query('COMMIT');
+        console.log(`[Admin] Merchant ${type} #${id} DELETED by Admin`);
+
+        const referer = req.get('Referer') || `/admin/${isKitchen ? 'kitchens' : 'vendors'}`;
+        res.redirect(referer);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[Admin] Delete merchant error:', error.message);
+        res.status(500).send(`Failed to delete merchant: ${error.message}`);
     } finally {
         client.release();
     }
@@ -1372,5 +1451,6 @@ module.exports = {
   updateCorporateStatus,
   getAuditLogsAdmin,
   getReturnsAdmin,
-  forceDeleteUser
+  forceDeleteUser,
+  deleteMerchant
 };

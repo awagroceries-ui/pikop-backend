@@ -1,24 +1,23 @@
-# 🚀 Walkthrough: Multer Profile Photo Field Alignment Fix
+# 🚀 Walkthrough: Merchant Verification Approval Fix (`approved_at`)
 
-Resolved the `MulterError: Unexpected field` on `POST /api/v1/fulfillers/profile-photo` by making backend file upload handling field-agnostic (`'photo'` and `'file'`) and aligning Android client request parameters.
+Resolved the Admin Dashboard error `column "approved_at" does not exist` when approving Merchants (Vendors & Kitchens) in the Verification Queue.
 
 ---
 
 ## 🛠️ Summary of Changes
 
-### 1. Backend Route & Controller
-- Updated [fulfillerRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/fulfillerRoutes.js):
-  - Changed `upload.single('photo')` to `upload.any()` on `POST /profile-photo` so Multer accepts multipart fields named `'photo'`, `'file'`, or any other custom field name without throwing `Unexpected field`.
-- Updated [fulfillerController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/fulfillerController.js):
-  - `uploadProfilePhoto`: Handles `req.file` or `req.files[0]`, ensuring smooth resolution and response `{ success: true, url, profile_photo_url }`.
+### 1. Database Migration
+- Created [1726920000000_add_approved_at_to_vendors_and_kitchens.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726920000000_add_approved_at_to_vendors_and_kitchens.js):
+  - Adds `approved_at` (`timestamp`) column to both `vendors` and `kitchens` tables.
 
-### 2. Android Mobile App (`:app`)
-- Updated [KycUploadScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/KycUploadScreen.kt):
-  - Aligned `MultipartBody.Part.createFormData("photo", "profile.jpg", ...)` to send field name `"photo"`.
+### 2. Admin Controller
+- Updated [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js):
+  - Made `updateMerchantKYCStatus` parameter parsing resilient to both `req.params` and `req.body`.
+  - Ensures status updates (`active` / `suspended`), `approved_at` timestamp setting, user role upgrades (`MERCHANT`), and welcome emails run smoothly without SQL errors.
 
 ---
 
 ## 🧪 Git Automation & Deployment
 
-- Changes staged, committed (`901d2a3d`), and pushed to GitHub `origin/main`.
-- VPS Deployment commands provided for server sync.
+- Changes committed (`57b8479c`) and pushed to GitHub `origin/main`.
+- Deploy to VPS server using commands below.

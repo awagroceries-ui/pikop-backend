@@ -1,6 +1,6 @@
 <div class="mb-5">
     <h4 class="fw-bold mb-1 text-black">Kitchen Partners</h4>
-    <p class="text-muted small mb-0">Management of Foods & Meals kitchen operations.</p>
+    <p class="text-muted small mb-0">Management of Foods & Meals kitchen operations, status, and store deletion.</p>
 </div>
 
 <div class="card-pikop">
@@ -36,19 +36,33 @@
                                 </span>
                             </td>
                             <td class="text-center">
-                                <span class="badge <%= k.status === 'active' ? 'bg-green' : 'bg-gold' %> text-white fw-bold px-3">
+                                <span class="badge <%= k.status === 'active' ? 'bg-green' : k.status === 'suspended' ? 'bg-warning text-dark' : 'bg-danger' %> text-white fw-bold px-3">
                                     <%= k.status.toUpperCase() %>
                                 </span>
                             </td>
                             <td class="text-end">
-                                <div class="d-flex justify-content-end gap-2">
+                                <div class="d-flex justify-content-end gap-2 align-items-center">
                                     <% if (k.status !== 'active') { %>
                                         <form action="/admin/merchants/kitchen/<%= k.id %>/status" method="POST" class="d-inline">
                                             <input type="hidden" name="status" value="VERIFIED">
-                                            <button type="submit" class="btn-pikop-primary py-1 px-3" style="font-size: 11px;">APPROVE</button>
+                                            <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 11px;">APPROVE</button>
                                         </form>
                                     <% } %>
-                                    <button class="btn-pikop-outline py-1 px-3" style="font-size: 11px;">MENU</button>
+                                    <% if (k.status !== 'suspended') { %>
+                                        <form action="/admin/merchants/kitchen/<%= k.id %>/status" method="POST" class="d-inline">
+                                            <input type="hidden" name="status" value="suspended">
+                                            <button type="submit" class="btn btn-sm btn-outline-warning py-0 px-2" style="font-size: 11px;">SUSPEND</button>
+                                        </form>
+                                    <% } %>
+                                    <% if (k.status !== 'banned') { %>
+                                        <form action="/admin/merchants/kitchen/<%= k.id %>/status" method="POST" class="d-inline">
+                                            <input type="hidden" name="status" value="banned">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 11px;">BAN</button>
+                                        </form>
+                                    <% } %>
+                                    <form action="/admin/merchants/kitchen/<%= k.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete kitchen and all menu items?')">
+                                        <button type="submit" class="btn btn-sm btn-danger py-0 px-2" style="font-size: 11px;">DELETE</button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -61,5 +75,4 @@
 
 <style>
     .bg-green { background-color: var(--green) !important; }
-    .bg-gold { background-color: var(--gold) !important; color: var(--black) !important; }
 </style>

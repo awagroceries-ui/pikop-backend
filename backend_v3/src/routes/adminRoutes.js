@@ -66,6 +66,7 @@ router.get('/kyc', adminController.getKYCQueue);
 router.get('/kyc/:id', adminController.getKYCReview);
 router.post('/kyc/:id/status', adminController.updateKYCStatus);
 router.post('/merchants/:type/:id/status', adminController.updateMerchantKYCStatus);
+router.post('/merchants/:type/:id/delete', adminController.deleteMerchant);
 
 // Partners
 router.get('/vendors', adminController.getVendors);
