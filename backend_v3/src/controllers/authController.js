@@ -476,9 +476,11 @@ const deleteAccount = async (req, res) => {
             const pend = Math.abs(parseFloat(wallet[0].pending_balance || 0));
             if (bal >= 0.01 || pend >= 0.01) {
                 await client.query('ROLLBACK');
+                const amtMsg = bal >= 0.01 ? `₦${bal.toFixed(2)} available` : `₦${pend.toFixed(2)} pending in escrow`;
+                const actionMsg = bal >= 0.01 ? 'Please withdraw your funds before deleting your account.' : 'Please wait for your pending escrow funds to clear or be refunded before deleting your account.';
                 return res.status(400).json({
                     success: false,
-                    message: `You have a non-zero wallet balance (₦${bal.toFixed(2)}). Please withdraw your funds before deleting your account.`
+                    message: `You have remaining wallet funds (${amtMsg}). ${actionMsg}`
                 });
             }
         }

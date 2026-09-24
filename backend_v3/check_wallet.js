@@ -1,0 +1,1 @@
+const db = require('./src/config/db'); db.query('SELECT w.* FROM wallets w JOIN users u ON w.owner_id = u.id::text WHERE u.email = \'fertilehopenigeria@gmail.com\'').then(r = console.log(r.rows); process.exit(0); });  

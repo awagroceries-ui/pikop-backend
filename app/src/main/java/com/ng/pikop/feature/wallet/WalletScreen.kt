@@ -127,20 +127,19 @@ fun WalletScreen(
                                 ) {
                                     Text("Top up")
                                 }
-                                if (balance > 0) {
-                                    Button(
-                                        onClick = {
-                                            if (isFulfiller) {
-                                                onNavigateToWithdrawal()
-                                            } else {
-                                                showWithdrawDialog = true
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                    ) {
-                                        Text("Withdraw")
-                                    }
+                                Button(
+                                    onClick = {
+                                        if (isFulfiller) {
+                                            onNavigateToWithdrawal()
+                                        } else {
+                                            showWithdrawDialog = true
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = balance > 0,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Text("Withdraw")
                                 }
                             }
                         }

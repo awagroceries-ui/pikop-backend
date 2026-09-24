@@ -1,12 +1,15 @@
-# 📌 Task Checklist: Account Self-Deletion Transaction Fix & Missing Column
+# 📌 Task Checklist: Account Deletion UX & Wallet Withdraw Button Fix
 
-- `[x]` Task 1: Database Migration
-  - `[x]` Create database migration `1726930000000_add_kyc_provider_ref_to_users.js`
+- `[/]` Task 1: Backend Deletion Message Clarification (`authController.js`)
+  - `[ ]` Update `deleteAccount` to accurately state if the funds are Pending in escrow vs Available balance
 
-- `[x]` Task 2: Backend Controller Fix (`authController.js`)
-  - `[x]` Add `safeExec` helper function
-  - `[x]` Update `deleteAccount` to use `safeExec` for cleanup queries
+- `[ ]` Task 2: Mobile App Wallet Screen UI (`WalletScreen.kt`)
+  - `[ ]` Make the "Withdraw" button always visible, but disabled when `balance <= 0`
 
-- `[x]` Task 3: Git Automation & VPS Deployment
-  - `[x]` Stage, commit, and push changes to GitHub `main`
-  - `[x]` Provide VPS deployment command prompts
+- `[ ]` Task 3: Build & Deploy to Device
+  - `[ ]` Build debug APK (`app:assembleDebug`)
+  - `[ ]` Install and launch on device (`192.168.1.2:42447`)
+
+- `[ ]` Task 4: Git Automation & VPS Deployment
+  - `[ ]` Stage, commit, and push changes to GitHub `main`
+  - `[ ]` Provide VPS deployment command prompts

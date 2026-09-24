@@ -1,24 +1,23 @@
-# 🚀 Walkthrough: Account Self-Deletion Transaction Abort & Schema Fix
+# 🚀 VPS Production Notice
 
-Resolved the "current transaction is aborted" and `kyc_provider_ref` column errors occurring during Account Self-Deletion from the user mobile app.
+In the most recent deployment, the database migration (`1726930000000_add_kyc_provider_ref_to_users.js`) was pushed to GitHub but was **not executed** on the VPS before the PM2 restart.
 
----
-
-## 🛠️ Summary of Implementation
-
-### 1. Database Migration
-- Created [1726930000000_add_kyc_provider_ref_to_users.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726930000000_add_kyc_provider_ref_to_users.js):
-  - Added the `kyc_provider_ref` (`varchar`) column to the `users` table. This prevents the schema missing column error when SMS OTP modules or the account deletion service attempts to modify it.
-
-### 2. Backend Controller Transaction Fix
-- Updated [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js):
-  - **`safeExec` Helper**: Ported the `SAVEPOINT` sub-transaction query wrapper over from the admin controller.
-  - **`deleteAccount`**: Wrapped all optional cascading cleanup operations (e.g., deleting `kyc_documents`, suspending `vendors` and `kitchens`, and deleting `fcm_tokens`) inside `safeExec`.
-  - If a foreign key is missing or a table drops empty rows during cleanup, PostgreSQL will bypass the exception without aborting the main anonymization `UPDATE users` statement.
+Because the migration was skipped, the server is still throwing the `column "kyc_provider_ref" of relation "users" does not exist` PostgreSQL error during Sign Ups and Account Deletions.
 
 ---
 
-## 🧪 Git Automation & Deployment
+### 🖥️ Action Required on Server
 
-- Changes staged, committed (`caf5ff40`), and pushed to GitHub `origin/main`.
-- Deploy to VPS server using the provided commands.
+You must execute the database migration command explicitly on your VPS terminal (`root@srv1932412`).
+
+Run these precise commands:
+
+```bash
+cd /var/www/pikop-api/backend_v3/backend_v3
+git pull origin main
+npm run migrate:up
+pm2 restart pikop-v3
+pm2 logs pikop-v3 --lines 30
+```
+
+Once `npm run migrate:up` creates the `kyc_provider_ref` column in the `users` table, the SQL crashes will immediately stop.

@@ -1,49 +1,39 @@
-# 📋 Implementation Plan: Account Self-Deletion Transaction Fix & Missing Column
+# 📋 Implementation Plan: Account Deletion UX and Wallet Withdraw Button Visibility
 
-Address the continuing account deletion failures caused by transaction aborts (due to missing SAVEPOINTs during cleanup) and the `column "kyc_provider_ref" of relation "users" does not exist` PostgreSQL schema error.
+Fix the user experience dead-end where users with a zero available balance but non-zero pending balance are unable to delete their account and are confused by missing withdrawal options.
 
 ---
 
 ## 🔍 Root Cause Analysis
 
-1. **Transaction Abort Error in `deleteAccount`**:
-   - In `authController.js` (`deleteAccount`), user account deletion/anonymization cascades optional cleanup tasks using `.catch(() => {})` inside an active PostgreSQL transaction block (`BEGIN`).
-   - If an optional cleanup query fails (e.g., trying to access a table or column that isn't fully migrated, or foreign key violations), PostgreSQL instantly marks the main transaction as `ABORTED`. All subsequent commands are ignored until `ROLLBACK`. Catching the promise error in Node.js does not recover the SQL transaction state.
-   - **Fix**: Replicate the `safeExec` `SAVEPOINT` pattern (introduced previously in `adminController.js`) inside `authController.js`.
+1. **Confusing Account Deletion Error Message**:
+   - In `authController.js` (`deleteAccount`), if a user has a `balance` of `0.00` but a `pending_balance` of `1500.00`, the deletion is blocked. However, the error message only formats the `balance` variable:
+     `You have a non-zero wallet balance (₦0.00). Please withdraw your funds...`
+   - This causes extreme user confusion as they are told they have funds but see `₦0.00`.
 
-2. **Missing `kyc_provider_ref` Column on `users` Table**:
-   - The OTP verification flow (Termii SMS) uses `kyc_provider_ref` on the `users` table to store the `pinId` (`UPDATE users SET kyc_provider_ref = ...`).
-   - While `kyc_provider_ref` was previously added to the `fulfillers` table (for Prembly/Didit), it was never formally migrated onto the core `users` table.
-   - The `deleteAccount` anonymization query explicitly attempts to `SET kyc_provider_ref = NULL` on the `users` table, triggering `column "kyc_provider_ref" does not exist` and instantly crashing the transaction.
-   - **Fix**: Create a migration to add `kyc_provider_ref` to `users`.
+2. **Hidden Withdraw Button**:
+   - In `WalletScreen.kt`, the "Withdraw" button is entirely hidden if `balance <= 0`. Users looking to withdraw (even if confused by the pending balance) complain that the wallet has "no existing withdraw option", leading them to believe the app is broken.
 
 ---
 
 ## 🛠️ Proposed Changes
 
-### Component 1: Database Migration
-
-#### [NEW] [1726930000000_add_kyc_provider_ref_to_users.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726930000000_add_kyc_provider_ref_to_users.js)
-- Add column `kyc_provider_ref` (`varchar(255)`) to `users` table.
-
----
-
-### Component 2: Backend Controller Fix
+### Backend API Controller
 
 #### [MODIFY] [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js)
-- Add `safeExec` helper function at the top of the file to execute queries within `SAVEPOINT` wrappers.
-- Update `deleteAccount`:
-  - Replace `.catch(() => {})` cleanup queries with `safeExec`.
-  - Ensure the main `UPDATE users ... SET kyc_provider_ref = NULL` executes safely now that the column exists.
+- Update the `deleteAccount` wallet check error message to differentiate between available balance and pending balance.
+- If only pending balance exists, instruct the user to "wait for pending funds to clear or be refunded" instead of telling them to "withdraw".
+
+### Android Mobile App (`:app`)
+
+#### [MODIFY] [WalletScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/wallet/WalletScreen.kt)
+- Make the "Withdraw" button **always visible**, but disable it (`enabled = false`) if `balance <= 0`. This assures the user that the withdrawal feature exists in the platform.
 
 ---
 
 ## 🧪 Verification Plan
 
-1. Run database migration (`npm run migrate:up`).
-2. Verify the `users` table contains the `kyc_provider_ref` column.
-3. Test Account Deletion (Self-Delete) from the Mobile App:
-   - Go to Profile Settings -> Delete Account.
-   - Proceed with deletion on an account with a ₦0.00 wallet balance.
-   - Verify success response (`200 OK`) and that the user session is revoked, with no 500 transaction abort errors on the backend.
-4. Git commit and restart VPS server.
+1. Update backend message and restart VPS.
+2. Update `WalletScreen.kt`, rebuild APK, and deploy to device.
+3. Observe that a zero-balance user sees a disabled "Withdraw" button.
+4. Stage, commit, and push to GitHub `main`.
