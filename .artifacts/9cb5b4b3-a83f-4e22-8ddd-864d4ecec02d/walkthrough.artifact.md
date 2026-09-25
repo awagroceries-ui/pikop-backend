@@ -1,29 +1,39 @@
-# 🚀 Walkthrough: Fulfiller Onboarding Nigeria State & City Pickers
+# 🚀 Walkthrough: Dynamic Fee Alignment & Legal Terms v0.2
 
-Added cascading Nigeria State and City dropdown selectors to the Fulfiller/Agent signup form (`SignupFulfillerScreen.kt`) and synchronized `current_state` with backend registration.
+Seeded updated platform fee rates in PostgreSQL settings, aligned welcome email templates to query dynamic rates, and updated Legal Terms & Conditions to Version 0.2.
 
 ---
 
 ## 🛠️ Summary of Implementation
 
-### 1. Android Mobile App (`:app`)
-- Updated [ApiService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/ApiService.kt):
-  - Added `current_state: String? = null` to `SignupRequest`.
-- Updated [SignupFulfillerScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/SignupFulfillerScreen.kt):
-  - Defined `nigeriaLocations` map covering 16+ Nigeria States and major cities (`Lagos`, `Rivers`, `FCT (Abuja)`, `Oyo`, `Kano`, `Delta`, `Edo`, `Anambra`, `Enugu`, `Kaduna`, `Ogun`, `Akwa Ibom`, `Abia`, `Cross River`, `Imo`, `Plateau`, etc.).
-  - Added **Operating State** dropdown selector (`ExposedDropdownMenuBox`).
-  - Added **Operating City** dropdown selector (`ExposedDropdownMenuBox`) that dynamically populates cities for the selected State (e.g. selecting `Rivers` populates `Port Harcourt`, `Obio-Akpor`, `Eleme`, `Bonny`, `Onne`).
-  - Selecting a new state resets the city selection to ensure clean state/city pairing.
-  - Sends `current_state = operatingState` and `home_address = "$homeAddress, $operatingCity, $operatingState State"`.
+### 1. Database Migration & Platform Config
+- Created [1726950000000_update_platform_fees_and_commissions.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726950000000_update_platform_fees_and_commissions.js):
+  - Seeds updated rates into the `settings` table:
+    - `cod_fee_rate` = `'0.05'` (5% COD Platform Fee)
+    - `platform_commission` = `'0.20'` (20% Dispatch Commission / 80% Fulfiller share)
+    - `food_commission` = `'0.05'` (5% Food Commission)
+    - `groceries_commission` = `'0.05'` (5% Groceries Commission)
+    - `shop_commission` = `'0.05'` (5% Shop Commission)
+- Updated [platform.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/config/platform.js):
+  - Set `PlatformConfig` defaults to 5% COD Fee, 20% Dispatch Commission, and 5% Merchant Commission.
 
-### 2. Backend Controller (`authController.js`)
-- Updated [authController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/authController.js):
-  - Accepts `current_state` in `req.body` and inserts it into `fulfillers.current_state` upon registration for immediate dispatch matching and location rule filtering.
+### 2. Dynamic Welcome Emails (`emailService.js`)
+- Updated [emailService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/emailService.js):
+  - `sendWelcomeEmail` queries current active rates from the `settings` table dynamically before building email HTML.
+  - Welcome emails for Customers, Fulfillers, and Merchants accurately reflect the updated 5% COD Fee, 80% Fulfiller earnings share (20% commission), and 5% Merchant Marketplace commission across all categories.
+
+### 3. Legal Terms & Conditions v0.2
+- Updated [Pikop_Terms_and_Conditions.md](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/public/legal/Pikop_Terms_and_Conditions.md):
+  - Version updated to **September 24, 2026 — Version 0.2**.
+  - Updated Definitions, Section 5.5, Section 6.4, Section 7.1, and Section 8 (Fees Summary Table) to reflect:
+    - **COD Platform Fee**: 5% of item price (Payer borne)
+    - **Dispatch Commission**: 20% of delivery fee (Fulfiller receives 80%)
+    - **Marketplace Commission**: 5% across Food, Groceries, and Shop
+    - **Operating Hours**: Section 7.3 documents Store Operating Hours and validation rules.
 
 ---
 
-## 🧪 Device Verification & Deployment
+## 🧪 Git Automation & Deployment
 
-- Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
-- Installed and launched live on connected Wireless ADB device (**Samsung Galaxy S23 Ultra** @ `192.168.1.2:42447`).
-- Changes staged, committed (`14eb2a83`), and pushed to GitHub `origin/main`.
+- Changes staged, committed (`b4a409fd`), and pushed to GitHub `origin/main`.
+- Deploy to VPS server using the command prompt below.
