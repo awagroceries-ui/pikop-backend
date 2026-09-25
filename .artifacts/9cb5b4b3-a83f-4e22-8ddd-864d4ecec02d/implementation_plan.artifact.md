@@ -1,55 +1,50 @@
-# 📋 Implementation Plan: Fix Hotspot Map Camera Center & City/State GPS Location Fallback
+# 📋 Implementation Plan: Restore All Active & Queued Missions for Agent Fulfillment
 
-Fix the issue where the Hotspot Map defaults and stays locked to Lagos for non-Lagos agents (e.g. Port Harcourt, Abuja, Ibadan, Kano, etc.).
+Audit and restore all active, assigned, and queued delivery missions in PostgreSQL to their designated agents, ensuring statuses are normalized (`MATCHED`, `QUEUED`, `PICKED_UP`, `IN_TRANSIT`), and broadcast real-time socket events so agents can immediately execute or resume them.
 
 ---
 
-## 🔍 Root Cause Analysis
+## 🔍 Research & Problem Analysis
 
-1. **Hardcoded Lagos Initial Camera Position**:
-   - `cameraPositionState` in `FulfillerDashboardScreen.kt` initialized with `agentLocation ?: LatLng(6.5244, 3.3792)` (Lagos). Because `agentLocation` starts as `null`, the map camera immediately positioned itself at Lagos coordinates.
-2. **Silent GPS Failure & Missing Runtime Permission Request**:
-   - `fusedLocationClient` location fetch failed silently when location permissions were not explicitly requested at runtime on the Dashboard screen. When `agentLocation` remained `null`, the map stayed permanently locked to Lagos.
-3. **Absence of Agent Profile City/State Fallback**:
-   - The map did not inspect the agent's profile (`profileData?.current_state` or `profileData?.home_address`) to derive city/state default coordinates before or in the absence of a device GPS fix.
+1. **Mission Assignment State**:
+   - Missions in PostgreSQL `orders` table have two key fulfillment columns:
+     - `fulfiller_id`: Primary agent assigned to execute the mission.
+     - `queued_for_fulfiller_id`: Agent queued to execute the mission next once their active mission completes.
+   - If an order's status was left in `SEARCHING`, `PENDING_ACKNOWLEDGMENT`, or `PENDING` despite having `fulfiller_id` or `queued_for_fulfiller_id` set, the agent's dashboard status filters omitted it.
+
+2. **Fulfillment Restoration Logic**:
+   - **Assigned Active Missions**: If an order has `fulfiller_id` set and status is `SEARCHING`, `PENDING`, or `PENDING_ACKNOWLEDGMENT`, restore status to `MATCHED` so it appears as an **ACTIVE MISSION IN PROGRESS** on the agent's dashboard and mission records screen.
+   - **Queued Missions**: If an order has `queued_for_fulfiller_id` set and `fulfiller_id` is null, check if the agent currently has an active mission:
+     - If the agent has no active mission: Promote order to `fulfiller_id = queued_for_fulfiller_id` and set `status = 'MATCHED'`.
+     - If the agent is currently busy on an active mission: Set `status = 'QUEUED'`.
+   - **Unassigned Searching Missions**: Broadcast real-time `new_mission_offer` socket events to all online verified agents (`online_fulfillers` and `user_${user_id}`).
 
 ---
 
 ## 🛠️ Proposed Changes
 
-### Component 1: Android Mobile App (`:app`)
+### Component 1: Backend Restoration Script & Admin Control (`backend_v3`)
 
-#### [MODIFY] [FulfillerDashboardScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerDashboardScreen.kt)
-- Add **Nigeria State & City Coordinate Resolver**:
-  - `getCityStateCoordinates(stateOrAddress: String?)`: Returns city/state center coordinates for all Nigeria regions:
-    - **Rivers / Port Harcourt**: `LatLng(4.8156, 7.0498)`
-    - **FCT / Abuja**: `LatLng(9.0765, 7.3986)`
-    - **Lagos / Ikeja**: `LatLng(6.5244, 3.3792)`
-    - **Oyo / Ibadan**: `LatLng(7.3775, 3.9470)`
-    - **Kano**: `LatLng(12.0022, 8.5919)`
-    - **Delta / Asaba / Warri**: `LatLng(6.2059, 6.6959)`
-    - **Anambra / Awka / Onitsha**: `LatLng(6.2209, 7.0670)`
-    - **Enugu**: `LatLng(6.4584, 7.5464)`
-    - **Edo / Benin**: `LatLng(6.3350, 5.6037)`
-    - **Akwa Ibom / Uyo**: `LatLng(5.0377, 7.9128)`
-    - **Cross River / Calabar**: `LatLng(4.9757, 8.3417)`
-    - **Ogun / Abeokuta**: `LatLng(7.1475, 3.3619)`
-    - **Kaduna**: `LatLng(10.5105, 7.4165)`
-    - **Imo / Owerri**: `LatLng(5.4832, 7.0358)`
-    - **Abia / Aba / Umuahia**: `LatLng(5.1066, 7.3667)`
-    - **Plateau / Jos**: `LatLng(9.8965, 8.8583)`
-- Update camera initialization:
-  - When `profileData` loads, immediately derive city fallback coordinates from `profileData?.current_state` or `profileData?.home_address`. If `agentLocation` is null, animate map camera to their city center (e.g. Port Harcourt `4.8156, 7.0498` for Rivers agents).
-- Add runtime **Location Permission Request Launcher**:
-  - Automatically requests `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` on screen launch. Upon permission grant, immediately triggers `resolveAgentLocation()` to update `agentLocation` to exact device GPS coordinates and animate camera.
+#### [NEW] [restore_missions.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/restore_missions.js)
+- Standalone Node.js database restoration script that:
+  - Connects to PostgreSQL `pikop` database.
+  - Queries all non-completed/non-cancelled orders (`status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED')`).
+  - Restores status and assignment mappings for active and queued fulfillers.
+  - Emits real-time Socket.IO events (`status_updated`, `order_status_updated`, `new_mission_offer`) to online agent sockets.
+  - Prints a detailed summary report of restored missions.
+
+#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js) & [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js)
+- Add `/admin/orders/restore-all` POST endpoint to allow manual trigger from Admin Dashboard.
 
 ---
 
 ## 🧪 Verification Plan
 
-### Automated & Manual Verification
-1. Test Dashboard map launch on connected **Samsung Galaxy S23 Ultra** (`192.168.1.2:42447`).
-2. Verify an agent registered in `Rivers / Port Harcourt` immediately sees the map centered at Port Harcourt (`4.8156, 7.0498`) on dashboard open, NOT Lagos.
-3. Test GPS location resolution: Verify the blue **"Your Location"** marker updates to the device's exact GPS location and camera centers seamlessly.
-4. Rebuild debug APK (`gradle_build("app:assembleDebug")`) and deploy to device.
-5. Stage, commit, and push changes to GitHub `main`.
+### Execution & Verification Steps
+1. Execute `node restore_missions.js` on local project directory.
+2. Stage, commit, and push `restore_missions.js` and controller updates to GitHub `main`.
+3. Deploy to production VPS server (`root@srv1932412`).
+4. Execute `node restore_missions.js` on VPS production environment.
+5. Verify on connected device (**Samsung Galaxy S23 Ultra**):
+   - Agent dashboard displays active mission ("RESUME") and queued mission ("START") cards cleanly.
+   - Mission Records screen displays restored active/queued items.

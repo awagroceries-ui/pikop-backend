@@ -1396,6 +1396,67 @@ const deleteMerchant = async (req, res) => {
     }
 };
 
+/**
+ * Admin Action: Audit & Restore All Active & Queued Missions.
+ */
+const restoreAllMissions = async (req, res) => {
+    try {
+        const { rows: orders } = await db.query(`
+            SELECT o.id, o.status, o.user_id, o.fulfiller_id, o.queued_for_fulfiller_id,
+                   o.pickup_address, o.delivery_address, o.total_fare, o.item_description, o.created_at
+            FROM orders o
+            WHERE o.status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED')
+            ORDER BY o.created_at ASC
+        `);
+
+        let restoredActiveCount = 0;
+        let restoredQueuedCount = 0;
+        let searchingCount = 0;
+
+        for (const o of orders) {
+            if (o.fulfiller_id && ['SEARCHING', 'PENDING', 'PENDING_ACKNOWLEDGMENT', 'PAYMENT_CAPTURED', 'PAID', 'PROCESSING', 'CONFIRMED'].includes(o.status)) {
+                await db.query(
+                    "UPDATE orders SET status = 'MATCHED', matched_at = COALESCE(matched_at, CURRENT_TIMESTAMP) WHERE id = $1",
+                    [o.id]
+                );
+                restoredActiveCount++;
+            } else if (o.queued_for_fulfiller_id && !o.fulfiller_id) {
+                const { rows: activeCheck } = await db.query(
+                    "SELECT id FROM orders WHERE fulfiller_id = $1 AND status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED')",
+                    [o.queued_for_fulfiller_id]
+                );
+
+                if (activeCheck.length === 0) {
+                    await db.query(
+                        "UPDATE orders SET fulfiller_id = $1, status = 'MATCHED', matched_at = CURRENT_TIMESTAMP WHERE id = $2",
+                        [o.queued_for_fulfiller_id, o.id]
+                    );
+                    restoredActiveCount++;
+                } else {
+                    await db.query("UPDATE orders SET status = 'QUEUED' WHERE id = $1", [o.id]);
+                    restoredQueuedCount++;
+                }
+            } else if (o.status === 'QUEUED' && o.fulfiller_id) {
+                await db.query("UPDATE orders SET queued_for_fulfiller_id = $1, fulfiller_id = NULL WHERE id = $2", [o.fulfiller_id, o.id]);
+                restoredQueuedCount++;
+            } else if (!o.fulfiller_id && !o.queued_for_fulfiller_id) {
+                searchingCount++;
+            }
+        }
+
+        console.log(`[AdminRestore] Active: ${restoredActiveCount} | Queued: ${restoredQueuedCount} | Searching: ${searchingCount}`);
+
+        res.status(200).json({
+            success: true,
+            message: `Restored ${restoredActiveCount} Active Missions and ${restoredQueuedCount} Queued Missions across agents.`,
+            data: { restored_active: restoredActiveCount, restored_queued: restoredQueuedCount, searching: searchingCount, total: orders.length }
+        });
+    } catch (e) {
+        console.error('[AdminRestore] Error:', e.message);
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -1417,6 +1478,7 @@ module.exports = {
   getFleetPartners,
   updateFleetPartnerStatus,
   getCities,
+  restoreAllMissions,
   addCity,
   updateCityRules,
   getExpansionWaitlist,

@@ -1,14 +1,16 @@
-# 📌 Task Checklist: Fix Hotspot Map Camera Center & City/State GPS Location Fallback
+# 📌 Task Checklist: Restore All Active & Queued Missions for Agent Fulfillment
 
-- `[/]` Task 1: Add City/State Coordinate Resolver & Permission Launcher (`FulfillerDashboardScreen.kt`)
-  - `[ ]` Define `getCityStateCoordinates(stateOrAddress: String?)` mapping all 16+ Nigeria regions
-  - `[ ]` Add runtime location permission request launcher (`RequestMultiplePermissions`)
-  - `[ ]` Derive city fallback coordinates from `profileData?.current_state` or `profileData?.home_address` and center map camera on agent's city
-  - `[ ]` Animate map camera to exact device GPS coordinates when `agentLocation` is resolved
+- `[/]` Task 1: Create Database Restoration Script (`restore_missions.js`)
+  - `[ ]` Write `restore_missions.js` to audit non-completed orders in PostgreSQL
+  - `[ ]` Restore assigned active missions to `MATCHED` or current in-progress state
+  - `[ ]` Promote or queue queued missions (`QUEUED` / `MATCHED`)
+  - `[ ]` Broadcast real-time Socket.IO events (`status_updated`, `order_status_updated`, `new_mission_offer`)
+  - `[ ]` Execute `node restore_missions.js` on local environment
 
-- `[ ]` Task 2: Build & Deploy to Device
-  - `[ ]` Build debug APK (`app:assembleDebug`)
-  - `[ ]` Install and launch on device (`192.168.1.2:42447`)
+- `[ ]` Task 2: Add Admin Endpoint (`adminController.js` & `adminRoutes.js`)
+  - `[ ]` Add `restoreAllMissions` function to `adminController.js`
+  - `[ ]` Add `POST /admin/orders/restore-all` route to `adminRoutes.js`
 
-- `[ ]` Task 3: Git Automation
+- `[ ]` Task 3: Git Automation & VPS Execution
   - `[ ]` Stage, commit, and push changes to GitHub `main`
+  - `[ ]` Provide VPS deployment command prompts
