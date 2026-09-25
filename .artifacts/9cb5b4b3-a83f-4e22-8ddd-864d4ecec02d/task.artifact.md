@@ -1,16 +1,22 @@
-# 📌 Task Checklist: Updated Fee Rates, Welcome Emails & Legal Terms v0.2
+# 📌 Task Checklist: Instant Dispatch, Agent Live GPS Map & Mission Records Real-Time Sync
 
-- `[x]` Task 1: Seed Dynamic Fee Settings Migration
-  - `[x]` Create database migration `1726950000000_update_platform_fees_and_commissions.js` (COD 5%, Dispatch 20%, Merchant 5%)
-  - `[x]` Update `PlatformConfig` defaults in `config/platform.js`
+- `[/]` Task 1: Backend Dispatch Engine & Socket Emission
+  - `[ ]` Update `findNearbyFulfillers` in `dispatchService.js` to handle null state/location and include all online verified agents
+  - `[ ]` Broadcast `new_mission_offer` to target users and `online_fulfillers` socket room in `dispatchService.js`
+  - `[ ]` Emit `order_status_updated` to `user_${userId}` in `acceptOrder` and `promoteQueuedMission` in `orderController.js`
+  - `[ ]` Ensure online fulfillers join `online_fulfillers` room in `socketService.js`
 
-- `[x]` Task 2: Update Welcome Emails
-  - `[x]` Update `sendWelcomeEmail` in `emailService.js` to query database `settings` dynamically for active fee rates
+- `[ ]` Task 2: Fulfiller Dashboard Live GPS Map & Real-Time Sync (`FulfillerDashboardScreen.kt`)
+  - `[ ]` Implement robust location resolution (`lastLocation` -> `getCurrentLocation(HIGH_ACCURACY)`)
+  - `[ ]` Center map camera on agent's coordinates (`zoom 14f`), draw "Your Location" blue marker, and send status location ping
+  - `[ ]` Keep camera centered on agent's city when hotspots are toggled
+  - `[ ]` Add 5-second polling loop for `getFulfillerOrders()` and `getOffers()`
+  - `[ ]` Connect Socket.IO listeners (`new_mission_offer`, `order_status_updated`) to refresh dashboard data instantly on socket events
 
-- `[x]` Task 3: Update Legal Terms v0.2
-  - `[x]` Update `Pikop_Terms_and_Conditions.md` to Version 0.2 (September 24, 2026)
-  - `[x]` Update Fees Summary Table and sections (COD 5%, Dispatch 20% / 80% Fulfiller share, Merchant 5% across Food/Groceries/Shop)
+- `[ ]` Task 3: Build & Deploy to Device
+  - `[ ]` Build debug APK (`app:assembleDebug`)
+  - `[ ]` Install and launch on device (`192.168.1.2:42447`)
 
-- `[x]` Task 4: Git Automation & VPS Deployment
-  - `[x]` Stage, commit, and push changes to GitHub `main`
-  - `[x]` Provide VPS deployment command prompts
+- `[ ]` Task 4: Git Automation & VPS Deployment
+  - `[ ]` Stage, commit, and push changes to GitHub `main`
+  - `[ ]` Provide VPS deployment command prompts

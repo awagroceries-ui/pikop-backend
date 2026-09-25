@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,11 +21,11 @@ import androidx.compose.ui.unit.sp
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.maps.android.compose.*
 import com.ng.pikop.R
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.*
-import com.ng.pikop.feature.auth.NavigationDrawerContent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,32 +55,19 @@ fun FulfillerDashboardScreen(
     var history by remember { mutableStateOf<List<FulfillerOrderResponse>>(emptyList()) }
     var walletBalance by remember { mutableStateOf(0.0) }
     var profileData by remember { mutableStateOf<com.ng.pikop.core.network.FulfillerProfileResponse?>(null) }
+    var agentLocation by remember { mutableStateOf<LatLng?>(null) }
     
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-
-    // Active Mission Listener (Socket)
-    LaunchedEffect(isOnline) {
-        if (isOnline) {
-            com.ng.pikop.core.network.SocketManager.on("new_mission_offer") {
-                android.util.Log.d("DashboardSocket", "New mission offer received via socket. Refreshing...")
-                coroutineScope.launch {
-                    try {
-                        offers = apiService.getOffers()
-                    } catch (_: Exception) {}
-                }
-            }
-        }
-    }
+    val userId by tokenManager.userId.collectAsState(initial = null)
 
     val fetchDashboardData = {
         coroutineScope.launch {
             try {
                 isLoading = true
-                // 1. Fetch Profile to set correct Online State
                 val profile = apiService.getFulfillerProfile()
                 val prevStreak = profileData?.current_streak_days ?: 0
                 val prevCompleted = profileData?.stats?.total_completed ?: 0
@@ -89,7 +75,6 @@ fun FulfillerDashboardScreen(
                 profileData = profile.data ?: profile
                 isOnline = profileData?.online_status == "ONLINE"
 
-                // Milestone Celebrations (v4.6)
                 val newStreak = profileData?.current_streak_days ?: 0
                 val newCompleted = profileData?.stats?.total_completed ?: 0
                 
@@ -101,12 +86,9 @@ fun FulfillerDashboardScreen(
                     onCelebration()
                 }
                 
-                // 2. Sync Wallet & History
                 val wallet = apiService.getWalletInfo()
                 walletBalance = wallet.balance ?: 0.0
                 history = apiService.getFulfillerOrders()
-                
-                // 3. Manual fetch for offers
                 offers = apiService.getOffers()
             } catch (e: Exception) {
                 android.util.Log.e("DashboardRefresh", "Fetch failed: ${e.message}")
@@ -116,49 +98,76 @@ fun FulfillerDashboardScreen(
         }
     }
 
-    // Initial Fetch: Sync Status, Wallet & History
-    LaunchedEffect(Unit) {
-        fetchDashboardData()
+    // Socket Connection & Real-Time Event Listener
+    DisposableEffect(userId) {
+        val userIdStr = userId?.toString() ?: ""
+        if (userIdStr.isNotBlank()) {
+            SocketManager.connect(userIdStr)
+            SocketManager.on("new_mission_offer") {
+                android.util.Log.d("DashboardSocket", "Inbound mission offer via socket. Refreshing...")
+                fetchDashboardData()
+            }
+            SocketManager.on("order_status_updated") {
+                android.util.Log.d("DashboardSocket", "Order status update via socket. Refreshing...")
+                fetchDashboardData()
+            }
+            SocketManager.on("status_updated") {
+                fetchDashboardData()
+            }
+        }
+        onDispose {}
     }
 
-    // Polling & Background Pings
-    LaunchedEffect(isOnline) {
-        while (isOnline) {
-            try {
-                // 1. Fetch Offers
-                offers = apiService.getOffers()
+    // Location Resolution Helper
+    val resolveAgentLocation: suspend () -> Unit = {
+        try {
+            var loc = try { fusedLocationClient.lastLocation.await() } catch (_: Exception) { null }
+            if (loc == null) {
+                loc = try { fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await() } catch (_: Exception) { null }
+            }
+            if (loc != null) {
+                val latLng = LatLng(loc.latitude, loc.longitude)
+                agentLocation = latLng
                 
-                // 2. Refresh Wallet & History (Real-time stats)
+                val state = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    try {
+                        val geocoder = Geocoder(context, Locale.getDefault())
+                        @Suppress("DEPRECATION")
+                        geocoder.getFromLocation(loc.latitude, loc.longitude, 1)?.firstOrNull()?.adminArea
+                    } catch (e: Exception) { null }
+                }
+                
+                apiService.updateStatus(FulfillerStatusRequest(
+                    online_status = if (isOnline) "ONLINE" else "OFFLINE",
+                    lat = loc.latitude,
+                    lng = loc.longitude,
+                    current_state = state
+                ))
+            }
+        } catch (_: Exception) {}
+    }
+
+    // Initial Fetch on Launch
+    LaunchedEffect(Unit) {
+        fetchDashboardData()
+        resolveAgentLocation()
+    }
+
+    // Polling & Background Sync (Runs every 5 seconds for real-time mission updates)
+    LaunchedEffect(isOnline) {
+        while (true) {
+            try {
+                if (isOnline) {
+                    offers = apiService.getOffers()
+                    resolveAgentLocation()
+                }
+                history = apiService.getFulfillerOrders()
                 val wallet = apiService.getWalletInfo()
                 walletBalance = wallet.balance ?: 0.0
-                history = apiService.getFulfillerOrders()
-
-                // 3. Location & State PING (Idle Fleet Management)
-                try {
-                    val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-                    if (location != null) {
-                        val state = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            try {
-                                val geocoder = Geocoder(context, Locale.getDefault())
-                                @Suppress("DEPRECATION")
-                                geocoder.getFromLocation(location.latitude, location.longitude, 1)?.firstOrNull()?.adminArea
-                            } catch (e: Exception) { null }
-                        }
-                        
-                        apiService.updateStatus(FulfillerStatusRequest(
-                            online_status = "ONLINE",
-                            lat = location.latitude,
-                            lng = location.longitude,
-                            current_state = state
-                        ))
-                        android.util.Log.d("FleetPing", "Background PING sent: ${location.latitude}, ${location.longitude} ($state)")
-                    }
-                } catch (e: SecurityException) {}
-
             } catch (e: Exception) {
                 android.util.Log.e("DashboardPoll", "Error: ${e.message}")
             }
-            delay(60000) // 60s interval for background sync
+            delay(5000) // 5s interval for instant mission updates
         }
     }
 
@@ -193,17 +202,14 @@ fun FulfillerDashboardScreen(
             var showHotspots by remember { mutableStateOf(false) }
             var hotspots by remember { mutableStateOf<List<LatLng>>(emptyList()) }
             val cameraPositionState = rememberCameraPositionState {
-                position = CameraPosition.fromLatLngZoom(LatLng(6.5244, 3.3792), 12f)
+                position = CameraPosition.fromLatLngZoom(agentLocation ?: LatLng(6.5244, 3.3792), 14f)
             }
 
-            LaunchedEffect(Unit) {
-                try {
-                    val location = fusedLocationClient.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-                    if (location != null) {
-                        cameraPositionState.animate(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(LatLng(location.latitude, location.longitude), 12f))
-                    }
-                } catch (_: SecurityException) {
-                } catch (_: Exception) {}
+            // Animate map camera whenever agent's location is resolved
+            LaunchedEffect(agentLocation) {
+                agentLocation?.let { pos ->
+                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(pos, 14f))
+                }
             }
 
             LaunchedEffect(showHotspots) {
@@ -214,9 +220,6 @@ fun FulfillerDashboardScreen(
                         val data = res["data"] as? List<Map<String, Any>>
                         val parsedHotspots = data?.map { LatLng((it["lat"] as? Number)?.toDouble() ?: 0.0, (it["lng"] as? Number)?.toDouble() ?: 0.0) } ?: emptyList()
                         hotspots = parsedHotspots
-                        if (parsedHotspots.isNotEmpty()) {
-                            cameraPositionState.animate(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(parsedHotspots.first(), 12f))
-                        }
                     } catch (_: Exception) {}
                 }
             }
@@ -230,6 +233,13 @@ fun FulfillerDashboardScreen(
                             cameraPositionState = cameraPositionState,
                             uiSettings = MapUiSettings(zoomControlsEnabled = false)
                         ) {
+                            agentLocation?.let { pos ->
+                                Marker(
+                                    state = MarkerState(position = pos),
+                                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE),
+                                    title = "Your Location"
+                                )
+                            }
                             if (showHotspots) {
                                 hotspots.forEach { spot ->
                                     Marker(
@@ -339,27 +349,6 @@ fun FulfillerDashboardScreen(
                                     Column {
                                         Text("Peak Bonus Active! 🔥", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onTertiary)
                                         Text("Earn an extra ₦${peakBonus.toInt()} on every delivery.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onTertiary.copy(alpha = 0.9f))
-                                    }
-                                }
-                            }
-                        }
-
-                        // Active Mission
-                        val activeMissions = history.filter { 
-                            it.status != "DELIVERED" && it.status != "CANCELLED" && it.status != "RECIPIENT_ABSENT" && it.status != "RELEASED" && it.status != "REFUNDED"
-                        }
-                        if (activeMissions.isNotEmpty()) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
-                                onClick = { onAcceptOffer(activeMissions.first().id.toString()) }
-                            ) {
-                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.AssignmentTurnedIn, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(32.dp))
-                                    Spacer(modifier = Modifier.width(16.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Resume Active Mission", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
-                                        Text("You have a mission in progress. Tap to return.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
                                     }
                                 }
                             }
@@ -518,23 +507,19 @@ fun FulfillerDashboardScreen(
                                                 }
                                             } catch (e: Exception) {
                                                 Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
-                                            } finally { isLoading = false }
+                                            } finally {
+                                                isLoading = false
+                                            }
                                         }
                                     },
-                                    onDecline = { offers = offers.filter { it.id != offer.id } }
+                                    onDecline = {
+                                        fetchDashboardData()
+                                    }
                                 )
                             }
                         }
                     }
-                } else {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text(text = if (kycStatus == "VERIFIED") "Go online to start receiving offers." else "Verify your account to start receiving offers.", textAlign = TextAlign.Center)
-                        }
-                    }
                 }
-                
-                item { Spacer(modifier = Modifier.height(40.dp)) }
             }
         }
     }

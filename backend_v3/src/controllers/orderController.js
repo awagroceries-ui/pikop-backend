@@ -395,7 +395,10 @@ const acceptOrder = async (req, res) => {
 
     // Notify participants via socket
     const socketService = require('../services/socketService');
-    socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status: resStatus });
+    const io = socketService.getIO();
+    io.to(`order_${orderId}`).emit("status_updated", { orderId, status: resStatus });
+    io.to(`user_${userId}`).emit("order_status_updated", { orderId, status: resStatus });
+    io.to(`fulfiller_${fulfillerId}`).emit("order_status_updated", { orderId, status: resStatus });
 
     res.status(200).json({
       success: true,

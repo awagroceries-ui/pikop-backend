@@ -66,6 +66,18 @@ const init = (server) => {
                 console.log(`[Socket] Auto-joined Support Room: ${conv.id}`);
             });
 
+            // 4. Auto-Join Fulfiller & Online Fulfillers Rooms
+            const fulRes = await db.query(
+                "SELECT id, online_status FROM fulfillers WHERE user_id = $1",
+                [userId]
+            );
+            if (fulRes.rows.length > 0) {
+                const f = fulRes.rows[0];
+                socket.join(`fulfiller_${f.id}`);
+                socket.join('online_fulfillers');
+                console.log(`[Socket] Fulfiller ${f.id} (User: ${userId}) auto-joined online_fulfillers room.`);
+            }
+
         } catch (e) {
             console.error(`[Socket] Auto-join failed for User ${userId}:`, e.message);
         }
