@@ -119,7 +119,7 @@ fun FulfillerDashboardScreen(
     }
 
     // Location Resolution Helper
-    val resolveAgentLocation: suspend () -> Unit = {
+    val resolveAgentLocation: suspend () -> Unit = @android.annotation.SuppressLint("MissingPermission") {
         try {
             var loc = try { fusedLocationClient.lastLocation.await() } catch (_: Exception) { null }
             if (loc == null) {
