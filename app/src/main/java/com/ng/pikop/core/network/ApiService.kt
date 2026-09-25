@@ -291,6 +291,7 @@ data class FulfillerProfileResponse(
     val gender: String? = null,
     val date_of_birth: String? = null,
     val home_address: String? = null,
+    val current_state: String? = null,
     val bank_name: String? = null,
     val account_number: String? = null,
     val bank_code: String? = null,

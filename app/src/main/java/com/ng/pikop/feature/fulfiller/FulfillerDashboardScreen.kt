@@ -2,6 +2,8 @@ package com.ng.pikop.feature.fulfiller
 
 import androidx.compose.foundation.Image
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -64,6 +66,33 @@ fun FulfillerDashboardScreen(
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val userId by tokenManager.userId.collectAsState(initial = null)
 
+    // Smart Nigeria State & City Center Coordinate Resolver
+    val getCityStateCoordinates: (String?) -> LatLng = { input ->
+        val text = (input ?: "").lowercase(Locale.getDefault())
+        when {
+            text.contains("rivers") || text.contains("port harcourt") || text.contains("obio") || text.contains("eleme") || text.contains("bonny") || text.contains("onne") -> LatLng(4.8156, 7.0498) // Port Harcourt
+            text.contains("fct") || text.contains("abuja") || text.contains("gwarinpa") || text.contains("wuse") || text.contains("maitama") || text.contains("asokoro") || text.contains("kubwa") -> LatLng(9.0765, 7.3986) // Abuja
+            text.contains("oyo") || text.contains("ibadan") || text.contains("ogbomosho") -> LatLng(7.3775, 3.9470) // Ibadan
+            text.contains("kano") -> LatLng(12.0022, 8.5919) // Kano
+            text.contains("delta") || text.contains("asaba") || text.contains("warri") || text.contains("sapele") -> LatLng(6.2059, 6.6959) // Asaba/Warri
+            text.contains("anambra") || text.contains("awka") || text.contains("onitsha") || text.contains("nnewi") -> LatLng(6.2209, 7.0670) // Awka
+            text.contains("enugu") || text.contains("nsukka") -> LatLng(6.4584, 7.5464) // Enugu
+            text.contains("edo") || text.contains("benin") -> LatLng(6.3350, 5.6037) // Benin City
+            text.contains("kaduna") || text.contains("zaria") -> LatLng(10.5105, 7.4165) // Kaduna
+            text.contains("ogun") || text.contains("abeokuta") || text.contains("ijebu") || text.contains("sango") -> LatLng(7.1475, 3.3619) // Abeokuta
+            text.contains("akwa ibom") || text.contains("uyo") || text.contains("eket") -> LatLng(5.0377, 7.9128) // Uyo
+            text.contains("cross river") || text.contains("calabar") -> LatLng(4.9757, 8.3417) // Calabar
+            text.contains("imo") || text.contains("owerri") -> LatLng(5.4832, 7.0358) // Owerri
+            text.contains("abia") || text.contains("aba") || text.contains("umuahia") -> LatLng(5.1066, 7.3667) // Aba
+            text.contains("plateau") || text.contains("jos") -> LatLng(9.8965, 8.8583) // Jos
+            else -> LatLng(6.5244, 3.3792) // Lagos default
+        }
+    }
+
+    val agentCityCenter = remember(profileData) {
+        getCityStateCoordinates(profileData?.current_state ?: profileData?.home_address)
+    }
+
     val fetchDashboardData = {
         coroutineScope.launch {
             try {
@@ -98,26 +127,6 @@ fun FulfillerDashboardScreen(
         }
     }
 
-    // Socket Connection & Real-Time Event Listener
-    DisposableEffect(userId) {
-        val userIdStr = userId?.toString() ?: ""
-        if (userIdStr.isNotBlank()) {
-            SocketManager.connect(userIdStr)
-            SocketManager.on("new_mission_offer") {
-                android.util.Log.d("DashboardSocket", "Inbound mission offer via socket. Refreshing...")
-                fetchDashboardData()
-            }
-            SocketManager.on("order_status_updated") {
-                android.util.Log.d("DashboardSocket", "Order status update via socket. Refreshing...")
-                fetchDashboardData()
-            }
-            SocketManager.on("status_updated") {
-                fetchDashboardData()
-            }
-        }
-        onDispose {}
-    }
-
     // Location Resolution Helper
     val resolveAgentLocation: suspend () -> Unit = @android.annotation.SuppressLint("MissingPermission") {
         try {
@@ -147,10 +156,46 @@ fun FulfillerDashboardScreen(
         } catch (_: Exception) {}
     }
 
+    // Runtime Permission Launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.any { it }
+        if (granted) {
+            coroutineScope.launch {
+                resolveAgentLocation()
+            }
+        }
+    }
+
     // Initial Fetch on Launch
     LaunchedEffect(Unit) {
         fetchDashboardData()
+        permissionLauncher.launch(arrayOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ))
         resolveAgentLocation()
+    }
+
+    // Socket Connection & Real-Time Event Listener
+    DisposableEffect(userId) {
+        val userIdStr = userId?.toString() ?: ""
+        if (userIdStr.isNotBlank()) {
+            SocketManager.connect(userIdStr)
+            SocketManager.on("new_mission_offer") {
+                android.util.Log.d("DashboardSocket", "Inbound mission offer via socket. Refreshing...")
+                fetchDashboardData()
+            }
+            SocketManager.on("order_status_updated") {
+                android.util.Log.d("DashboardSocket", "Order status update via socket. Refreshing...")
+                fetchDashboardData()
+            }
+            SocketManager.on("status_updated") {
+                fetchDashboardData()
+            }
+        }
+        onDispose {}
     }
 
     // Polling & Background Sync (Runs every 5 seconds for real-time mission updates)
@@ -214,11 +259,19 @@ fun FulfillerDashboardScreen(
         ) {
             var showHotspots by remember { mutableStateOf(false) }
             var hotspots by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+            
             val cameraPositionState = rememberCameraPositionState {
-                position = CameraPosition.fromLatLngZoom(agentLocation ?: LatLng(6.5244, 3.3792), 14f)
+                position = CameraPosition.fromLatLngZoom(agentLocation ?: agentCityCenter, 13f)
             }
 
-            // Animate map camera whenever agent's location is resolved
+            // Immediately center map on agent's city when profile data is loaded
+            LaunchedEffect(agentCityCenter) {
+                if (agentLocation == null) {
+                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(agentCityCenter, 13f))
+                }
+            }
+
+            // Animate map camera whenever agent's exact GPS location is resolved
             LaunchedEffect(agentLocation) {
                 agentLocation?.let { pos ->
                     cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(pos, 14f))
@@ -246,13 +299,12 @@ fun FulfillerDashboardScreen(
                             cameraPositionState = cameraPositionState,
                             uiSettings = MapUiSettings(zoomControlsEnabled = false)
                         ) {
-                            agentLocation?.let { pos ->
-                                Marker(
-                                    state = MarkerState(position = pos),
-                                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE),
-                                    title = "Your Location"
-                                )
-                            }
+                            val activeMarkerPos = agentLocation ?: agentCityCenter
+                            Marker(
+                                state = MarkerState(position = activeMarkerPos),
+                                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE),
+                                title = if (agentLocation != null) "Your Live GPS Location" else "Operating Area"
+                            )
                             if (showHotspots) {
                                 hotspots.forEach { spot ->
                                     Marker(
