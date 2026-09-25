@@ -733,12 +733,30 @@ fun FulfillerCard(profile: FulfillerPublicProfile) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = profile.full_name ?: "Agent", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     if (profile.kyc_status == "VERIFIED") {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Image(
-                            painter = painterResource(id = com.ng.pikop.R.drawable.pikop_badge),
-                            contentDescription = "Verified",
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            color = Color(0xFF008751).copy(alpha = 0.12f),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF008751).copy(alpha = 0.4f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = com.ng.pikop.R.drawable.pikop_badge),
+                                    contentDescription = "Verified Agent",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    "VERIFIED",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF008751)
+                                )
+                            }
+                        }
                     }
                 }
                 

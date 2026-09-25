@@ -176,14 +176,27 @@ fun FulfillerDashboardScreen(
             TopAppBar(
                 title = { 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Pikop Fulfiller")
-                        if (kycStatus == "VERIFIED") {
+                        Text("Pikop Fulfiller", fontWeight = FontWeight.Bold)
+                        if (kycStatus == "VERIFIED" || profileData?.kyc_status == "VERIFIED") {
                             Spacer(modifier = Modifier.width(8.dp))
-                            Image(
-                                painter = painterResource(id = R.drawable.pikop_badge),
-                                contentDescription = "Verified",
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Surface(
+                                color = Color(0xFF008751).copy(alpha = 0.12f),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF008751).copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.pikop_badge),
+                                        contentDescription = "Verified",
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("VERIFIED", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF008751))
+                                }
+                            }
                         }
                     }
                 },
@@ -335,6 +348,42 @@ fun FulfillerDashboardScreen(
                 // 2. Dash Content
                 item {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        // Verified Agent Banner
+                        if (kycStatus == "VERIFIED" || profileData?.kyc_status == "VERIFIED") {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBBF7D0))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.pikop_badge),
+                                        contentDescription = "Verified Badge",
+                                        modifier = Modifier.size(52.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            "VERIFIED PIKOP AGENT 🛡️",
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color(0xFF008751),
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            "KYC & Identity Verified • Ready for Missions",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFF15803D)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // Peak Hour Bonus Banner
                         val peakActive = profileData?.stats?.peak_active ?: false
                         val peakBonus = profileData?.stats?.peak_bonus ?: 0.0
