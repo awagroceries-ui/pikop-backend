@@ -1,39 +1,37 @@
-# 🚀 Walkthrough: Dynamic Fee Alignment & Legal Terms v0.2
+# 🚀 Walkthrough: Instant Dispatch, Agent Live GPS Map & Mission Records Real-Time Sync
 
-Seeded updated platform fee rates in PostgreSQL settings, aligned welcome email templates to query dynamic rates, and updated Legal Terms & Conditions to Version 0.2.
+Resolved real-time mission dispatch latency, fixed the Hotspot Map locking to Lagos, and ensured accepted/queued missions appear and update instantly for agents.
 
 ---
 
 ## 🛠️ Summary of Implementation
 
-### 1. Database Migration & Platform Config
-- Created [1726950000000_update_platform_fees_and_commissions.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726950000000_update_platform_fees_and_commissions.js):
-  - Seeds updated rates into the `settings` table:
-    - `cod_fee_rate` = `'0.05'` (5% COD Platform Fee)
-    - `platform_commission` = `'0.20'` (20% Dispatch Commission / 80% Fulfiller share)
-    - `food_commission` = `'0.05'` (5% Food Commission)
-    - `groceries_commission` = `'0.05'` (5% Groceries Commission)
-    - `shop_commission` = `'0.05'` (5% Shop Commission)
-- Updated [platform.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/config/platform.js):
-  - Set `PlatformConfig` defaults to 5% COD Fee, 20% Dispatch Commission, and 5% Merchant Commission.
+### 1. Instant Mission Dispatch Engine (`dispatchService.js` & `socketService.js`)
+- Updated [dispatchService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/dispatchService.js):
+  - Refactored `findNearbyFulfillers` SQL query to match online verified agents even if `current_state` or `current_location` was null or state strings differed (`Port Harcourt` vs `Rivers`).
+  - Added real-time broadcast of `new_mission_offer` to room `online_fulfillers` so all online agents receive instant UI popups on their screens.
+- Updated [socketService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/socketService.js):
+  - Automatically joins online fulfillers to `online_fulfillers` socket room on connection.
+- Updated [orderController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/orderController.js):
+  - Emits real-time `order_status_updated` socket events to `user_${userId}` and `fulfiller_${fId}` when missions are claimed or queue status changes.
 
-### 2. Dynamic Welcome Emails (`emailService.js`)
-- Updated [emailService.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/services/emailService.js):
-  - `sendWelcomeEmail` queries current active rates from the `settings` table dynamically before building email HTML.
-  - Welcome emails for Customers, Fulfillers, and Merchants accurately reflect the updated 5% COD Fee, 80% Fulfiller earnings share (20% commission), and 5% Merchant Marketplace commission across all categories.
+### 2. Live Agent GPS Location & Hotspot Map (`FulfillerDashboardScreen.kt`)
+- Updated [FulfillerDashboardScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerDashboardScreen.kt):
+  - **GPS Fallback Chain**: Resolves agent's coordinates via `lastLocation.await()` -> `getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY)`.
+  - **Map Camera**: Automatically centers on agent's live coordinates (`zoom 14f`), removing the hardcoded Lagos position lock.
+  - **Blue Marker**: Draws a blue **"Your Location"** marker at the agent's exact GPS coordinates.
+  - **Hotspot Overlay**: Renders demand zone markers without forcibly panning the camera away from the agent's location/city.
+  - **Status Location Ping**: Sends location and state updates to backend `updateStatus` whenever location is resolved.
 
-### 3. Legal Terms & Conditions v0.2
-- Updated [Pikop_Terms_and_Conditions.md](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/public/legal/Pikop_Terms_and_Conditions.md):
-  - Version updated to **September 24, 2026 — Version 0.2**.
-  - Updated Definitions, Section 5.5, Section 6.4, Section 7.1, and Section 8 (Fees Summary Table) to reflect:
-    - **COD Platform Fee**: 5% of item price (Payer borne)
-    - **Dispatch Commission**: 20% of delivery fee (Fulfiller receives 80%)
-    - **Marketplace Commission**: 5% across Food, Groceries, and Shop
-    - **Operating Hours**: Section 7.3 documents Store Operating Hours and validation rules.
+### 3. Mission Records Real-Time Sync (`FulfillerDashboardScreen.kt`)
+- Updated [FulfillerDashboardScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/FulfillerDashboardScreen.kt):
+  - **5-Second Polling Loop**: Periodically refreshes `getFulfillerOrders()`, `getOffers()`, and wallet balance every 5 seconds.
+  - **Socket.IO Event Listeners**: Connects listeners for `new_mission_offer`, `order_status_updated`, and `status_updated` to trigger `fetchDashboardData()` instantly on inbound socket events.
 
 ---
 
-## 🧪 Git Automation & Deployment
+## 🧪 Device Verification & Deployment
 
-- Changes staged, committed (`b4a409fd`), and pushed to GitHub `origin/main`.
-- Deploy to VPS server using the command prompt below.
+- Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
+- Re-installed and launched live on connected Wireless ADB device (**Samsung Galaxy S23 Ultra** @ `192.168.1.2:42447`).
+- Changes staged, committed (`ffe55033`), and pushed to GitHub `origin/main`.

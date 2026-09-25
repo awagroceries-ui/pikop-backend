@@ -46,9 +46,9 @@ const signup = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 0. Pre-flight Duplicate Check (Gating before Hash)
+    // 0. Pre-flight Duplicate Check across both Users and Fulfillers (Gating before Hash)
     const { rows: existingUser } = await client.query(
-        "SELECT id, email, phone FROM users WHERE email = $1 OR phone = $2",
+        "SELECT id FROM users WHERE email = $1 OR phone = $2 UNION SELECT id FROM fulfillers WHERE email = $1 OR phone = $2",
         [emailTrimmed, normalizedPhone]
     );
 
