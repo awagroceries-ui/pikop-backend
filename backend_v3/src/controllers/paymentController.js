@@ -181,7 +181,7 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
     let discount = 0;
     if (m.promo_id) {
         try {
-            const couponRes = await client.query("SELECT * FROM coupons WHERE id = $1 AND is_active = true", [m.promo_id]);
+            const couponRes = await client.query("SELECT * FROM coupons WHERE (id::text = $1 OR code ILIKE $1) AND is_active = true", [m.promo_id]);
             if (couponRes.rows.length > 0) {
                 const c = couponRes.rows[0];
                 const calculatedDiscount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : deliveryFee * (parseFloat(c.discount_value) / 100);

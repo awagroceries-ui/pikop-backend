@@ -239,7 +239,7 @@ const initializeCommerceOrder = async (req, res) => {
         let finalItemPrice = totalItemPrice;
         if (promo_id) {
             try {
-                const couponRes = await db.query("SELECT * FROM coupons WHERE id = $1 AND is_active = true", [promo_id]);
+                const couponRes = await db.query("SELECT * FROM coupons WHERE (id::text = $1 OR code ILIKE $1) AND is_active = true", [promo_id]);
                 if (couponRes.rows.length > 0) {
                     const c = couponRes.rows[0];
 

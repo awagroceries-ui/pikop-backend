@@ -627,7 +627,7 @@ fun OrderQuoteScreen(
                             }
                         }
 
-                        val logisticsTotal = (deliveryFee - discount) + smsChargeVal
+                        val logisticsTotal = maxOf(0.0, deliveryFee - (if (isFullFreePromo) deliveryFee else discount)) + smsChargeVal
                         SummaryLine(if (isBuyer) "Logistics Subtotal (You pay)" else "Logistics Subtotal (Recipient pays)", "₦$logisticsTotal", fontWeight = FontWeight.Bold)
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
