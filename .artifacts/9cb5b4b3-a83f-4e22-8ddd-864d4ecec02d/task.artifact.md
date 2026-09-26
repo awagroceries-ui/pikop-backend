@@ -1,16 +1,19 @@
-# 📌 Task Checklist: Restore All Active & Queued Missions for Agent Fulfillment
+# 📌 Task Checklist: Fix Invisible Text & High-Contrast Theme Adaptation
 
-- `[/]` Task 1: Create Database Restoration Script (`restore_missions.js`)
-  - `[ ]` Write `restore_missions.js` to audit non-completed orders in PostgreSQL
-  - `[ ]` Restore assigned active missions to `MATCHED` or current in-progress state
-  - `[ ]` Promote or queue queued missions (`QUEUED` / `MATCHED`)
-  - `[ ]` Broadcast real-time Socket.IO events (`status_updated`, `order_status_updated`, `new_mission_offer`)
-  - `[ ]` Execute `node restore_missions.js` on local environment
+- `[/]` Task 1: Refactor `ServiceButton` in `CustomerHomeScreen.kt`
+  - `[ ]` Update container color to `MaterialTheme.colorScheme.surfaceVariant`
+  - `[ ]` Set title text color to `MaterialTheme.colorScheme.onSurface` (bold crisp white in dark mode, dark slate in light mode)
+  - `[ ]` Set subtitle text color to `MaterialTheme.colorScheme.onSurfaceVariant`
+  - `[ ]` Set icon tint to `MaterialTheme.colorScheme.primary`
+  - `[ ]` Update helpful tip card text color to `MaterialTheme.colorScheme.onSurfaceVariant`
 
-- `[ ]` Task 2: Add Admin Endpoint (`adminController.js` & `adminRoutes.js`)
-  - `[ ]` Add `restoreAllMissions` function to `adminController.js`
-  - `[ ]` Add `POST /admin/orders/restore-all` route to `adminRoutes.js`
+- `[ ]` Task 2: Update Order Summary & Offer Cards (`OrderQuoteScreen.kt` & `IncomingOfferComponent.kt`)
+  - `[ ]` Update `SummaryLine` labels and `LocationInput` labels in `OrderQuoteScreen.kt`
+  - `[ ]` Update Pickup/Dropoff label titles and address text in `IncomingOfferComponent.kt`
 
-- `[ ]` Task 3: Git Automation & VPS Execution
+- `[ ]` Task 3: Build & Deploy to Device
+  - `[ ]` Build debug APK (`app:assembleDebug`)
+  - `[ ]` Install and launch on device (`192.168.1.2:42447`)
+
+- `[ ]` Task 4: Git Automation
   - `[ ]` Stage, commit, and push changes to GitHub `main`
-  - `[ ]` Provide VPS deployment command prompts

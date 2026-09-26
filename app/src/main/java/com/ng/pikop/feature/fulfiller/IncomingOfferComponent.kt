@@ -72,23 +72,23 @@ fun IncomingOfferComponent(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         val dist = if (offer.distance_km != null) " (${"%.1f".format(offer.distance_km)} km away)" else ""
-                        Text(text = "Pickup Region$dist", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                        Text(text = offer.pickup_address ?: "N/A", style = MaterialTheme.typography.bodyMedium)
+                        Text(text = "Pickup Region$dist", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                        Text(text = offer.pickup_address ?: "N/A", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
-                        Text(text = "Dropoff Info", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                        Text(text = offer.delivery_address ?: "N/A", style = MaterialTheme.typography.bodyMedium)
+                        Text(text = "Dropoff Info", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                        Text(text = offer.delivery_address ?: "N/A", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
                     }
                 }
 

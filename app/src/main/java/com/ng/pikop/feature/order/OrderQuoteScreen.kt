@@ -1068,8 +1068,8 @@ fun LandmarkInput(
 @Composable
 fun SummaryLine(label: String, value: String, color: Color = Color.Unspecified, fontWeight: FontWeight = FontWeight.Normal) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = fontWeight, color = color)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = fontWeight, color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color)
     }
 }
 
@@ -1105,11 +1105,12 @@ fun LocationInput(label: String, address: String?, onClick: () -> Unit) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontWeight = FontWeight.Bold)
+                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                 Text(
                     text = displayAddress.ifBlank { "Search address..." },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (displayAddress.isBlank()) Color.LightGray else Color.Black,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (displayAddress.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (displayAddress.isBlank()) FontWeight.Normal else FontWeight.Medium,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )

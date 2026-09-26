@@ -237,7 +237,6 @@ fun CustomerHomeScreen(
                     title = "My Wallet",
                     subtitle = "₦${"%,.0f".format(walletBalance)}",
                     icon = Icons.Default.AccountBalanceWallet,
-                    color = com.ng.pikop.ui.theme.PikopGrey,
                     onClick = onNavigateToWallet
                 )
                 ServiceButton(
@@ -245,7 +244,6 @@ fun CustomerHomeScreen(
                     title = "Saved Places",
                     subtitle = "Quick access",
                     icon = Icons.Default.Bookmark,
-                    color = com.ng.pikop.ui.theme.PikopGrey,
                     onClick = onNavigateToAddresses
                 )
             }
@@ -258,7 +256,6 @@ fun CustomerHomeScreen(
                     title = "Support Hub",
                     subtitle = "Get help",
                     icon = Icons.Default.SupportAgent,
-                    color = com.ng.pikop.ui.theme.PikopGrey,
                     onClick = onNavigateToSupport
                 )
                 ServiceButton(
@@ -266,7 +263,6 @@ fun CustomerHomeScreen(
                     title = "Settings",
                     subtitle = "Account info",
                     icon = Icons.Default.Settings,
-                    color = com.ng.pikop.ui.theme.PikopGrey,
                     onClick = onNavigateToAccount
                 )
             }
@@ -285,7 +281,7 @@ fun CustomerHomeScreen(
                     Text(
                         "Your complete mission history can be found in the 'Missions' tab below.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -299,15 +295,16 @@ fun ServiceButton(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    color: Color,
+    color: Color = MaterialTheme.colorScheme.surfaceVariant,
     onClick: () -> Unit
 ) {
     Card(
         modifier = modifier.height(100.dp),
-        colors = CardDefaults.cardColors(containerColor = color),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
     ) {
         Column(
             modifier = Modifier
@@ -315,10 +312,25 @@ fun ServiceButton(
                 .padding(14.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = com.ng.pikop.ui.theme.PikopGreen, modifier = Modifier.size(24.dp))
+            Icon(
+                imageVector = icon, 
+                contentDescription = null, 
+                tint = MaterialTheme.colorScheme.primary, 
+                modifier = Modifier.size(24.dp)
+            )
             Column {
-                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(text = subtitle, fontSize = 11.sp, color = com.ng.pikop.ui.theme.PikopDarkGrey)
+                Text(
+                    text = title, 
+                    fontWeight = FontWeight.Bold, 
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle, 
+                    fontSize = 11.sp, 
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

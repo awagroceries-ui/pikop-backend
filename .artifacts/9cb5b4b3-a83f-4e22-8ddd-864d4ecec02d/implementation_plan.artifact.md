@@ -1,50 +1,49 @@
-# 📋 Implementation Plan: Restore All Active & Queued Missions for Agent Fulfillment
+# 📋 Implementation Plan: Fix Invisible Text & High-Contrast Theme Adaptation
 
-Audit and restore all active, assigned, and queued delivery missions in PostgreSQL to their designated agents, ensuring statuses are normalized (`MATCHED`, `QUEUED`, `PICKED_UP`, `IN_TRANSIT`), and broadcast real-time socket events so agents can immediately execute or resume them.
+Fix invisible white-on-white text on the Customer Home Screen grid cards (`My Wallet`, `Saved Places`, `Support Hub`, `Settings`) and enhance text visibility across all theme cards.
 
 ---
 
-## 🔍 Research & Problem Analysis
+## 🔍 Root Cause Analysis
 
-1. **Mission Assignment State**:
-   - Missions in PostgreSQL `orders` table have two key fulfillment columns:
-     - `fulfiller_id`: Primary agent assigned to execute the mission.
-     - `queued_for_fulfiller_id`: Agent queued to execute the mission next once their active mission completes.
-   - If an order's status was left in `SEARCHING`, `PENDING_ACKNOWLEDGMENT`, or `PENDING` despite having `fulfiller_id` or `queued_for_fulfiller_id` set, the agent's dashboard status filters omitted it.
-
-2. **Fulfillment Restoration Logic**:
-   - **Assigned Active Missions**: If an order has `fulfiller_id` set and status is `SEARCHING`, `PENDING`, or `PENDING_ACKNOWLEDGMENT`, restore status to `MATCHED` so it appears as an **ACTIVE MISSION IN PROGRESS** on the agent's dashboard and mission records screen.
-   - **Queued Missions**: If an order has `queued_for_fulfiller_id` set and `fulfiller_id` is null, check if the agent currently has an active mission:
-     - If the agent has no active mission: Promote order to `fulfiller_id = queued_for_fulfiller_id` and set `status = 'MATCHED'`.
-     - If the agent is currently busy on an active mission: Set `status = 'QUEUED'`.
-   - **Unassigned Searching Missions**: Broadcast real-time `new_mission_offer` socket events to all online verified agents (`online_fulfillers` and `user_${user_id}`).
+As seen in the provided screenshot:
+1. **White Text on Off-White Cards (`CustomerHomeScreen.kt`)**:
+   - `ServiceButton` cards used a hardcoded light container color (`PikopGrey` `#F5F5F5`).
+   - In dark theme, `Text(text = title)` defaulted to white text (`#FFFFFF`).
+   - Rendering white text on an off-white `#F5F5F5` card produced **white-on-white invisible text** for "My Wallet", "Saved Places", "Support Hub", and "Settings".
+   - Subtitle text used `PikopDarkGrey` (`#757575`), resulting in low contrast.
 
 ---
 
 ## 🛠️ Proposed Changes
 
-### Component 1: Backend Restoration Script & Admin Control (`backend_v3`)
+### Component 1: Customer Home Screen (`CustomerHomeScreen.kt`)
 
-#### [NEW] [restore_missions.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/restore_missions.js)
-- Standalone Node.js database restoration script that:
-  - Connects to PostgreSQL `pikop` database.
-  - Queries all non-completed/non-cancelled orders (`status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED')`).
-  - Restores status and assignment mappings for active and queued fulfillers.
-  - Emits real-time Socket.IO events (`status_updated`, `order_status_updated`, `new_mission_offer`) to online agent sockets.
-  - Prints a detailed summary report of restored missions.
+#### [MODIFY] [CustomerHomeScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/CustomerHomeScreen.kt)
+- Refactor `ServiceButton` composable:
+  - Container color: `MaterialTheme.colorScheme.surfaceVariant` (adaptive dark slate in dark mode, light slate in light mode).
+  - Icon tint: `MaterialTheme.colorScheme.primary` (`#008751` Pikop Green).
+  - Title text: `MaterialTheme.colorScheme.onSurface` (bold crisp white in dark mode, bold dark slate in light mode).
+  - Subtitle text: `MaterialTheme.colorScheme.onSurfaceVariant` (high-contrast secondary text).
+- Update helpful tip card text color to `MaterialTheme.colorScheme.onSurfaceVariant`.
 
-#### [MODIFY] [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js) & [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js)
-- Add `/admin/orders/restore-all` POST endpoint to allow manual trigger from Admin Dashboard.
+---
+
+### Component 2: Order Summary & Offer Cards (`OrderQuoteScreen.kt` & `IncomingOfferComponent.kt`)
+
+#### [MODIFY] [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt)
+- Update `SummaryLine` labels and `LocationInput` labels to `MaterialTheme.colorScheme.onSurfaceVariant` and `onSurface`.
+
+#### [MODIFY] [IncomingOfferComponent.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/IncomingOfferComponent.kt)
+- Update Pickup/Dropoff label titles and addresses to `MaterialTheme.colorScheme.onSurfaceVariant` and `onSurface`.
 
 ---
 
 ## 🧪 Verification Plan
 
-### Execution & Verification Steps
-1. Execute `node restore_missions.js` on local project directory.
-2. Stage, commit, and push `restore_missions.js` and controller updates to GitHub `main`.
-3. Deploy to production VPS server (`root@srv1932412`).
-4. Execute `node restore_missions.js` on VPS production environment.
-5. Verify on connected device (**Samsung Galaxy S23 Ultra**):
-   - Agent dashboard displays active mission ("RESUME") and queued mission ("START") cards cleanly.
-   - Mission Records screen displays restored active/queued items.
+### Automated & Manual Verification
+1. Test Customer Home Screen (`CustomerHomeScreen.kt`) on connected **Samsung Galaxy S23 Ultra** (`192.168.1.2:42447`).
+2. Verify "My Wallet", "Saved Places", "Support Hub", and "Settings" titles and subtotals/subtitles are 100% crisp, bold, and fully visible on screen (matching the user's screenshot).
+3. Verify Order Summary breakdown (`OrderQuoteScreen.kt`) and Offer cards (`IncomingOfferComponent.kt`) render high-contrast text.
+4. Rebuild debug APK (`gradle_build("app:assembleDebug")`) and deploy to device.
+5. Stage, commit, and push changes to GitHub `main`.
