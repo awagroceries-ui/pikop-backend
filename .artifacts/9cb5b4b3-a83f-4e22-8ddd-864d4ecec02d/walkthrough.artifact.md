@@ -1,32 +1,32 @@
-# 🚀 Walkthrough: Restore All Active & Queued Missions for Agent Fulfillment
+# 🚀 Walkthrough: Invisible Text Fix & UI High-Contrast Refinements
 
-Created the `restore_missions.js` utility script and `/admin/orders/restore-all` admin endpoint to audit, normalize, and restore all active and queued delivery missions in PostgreSQL to their designated agents.
+Resolved the invisible white-on-white text issue on the Customer Home Screen grid buttons (**My Wallet**, **Saved Places**, **Support Hub**, **Settings**) and enhanced text contrast across Order Summary breakdowns and Offer cards.
 
 ---
 
 ## 🛠️ Summary of Implementation
 
-### 1. Database Mission Restoration Script (`restore_missions.js`)
-- Created [restore_missions.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/restore_missions.js):
-  - Audits all non-completed orders in PostgreSQL (`status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED')`).
-  - Restores status to **`MATCHED`** for active orders assigned to a `fulfiller_id`.
-  - Promotes queued missions (`queued_for_fulfiller_id`) to **`MATCHED`** if the agent is currently free, or normalizes status to **`QUEUED`** if the agent is busy on an active mission.
-  - Emits real-time Socket.IO events (`status_updated`, `order_status_updated`, `new_mission_offer`) so connected agent dashboards update immediately.
+### 1. Customer Home Screen Grid Cards (`CustomerHomeScreen.kt`)
+- Updated [CustomerHomeScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/CustomerHomeScreen.kt):
+  - Refactored `ServiceButton` composable:
+    - **Container Background**: `MaterialTheme.colorScheme.surfaceVariant` (adaptive dark slate container in dark mode, light container in light mode).
+    - **Title Text**: `MaterialTheme.colorScheme.onSurface` (bold crisp `#FFFFFF` in dark mode, dark slate in light mode).
+    - **Subtitle Text**: `MaterialTheme.colorScheme.onSurfaceVariant` for high-contrast legibility (`"₦0"`, `"Quick access"`, `"Get help"`, `"Account info"`).
+    - **Icon Tint**: `MaterialTheme.colorScheme.primary` (`#008751` Pikop Green).
+  - Updated helpful tip card text color to `MaterialTheme.colorScheme.onSurfaceVariant`.
 
-### 2. Admin Controller & Route (`adminController.js` & `adminRoutes.js`)
-- Updated [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js) and [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js):
-  - Added `POST /admin/orders/restore-all` endpoint for manual restoration triggers from the Admin Dashboard.
+### 2. Order Summary Breakdown & Location Inputs (`OrderQuoteScreen.kt`)
+- Updated [OrderQuoteScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/OrderQuoteScreen.kt):
+  - Replaced muted gray labels in `SummaryLine` and `LocationInput` with `MaterialTheme.colorScheme.onSurfaceVariant` and `onSurface`.
+
+### 3. Incoming Offer Cards (`IncomingOfferComponent.kt`)
+- Updated [IncomingOfferComponent.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/IncomingOfferComponent.kt):
+  - Replaced muted gray labels on "Pickup Region", "Dropoff Info", distance text, and location icons with high-contrast `MaterialTheme.colorScheme.onSurfaceVariant` and `onSurface`.
 
 ---
 
-## 🧪 VPS Deployment & Execution Instructions
+## 🧪 Build & Verification
 
-Run the command below on your VPS terminal (`root@srv1932412`) to pull the update, execute the restoration script, and restart PM2:
-
-```bash
-cd /var/www/pikop-api/backend_v3/backend_v3
-git pull origin main
-node restore_missions.js
-pm2 restart pikop-v3
-pm2 logs pikop-v3 --lines 30
-```
+- Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
+- All modified files analyzed with **0 errors**.
+- Changes staged, committed (`fc65ecbc`), and pushed to GitHub `origin/main`.

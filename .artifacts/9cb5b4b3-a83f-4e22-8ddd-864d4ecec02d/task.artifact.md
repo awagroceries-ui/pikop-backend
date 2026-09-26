@@ -1,19 +1,25 @@
-# 📌 Task Checklist: Fix Invisible Text & High-Contrast Theme Adaptation
+# 📌 Task Checklist: Redesign Role Selection Screen ("How do you want to use Pikop?")
 
-- `[/]` Task 1: Refactor `ServiceButton` in `CustomerHomeScreen.kt`
-  - `[ ]` Update container color to `MaterialTheme.colorScheme.surfaceVariant`
-  - `[ ]` Set title text color to `MaterialTheme.colorScheme.onSurface` (bold crisp white in dark mode, dark slate in light mode)
-  - `[ ]` Set subtitle text color to `MaterialTheme.colorScheme.onSurfaceVariant`
-  - `[ ]` Set icon tint to `MaterialTheme.colorScheme.primary`
-  - `[ ]` Update helpful tip card text color to `MaterialTheme.colorScheme.onSurfaceVariant`
+- `[/]` Task 1: Copy PNG Icon Assets
+  - `[ ]` Copy `role_icon_send.png` to `app/src/main/res/drawable/`
+  - `[ ]` Copy `role_icon_earn.png` to `app/src/main/res/drawable/`
+  - `[ ]` Copy `role_icon_sell.png` to `app/src/main/res/drawable/`
+  - `[ ]` Copy `role_icon_fleet_partner.png` to `app/src/main/res/drawable/`
+  - `[ ]` Copy `role_icon_business_account.png` to `app/src/main/res/drawable/`
 
-- `[ ]` Task 2: Update Order Summary & Offer Cards (`OrderQuoteScreen.kt` & `IncomingOfferComponent.kt`)
-  - `[ ]` Update `SummaryLine` labels and `LocationInput` labels in `OrderQuoteScreen.kt`
-  - `[ ]` Update Pickup/Dropoff label titles and address text in `IncomingOfferComponent.kt`
+- `[ ]` Task 2: Redesign `UserTypeSelectionScreen.kt`
+  - `[ ]` Keep Pikop logo `R.drawable.pikop_logo` 100% untouched
+  - `[ ]` Format heading: "How do you want to use " (white) + "Pikop?" (green `#00E676`)
+  - `[ ]` Add subtitle: "Choose your experience" (`#9CA3AF`)
+  - `[ ]` Upgrade `RoleCard` with PNG assets (`95dp`), color-glow borders & subtle background tints
+  - `[ ]` Add circular arrow affordance in bottom-right corner of each card
+  - `[ ]` Add "FOR ORGANIZATIONS" divider with horizontal rules
+  - `[ ]` Restyle login link ("Log in →") with green underline & trailing arrow
+  - `[ ]` Add trust signal ("Your data is safe with us" + shield icon)
 
 - `[ ]` Task 3: Build & Deploy to Device
   - `[ ]` Build debug APK (`app:assembleDebug`)
-  - `[ ]` Install and launch on device (`192.168.1.2:42447`)
+  - `[ ]` Install and launch on device
 
 - `[ ]` Task 4: Git Automation
   - `[ ]` Stage, commit, and push changes to GitHub `main`
