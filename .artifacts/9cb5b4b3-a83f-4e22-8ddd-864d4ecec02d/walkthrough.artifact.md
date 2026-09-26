@@ -1,32 +1,36 @@
-# 🚀 Walkthrough: Real-Road Live Tracking Map Route, Solid Green Lines & Marker Animation
+# 🚀 Walkthrough: Compact Role Selection Screen (No-Scroll Viewport) & Dual Light/Dark High-Contrast Legibility
 
-Upgraded live tracking and mission navigation maps in `TrackOrderScreen.kt` and `ActiveOrderScreen.kt` to follow actual streets and turns with solid, vibrant brand green lines (`Color(0xFF00E676)`) and smooth along-the-route marker travel.
+Resized elements on `UserTypeSelectionScreen.kt` so the entire screen fits on single-page mobile viewports without any scrolling, and optimized all text (especially grey text) for 100% high-contrast legibility in both light and dark theme modes.
 
 ---
 
 ## 🛠️ Summary of Implementation
 
-### 1. Real-Road Route & Polyline Engine (`RoadRouteService.kt`)
-- Created [RoadRouteService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/RoadRouteService.kt):
-  - **Real Street Network Routing**: `fetchRoadRoute(start, end, apiKey)` queries the OSRM real-road routing engine and Google Maps Directions API.
-  - **Fast Polyline Decoder**: `decodePolyline(encoded)` decodes Google `overview_polyline` strings into precise `List<LatLng>` coordinates following actual streets, turns, intersections, and roundabouts.
-  - **Along-the-Path Interpolator**: `interpolatePointAlongPolyline(points, fraction)` calculates exact coordinates at any progress fraction along multi-segment real-road polylines.
+### 1. Compact Single-Page Viewport Layout (`~520dp` Total Height)
+- Updated [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt):
+  - **Logo**: Compact `60dp` size (down from `120dp`).
+  - **Heading & Subtitle**: `20sp` heading with `24sp` line height, `12sp` subtitle.
+  - **2-Column Cards (Send, Earn, Fleet Partner, Business Account)**: Height reduced to `115dp` (down from `190dp`). Icon size `58dp`, title `14sp`, subtitle `10sp`.
+  - **Full-Width Card (Sell)**: Height reduced to `68dp` (down from `110dp`). Icon size `52dp`, title `16sp`, subtitle `11sp`.
+  - **Divider & Footer**: Compact vertical padding (`8dp`), fitting the entire screen within `~520dp` total height — fitting 100% of mobile viewports without scrolling.
 
-### 2. Customer Order Tracking (`TrackOrderScreen.kt`)
-- Updated [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt):
-  - Replaced fake L-shaped curve generator (`createRoadPolyline`) with real-road street network points from `RoadRouteService`.
-  - Replaced dotted/dashed gray lines with a **solid, vibrant brand green line** (`Color(0xFF00E676)`, `width = 14f`, `JointType.ROUND`, `RoundCap()`).
-  - Animates the agent vehicle marker traveling along the turns of the green line.
-
-### 3. Fulfiller Active Mission Navigation (`ActiveOrderScreen.kt`)
-- Updated [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt):
-  - Fetches real-road street route polylines from the agent's live GPS position to pickup and dropoff destinations.
-  - Renders navigation routes in **solid brand green** (`Color(0xFF00E676)`, `width = 14f`, `JointType.ROUND`, `RoundCap()`).
+### 2. Dual Light & Dark Theme High-Contrast Legibility
+- Updated [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt):
+  - **In Dark Mode**:
+    - Surface Background: Deep dark (`#0D0E11`).
+    - Title Text: Crisp white (`#FFFFFF`) + green brand accent (`#00E676`).
+    - Subtitles, labels, and grey text: High-contrast light slate (`#CBD5E1`), delivering > 7:1 contrast ratio.
+  - **In Light Mode**:
+    - Surface Background: Light theme surface (`#F8FAFC`).
+    - Title Text: Deep slate (`#0F172A`) + dark green brand accent (`#008751`).
+    - Subtitles, labels, and grey text: Dark slate grey (`#475569`), delivering > 7:1 contrast ratio against light backgrounds.
+    - Card Containers: Light tinted containers (`#ECFDF5`, `#FFFBEB`, `#FFF7ED`, `#F0F9FF`) with solid borders.
 
 ---
 
 ## 🧪 Build & Verification
 
 - Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
-- All modified files analyzed with **0 errors**.
-- Changes staged, committed (`4d74fa1a`), and pushed to GitHub `origin/main`.
+- Re-installed and launched live on connected Wireless ADB device (**Samsung Galaxy S23 Ultra**).
+- Analyzed `UserTypeSelectionScreen.kt` with **0 errors**.
+- Changes staged, committed (`3c23df2e`), and pushed to GitHub `origin/main`.

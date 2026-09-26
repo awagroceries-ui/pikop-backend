@@ -44,27 +44,27 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 20.dp, vertical = 20.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Pikop Logo (Kept 100% untouched)
             Image(
                 painter = painterResource(id = R.drawable.pikop_logo),
                 contentDescription = "Pikop Logo",
-                modifier = Modifier.size(60.dp)
+                modifier = Modifier.size(90.dp)
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Heading: "How do you want to use Pikop?"
             val headingText = buildAnnotatedString {
-                withStyle(SpanStyle(color = titleTextColor, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)) {
-                    append("How do you want to use ")
+                withStyle(SpanStyle(color = titleTextColor, fontWeight = FontWeight.ExtraBold, fontSize = 26.sp)) {
+                    append("How do you want to\nuse ")
                 }
-                withStyle(SpanStyle(color = greenAccent, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)) {
+                withStyle(SpanStyle(color = greenAccent, fontWeight = FontWeight.ExtraBold, fontSize = 26.sp)) {
                     append("Pikop?")
                 }
             }
@@ -72,26 +72,26 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
             Text(
                 text = headingText,
                 textAlign = TextAlign.Center,
-                lineHeight = 24.sp,
+                lineHeight = 32.sp,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Subtitle
             Text(
                 text = "Choose your experience",
-                style = MaterialTheme.typography.bodySmall,
+                fontSize = 14.sp,
                 color = greyTextColor,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Row 1: Send (Left) & Earn (Right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 RoleCard(
                     title = "Send",
@@ -115,7 +115,7 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Row 2: Sell (Full Width)
             RoleCard(
@@ -134,7 +134,7 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = 18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HorizontalDivider(
@@ -144,11 +144,11 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                 )
                 Text(
                     text = "FOR ORGANIZATIONS",
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = greyTextColor,
-                    letterSpacing = 1.5.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 )
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
@@ -160,7 +160,7 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
             // Row 3: Fleet Partner (Left) & Business Account (Right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 RoleCard(
                     title = "Fleet Partner",
@@ -184,7 +184,7 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // Footer: Log In Link
             Row(
@@ -194,25 +194,25 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                 Text(
                     text = "Already have an account? ",
                     color = greyTextColor,
-                    fontSize = 13.sp
+                    fontSize = 14.sp
                 )
                 Text(
                     text = "Log in",
                     color = greenAccent,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     textDecoration = TextDecoration.Underline
                 )
-                Spacer(modifier = Modifier.width(3.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
                     tint = greenAccent,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Trust Signal
             Row(
@@ -222,17 +222,17 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     imageVector = Icons.Default.Shield,
                     contentDescription = null,
                     tint = greenAccent,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(14.dp)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Your data is safe with us",
                     color = greyTextColor,
-                    fontSize = 11.sp
+                    fontSize = 12.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
@@ -254,10 +254,10 @@ fun RoleCard(
 
     Card(
         modifier = modifier
-            .height(if (isFullWidth) 68.dp else 112.dp)
+            .height(if (isFullWidth) 90.dp else 155.dp)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.2.dp, themeColor.copy(alpha = if (isDark) 0.55f else 0.7f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -267,25 +267,26 @@ fun RoleCard(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
                         painter = painterResource(id = iconRes),
                         contentDescription = title,
-                        modifier = Modifier.size(52.dp)
+                        modifier = Modifier.size(72.dp)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = title,
-                            fontSize = 16.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = cardTitleColor
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = subtitle,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = cardSubtitleColor
                         )
                     }
@@ -294,14 +295,14 @@ fun RoleCard(
                         shape = CircleShape,
                         color = Color.Transparent,
                         border = BorderStroke(1.dp, themeColor.copy(alpha = 0.5f)),
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
                                 tint = themeColor,
-                                modifier = Modifier.size(13.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
@@ -311,26 +312,27 @@ fun RoleCard(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                        .padding(horizontal = 8.dp, vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Image(
                         painter = painterResource(id = iconRes),
                         contentDescription = title,
-                        modifier = Modifier.size(56.dp)
+                        modifier = Modifier.size(80.dp)
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = title,
-                        fontSize = 14.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = cardTitleColor,
                         textAlign = TextAlign.Center
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = subtitle,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         color = cardSubtitleColor,
                         textAlign = TextAlign.Center,
                         maxLines = 1
@@ -344,15 +346,15 @@ fun RoleCard(
                     border = BorderStroke(1.dp, themeColor.copy(alpha = 0.5f)),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .size(22.dp)
+                        .padding(10.dp)
+                        .size(28.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             tint = themeColor,
-                            modifier = Modifier.size(11.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }

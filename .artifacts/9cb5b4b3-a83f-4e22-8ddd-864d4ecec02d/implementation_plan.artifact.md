@@ -1,32 +1,39 @@
-# 📋 Implementation Plan: Compact Role Selection Screen (No-Scroll Viewport) & Dual Light/Dark Theme High-Contrast Legibility
+# 📋 Implementation Plan: Restore Original Sample Design Proportions & Dual Light/Dark High Contrast
 
-Resize all elements on `UserTypeSelectionScreen.kt` so the entire screen fits on single-page mobile viewports without any scrolling, and optimize all text (especially grey text) for 100% high-contrast legibility in both light and dark theme modes.
+Restore the spacious, premium proportions and card heights from the original design sample (`Design sample.png`), while ensuring all text (especially grey text) is optimized for 100% high-contrast legibility in both light and dark theme modes.
 
 ---
 
-## 🔍 Research & Layout Dimension Analysis
+## 🔍 Design Reference Proportions (Matching `Design sample.png`)
 
-### 1. Single-Page Viewport Dimensions (NO SCROLLING)
-- **Previous Height**: ~880dp (exceeded standard ~700dp-800dp phone screens, requiring vertical scrolling).
-- **Target Compact Height**: ~520dp (fits comfortably on 100% of mobile viewports without scrolling):
-  - **Logo**: Reduced to `60dp` (from `120dp`).
-  - **Heading & Subtitle**: Heading `20sp` / `24sp` line height, Subtitle `12sp`. Compact padding (`4dp`).
-  - **2-Column Cards (Send, Earn, Fleet Partner, Business Account)**: Height reduced to `115dp` (from `190dp`). Icon size `58dp`, title `14sp`, subtitle `10sp`.
-  - **Full-Width Card (Sell)**: Height reduced to `68dp` (from `110dp`). Icon size `52dp`, title `16sp`, subtitle `11sp`.
-  - **"FOR ORGANIZATIONS" Divider**: Compact padding (`8dp`).
-  - **Footer & Trust Signal**: Compact padding (`8dp`).
+1. **Logo & Header**:
+   - Logo: Prominent `90dp` height.
+   - Heading: `26sp` ExtraBold title ("How do you want to\nuse **Pikop?**").
+   - Subtitle: `14sp` ("Choose your experience").
+   - Spacing: `16dp - 24dp` breathable vertical margins.
 
-### 2. Dual-Theme High-Contrast Text Legibility
-- **Dark Theme Mode**:
-  - Background: Deep dark (`Color(0xFF0D0E11)`).
-  - Main heading text: Crisp white (`#FFFFFF`) with green brand accent (`#00E676`).
-  - Subtitles, labels, and grey text: High-contrast light slate (`Color(0xFFCBD5E1)` / `#CBD5E1`), delivering > 7:1 contrast ratio against dark backgrounds.
-  - Card containers: Dark tinted glow containers (`#042017`, `#261A04`, `#241004`, `#041829`) with solid glow borders.
-- **Light Theme Mode**:
-  - Background: Light theme surface (`MaterialTheme.colorScheme.background` / `#F8FAFC`).
-  - Main heading text: Deep slate (`#0F172A`) with dark green brand accent (`#008751`).
-  - Subtitles, labels, and grey text: Dark slate grey (`Color(0xFF475569)`), delivering > 7:1 contrast ratio against light backgrounds.
-  - Card containers: Light tinted containers (`#ECFDF5`, `#FFFBEB`, `#FFF7ED`, `#F0F9FF`) with solid borders.
+2. **Glow Cards (Role Cards)**:
+   - **2-Column Cards (Send, Earn, Fleet Partner, Business Account)**:
+     - Card height: `155dp` (spacious, rounded `20.dp` shape).
+     - PNG icon size: `80dp` large transparent 3D badge.
+     - Title `17sp` ExtraBold, Subtitle `11sp` / `12sp`.
+     - Bottom-right circular arrow button: `28dp` diameter.
+   - **Full-Width Card (Sell)**:
+     - Card height: `90dp`.
+     - PNG icon size: `72dp` transparent 3D badge.
+     - Title `18sp` ExtraBold, Subtitle `12sp`.
+     - Center-right circular arrow button: `32dp` diameter.
+
+3. **Organizational Grouping Divider**:
+   - `"FOR ORGANIZATIONS"` with thin horizontal rules, padded `vertical = 16.dp`.
+
+4. **Footer & Trust Signal**:
+   - Log In Link: `"Already have an account? Log in →"` (`14sp`).
+   - Trust Signal: Shield icon + `"Your data is safe with us"` (`12sp`).
+
+5. **Dual Light/Dark Theme Contrast Optimization**:
+   - **Dark Mode**: Background `Color(0xFF0D0E11)`, titles `Color.White`, subtitles/grey text `Color(0xFFCBD5E1)` (light slate, 100% readable).
+   - **Light Mode**: Background `Color(0xFFF8FAFC)`, titles `Color(0xFF0F172A)`, subtitles/grey text `Color(0xFF475569)` (dark slate, 100% readable).
 
 ---
 
@@ -35,8 +42,8 @@ Resize all elements on `UserTypeSelectionScreen.kt` so the entire screen fits on
 ### Component 1: Screen Composable (`UserTypeSelectionScreen.kt`)
 
 #### [MODIFY] [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt)
-- Compact element sizing & spacing for single-page viewport fit without scrolling.
-- Theme-aware color palette using `isSystemInDarkTheme()` or `MaterialTheme.colorScheme` for 100% crisp text visibility in both light and dark theme modes.
+- Restore spacious sample proportions (card heights `155dp` / `90dp`, logo `90dp`, icon sizes `80dp` / `72dp`).
+- Apply theme-aware high-contrast color palette (`#CBD5E1` in dark mode, `#475569` in light mode).
 
 ---
 
@@ -44,8 +51,7 @@ Resize all elements on `UserTypeSelectionScreen.kt` so the entire screen fits on
 
 ### Automated & Manual Verification
 1. Test on connected **Samsung Galaxy S23 Ultra** (`192.168.1.2:42447`).
-2. Verify entire Role Selection Screen fits on screen with ZERO scrolling required.
-3. Test in Dark Theme -> verify grey text (`#CBD5E1`) and title text are crisp, bold, and high-contrast.
-4. Test in Light Theme -> verify grey text (`#475569`) and title text are dark, crisp, and high-contrast.
-5. Rebuild debug APK (`gradle_build("app:assembleDebug")`) and deploy to device.
-6. Stage, commit, and push changes to GitHub `main`.
+2. Compare with `Design sample.png` -> verify card proportions, icon sizes, and typography match the reference sample image.
+3. Test in Dark Theme & Light Theme -> verify all text (especially grey text) is crisp, bold, and 100% legible.
+4. Rebuild debug APK (`gradle_build("app:assembleDebug")`) and deploy to device.
+5. Stage, commit, and push changes to GitHub `main`.
