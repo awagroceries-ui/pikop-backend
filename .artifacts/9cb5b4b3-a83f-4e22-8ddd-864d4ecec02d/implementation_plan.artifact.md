@@ -1,69 +1,62 @@
-# 📋 Implementation Plan: Redesign "How do you want to use Pikop?" Role Selection Screen
+# 📋 Implementation Plan: Real-Road Live Tracking Map Route, Solid Green Lines & Marker Animation
 
-Redesign the role-selection screen (`UserTypeSelectionScreen.kt`) to match the approved glowing, 3D dimensional reference design, integrating transparent PNG role assets (`role_icon_send.png`, `role_icon_earn.png`, `role_icon_sell.png`, `role_icon_fleet_partner.png`, `role_icon_business_account.png`).
+Upgrade live tracking and mission navigation maps in `TrackOrderScreen.kt` and `ActiveOrderScreen.kt` to display accurate real-road street routes (following actual streets and turns) with solid brand green lines (`Color(0xFF00E676)`) and smooth marker animation along the polyline path.
 
 ---
 
-## 🔍 Requirements & Design Reference Alignment
+## 🔍 Requirements & Technical Solution
 
-1. **Asset Integration**:
-   - Copy the 5 PNG role icon assets from `C:\Users\MOSES\AndroidStudioProjects\Pikop Assets\` into `app/src/main/res/drawable/`.
-2. **Preserve Logo**:
-   - The top Pikop logo (`R.drawable.pikop_logo`) must remain 100% untouched.
-3. **Heading & Subtitle**:
-   - Title: "How do you want to use **Pikop**?"
-     - `"How do you want to use "` in white (`Color.White`).
-     - `"Pikop?"` in brand green (`Color(0xFF00E676)`).
-   - Subtitle: `"Choose your experience"` in muted grey (`Color(0xFF9CA3AF)`).
-4. **Upgraded Role Cards**:
-   - Icons: Render high-resolution PNG assets (`role_icon_*.png`) at prominent `90dp - 100dp` size at the top of each card, with zero extra background circles or tints.
-   - Styling: Soft theme-colored borders and faint matching background tints matching each icon's color palette:
-     - **Send**: Green border (`#10B981`), dark green background tint (`#052e16`).
-     - **Earn**: Gold/Amber border (`#F59E0B`), dark amber background tint (`#451a03`).
-     - **Sell**: Orange/Bronze border (`#F97316`), dark orange background tint (`#431407`).
-     - **Fleet Partner**: Green border (`#10B981`), dark green background tint (`#052e16`).
-     - **Business Account**: Blue border (`#0284C7`), dark blue background tint (`#082f49`).
-   - Arrow Affordance: Small circular button in bottom-right corner with `Icons.Default.ArrowForward` tinted with the card's theme color.
-   - Layout:
-     - Row 1: **Send** (left) & **Earn** (right) - Two-column.
-     - Row 2: **Sell** - Full-width.
-     - Divider: **FOR ORGANIZATIONS** with horizontal rules.
-     - Row 3: **Fleet Partner** (left) & **Business Account** (right) - Two-column.
-5. **Organizational Grouping**:
-   - Labeled divider between personal and corporate cards: `"FOR ORGANIZATIONS"` with thin horizontal rules.
-6. **Supporting Footer Elements**:
-   - Restyle `"Already have an account? Log in →"` with brand green underline and trailing arrow.
-   - Trust signal line at the bottom: Shield icon + `"Your data is safe with us"` in muted grey.
+1. **Accurate Real-Road Route Engine**:
+   - Replace fake L-shaped curve generator (`createRoadPolyline`) with real-road network routing using Google Maps Directions API / OSRM routing engine.
+   - Fetch real street polylines using `origin` and `destination` GPS coordinates.
+   - Decode Google encoded `overview_polyline` strings into precise `List<LatLng>` coordinates following actual streets, turns, intersections, and roundabouts.
+
+2. **Solid Brand Green Route Line**:
+   - Render routes as solid, vibrant brand green lines (`Color(0xFF00E676)`, `width = 14f`).
+   - Use smooth rounded caps and joints (`JointType.ROUND`, `RoundCap()`).
+   - Remove all dotted/dashed gray line patterns (`Dash`, `Gap`).
+
+3. **Smooth Marker Animation Along Polyline**:
+   - Implement `interpolatePointAlongPolyline(points: List<LatLng>, fraction: Float): LatLng` to calculate exact position along the multi-point street path.
+   - Animate the agent vehicle marker smoothly along the green polyline path as location updates arrive or progress advances.
 
 ---
 
 ## 🛠️ Proposed Changes
 
-### Component 1: Resource Assets
+### Component 1: Real-Road Route Helper & Polyline Decoder
 
-#### [NEW] [role_icon_send.png](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/res/drawable/role_icon_send.png)
-#### [NEW] [role_icon_earn.png](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/res/drawable/role_icon_earn.png)
-#### [NEW] [role_icon_sell.png](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/res/drawable/role_icon_sell.png)
-#### [NEW] [role_icon_fleet_partner.png](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/res/drawable/role_icon_fleet_partner.png)
-#### [NEW] [role_icon_business_account.png](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/res/drawable/role_icon_business_account.png)
-- Copy all 5 PNG files into `app/src/main/res/drawable/`.
+#### [NEW] [RoadRouteService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/RoadRouteService.kt)
+- `fetchRoadRoute(start: LatLng, end: LatLng, apiKey: String): List<LatLng>`: Fetches real street route polylines via Google Maps Directions API / OSRM and decodes `overview_polyline`.
+- `decodePolyline(encoded: String): List<LatLng>`: Lightweight, fast Google Polyline algorithm decoder.
+- `interpolatePointAlongPolyline(points: List<LatLng>, fraction: Float): LatLng`: Calculates exact intermediate coordinates at any progress fraction along the polyline path.
 
 ---
 
-### Component 2: Screen Composable (`UserTypeSelectionScreen.kt`)
+### Component 2: Customer Order Tracking (`TrackOrderScreen.kt`)
 
-#### [MODIFY] [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt)
-- Redesign `UserTypeSelectionScreen` and `RoleCard` composables according to design spec.
-- Ensure all click callbacks (`CUSTOMER`, `FULFILLER`, `MERCHANT`, `FLEET_PARTNER`, `CORPORATE`, `LOGIN`) remain intact.
+#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt)
+- Asynchronously fetch real-road street route points (`RoadRouteService.fetchRoadRoute`).
+- Render solid brand green polyline (`Color(0xFF00E676)`, `width = 14f`, `JointType.ROUND`).
+- Animate agent marker traveling along the street polyline turns.
+
+---
+
+### Component 3: Fulfiller Mission Navigation (`ActiveOrderScreen.kt`)
+
+#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
+- Fetch real-road street route points from agent's live GPS position to pickup/dropoff target.
+- Render solid brand green polyline (`Color(0xFF00E676)`, `width = 14f`, `JointType.ROUND`).
 
 ---
 
 ## 🧪 Verification Plan
 
 ### Automated & Manual Verification
-1. Verify logo is unchanged and pixel-identical.
-2. Verify all 5 PNG icon assets render crisply at `95dp` size.
-3. Test tapping each card -> verify navigation opens the correct onboarding form.
-4. Test tapping "Log in →" -> opens login screen.
-5. Rebuild debug APK (`gradle_build("app:assembleDebug")`) and deploy to connected **Samsung Galaxy S23 Ultra** (`192.168.1.2:42447`).
-6. Stage, commit, and push changes to GitHub `main`.
+1. Open Customer Live Order Tracking (`TrackOrderScreen.kt`) on connected **Samsung Galaxy S23 Ultra** (`192.168.1.2:42447`).
+2. Verify route line follows actual streets and turns (not fake L-shaped lines).
+3. Verify route is a solid, vibrant brand green line (`Color(0xFF00E676)`).
+4. Verify agent marker animates smoothly along the green line.
+5. Open Agent Active Mission (`ActiveOrderScreen.kt`) -> verify navigation polyline follows real streets in solid green.
+6. Rebuild debug APK (`gradle_build("app:assembleDebug")`) and deploy to device.
+7. Stage, commit, and push changes to GitHub `main`.

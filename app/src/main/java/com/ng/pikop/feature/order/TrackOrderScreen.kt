@@ -63,6 +63,9 @@ fun TrackOrderScreen(
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    var realRoadDestinationRoute by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+    var realRoadActiveRoute by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val userId by tokenManager.userId.collectAsState(initial = null)
@@ -285,13 +288,53 @@ fun TrackOrderScreen(
                             ) 
                         }
                         
-                        if (pickupLoc != null && deliveryLoc != null) {
-                            val fulLoc = animatedFulfillerLoc ?: pickupLoc!!
-                            val activeRoute: List<LatLng> = remember(fulLoc, pickupLoc) { createRoadPolyline(fulLoc, pickupLoc!!) }
-                            val destinationRoute: List<LatLng> = remember(pickupLoc, deliveryLoc) { createRoadPolyline(pickupLoc!!, deliveryLoc!!) }
-                            
-                            Polyline(points = activeRoute, color = MaterialTheme.colorScheme.primary, width = 10f)
-                            Polyline(points = destinationRoute, color = Color.Gray, width = 6f, pattern = listOf(Dash(20f), Gap(10f)))
+                        LaunchedEffect(pickupLoc, deliveryLoc) {
+                            val p = pickupLoc
+                            val d = deliveryLoc
+                            if (p != null && d != null) {
+                                realRoadDestinationRoute = RoadRouteService.fetchRoadRoute(p, d, com.ng.pikop.BuildConfig.GOOGLE_MAPS_API_KEY)
+                            }
+                        }
+
+                        LaunchedEffect(animatedFulfillerLoc, pickupLoc, deliveryLoc) {
+                            val ful = animatedFulfillerLoc ?: pickupLoc
+                            val target = if (history.any { it.status == "PICKED_UP" || it.status == "IN_TRANSIT" }) deliveryLoc else pickupLoc
+                            if (ful != null && target != null) {
+                                realRoadActiveRoute = RoadRouteService.fetchRoadRoute(ful, target, com.ng.pikop.BuildConfig.GOOGLE_MAPS_API_KEY)
+                            }
+                        }
+
+                        val brandGreen = Color(0xFF00E676)
+
+                        if (realRoadDestinationRoute.isNotEmpty()) {
+                            Polyline(
+                                points = realRoadDestinationRoute,
+                                color = brandGreen,
+                                width = 14f,
+                                jointType = JointType.ROUND,
+                                startCap = RoundCap(),
+                                endCap = RoundCap()
+                            )
+                        } else if (pickupLoc != null && deliveryLoc != null) {
+                            Polyline(
+                                points = listOf(pickupLoc!!, deliveryLoc!!),
+                                color = brandGreen,
+                                width = 14f,
+                                jointType = JointType.ROUND,
+                                startCap = RoundCap(),
+                                endCap = RoundCap()
+                            )
+                        }
+
+                        if (realRoadActiveRoute.isNotEmpty()) {
+                            Polyline(
+                                points = realRoadActiveRoute,
+                                color = brandGreen,
+                                width = 14f,
+                                jointType = JointType.ROUND,
+                                startCap = RoundCap(),
+                                endCap = RoundCap()
+                            )
                         }
                     }
                 }

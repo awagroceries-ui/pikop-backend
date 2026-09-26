@@ -42,6 +42,8 @@ import androidx.core.content.FileProvider
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.JointType
+import com.google.android.gms.maps.model.RoundCap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -78,6 +80,7 @@ fun ActiveOrderScreen(
     var isFetchingDetails by remember { mutableStateOf(true) }
     
     var queueCandidates by remember { mutableStateOf<List<OfferResponse>>(emptyList()) }
+    var realRoadActiveRoute by remember { mutableStateOf<List<LatLng>>(emptyList()) }
     
     var pickupCode by remember { mutableStateOf("") }
     var deliveryCode by remember { mutableStateOf("") }
@@ -378,15 +381,31 @@ fun ActiveOrderScreen(
                                 )
                             )
                             
-                            // Route Polyline (Real Road Network Navigation)
-                            fulfillerLocation?.let { 
-                                val routePoints: List<LatLng> = remember(it, targetLatLng) {
-                                    com.ng.pikop.feature.order.createRoadPolyline(it, targetLatLng)
+                            LaunchedEffect(fulfillerLocation, targetLatLng) {
+                                val ful = fulfillerLocation
+                                if (ful != null && (targetLatLng.latitude != 0.0 || targetLatLng.longitude != 0.0)) {
+                                    realRoadActiveRoute = RoadRouteService.fetchRoadRoute(ful, targetLatLng, com.ng.pikop.BuildConfig.GOOGLE_MAPS_API_KEY)
                                 }
+                            }
+
+                            val brandGreen = Color(0xFF00E676)
+                            if (realRoadActiveRoute.isNotEmpty()) {
                                 Polyline(
-                                    points = routePoints,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    width = 10f
+                                    points = realRoadActiveRoute,
+                                    color = brandGreen,
+                                    width = 14f,
+                                    jointType = JointType.ROUND,
+                                    startCap = RoundCap(),
+                                    endCap = RoundCap()
+                                )
+                            } else fulfillerLocation?.let { 
+                                Polyline(
+                                    points = listOf(it, targetLatLng),
+                                    color = brandGreen,
+                                    width = 14f,
+                                    jointType = JointType.ROUND,
+                                    startCap = RoundCap(),
+                                    endCap = RoundCap()
                                 )
                             }
                         }
