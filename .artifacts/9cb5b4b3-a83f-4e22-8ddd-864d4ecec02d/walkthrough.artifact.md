@@ -1,47 +1,32 @@
-# 🚀 Walkthrough: Redesigned Role Selection Screen ("How do you want to use Pikop?")
+# 🚀 Walkthrough: Real-Road Live Tracking Map Route, Solid Green Lines & Marker Animation
 
-Upgraded the signup role selection screen (`UserTypeSelectionScreen.kt`) to match the approved glowing, 3D dimensional reference design, integrating production transparent PNG icon assets.
+Upgraded live tracking and mission navigation maps in `TrackOrderScreen.kt` and `ActiveOrderScreen.kt` to follow actual streets and turns with solid, vibrant brand green lines (`Color(0xFF00E676)`) and smooth along-the-route marker travel.
 
 ---
 
 ## 🛠️ Summary of Implementation
 
-### 1. Transparent PNG Icon Assets
-- Copied 5 production icon assets from `Pikop Assets/` into `app/src/main/res/drawable/`:
-  - `role_icon_send.png`
-  - `role_icon_earn.png`
-  - `role_icon_sell.png`
-  - `role_icon_fleet_partner.png`
-  - `role_icon_business_account.png`
+### 1. Real-Road Route & Polyline Engine (`RoadRouteService.kt`)
+- Created [RoadRouteService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/RoadRouteService.kt):
+  - **Real Street Network Routing**: `fetchRoadRoute(start, end, apiKey)` queries the OSRM real-road routing engine and Google Maps Directions API.
+  - **Fast Polyline Decoder**: `decodePolyline(encoded)` decodes Google `overview_polyline` strings into precise `List<LatLng>` coordinates following actual streets, turns, intersections, and roundabouts.
+  - **Along-the-Path Interpolator**: `interpolatePointAlongPolyline(points, fraction)` calculates exact coordinates at any progress fraction along multi-segment real-road polylines.
 
-### 2. Preserved Pikop Logo
-- The top Pikop logo (`R.drawable.pikop_logo`) remains 100% untouched and pixel-identical.
+### 2. Customer Order Tracking (`TrackOrderScreen.kt`)
+- Updated [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt):
+  - Replaced fake L-shaped curve generator (`createRoadPolyline`) with real-road street network points from `RoadRouteService`.
+  - Replaced dotted/dashed gray lines with a **solid, vibrant brand green line** (`Color(0xFF00E676)`, `width = 14f`, `JointType.ROUND`, `RoundCap()`).
+  - Animates the agent vehicle marker traveling along the turns of the green line.
 
-### 3. Heading & Subtitle Formatting
-- Updated [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt):
-  - **Heading**: `"How do you want to\nuse "` in white + `"Pikop?"` in brand green (`#00E676`).
-  - **Subtitle**: `"Choose your experience"` in muted grey (`#9CA3AF`).
-
-### 4. Glowing Role Cards & Layout
-- **Large PNG Icons**: `95dp` high-resolution transparent assets rendered cleanly without extra background circles.
-- **Color-Glow Borders & Tints**:
-  - **Send**: Soft green glow border (`#10B981`) & dark green tint (`#042017`).
-  - **Earn**: Gold/Amber glow border (`#F59E0B`) & dark amber tint (`#261A04`).
-  - **Sell**: Orange/Bronze glow border (`#F97316`) & dark orange tint (`#241004`).
-  - **Fleet Partner**: Soft green glow border (`#10B981`) & dark green tint (`#042017`).
-  - **Business Account**: Soft blue glow border (`#0284C7`) & dark blue tint (`#041829`).
-- **Arrow-Forward Affordance**: Circular arrow button in bottom-right corner of each card color-matched to that card's theme.
-- **Full-Card Click Target**: Tapping anywhere on a card navigates to its respective onboarding flow (`CUSTOMER`, `FULFILLER`, `MERCHANT`, `FLEET_PARTNER`, `CORPORATE`).
-
-### 5. Organizational Grouping & Footer
-- Added **`FOR ORGANIZATIONS`** divider with horizontal rules between personal and corporate cards.
-- Restyled login link: `"Already have an account? Log in →"` with green underline (`#00E676`) and trailing arrow.
-- Added trust signal line: Shield icon + `"Your data is safe with us"` in muted grey (`#71717A`).
+### 3. Fulfiller Active Mission Navigation (`ActiveOrderScreen.kt`)
+- Updated [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt):
+  - Fetches real-road street route polylines from the agent's live GPS position to pickup and dropoff destinations.
+  - Renders navigation routes in **solid brand green** (`Color(0xFF00E676)`, `width = 14f`, `JointType.ROUND`, `RoundCap()`).
 
 ---
 
 ## 🧪 Build & Verification
 
 - Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
-- Analyzed `UserTypeSelectionScreen.kt` & `FulfillerCategorySelectionScreen.kt` with **0 errors**.
-- Changes staged, committed (`ee617075`), and pushed to GitHub `origin/main`.
+- All modified files analyzed with **0 errors**.
+- Changes staged, committed (`4d74fa1a`), and pushed to GitHub `origin/main`.

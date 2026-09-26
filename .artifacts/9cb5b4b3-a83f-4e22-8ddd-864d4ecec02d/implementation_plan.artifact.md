@@ -1,62 +1,51 @@
-# 📋 Implementation Plan: Real-Road Live Tracking Map Route, Solid Green Lines & Marker Animation
+# 📋 Implementation Plan: Compact Role Selection Screen (No-Scroll Viewport) & Dual Light/Dark Theme High-Contrast Legibility
 
-Upgrade live tracking and mission navigation maps in `TrackOrderScreen.kt` and `ActiveOrderScreen.kt` to display accurate real-road street routes (following actual streets and turns) with solid brand green lines (`Color(0xFF00E676)`) and smooth marker animation along the polyline path.
+Resize all elements on `UserTypeSelectionScreen.kt` so the entire screen fits on single-page mobile viewports without any scrolling, and optimize all text (especially grey text) for 100% high-contrast legibility in both light and dark theme modes.
 
 ---
 
-## 🔍 Requirements & Technical Solution
+## 🔍 Research & Layout Dimension Analysis
 
-1. **Accurate Real-Road Route Engine**:
-   - Replace fake L-shaped curve generator (`createRoadPolyline`) with real-road network routing using Google Maps Directions API / OSRM routing engine.
-   - Fetch real street polylines using `origin` and `destination` GPS coordinates.
-   - Decode Google encoded `overview_polyline` strings into precise `List<LatLng>` coordinates following actual streets, turns, intersections, and roundabouts.
+### 1. Single-Page Viewport Dimensions (NO SCROLLING)
+- **Previous Height**: ~880dp (exceeded standard ~700dp-800dp phone screens, requiring vertical scrolling).
+- **Target Compact Height**: ~520dp (fits comfortably on 100% of mobile viewports without scrolling):
+  - **Logo**: Reduced to `60dp` (from `120dp`).
+  - **Heading & Subtitle**: Heading `20sp` / `24sp` line height, Subtitle `12sp`. Compact padding (`4dp`).
+  - **2-Column Cards (Send, Earn, Fleet Partner, Business Account)**: Height reduced to `115dp` (from `190dp`). Icon size `58dp`, title `14sp`, subtitle `10sp`.
+  - **Full-Width Card (Sell)**: Height reduced to `68dp` (from `110dp`). Icon size `52dp`, title `16sp`, subtitle `11sp`.
+  - **"FOR ORGANIZATIONS" Divider**: Compact padding (`8dp`).
+  - **Footer & Trust Signal**: Compact padding (`8dp`).
 
-2. **Solid Brand Green Route Line**:
-   - Render routes as solid, vibrant brand green lines (`Color(0xFF00E676)`, `width = 14f`).
-   - Use smooth rounded caps and joints (`JointType.ROUND`, `RoundCap()`).
-   - Remove all dotted/dashed gray line patterns (`Dash`, `Gap`).
-
-3. **Smooth Marker Animation Along Polyline**:
-   - Implement `interpolatePointAlongPolyline(points: List<LatLng>, fraction: Float): LatLng` to calculate exact position along the multi-point street path.
-   - Animate the agent vehicle marker smoothly along the green polyline path as location updates arrive or progress advances.
+### 2. Dual-Theme High-Contrast Text Legibility
+- **Dark Theme Mode**:
+  - Background: Deep dark (`Color(0xFF0D0E11)`).
+  - Main heading text: Crisp white (`#FFFFFF`) with green brand accent (`#00E676`).
+  - Subtitles, labels, and grey text: High-contrast light slate (`Color(0xFFCBD5E1)` / `#CBD5E1`), delivering > 7:1 contrast ratio against dark backgrounds.
+  - Card containers: Dark tinted glow containers (`#042017`, `#261A04`, `#241004`, `#041829`) with solid glow borders.
+- **Light Theme Mode**:
+  - Background: Light theme surface (`MaterialTheme.colorScheme.background` / `#F8FAFC`).
+  - Main heading text: Deep slate (`#0F172A`) with dark green brand accent (`#008751`).
+  - Subtitles, labels, and grey text: Dark slate grey (`Color(0xFF475569)`), delivering > 7:1 contrast ratio against light backgrounds.
+  - Card containers: Light tinted containers (`#ECFDF5`, `#FFFBEB`, `#FFF7ED`, `#F0F9FF`) with solid borders.
 
 ---
 
 ## 🛠️ Proposed Changes
 
-### Component 1: Real-Road Route Helper & Polyline Decoder
+### Component 1: Screen Composable (`UserTypeSelectionScreen.kt`)
 
-#### [NEW] [RoadRouteService.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/core/network/RoadRouteService.kt)
-- `fetchRoadRoute(start: LatLng, end: LatLng, apiKey: String): List<LatLng>`: Fetches real street route polylines via Google Maps Directions API / OSRM and decodes `overview_polyline`.
-- `decodePolyline(encoded: String): List<LatLng>`: Lightweight, fast Google Polyline algorithm decoder.
-- `interpolatePointAlongPolyline(points: List<LatLng>, fraction: Float): LatLng`: Calculates exact intermediate coordinates at any progress fraction along the polyline path.
-
----
-
-### Component 2: Customer Order Tracking (`TrackOrderScreen.kt`)
-
-#### [MODIFY] [TrackOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/order/TrackOrderScreen.kt)
-- Asynchronously fetch real-road street route points (`RoadRouteService.fetchRoadRoute`).
-- Render solid brand green polyline (`Color(0xFF00E676)`, `width = 14f`, `JointType.ROUND`).
-- Animate agent marker traveling along the street polyline turns.
-
----
-
-### Component 3: Fulfiller Mission Navigation (`ActiveOrderScreen.kt`)
-
-#### [MODIFY] [ActiveOrderScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/fulfiller/ActiveOrderScreen.kt)
-- Fetch real-road street route points from agent's live GPS position to pickup/dropoff target.
-- Render solid brand green polyline (`Color(0xFF00E676)`, `width = 14f`, `JointType.ROUND`).
+#### [MODIFY] [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt)
+- Compact element sizing & spacing for single-page viewport fit without scrolling.
+- Theme-aware color palette using `isSystemInDarkTheme()` or `MaterialTheme.colorScheme` for 100% crisp text visibility in both light and dark theme modes.
 
 ---
 
 ## 🧪 Verification Plan
 
 ### Automated & Manual Verification
-1. Open Customer Live Order Tracking (`TrackOrderScreen.kt`) on connected **Samsung Galaxy S23 Ultra** (`192.168.1.2:42447`).
-2. Verify route line follows actual streets and turns (not fake L-shaped lines).
-3. Verify route is a solid, vibrant brand green line (`Color(0xFF00E676)`).
-4. Verify agent marker animates smoothly along the green line.
-5. Open Agent Active Mission (`ActiveOrderScreen.kt`) -> verify navigation polyline follows real streets in solid green.
-6. Rebuild debug APK (`gradle_build("app:assembleDebug")`) and deploy to device.
-7. Stage, commit, and push changes to GitHub `main`.
+1. Test on connected **Samsung Galaxy S23 Ultra** (`192.168.1.2:42447`).
+2. Verify entire Role Selection Screen fits on screen with ZERO scrolling required.
+3. Test in Dark Theme -> verify grey text (`#CBD5E1`) and title text are crisp, bold, and high-contrast.
+4. Test in Light Theme -> verify grey text (`#475569`) and title text are dark, crisp, and high-contrast.
+5. Rebuild debug APK (`gradle_build("app:assembleDebug")`) and deploy to device.
+6. Stage, commit, and push changes to GitHub `main`.

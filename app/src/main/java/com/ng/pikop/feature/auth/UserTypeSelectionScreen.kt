@@ -3,6 +3,7 @@ package com.ng.pikop.feature.auth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -29,34 +30,41 @@ import com.ng.pikop.R
 
 @Composable
 fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
+    val isDark = isSystemInDarkTheme()
+    val surfaceBg = if (isDark) Color(0xFF0D0E11) else MaterialTheme.colorScheme.background
+    val titleTextColor = if (isDark) Color.White else MaterialTheme.colorScheme.onBackground
+    val greenAccent = if (isDark) Color(0xFF00E676) else Color(0xFF008751)
+    val greyTextColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
+    val dividerRuleColor = if (isDark) Color(0xFF27272A) else Color(0xFFE2E8F0)
+
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFF0D0E11) // Dark background matching reference design
+        color = surfaceBg
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 24.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Pikop Logo (Kept 100% untouched)
             Image(
                 painter = painterResource(id = R.drawable.pikop_logo),
                 contentDescription = "Pikop Logo",
-                modifier = Modifier.size(120.dp)
+                modifier = Modifier.size(60.dp)
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Heading: "How do you want to use Pikop?"
             val headingText = buildAnnotatedString {
-                withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp)) {
-                    append("How do you want to\nuse ")
+                withStyle(SpanStyle(color = titleTextColor, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)) {
+                    append("How do you want to use ")
                 }
-                withStyle(SpanStyle(color = Color(0xFF00E676), fontWeight = FontWeight.ExtraBold, fontSize = 28.sp)) {
+                withStyle(SpanStyle(color = greenAccent, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)) {
                     append("Pikop?")
                 }
             }
@@ -64,33 +72,34 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
             Text(
                 text = headingText,
                 textAlign = TextAlign.Center,
-                lineHeight = 34.sp,
+                lineHeight = 24.sp,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             // Subtitle
             Text(
                 text = "Choose your experience",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF9CA3AF),
+                style = MaterialTheme.typography.bodySmall,
+                color = greyTextColor,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Row 1: Send (Left) & Earn (Right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 RoleCard(
                     title = "Send",
                     subtitle = "Request a delivery",
                     iconRes = R.drawable.role_icon_send,
-                    themeColor = Color(0xFF10B981),
-                    containerColor = Color(0xFF042017),
+                    themeColor = if (isDark) Color(0xFF10B981) else Color(0xFF059669),
+                    containerColor = if (isDark) Color(0xFF042017) else Color(0xFFECFDF5),
+                    isDark = isDark,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("CUSTOMER") }
                 )
@@ -98,23 +107,25 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     title = "Earn",
                     subtitle = "Deliver & earn",
                     iconRes = R.drawable.role_icon_earn,
-                    themeColor = Color(0xFFF59E0B),
-                    containerColor = Color(0xFF261A04),
+                    themeColor = if (isDark) Color(0xFFF59E0B) else Color(0xFFD97706),
+                    containerColor = if (isDark) Color(0xFF261A04) else Color(0xFFFFFBEB),
+                    isDark = isDark,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("FULFILLER") }
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Row 2: Sell (Full Width)
             RoleCard(
                 title = "Sell",
                 subtitle = "List products & grow",
                 iconRes = R.drawable.role_icon_sell,
-                themeColor = Color(0xFFF97316),
-                containerColor = Color(0xFF241004),
+                themeColor = if (isDark) Color(0xFFF97316) else Color(0xFFEA580C),
+                containerColor = if (isDark) Color(0xFF241004) else Color(0xFFFFF7ED),
                 isFullWidth = true,
+                isDark = isDark,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { onRoleSelected("MERCHANT") }
             )
@@ -123,25 +134,25 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 20.dp),
+                    .padding(vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
-                    color = Color(0xFF27272A),
+                    color = dividerRuleColor,
                     thickness = 1.dp
                 )
                 Text(
                     text = "FOR ORGANIZATIONS",
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF71717A),
-                    letterSpacing = 2.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    color = greyTextColor,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp)
                 )
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
-                    color = Color(0xFF27272A),
+                    color = dividerRuleColor,
                     thickness = 1.dp
                 )
             }
@@ -149,14 +160,15 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
             // Row 3: Fleet Partner (Left) & Business Account (Right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 RoleCard(
                     title = "Fleet Partner",
                     subtitle = "Manage your fleet",
                     iconRes = R.drawable.role_icon_fleet_partner,
-                    themeColor = Color(0xFF10B981),
-                    containerColor = Color(0xFF042017),
+                    themeColor = if (isDark) Color(0xFF10B981) else Color(0xFF059669),
+                    containerColor = if (isDark) Color(0xFF042017) else Color(0xFFECFDF5),
+                    isDark = isDark,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("FLEET_PARTNER") }
                 )
@@ -164,14 +176,15 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                     title = "Business Account",
                     subtitle = "Team billing & controls",
                     iconRes = R.drawable.role_icon_business_account,
-                    themeColor = Color(0xFF0284C7),
-                    containerColor = Color(0xFF041829),
+                    themeColor = if (isDark) Color(0xFF0284C7) else Color(0xFF0284C7),
+                    containerColor = if (isDark) Color(0xFF041829) else Color(0xFFF0F9FF),
+                    isDark = isDark,
                     modifier = Modifier.weight(1f),
                     onClick = { onRoleSelected("CORPORATE") }
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Footer: Log In Link
             Row(
@@ -180,26 +193,26 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
             ) {
                 Text(
                     text = "Already have an account? ",
-                    color = Color(0xFF9CA3AF),
-                    fontSize = 14.sp
+                    color = greyTextColor,
+                    fontSize = 13.sp
                 )
                 Text(
                     text = "Log in",
-                    color = Color(0xFF00E676),
-                    fontSize = 14.sp,
+                    color = greenAccent,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     textDecoration = TextDecoration.Underline
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(3.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    tint = Color(0xFF00E676),
-                    modifier = Modifier.size(16.dp)
+                    tint = greenAccent,
+                    modifier = Modifier.size(14.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Trust Signal
             Row(
@@ -208,18 +221,18 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                 Icon(
                     imageVector = Icons.Default.Shield,
                     contentDescription = null,
-                    tint = Color(0xFF00E676),
-                    modifier = Modifier.size(14.dp)
+                    tint = greenAccent,
+                    modifier = Modifier.size(13.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "Your data is safe with us",
-                    color = Color(0xFF71717A),
-                    fontSize = 12.sp
+                    color = greyTextColor,
+                    fontSize = 11.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(6.dp))
         }
     }
 }
@@ -232,16 +245,20 @@ fun RoleCard(
     themeColor: Color,
     containerColor: Color,
     isFullWidth: Boolean = false,
+    isDark: Boolean = true,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val cardTitleColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+    val cardSubtitleColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
+
     Card(
         modifier = modifier
-            .height(if (isFullWidth) 110.dp else 190.dp)
+            .height(if (isFullWidth) 68.dp else 112.dp)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.2.dp, themeColor.copy(alpha = 0.55f)),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.2.dp, themeColor.copy(alpha = if (isDark) 0.55f else 0.7f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -250,27 +267,26 @@ fun RoleCard(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
                         painter = painterResource(id = iconRes),
                         contentDescription = title,
-                        modifier = Modifier.size(90.dp)
+                        modifier = Modifier.size(52.dp)
                     )
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = title,
-                            fontSize = 20.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
+                            color = cardTitleColor
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = subtitle,
-                            fontSize = 12.sp,
-                            color = Color(0xFF9CA3AF)
+                            fontSize = 11.sp,
+                            color = cardSubtitleColor
                         )
                     }
                     // Circular Arrow Affordance
@@ -278,14 +294,14 @@ fun RoleCard(
                         shape = CircleShape,
                         color = Color.Transparent,
                         border = BorderStroke(1.dp, themeColor.copy(alpha = 0.5f)),
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(26.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
                                 tint = themeColor,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                         }
                     }
@@ -295,28 +311,27 @@ fun RoleCard(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 8.dp, vertical = 14.dp),
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Image(
                         painter = painterResource(id = iconRes),
                         contentDescription = title,
-                        modifier = Modifier.size(90.dp)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = title,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        textAlign = TextAlign.Center
+                        modifier = Modifier.size(56.dp)
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
+                        text = title,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = cardTitleColor,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
                         text = subtitle,
-                        fontSize = 11.sp,
-                        color = Color(0xFF9CA3AF),
+                        fontSize = 10.sp,
+                        color = cardSubtitleColor,
                         textAlign = TextAlign.Center,
                         maxLines = 1
                     )
@@ -329,15 +344,15 @@ fun RoleCard(
                     border = BorderStroke(1.dp, themeColor.copy(alpha = 0.5f)),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(10.dp)
-                        .size(28.dp)
+                        .padding(6.dp)
+                        .size(22.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             tint = themeColor,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(11.dp)
                         )
                     }
                 }
@@ -357,7 +372,7 @@ fun RoleCard(
 ) {
     Card(
         modifier = modifier
-            .height(110.dp)
+            .height(100.dp)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = iconColor.copy(alpha = 0.12f)
@@ -375,10 +390,10 @@ fun RoleCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(30.dp),
+                modifier = Modifier.size(28.dp),
                 tint = iconColor
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
