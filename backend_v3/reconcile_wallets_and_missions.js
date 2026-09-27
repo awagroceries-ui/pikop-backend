@@ -52,13 +52,14 @@ async function reconcileWalletsAndMissions() {
         console.log("--- STAGE 2: Reconciling Missing Fulfiller Linkages ---");
         await client.query('BEGIN');
 
+        let relinkedCount = 0;
+
         // Case A: Fulfiller ID is missing on DELIVERED order, but queued_for_fulfiller_id exists
         const { rows: unlinkedQueued } = await client.query(`
             SELECT id, queued_for_fulfiller_id FROM orders
             WHERE status = 'DELIVERED' AND fulfiller_id IS NULL AND queued_for_fulfiller_id IS NOT NULL
         `);
 
-        let relinkedCount = 0;
         for (const uq of unlinkedQueued) {
             await client.query(
                 "UPDATE orders SET fulfiller_id = $1 WHERE id = $2",
@@ -68,26 +69,20 @@ async function reconcileWalletsAndMissions() {
             console.log(`  [Relink] Order #${uq.id} linked to Fulfiller #${uq.queued_for_fulfiller_id} (from queue)`);
         }
 
-        // Case B: Fulfiller ID missing on DELIVERED order, but status history or chat logs record fulfiller_id
-        const { rows: unlinkedLogs } = await client.query(`
-            SELECT DISTINCT o.id, h.description
-            FROM orders o
-            JOIN order_status_history h ON h.order_id = o.id
-            WHERE o.status = 'DELIVERED' AND o.fulfiller_id IS NULL AND h.description LIKE '%Driver assigned%'
+        // Case B: Fulfiller ID missing on DELIVERED order, resolve from chat messages
+        const { rows: unlinkedMessages } = await client.query(`
+            SELECT DISTINCT m.order_id, m.sender_id
+            FROM messages m
+            JOIN orders o ON o.id = m.order_id
+            WHERE o.status = 'DELIVERED' AND o.fulfiller_id IS NULL AND m.sender_type = 'FULFILLER'
         `);
 
-        for (const ul of unlinkedLogs) {
-            const { rows: chatSender } = await client.query(
-                "SELECT sender_id FROM chat_messages WHERE order_id = $1 AND sender_type = 'FULFILLER' LIMIT 1",
-                [ul.id]
-            );
-            if (chatSender.rows.length > 0) {
-                const fRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1", [chatSender[0].sender_id]);
-                if (fRes.rows.length > 0) {
-                    await client.query("UPDATE orders SET fulfiller_id = $1 WHERE id = $2", [fRes.rows[0].id, ul.id]);
-                    relinkedCount++;
-                    console.log(`  [Relink] Order #${ul.id} linked to Fulfiller #${fRes.rows[0].id} (from chat logs)`);
-                }
+        for (const um of unlinkedMessages) {
+            const fRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1", [um.sender_id]);
+            if (fRes.rows.length > 0) {
+                await client.query("UPDATE orders SET fulfiller_id = $1 WHERE id = $2", [fRes.rows[0].id, um.order_id]);
+                relinkedCount++;
+                console.log(`  [Relink] Order #${um.order_id} linked to Fulfiller #${fRes.rows[0].id} (from chat history)`);
             }
         }
 
