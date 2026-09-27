@@ -65,7 +65,8 @@ fun CustomerHomeScreen(
 
                 val wallet = apiService.getWalletInfo()
                 walletBalance = wallet.actualBalance
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                android.util.Log.e("CustomerHome", "Home fetch error: ${e.message}", e)
             } finally {
                 isLoading = false
             }

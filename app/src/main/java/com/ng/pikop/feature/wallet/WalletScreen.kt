@@ -59,7 +59,9 @@ fun WalletScreen(
                 balance = response.actualBalance
                 pendingBalance = response.actualPendingBalance
                 transactions = response.actualTransactions
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.e("WalletScreen", "Fetch wallet error: ${e.message}", e)
+            }
             isLoading = false
         }
     }

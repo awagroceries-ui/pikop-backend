@@ -403,7 +403,9 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
             if ((data.status == "DELIVERED" || data.status == "RELEASED") && data.customer_rating == null) {
                 showRatingDialog = true
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("TrackOrder", "Fetch details error: ${e.message}", e)
+        }
     }
 
     Surface(

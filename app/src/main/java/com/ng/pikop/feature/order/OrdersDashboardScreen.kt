@@ -69,7 +69,7 @@ fun OrdersDashboardScreen(
                     IconButton(onClick = { 
                         scope.launch {
                             isLoading = true
-                            try { orders = apiService.getUserOrders() } catch (e: Exception) {}
+                            try { orders = apiService.getUserOrders() } catch (e: Exception) { android.util.Log.e("OrdersDashboard", "Fetch orders error: ${e.message}", e) }
                             isLoading = false
                         }
                     }) {
