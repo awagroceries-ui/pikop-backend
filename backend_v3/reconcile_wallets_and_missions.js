@@ -10,6 +10,74 @@ async function reconcileWalletsAndMissions() {
 
     try {
         // ----------------------------------------------------
+        // STAGE 0: PURGE ORPHANED WALLETS (DELETED/NON-EXISTENT ACCOUNTS)
+        // ----------------------------------------------------
+        console.log("--- STAGE 0: Purging Orphaned Wallets for Deleted/Non-Existent Entities ---");
+        await client.query('BEGIN');
+
+        // 1. User Wallets without valid user row
+        const { rows: orphanedUserWallets } = await client.query(`
+            SELECT w.id, w.owner_id, w.owner_type, w.balance, w.pending_balance
+            FROM wallets w
+            WHERE w.owner_type = 'USER'
+              AND w.owner_id ~ '^[0-9]+$'
+              AND w.owner_id::integer NOT IN (SELECT id FROM users)
+        `);
+
+        // 2. Fulfiller Wallets without valid fulfiller row
+        const { rows: orphanedFulfillerWallets } = await client.query(`
+            SELECT w.id, w.owner_id, w.owner_type, w.balance, w.pending_balance
+            FROM wallets w
+            WHERE w.owner_type = 'FULFILLER'
+              AND w.owner_id ~ '^[0-9]+$'
+              AND w.owner_id::integer NOT IN (SELECT id FROM fulfillers)
+        `);
+
+        // 3. Merchant / Vendor / Kitchen Wallets without valid entity or user row
+        const { rows: orphanedMerchantWallets } = await client.query(`
+            SELECT w.id, w.owner_id, w.owner_type, w.balance, w.pending_balance
+            FROM wallets w
+            WHERE w.owner_type IN ('MERCHANT', 'VENDOR', 'KITCHEN')
+              AND w.owner_id ~ '^[0-9]+$'
+              AND w.owner_id::integer NOT IN (SELECT id FROM merchant_accounts)
+              AND w.owner_id::integer NOT IN (SELECT id FROM vendors)
+              AND w.owner_id::integer NOT IN (SELECT id FROM kitchens)
+              AND w.owner_id::integer NOT IN (SELECT id FROM users)
+        `);
+
+        // 4. Corporate Wallets without valid corporate account
+        const { rows: orphanedCorporateWallets } = await client.query(`
+            SELECT w.id, w.owner_id, w.owner_type, w.balance, w.pending_balance
+            FROM wallets w
+            WHERE w.owner_type = 'CORPORATE'
+              AND w.owner_id ~ '^[0-9]+$'
+              AND w.owner_id::integer NOT IN (SELECT id FROM corporate_accounts)
+        `);
+
+        const allOrphans = [
+            ...orphanedUserWallets,
+            ...orphanedFulfillerWallets,
+            ...orphanedMerchantWallets,
+            ...orphanedCorporateWallets
+        ];
+
+        let purgedCount = 0;
+        let purgedBalanceTotal = 0;
+
+        for (const ow of allOrphans) {
+            // Delete withdrawals associated with this orphaned wallet
+            await client.query("DELETE FROM withdrawals WHERE wallet_id = $1", [ow.id]);
+            // Delete wallet (wallet_ledger_entries cascades)
+            await client.query("DELETE FROM wallets WHERE id = $1", [ow.id]);
+            purgedCount++;
+            purgedBalanceTotal += parseFloat(ow.balance || 0);
+            console.log(`  [Purge] Deleted Orphaned Wallet ${ow.id} (${ow.owner_type}:${ow.owner_id}) with Balance: ₦${parseFloat(ow.balance || 0).toFixed(2)}`);
+        }
+
+        await client.query('COMMIT');
+        console.log(`✅ Stage 0 complete. Purged ${purgedCount} orphaned wallets (Total Purged Balance: ₦${purgedBalanceTotal.toFixed(2)}).\n`);
+
+        // ----------------------------------------------------
         // STAGE 1: UNIFY FULFILLER WALLETS INTO USER WALLETS
         // ----------------------------------------------------
         console.log("--- STAGE 1: Unifying Fulfiller & User Wallets ---");
