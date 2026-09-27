@@ -601,6 +601,21 @@ const verifyPayment = async (req, res) => {
         });
         const tx = response.data.data;
         if (tx.status === 'success') {
+            const m = typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : tx.metadata;
+
+            // Handle Topup Verification
+            if (m?.type === 'TOPUP' || m?.type === 'wallet_topup') {
+                const client = await db.pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    const targetUserId = m.user_id || m.userId;
+                    const walletId = await walletService.ensureWalletExists(client, 'USER', targetUserId);
+                    await walletService.recordEntry(client, walletId, 'CREDIT', tx.amount / 100, 'TOPUP', `Top-up Ref: ${reference}`);
+                    await client.query('COMMIT');
+                } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
+                return res.status(200).json({ success: true, status: 'PAID', type: 'TOPUP' });
+            }
+
             const client = await db.pool.connect();
             let orderId;
             try {

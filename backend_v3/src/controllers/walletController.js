@@ -167,10 +167,11 @@ const initializeTopup = async (req, res) => {
             amount: koboAmount,
             email,
             currency: 'NGN',
-            callback_url: 'pikop://wallet/topup/success',
+            callback_url: 'pikop://payment/success',
             channels: ['card', 'bank', 'ussd', 'bank_transfer', 'qr', 'mobile_money'],
             metadata: {
                 user_id: userId,
+                userId: userId,
                 type: 'TOPUP'
             }
         };
