@@ -441,11 +441,12 @@ const handleWebhook = async (req, res) => {
     }
 
     // 3. Handle Wallet Top-up
-    if (m?.type === 'TOPUP') {
+    if (m?.type === 'TOPUP' || m?.type === 'wallet_topup') {
         const client = await db.pool.connect();
         try {
             await client.query('BEGIN');
-            const walletId = await walletService.ensureWalletExists(client, 'USER', m.user_id);
+            const targetUserId = m.user_id || m.userId;
+            const walletId = await walletService.ensureWalletExists(client, 'USER', targetUserId);
             await walletService.recordEntry(client, walletId, 'CREDIT', data.amount/100, 'TOPUP', `Top-up Ref: ${reference}`);
             await client.query('COMMIT');
         } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
