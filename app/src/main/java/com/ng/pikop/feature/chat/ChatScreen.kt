@@ -219,9 +219,14 @@ fun ChatScreen(
                         onValueChange = { inputText = it },
                         placeholder = { Text("Type a message...", color = Color.Gray) },
                         modifier = Modifier.weight(1f).clip(RoundedCornerShape(24.dp)),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.Black),
                         colors = TextFieldDefaults.colors(
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black,
                             focusedContainerColor = Color(0xFFF0F0F0),
                             unfocusedContainerColor = Color(0xFFF0F0F0),
+                            focusedPlaceholderColor = Color.Gray,
+                            unfocusedPlaceholderColor = Color.Gray,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         ),

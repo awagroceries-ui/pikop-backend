@@ -225,11 +225,23 @@ const createOrder = async (req, res) => {
  */
 const acceptOrder = async (req, res) => {
   const { orderId } = req.params;
-  const { fulfillerId } = req.body;
+  let { fulfillerId } = req.body;
 
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
+
+    // Auto-resolve fulfillerId if omitted or empty
+    if (!fulfillerId) {
+      const fulfillerRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1", [req.user.id]);
+      if (fulfillerRes.rows.length > 0) {
+        fulfillerId = fulfillerRes.rows[0].id;
+      } else {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Fulfiller profile not found for this user' });
+      }
+    }
+
     const { rows } = await client.query("SELECT id, status FROM orders WHERE id = $1 FOR UPDATE", [orderId]);
     if (rows.length === 0 || rows[0].status !== 'SEARCHING') {
       await client.query('ROLLBACK');

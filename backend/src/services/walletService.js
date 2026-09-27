@@ -18,20 +18,30 @@ const processDeliveryPayment = async (orderId) => {
     if (orderRes.rows.length === 0) throw new Error('Order not found');
 
     const { total_fare, fulfiller_id } = orderRes.rows[0];
+    if (!fulfiller_id) throw new Error('No fulfiller assigned to order');
+
+    // Resolve fulfiller's user_id from fulfillers table so wallet ownership is user_id
+    const fulfillerUserRes = await client.query(
+      'SELECT user_id FROM fulfillers WHERE id = $1',
+      [fulfiller_id]
+    );
+    if (fulfillerUserRes.rows.length === 0) throw new Error('Fulfiller not found');
+
+    const fulfillerUserId = fulfillerUserRes.rows[0].user_id;
     const fulfillerShare = (total_fare * 0.75).toFixed(2);
     const platformShare = (total_fare * 0.25).toFixed(2);
 
-    // 2. Get/Create Fulfiller Wallet
+    // 2. Get/Create Fulfiller Wallet (owner_id = fulfillerUserId)
     let fulfillerWalletRes = await client.query(
       "SELECT id FROM wallets WHERE owner_id = $1 AND owner_type = 'FULFILLER' FOR UPDATE",
-      [fulfiller_id]
+      [fulfillerUserId]
     );
 
     let fulfillerWalletId;
     if (fulfillerWalletRes.rows.length === 0) {
       const newWallet = await client.query(
         "INSERT INTO wallets (owner_id, owner_type, balance) VALUES ($1, 'FULFILLER', 0) RETURNING id",
-        [fulfiller_id]
+        [fulfillerUserId]
       );
       fulfillerWalletId = newWallet.rows[0].id;
     } else {
