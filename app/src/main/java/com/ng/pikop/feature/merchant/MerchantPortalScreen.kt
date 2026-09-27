@@ -138,7 +138,7 @@ fun MerchantPortalScreen(
             ) {
                 Icon(Icons.Default.ErrorOutline, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(errorMessage.value!!, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(errorMessage.value ?: "Error loading portal data", textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(onClick = { fetchDashboard() }) { Text("Retry") }
             }

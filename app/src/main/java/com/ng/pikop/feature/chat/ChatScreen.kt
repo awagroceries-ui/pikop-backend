@@ -60,17 +60,21 @@ fun ChatScreen(
         isLoading = true
         scope.launch {
             try {
-                val history = if (isSupport) {
-                    apiService.getSupportMessages(conversationId!!)
+                val history = if (isSupport && !conversationId.isNullOrBlank()) {
+                    apiService.getSupportMessages(conversationId)
+                } else if (!orderId.isNullOrBlank()) {
+                    apiService.getOrderMessages(orderId)
                 } else {
-                    apiService.getOrderMessages(orderId!!)
+                    emptyList()
                 }
                 messages.clear()
                 messages.addAll(history)
                 if (messages.isNotEmpty()) {
                     listState.animateScrollToItem(messages.size - 1)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.e("ChatScreen", "Refresh history error: ${e.message}", e)
+            }
             isLoading = false
         }
     }

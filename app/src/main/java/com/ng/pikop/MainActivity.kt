@@ -259,53 +259,54 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
 
     // Profile Auto-Sync & Push Token Registration
     LaunchedEffect(accessToken) {
-        if (accessToken != null) {
-            // Socket Connectivity
-            userId?.let { com.ng.pikop.core.network.SocketManager.connect(it) }
+        val currentToken = accessToken ?: return@LaunchedEffect
+        // Socket Connectivity
+        userId?.let { com.ng.pikop.core.network.SocketManager.connect(it) }
 
-            // 1. Sync Profile Data and Start Background Approval Monitoring
-            scope.launch {
-                while (true) {
-                    try {
-                        val api = ApiService.create(tokenManager)
-                        val profile = api.getUserProfile()
-                        
-                        // Check if status changed
-                        val currentKyc = tokenManager.kycStatus.first()
-                        if (profile.kyc_status != currentKyc) {
-                            android.util.Log.d("PikopSync", "KYC Status Update detected: ${profile.kyc_status}")
-                        }
-
-                        tokenManager.saveTokens(
-                            accessToken = accessToken!!,
-                            refreshToken = tokenManager.refreshToken.first() ?: "",
-                            userId = userId,
-                            email = userEmail ?: "",
-                            role = profile.role ?: userRole ?: "CUSTOMER",
-                            name = profile.full_name,
-                            phone = profile.phone,
-                            isVerified = isVerified,
-                            referralCode = referralCode,
-                            kycStatus = profile.kyc_status
-                        )
-                    } catch (e: Exception) {
-                        android.util.Log.e("PikopSync", "Profile sync failed: ${e.message}")
-                    }
+        // 1. Sync Profile Data and Start Background Approval Monitoring
+        scope.launch {
+            while (true) {
+                val activeToken = tokenManager.accessToken.first() ?: break
+                try {
+                    val api = ApiService.create(tokenManager)
+                    val profile = api.getUserProfile()
                     
-                    // If verified, we can stop or slow down polling
-                    val status = tokenManager.kycStatus.first()
-                    if (status == "VERIFIED") {
-                        delay(300000) // 5 mins if verified
-                    } else {
-                        delay(60000) // 1 min if pending/not started
+                    // Check if status changed
+                    val currentKyc = tokenManager.kycStatus.first()
+                    if (profile.kyc_status != currentKyc) {
+                        android.util.Log.d("PikopSync", "KYC Status Update detected: ${profile.kyc_status}")
                     }
+
+                    tokenManager.saveTokens(
+                        accessToken = activeToken,
+                        refreshToken = tokenManager.refreshToken.first() ?: "",
+                        userId = userId,
+                        email = userEmail ?: "",
+                        role = profile.role ?: userRole ?: "CUSTOMER",
+                        name = profile.full_name,
+                        phone = profile.phone,
+                        isVerified = isVerified,
+                        referralCode = referralCode,
+                        kycStatus = profile.kyc_status
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("PikopSync", "Profile sync failed: ${e.message}")
+                }
+                
+                // If verified, we can stop or slow down polling
+                val status = tokenManager.kycStatus.first()
+                if (status == "VERIFIED") {
+                    delay(300000) // 5 mins if verified
+                } else {
+                    delay(60000) // 1 min if pending/not started
                 }
             }
+        }
 
-            // 2. FCM Token Registration
-            try {
-                val apps = FirebaseApp.getApps(context)
-                if (apps.isNotEmpty()) {
+        // 2. FCM Token Registration
+        try {
+            val apps = FirebaseApp.getApps(context)
+            if (apps.isNotEmpty()) {
                 FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                     if (task.isSuccessful) {
                         val token = task.result
@@ -323,14 +324,13 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                         android.util.Log.w("PikopFCM", "Fetching FCM registration token failed", task.exception)
                     }
                 }
-                } else {
-                    // Fallback: Try to initialize if somehow missed
-                    try {
-                        FirebaseApp.initializeApp(context)
-                    } catch (e: Exception) {}
-                }
-            } catch (e: Throwable) {}
-        }
+            } else {
+                // Fallback: Try to initialize if somehow missed
+                try {
+                    FirebaseApp.initializeApp(context)
+                } catch (e: Exception) {}
+            }
+        } catch (e: Throwable) {}
     }
 
     val showCelebration by celebrationViewModel.showCelebration.collectAsState()

@@ -163,19 +163,22 @@ fun CommerceCheckoutScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Item Header
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage(
-                            model = "https://api.pikop.com.ng${item!!.photo_url}",
-                            contentDescription = null,
-                            modifier = Modifier.size(80.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(item!!.name, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Text(item!!.vendor_name, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                            Text("₦${"%,.2f".format(item!!.price)}", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                val currentItem = item
+                if (currentItem != null) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            AsyncImage(
+                                model = "https://api.pikop.com.ng${currentItem.photo_url}",
+                                contentDescription = null,
+                                modifier = Modifier.size(80.dp),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(currentItem.name, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                Text(currentItem.vendor_name, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                Text("₦${"%,.2f".format(currentItem.price)}", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                            }
                         }
                     }
                 }

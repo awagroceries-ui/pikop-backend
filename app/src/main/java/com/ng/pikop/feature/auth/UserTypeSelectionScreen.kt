@@ -94,7 +94,7 @@ fun UserTypeSelectionScreen(onRoleSelected: (String) -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 RoleCard(
-                    title = "Send",
+                    title = "Send & Shop",
                     subtitle = "Request a delivery",
                     iconRes = R.drawable.role_icon_send,
                     themeColor = if (isDark) Color(0xFF10B981) else Color(0xFF059669),
