@@ -551,6 +551,22 @@ data class CreateCorporateRequest(
     val cac_document_url: String? = null
 )
 
+data class CorporateOrder(
+    val id: Int,
+    val status: String,
+    val total_fare: Double,
+    val item_description: String? = null,
+    val pickup_address: String? = null,
+    val delivery_address: String? = null,
+    val created_at: String? = null,
+    val staff_name: String? = null
+)
+
+data class CorporateOrdersResponse(
+    val success: Boolean,
+    val data: List<CorporateOrder> = emptyList()
+)
+
 data class CreateProductRequest(
     val vendor_id: String,
     val name: String,
@@ -1228,11 +1244,20 @@ interface ApiService {
     @GET("api/v1/corporate/dashboard")
     suspend fun getCorporateDashboard(): CorporateDashboardResponse
 
+    @GET("api/v1/corporate/orders")
+    suspend fun getCorporateOrders(): CorporateOrdersResponse
+
+    @POST("api/v1/corporate/wallet/topup")
+    suspend fun initializeCorporateTopup(@Body request: Map<String, Double>): PaymentInitializationResponse
+
     @GET("api/v1/corporate/staff")
     suspend fun getCorporateStaff(): CorporateStaffResponse
 
     @POST("api/v1/corporate/staff")
     suspend fun addStaffMember(@Body request: Map<String, String>): AuthResponse
+
+    @DELETE("api/v1/corporate/staff/{userId}")
+    suspend fun removeCorporateStaff(@retrofit2.http.Path("userId") userId: Int): AuthResponse
 
     @GET("api/v1/corporate/my-authorizations")
     suspend fun getMyAuthorizations(): CorporateAccountsResponse

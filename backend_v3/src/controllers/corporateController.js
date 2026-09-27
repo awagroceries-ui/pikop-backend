@@ -1,5 +1,7 @@
 const db = require('../config/db');
 const walletService = require('../services/walletService');
+const axios = require('axios');
+const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
 
 /**
  * Stage 2 Onboarding: Corporate Business Verification.
@@ -121,6 +123,67 @@ const getCorporateDashboard = async (req, res) => {
 };
 
 /**
+ * Returns recent 50 orders billed to this corporate account.
+ */
+const getCorporateOrders = async (req, res) => {
+    const adminUserId = req.user.id;
+    try {
+        const { rows } = await db.query(`
+            SELECT o.id, o.status, o.total_fare, o.item_description, o.pickup_address, o.delivery_address, o.created_at, u.full_name as staff_name
+            FROM orders o
+            JOIN users u ON u.id = o.user_id
+            WHERE o.corporate_account_id = (SELECT corporate_account_id FROM corporate_sub_accounts WHERE user_id = $1 AND role = 'ADMIN' LIMIT 1)
+            ORDER BY o.created_at DESC LIMIT 50
+        `, [adminUserId]);
+        res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Initializes a Paystack top-up for Corporate Pool Wallet.
+ */
+const initializeCorporateTopup = async (req, res) => {
+    const adminUserId = req.user.id;
+    const email = req.user.email;
+    const { amount } = req.body;
+
+    try {
+        const { rows: accRes } = await db.query(
+            "SELECT corporate_account_id FROM corporate_sub_accounts WHERE user_id = $1 AND role = 'ADMIN' LIMIT 1",
+            [adminUserId]
+        );
+        if (accRes.length === 0) return res.status(403).json({ success: false, message: 'Unauthorized' });
+        const accountId = accRes[0].corporate_account_id;
+
+        const koboAmount = Math.round(parseFloat(amount) * 100);
+        if (koboAmount < 100) return res.status(400).json({ success: false, message: 'Minimum top-up is ₦1.00' });
+
+        const payload = {
+            amount: koboAmount,
+            email,
+            currency: 'NGN',
+            callback_url: 'pikop://payment/success',
+            channels: ['card', 'bank', 'ussd', 'bank_transfer', 'qr', 'mobile_money'],
+            metadata: {
+                corporate_account_id: accountId,
+                userId: adminUserId,
+                type: 'CORPORATE_TOPUP'
+            }
+        };
+
+        const response = await axios.post('https://api.paystack.co/transaction/initialize', payload, {
+            headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` }
+        });
+
+        res.status(200).json(response.data.data);
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+/**
  * Authorizes a new user (staff) via email.
  */
 const addStaffMember = async (req, res) => {
@@ -153,6 +216,32 @@ const addStaffMember = async (req, res) => {
         );
 
         res.status(201).json({ success: true, message: 'Staff member authorized.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Removes a staff member from corporate sub accounts.
+ */
+const removeStaffMember = async (req, res) => {
+    const adminUserId = req.user.id;
+    const targetUserId = req.params.userId;
+
+    try {
+        const { rows: accRes } = await db.query(
+            "SELECT corporate_account_id FROM corporate_sub_accounts WHERE user_id = $1 AND role = 'ADMIN' LIMIT 1",
+            [adminUserId]
+        );
+        if (accRes.length === 0) return res.status(403).json({ success: false, message: 'Unauthorized' });
+        const accountId = accRes[0].corporate_account_id;
+
+        await db.query(
+            "DELETE FROM corporate_sub_accounts WHERE corporate_account_id = $1 AND user_id = $2 AND role != 'ADMIN'",
+            [accountId, targetUserId]
+        );
+
+        res.status(200).json({ success: true, message: 'Staff member authorization revoked.' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -198,7 +287,10 @@ const getMyAccounts = async (req, res) => {
 module.exports = {
     setupCorporateProfile,
     getCorporateDashboard,
+    getCorporateOrders,
+    initializeCorporateTopup,
     addStaffMember,
+    removeStaffMember,
     getStaffMembers,
     getMyAccounts
 };

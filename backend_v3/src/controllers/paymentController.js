@@ -453,6 +453,17 @@ const handleWebhook = async (req, res) => {
         return res.sendStatus(200);
     }
 
+    if (m?.type === 'CORPORATE_TOPUP' && m?.corporate_account_id) {
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
+            const walletId = await walletService.ensureWalletExists(client, 'CORPORATE', m.corporate_account_id);
+            await walletService.recordEntry(client, walletId, 'CREDIT', data.amount/100, 'CORPORATE_TOPUP', `Corporate Top-up Ref: ${reference}`);
+            await client.query('COMMIT');
+        } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
+        return res.sendStatus(200);
+    }
+
     // 4. Handle Commerce Order (Marketplace/Kitchen)
     if (m?.type === 'COMMERCE_ORDER') {
         const client = await db.pool.connect();
@@ -615,6 +626,17 @@ const verifyPayment = async (req, res) => {
                     await client.query('COMMIT');
                 } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
                 return res.status(200).json({ success: true, status: 'PAID', type: 'TOPUP' });
+            }
+
+            if (m?.type === 'CORPORATE_TOPUP' && m?.corporate_account_id) {
+                const client = await db.pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    const walletId = await walletService.ensureWalletExists(client, 'CORPORATE', m.corporate_account_id);
+                    await walletService.recordEntry(client, walletId, 'CREDIT', tx.amount / 100, 'CORPORATE_TOPUP', `Corporate Top-up Ref: ${reference}`);
+                    await client.query('COMMIT');
+                } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
+                return res.status(200).json({ success: true, status: 'PAID', type: 'CORPORATE_TOPUP' });
             }
 
             const client = await db.pool.connect();

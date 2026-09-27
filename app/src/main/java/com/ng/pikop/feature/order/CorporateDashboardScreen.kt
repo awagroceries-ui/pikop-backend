@@ -1,5 +1,7 @@
 package com.ng.pikop.feature.order
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -13,6 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Refresh
@@ -35,9 +40,13 @@ import kotlinx.coroutines.launch
 fun CorporateDashboardScreen(onBack: () -> Unit) {
     var dashboardData by remember { mutableStateOf<CorporateDashboardData?>(null) }
     var staffList by remember { mutableStateOf<List<CorporateStaff>>(emptyList()) }
+    var corporateOrders by remember { mutableStateOf<List<CorporateOrder>>(emptyList()) }
     
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var showAddStaffDialog by remember { mutableStateOf(false) }
+    var showTopupDialog by remember { mutableStateOf(false) }
+    var staffToRevoke by remember { mutableStateOf<CorporateStaff?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -54,6 +63,9 @@ fun CorporateDashboardScreen(onBack: () -> Unit) {
                 
                 val staff = apiService.getCorporateStaff()
                 staffList = staff.data
+
+                val ordersRes = apiService.getCorporateOrders()
+                corporateOrders = ordersRes.data
             } catch (e: Exception) {
                 // If not setup, dashboardData remains null
             } finally {
@@ -112,59 +124,105 @@ fun CorporateDashboardScreen(onBack: () -> Unit) {
                     }
                 }
             } else if (dashboardData != null) {
-                LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    item {
-                        // Stats Card
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)) {
-                            Column(modifier = Modifier.padding(20.dp)) {
-                                Text("Monthly Spend Overview", color = Color.White, style = MaterialTheme.typography.labelSmall)
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Column {
-                                        Text("Balance", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                                        Text("₦${"%,.0f".format(dashboardData?.wallet?.balance)}", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                TabRow(selectedTabIndex = selectedTabIndex) {
+                    Tab(
+                        selected = selectedTabIndex == 0,
+                        onClick = { selectedTabIndex = 0 },
+                        text = { Text("Overview & Staff") },
+                        icon = { Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    )
+                    Tab(
+                        selected = selectedTabIndex == 1,
+                        onClick = { selectedTabIndex = 1 },
+                        text = { Text("Corporate Missions (${corporateOrders.size})") },
+                        icon = { Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    )
+                }
+
+                if (selectedTabIndex == 0) {
+                    // Overview & Staff Tab
+                    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        item {
+                            // Pool Balance Card
+                            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                                Column(modifier = Modifier.padding(20.dp)) {
+                                    Text("Corporate Pool Balance", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                        Column {
+                                            Text("₦${"%,.2f".format(dashboardData?.wallet?.balance ?: 0.0)}", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                                            Text("${dashboardData?.stats?.active_staff ?: 0} Active Staff Members", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                                        }
+                                        Button(
+                                            onClick = { showTopupDialog = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                        ) {
+                                            Text("Top Up Pool", fontWeight = FontWeight.Bold)
+                                        }
                                     }
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text("Active Staff", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                                        Text("${dashboardData?.stats?.active_staff}", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        item {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("Authorized Staff", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                TextButton(onClick = { showAddStaffDialog = true }) {
+                                    Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Add Member")
+                                }
+                            }
+                        }
+
+                        if (staffList.isEmpty()) {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                                    Text("No staff members authorized yet.", color = Color.Gray)
+                                }
+                            }
+                        } else {
+                            items(staffList) { staff ->
+                                StaffMemberCard(
+                                    staff = staff,
+                                    onRevoke = { staffToRevoke = staff }
+                                )
+                            }
+                        }
+
+                        item {
+                            Text("Top Spenders (30 Days)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+
+                        if (dashboardData?.top_users.isNullOrEmpty()) {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
+                                    Text("No corporate spend recorded in 30 days.", color = Color.Gray, fontSize = 12.sp)
+                                }
+                            }
+                        } else {
+                            items(dashboardData?.top_users ?: emptyList()) { user ->
+                                Card(modifier = Modifier.fillMaxWidth()) {
+                                    Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                        Text(user.full_name, fontWeight = FontWeight.SemiBold)
+                                        Text("₦${"%,.0f".format(user.spend)}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
                         }
                     }
-
-                    item {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Authorized Staff", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            TextButton(onClick = { showAddStaffDialog = true }) {
-                                Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Add Member")
+                } else {
+                    // Corporate Missions Tab
+                    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (corporateOrders.isEmpty()) {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                                    Text("No corporate delivery missions created yet.", color = Color.Gray)
+                                }
                             }
-                        }
-                    }
-
-                    if (staffList.isEmpty()) {
-                        item {
-                            Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                                Text("No staff members added yet.", color = Color.Gray)
-                            }
-                        }
-                    } else {
-                        items(staffList) { staff ->
-                            StaffMemberItem(staff)
-                        }
-                    }
-
-                    item {
-                        Text("Top Spenders", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-
-                    items(dashboardData?.top_users ?: emptyList()) { user ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(user.full_name, fontWeight = FontWeight.SemiBold)
-                                Text("₦${"%,.0f".format(user.spend)}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        } else {
+                            items(corporateOrders) { order ->
+                                CorporateOrderCard(order)
                             }
                         }
                     }
@@ -187,7 +245,7 @@ fun CorporateDashboardScreen(onBack: () -> Unit) {
                         ))
                         refreshData()
                     } catch (e: Exception) {
-                        Toast.makeText(context, "Setup failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
                     }
                     showCreateDialog = false
                 }
@@ -207,19 +265,71 @@ fun CorporateDashboardScreen(onBack: () -> Unit) {
                             "daily_limit" to daily,
                             "monthly_limit" to monthly
                         ))
+                        Toast.makeText(context, "Staff member authorized", Toast.LENGTH_SHORT).show()
                         refreshData()
                     } catch (e: Exception) {
-                        Toast.makeText(context, "Failed to add staff: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
                     }
                     showAddStaffDialog = false
                 }
             }
         )
     }
+
+    if (showTopupDialog) {
+        TopupPoolDialog(
+            onDismiss = { showTopupDialog = false },
+            onConfirm = { amount ->
+                scope.launch {
+                    try {
+                        val res = apiService.initializeCorporateTopup(mapOf("amount" to amount))
+                        res.authorization_url?.let { url ->
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            context.startActivity(intent)
+                        }
+                        showTopupDialog = false
+                    } catch (e: Exception) {
+                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        )
+    }
+
+    if (staffToRevoke != null) {
+        val target = staffToRevoke!!
+        AlertDialog(
+            onDismissRequest = { staffToRevoke = null },
+            title = { Text("Revoke Authorization") },
+            text = { Text("Are you sure you want to revoke corporate billing access for ${target.full_name ?: target.email}?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            try {
+                                apiService.removeCorporateStaff(target.id ?: 0)
+                                Toast.makeText(context, "Staff authorization revoked", Toast.LENGTH_SHORT).show()
+                                refreshData()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
+                            }
+                            staffToRevoke = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Revoke Access")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { staffToRevoke = null }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
-fun StaffMemberItem(staff: CorporateStaff) {
+fun StaffMemberCard(staff: CorporateStaff, onRevoke: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -232,6 +342,11 @@ fun StaffMemberItem(staff: CorporateStaff) {
                     Text(staff.email ?: "", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
                 Badge { Text(staff.role ?: "STAFF") }
+                if (staff.role != "ADMIN") {
+                    IconButton(onClick = onRevoke) {
+                        Icon(Icons.Default.Delete, contentDescription = "Revoke", tint = MaterialTheme.colorScheme.error)
+                    }
+                }
             }
             
             Spacer(modifier = Modifier.height(12.dp))
@@ -247,6 +362,61 @@ fun StaffMemberItem(staff: CorporateStaff) {
             }
         }
     }
+}
+
+@Composable
+fun CorporateOrderCard(order: CorporateOrder) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Order #${order.id}", fontWeight = FontWeight.Bold)
+                StatusBadge(order.status)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Initiated By: ${order.staff_name ?: "Staff Member"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+            Text("Item: ${order.item_description ?: "Delivery"}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text((order.created_at ?: "").take(10), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text("₦${"%,.2f".format(order.total_fare)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+@Composable
+fun TopupPoolDialog(onDismiss: () -> Unit, onConfirm: (Double) -> Unit) {
+    var amountText by remember { mutableStateOf("50000") }
+    val amountDouble = amountText.toDoubleOrNull() ?: 0.0
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Top Up Corporate Pool Wallet", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Enter amount to add to your business pool balance via Paystack.", style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { if (it.all { c -> c.isDigit() }) amountText = it },
+                    label = { Text("Amount (₦)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(amountDouble) },
+                enabled = amountDouble >= 1000.0,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Proceed to Pay")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable
