@@ -56,9 +56,9 @@ fun WalletScreen(
             isLoading = true
             try {
                 val response = apiService.getWalletInfo()
-                balance = response.balance ?: 0.0
-                pendingBalance = response.pending_balance ?: 0.0
-                transactions = response.transactions ?: emptyList()
+                balance = response.actualBalance
+                pendingBalance = response.actualPendingBalance
+                transactions = response.actualTransactions
             } catch (_: Exception) {}
             isLoading = false
         }

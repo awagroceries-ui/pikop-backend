@@ -65,6 +65,14 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(morgan('dev'));
 
+// Global Anti-Caching Middleware for API V1
+app.use('/api/v1', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // Admin Latency Middleware
 app.use('/admin', (req, res, next) => {
   const start = Date.now();

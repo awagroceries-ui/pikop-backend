@@ -78,7 +78,7 @@ fun CommerceCheckoutScreen(
             item = response.data.find { it.id == itemId && it.item_type == itemType }
             
             val walletRes = apiService.getWalletInfo()
-            walletBalance = walletRes.balance ?: 0.0
+            walletBalance = walletRes.actualBalance
         } catch (_: Exception) {
             Toast.makeText(context, "Error loading item", Toast.LENGTH_SHORT).show()
         } finally {

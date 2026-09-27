@@ -116,7 +116,7 @@ fun FulfillerDashboardScreen(
                 }
                 
                 val wallet = apiService.getWalletInfo()
-                walletBalance = wallet.balance ?: 0.0
+                walletBalance = wallet.actualBalance
                 history = apiService.getFulfillerOrders()
                 offers = apiService.getOffers()
             } catch (e: Exception) {
@@ -208,7 +208,7 @@ fun FulfillerDashboardScreen(
                 }
                 history = apiService.getFulfillerOrders()
                 val wallet = apiService.getWalletInfo()
-                walletBalance = wallet.balance ?: 0.0
+                walletBalance = wallet.actualBalance
             } catch (e: Exception) {
                 android.util.Log.e("DashboardPoll", "Error: ${e.message}")
             }

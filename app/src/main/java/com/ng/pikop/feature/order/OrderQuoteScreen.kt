@@ -198,7 +198,7 @@ fun OrderQuoteScreen(
             corporateAccounts = authorizations.data ?: emptyList()
             
             val walletRes = apiService.getWalletInfo()
-            walletBalance = walletRes.balance ?: 0.0
+            walletBalance = walletRes.actualBalance
         } catch (e: Exception) {}
     }
 

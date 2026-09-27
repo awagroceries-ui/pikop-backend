@@ -64,7 +64,7 @@ fun CustomerHomeScreen(
                 incomingOrders = orders.filter { it.status == "PENDING_ACKNOWLEDGMENT" }
 
                 val wallet = apiService.getWalletInfo()
-                walletBalance = wallet.balance ?: 0.0
+                walletBalance = wallet.actualBalance
             } catch (_: Exception) {
             } finally {
                 isLoading = false

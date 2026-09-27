@@ -478,12 +478,24 @@ data class WalletTransaction(
     val created_at: String? = null
 )
 
-data class WalletResponse(
+data class WalletData(
     val balance: Double? = null,
     val pending_balance: Double? = null,
     val currency: String? = null,
     val transactions: List<WalletTransaction>? = null
 )
+
+data class WalletResponse(
+    val balance: Double? = null,
+    val pending_balance: Double? = null,
+    val currency: String? = null,
+    val transactions: List<WalletTransaction>? = null,
+    @SerializedName("data") val data: WalletData? = null
+) {
+    val actualBalance: Double get() = data?.balance ?: balance ?: 0.0
+    val actualPendingBalance: Double get() = data?.pending_balance ?: pending_balance ?: 0.0
+    val actualTransactions: List<WalletTransaction> get() = data?.transactions ?: transactions ?: emptyList()
+}
 
 data class SupportConversation(
     val id: String? = null,

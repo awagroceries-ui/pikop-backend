@@ -46,7 +46,7 @@ fun WithdrawalScreen(
         try {
             isLoading = true
             val wallet = apiService.getWalletInfo()
-            walletBalance = wallet.balance ?: 0.0
+            walletBalance = wallet.actualBalance
             
             val profile = apiService.getFulfillerProfile()
             bankName = profile.bank_name ?: "No Bank Linked"
