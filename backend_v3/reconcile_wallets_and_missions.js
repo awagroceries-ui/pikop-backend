@@ -20,8 +20,7 @@ async function reconcileWalletsAndMissions() {
             SELECT w.id, w.owner_id, w.owner_type, w.balance, w.pending_balance
             FROM wallets w
             WHERE w.owner_type = 'USER'
-              AND w.owner_id ~ '^[0-9]+$'
-              AND w.owner_id::integer NOT IN (SELECT id FROM users)
+              AND w.owner_id NOT IN (SELECT id::text FROM users)
         `);
 
         // 2. Fulfiller Wallets without valid fulfiller row
@@ -29,8 +28,7 @@ async function reconcileWalletsAndMissions() {
             SELECT w.id, w.owner_id, w.owner_type, w.balance, w.pending_balance
             FROM wallets w
             WHERE w.owner_type = 'FULFILLER'
-              AND w.owner_id ~ '^[0-9]+$'
-              AND w.owner_id::integer NOT IN (SELECT id FROM fulfillers)
+              AND w.owner_id NOT IN (SELECT id::text FROM fulfillers)
         `);
 
         // 3. Merchant / Vendor / Kitchen Wallets without valid entity or user row
@@ -38,11 +36,10 @@ async function reconcileWalletsAndMissions() {
             SELECT w.id, w.owner_id, w.owner_type, w.balance, w.pending_balance
             FROM wallets w
             WHERE w.owner_type IN ('MERCHANT', 'VENDOR', 'KITCHEN')
-              AND w.owner_id ~ '^[0-9]+$'
-              AND w.owner_id::integer NOT IN (SELECT id FROM merchant_accounts)
-              AND w.owner_id::integer NOT IN (SELECT id FROM vendors)
-              AND w.owner_id::integer NOT IN (SELECT id FROM kitchens)
-              AND w.owner_id::integer NOT IN (SELECT id FROM users)
+              AND w.owner_id NOT IN (SELECT id::text FROM merchant_accounts)
+              AND w.owner_id NOT IN (SELECT id::text FROM vendors)
+              AND w.owner_id NOT IN (SELECT id::text FROM kitchens)
+              AND w.owner_id NOT IN (SELECT id::text FROM users)
         `);
 
         // 4. Corporate Wallets without valid corporate account
@@ -50,8 +47,7 @@ async function reconcileWalletsAndMissions() {
             SELECT w.id, w.owner_id, w.owner_type, w.balance, w.pending_balance
             FROM wallets w
             WHERE w.owner_type = 'CORPORATE'
-              AND w.owner_id ~ '^[0-9]+$'
-              AND w.owner_id::integer NOT IN (SELECT id FROM corporate_accounts)
+              AND w.owner_id NOT IN (SELECT id::text FROM corporate_accounts)
         `);
 
         const allOrphans = [
