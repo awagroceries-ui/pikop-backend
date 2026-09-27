@@ -44,6 +44,7 @@ router.get('/dashboard', adminController.getDashboard);
 router.get('/orders', adminController.getOrders);
 router.get('/orders/:id/track', adminController.trackOrder);
 router.post('/orders/:id/update', adminController.updateOrderStatus);
+router.post('/orders/:id/assign', adminController.assignOrderToAgent);
 router.post('/orders/restore-all', adminController.restoreAllMissions);
 
 // Fleet & KYC
@@ -98,6 +99,7 @@ router.post('/disputes/:id/resolve', adminController.resolveDispute);
 // Withdrawals
 router.get('/withdrawals', adminController.getWithdrawals);
 router.post('/withdrawals/:id/approve', adminController.approveWithdrawal);
+router.post('/withdrawals/batch-approve', adminController.batchApproveWithdrawals);
 
 // Settings
 router.get('/settings', hasRole(['super_admin']), adminController.getSettings);

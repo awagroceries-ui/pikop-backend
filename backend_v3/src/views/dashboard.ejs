@@ -1,3 +1,6 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <div class="mb-5 d-flex align-items-center gap-3">
     <img src="/public/assets/logo.png" alt="Pikop Logo" style="height: 35px; width: auto;">
     <div>
@@ -7,7 +10,7 @@
 </div>
 
 <!-- KPI Row -->
-<div class="row g-4 mb-5">
+<div class="row g-4 mb-4">
     <div class="col-md-3">
         <div class="card-pikop p-4 border-start border-green border-4">
             <div class="text-green fw-bold smaller uppercase mb-2" style="font-size: 11px; letter-spacing: 1px;">Live Missions</div>
@@ -39,6 +42,26 @@
                     <span class="badge bg-green text-white" style="font-size: 9px;"><%= stats.fulfillerUsers %> Fleet</span>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Live Fleet Control Map -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card-pikop p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h6 class="text-black fw-bold uppercase mb-1" style="font-size: 12px; letter-spacing: 1px;">🌍 Global Live Fleet Control Map</h6>
+                    <p class="text-muted smaller mb-0">Real-time GPS positions of online agents (🟢), active missions (🚗), and high-demand zones.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-success text-white px-2 py-1" style="font-size: 10px;">🟢 ONLINE FLEET</span>
+                    <span class="badge bg-primary text-white px-2 py-1" style="font-size: 10px;">🚗 IN TRANSIT</span>
+                    <span class="badge bg-warning text-dark px-2 py-1" style="font-size: 10px;">🟡 SEARCHING</span>
+                </div>
+            </div>
+            <div id="fleetMap" style="height: 380px; width: 100%; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;"></div>
         </div>
     </div>
 </div>
@@ -130,6 +153,27 @@
             }
         }
     });
+
+    // Initialize Global Fleet Map
+    const fleetMap = L.map('fleetMap').setView([4.8156, 7.0498], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{y}/{x}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(fleetMap);
+
+    const onlineAgentIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+        iconSize: [20, 32], iconAnchor: [10, 32]
+    });
+
+    if (typeof socket !== 'undefined') {
+        socket.on('location_updated', function(data) {
+            if (data.lat && data.lng) {
+                L.marker([data.lat, data.lng], { icon: onlineAgentIcon })
+                 .addTo(fleetMap)
+                 .bindPopup("<b>Online Agent</b><br>Live GPS Signal");
+            }
+        });
+    }
 
     async function refreshChart() {
         try {

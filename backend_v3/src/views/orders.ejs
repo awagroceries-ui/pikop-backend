@@ -49,8 +49,9 @@
                             <span class="text-muted smaller fw-bold uppercase mb-1 d-block" style="font-size: 10px; letter-spacing: 1px;">Fare</span>
                             <div class="text-green fw-bold mono">₦<%= parseFloat(order.total_fare).toLocaleString() %></div>
                         </div>
-                        <div class="col-md-3 text-end">
-                            <a href="/admin/orders/<%= order.id %>/track" class="btn-pikop-outline py-1 px-3" style="font-size: 11px; text-decoration: none;">TRACK MISSION</a>
+                        <div class="col-md-4 text-end">
+                            <a href="/admin/orders/<%= order.id %>/track" class="btn-pikop-outline py-1 px-3 me-1" style="font-size: 11px; text-decoration: none;">TRACK MISSION</a>
+                            <button class="btn btn-xs btn-outline-success py-1 px-2 fw-bold" style="font-size: 10px;" onclick="promptManualDispatch(<%= order.id %>)">MANUAL ASSIGN</button>
                         </div>
                     </div>
                 </div>
@@ -58,6 +59,25 @@
         <% }) %>
     <% } %>
 </div>
+
+<script>
+    function promptManualDispatch(orderId) {
+        const fulfillerId = prompt(`Enter Fulfiller/Agent Database ID to assign Mission #${orderId} directly:`);
+        if (fulfillerId && !isNaN(parseInt(fulfillerId))) {
+            fetch(`/admin/orders/${orderId}/assign`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fulfiller_id: parseInt(fulfillerId) })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message || 'Mission Assigned Successfully!');
+                window.location.reload();
+            })
+            .catch(e => alert('Dispatch failed: ' + e.message));
+        }
+    }
+</script>
 
 <style>
     .bg-green { background-color: var(--green) !important; }

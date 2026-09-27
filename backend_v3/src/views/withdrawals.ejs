@@ -1,6 +1,11 @@
-<div class="mb-5">
-    <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Payout Control</h3>
-    <p class="text-muted small">Approve and process fulfiller withdrawal requests via Paystack Transfer.</p>
+<div class="mb-5 d-flex justify-content-between align-items-center">
+    <div>
+        <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">Payout Control</h3>
+        <p class="text-muted small mb-0">Approve and process fulfiller withdrawal requests via Paystack Transfer.</p>
+    </div>
+    <% if (withdrawals.length > 0) { %>
+        <button class="btn btn-sm btn-success fw-bold py-2 px-3" onclick="triggerBatchPayouts()">⚡ BATCH APPROVE ALL PAYOUTS (<%= withdrawals.length %>)</button>
+    <% } %>
 </div>
 
 <div class="card-pikop">
@@ -53,6 +58,23 @@
         </div>
     <% } %>
 </div>
+
+<script>
+    function triggerBatchPayouts() {
+        if (confirm("Are you sure you want to batch approve and process all pending payout requests?")) {
+            fetch('/admin/withdrawals/batch-approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message || 'Batch payouts processed successfully!');
+                window.location.reload();
+            })
+            .catch(e => alert('Batch payout failed: ' + e.message));
+        }
+    }
+</script>
 
 <style>
     .text-green { color: var(--green) !important; }

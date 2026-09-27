@@ -1,14 +1,24 @@
-# 📌 Task Checklist: Update Knowledge Base Articles & EJS Views for Active Platform Fees
+# 📌 Task Checklist: Admin Dashboard 5-Pillar Comprehensive Enhancement
 
-- `[/]` Task 1: Create Database Migration & Maintenance Script (`backend_v3`)
-  - `[ ]` Write `1726960000000_update_kb_fee_articles.js` migration updating `knowledge_base` articles (5% COD fee, 20% dispatch commission / 80% fulfiller share, 5% merchant commission)
-  - `[ ]` Write `update_kb_fees.js` standalone execution script
+- `[/]` Task 1: Pillar 1 - Real-Time Fleet Control & Manual Dispatch Override
+  - `[ ]` Add real-time Leaflet Global Fleet Map to `dashboard.ejs`
+  - `[ ]` Add Manual Dispatch Override modal to `orders.ejs`
+  - `[ ]` Add `assignOrderToAgent` controller function in `adminController.js` & route `POST /admin/orders/:id/assign` in `adminRoutes.js`
 
-- `[ ]` Task 2: Update Admin EJS Views (`backend_v3/src/views/`)
-  - `[ ]` Update `guest_checkout.ejs` (`Platform Fee (5%)`)
-  - `[ ]` Update `financial_overview.ejs` (`Commission (20%)` and `Escrow Fees (5%)`)
-  - `[ ]` Update `fleet_partners.ejs` (`DEFAULT (20%)`)
+- `[ ]` Task 2: Pillar 2 - Batch Payout Approvals & Fee Simulation
+  - `[ ]` Add Batch Payout Approval button to `withdrawals.ejs`
+  - `[ ]` Add `batchApproveWithdrawals` controller function in `adminController.js` & route `POST /admin/withdrawals/batch-approve` in `adminRoutes.js`
+  - `[ ]` Add interactive Fee Impact Simulator to `settings.ejs`
 
-- `[ ]` Task 3: Git Automation & VPS Execution
+- `[ ]` Task 3: Pillar 3 - Fraud Detection & Risk Safeguards
+  - `[ ]` Add shared bank account / duplicate phone risk flags to `adminController.js`
+  - `[ ]` Add stationarity & route deviation risk section to `emergency_dashboard.ejs`
+
+- `[ ]` Task 4: Pillar 4 & 5 - AI Support Analytics, Canned Dispute Templates & Merchant Heatmap
+  - `[ ]` Add AI Support Agent resolution metrics to `support.ejs`
+  - `[ ]` Add canned quick-resolution templates to `dispute_resolution.ejs`
+  - `[ ]` Add merchant performance ranking & out-of-stock risk flags to `merchants.ejs`
+
+- `[ ]` Task 5: Git Automation & VPS Deployment
   - `[ ]` Stage, commit, and push changes to GitHub `main`
   - `[ ]` Provide VPS deployment command prompts

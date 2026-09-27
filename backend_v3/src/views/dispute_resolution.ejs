@@ -60,6 +60,12 @@
 
                     <div class="collapse mt-3 border-top pt-3" id="resolve-<%= d.id %>">
                         <form action="/admin/disputes/<%= d.id %>/resolve" method="POST">
+                            <div class="mb-2">
+                                <span class="smaller fw-bold text-muted uppercase me-2">Quick Templates:</span>
+                                <button type="button" class="btn btn-xs btn-outline-secondary me-1 py-0" style="font-size: 10px;" onclick="applyTemplate('<%= d.id %>', 'Item Damaged in Transit - Refunded buyer from escrow, delivery fee settled to fulfiller.')">Damaged Item</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary me-1 py-0" style="font-size: 10px;" onclick="applyTemplate('<%= d.id %>', 'Wrong Item Delivered - Escrow refunded to buyer, return mission generated for seller.')">Wrong Item</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary me-1 py-0" style="font-size: 10px;" onclick="applyTemplate('<%= d.id %>', 'Receiver Unreachable - Item returned to seller, delivery fare released to agent.')">Unreachable</button>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="smaller fw-bold text-muted uppercase">Resolution Notes</label>
@@ -92,6 +98,13 @@
         <% }) %>
     <% } %>
 </div>
+
+<script>
+    function applyTemplate(id, text) {
+        const textarea = document.querySelector(`#resolve-${id} textarea[name="resolution_notes"]`);
+        if (textarea) textarea.value = text;
+    }
+</script>
 
 <style>
     .text-green { color: var(--green) !important; }

@@ -1457,6 +1457,74 @@ const restoreAllMissions = async (req, res) => {
     }
 };
 
+/**
+ * Admin Manual Dispatch Override: Assigns order directly to an online agent.
+ */
+const assignOrderToAgent = async (req, res) => {
+    const { id } = req.params;
+    const { fulfiller_id } = req.body;
+    const adminId = req.session.adminId || 0;
+
+    const fId = parseInt(fulfiller_id);
+    const orderId = parseInt(id);
+
+    if (isNaN(fId) || isNaN(orderId)) {
+        return res.status(400).json({ success: false, message: 'Invalid order or agent ID' });
+    }
+
+    try {
+        const { rows: fUser } = await db.query("SELECT user_id, full_name FROM fulfillers WHERE id = $1", [fId]);
+        if (fUser.length === 0) return res.status(404).json({ success: false, message: 'Agent not found' });
+
+        await db.query(
+            "UPDATE orders SET fulfiller_id = $1, status = 'MATCHED', matched_at = CURRENT_TIMESTAMP WHERE id = $2",
+            [fId, orderId]
+        );
+
+        const socketService = require('../services/socketService');
+        const io = socketService.getIO();
+        io.to(`order_${orderId}`).emit("status_updated", { orderId, status: 'MATCHED' });
+        io.to(`user_${fUser[0].user_id}`).emit("order_status_updated", { orderId, status: 'MATCHED' });
+
+        console.log(`[AdminDispatch] Mission #${orderId} MANUALLY ASSIGNED to Agent #${fId} (${fUser[0].full_name}) by Admin #${adminId}`);
+
+        res.status(200).json({
+            success: true,
+            message: `Mission #${orderId} manually assigned to Agent ${fUser[0].full_name}.`
+        });
+    } catch (e) {
+        console.error('[AdminDispatch] Manual assignment error:', e.message);
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
+/**
+ * Admin Action: Batch Approve All Pending Payouts.
+ */
+const batchApproveWithdrawals = async (req, res) => {
+    try {
+        const { rows: pending } = await db.query("SELECT id FROM withdrawals WHERE status = 'PENDING'");
+        let approvedCount = 0;
+
+        for (const w of pending) {
+            try {
+                await db.query("UPDATE withdrawals SET status = 'SUCCESS', processed_at = CURRENT_TIMESTAMP WHERE id = $1", [w.id]);
+                approvedCount++;
+            } catch (_) {}
+        }
+
+        console.log(`[AdminBatchPayout] Approved ${approvedCount} payouts.`);
+
+        res.status(200).json({
+            success: true,
+            message: `Successfully approved and processed ${approvedCount} pending payout requests.`
+        });
+    } catch (e) {
+        console.error('[AdminBatchPayout] Error:', e.message);
+        res.status(500).json({ success: false, message: e.message });
+    }
+};
+
 module.exports = {
   login,
   getSignup,
@@ -1464,6 +1532,8 @@ module.exports = {
   getDashboard,
   getOrders,
   trackOrder,
+  assignOrderToAgent,
+  batchApproveWithdrawals,
   getSettings,
   updateSettings,
   getSupportInbox,
