@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
+import com.ng.pikop.core.network.ErrorUtils
 import com.ng.pikop.core.network.KnowledgeBaseArticle
 import com.ng.pikop.ui.theme.PikopOrange
 
@@ -278,7 +279,7 @@ fun SupportHubScreen(
                                                 val res = apiService.askAiAssistant(mapOf("question" to aiQuestion))
                                                 aiAnswer = res["answer"]?.toString() ?: "I couldn't find an answer. Try rephrasing or chat with support."
                                             } catch (e: Exception) {
-                                                aiAnswer = "Error connecting to AI. Please try again later."
+                                                aiAnswer = ErrorUtils.parseError(e).takeIf { it.isNotBlank() } ?: "Error connecting to AI. Please try again later."
                                             }
                                             isAiThinking = false
                                         }

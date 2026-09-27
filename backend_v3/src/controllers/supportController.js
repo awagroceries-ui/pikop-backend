@@ -119,14 +119,18 @@ const getMessages = async (req, res) => {
  */
 const askPikopAgent = async (req, res) => {
     const { question } = req.body;
-    const userRole = req.user.role;
+    const userRole = req.user?.role || 'CUSTOMER';
+
+    if (!question || !question.trim()) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid question.' });
+    }
 
     try {
         // 1. Fetch relevant context from Knowledge Base (RAG-lite)
         const { rows: articles } = await db.query(
             `SELECT title, content FROM knowledge_base
              WHERE is_active = true
-             AND (target_audience = $1 OR target_audience = 'BOTH')
+             AND (target_audience = $1 OR target_audience = 'BOTH' OR target_audience = 'ALL')
              ORDER BY priority DESC LIMIT 5`,
             [userRole]
         );
@@ -153,22 +157,49 @@ const askPikopAgent = async (req, res) => {
         const { GoogleGenerativeAI } = require("@google/generative-ai");
         const apiKey = process.env.GEMINI_API_KEY;
 
-        if (!apiKey) {
-            console.error('[GeminiAgent] FATAL: GEMINI_API_KEY is missing from environment.');
-            return res.status(500).json({ success: false, message: 'AI Service configuration error.' });
+        if (!apiKey || apiKey.includes('your_')) {
+            console.error('[GeminiAgent] WARNING: GEMINI_API_KEY is missing or invalid. Falling back to Knowledge Base context.');
+            const fallbackAnswer = context.length > 0
+                ? `Here is information from our Help Center regarding your request:\n\n${context}`
+                : "Our AI assistant is temporarily offline for maintenance. Please contact support via live chat or check our FAQs.";
+            return res.status(200).json({ success: true, answer: fallbackAnswer });
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-2.5-pro", "gemini-1.5-flash"];
+        let responseText = null;
+        let lastError = null;
 
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+        for (const modelName of candidateModels) {
+            try {
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent(prompt);
+                responseText = result.response.text();
+                if (responseText) {
+                    console.log(`[GeminiAgent] Successfully generated AI response using model: ${modelName}`);
+                    break;
+                }
+            } catch (err) {
+                lastError = err;
+                console.warn(`[GeminiAgent] Model '${modelName}' failed: ${err.message}. Trying next candidate...`);
+            }
+        }
 
-        res.status(200).json({ success: true, answer: responseText });
+        if (responseText) {
+            return res.status(200).json({ success: true, answer: responseText });
+        }
+
+        // Knowledge Base RAG Fallback if all Gemini models failed
+        console.error('[GeminiAgent] All AI model candidates failed. Returning Knowledge Base fallback:', lastError?.message);
+        const ragFallback = context.length > 0
+            ? `Here is what our Help Center says about your query:\n\n${context}`
+            : "I'm having trouble reaching our AI servers right now, but our support team is available in Live Chat to assist you.";
+
+        return res.status(200).json({ success: true, answer: ragFallback });
 
     } catch (error) {
         console.error('[GeminiAgent] Error details:', error.response?.data || error.stack || error.message);
-        res.status(500).json({ success: false, message: 'AI Assistant is temporarily busy.' });
+        return res.status(500).json({ success: false, message: `AI Assistant Error: ${error.message}` });
     }
 };
 

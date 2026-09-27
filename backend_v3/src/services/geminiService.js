@@ -35,34 +35,24 @@ const classifyItemSize = async (description) => {
     Return ONLY a JSON object: { "size_tier": "SMALL" | "MEDIUM" | "LARGE", "confidence": number }
   `;
 
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonMatch = text.match(/\{.*\}/);
-    return JSON.parse(jsonMatch[0]);
-  } catch (error) {
-    console.warn('[Gemini] Primary model failed, attempting fallback:', error.message);
+  const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-2.5-pro", "gemini-1.5-flash"];
+
+  for (const modelName of candidateModels) {
     try {
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-      const result = await fallbackModel.generateContent(prompt);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
       const text = result.response.text();
       const jsonMatch = text.match(/\{.*\}/);
-      return JSON.parse(jsonMatch[0]);
-    } catch (fallbackError) {
-      console.warn('[Gemini] Flash/Pro latest failed, trying stable legacy pro:', fallbackError.message);
-      try {
-        const legacyModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await legacyModel.generateContent(prompt);
-        const text = result.response.text();
-        const jsonMatch = text.match(/\{.*\}/);
+      if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
-      } catch (finalError) {
-        console.error('[Gemini] All AI models failed. Defaulting to MEDIUM:', finalError.message);
-        return { size_tier: 'MEDIUM', confidence: 0.5 };
       }
+    } catch (error) {
+      console.warn(`[Gemini] Model '${modelName}' classification failed:`, error.message);
     }
   }
+
+  console.error('[Gemini] All AI model candidates failed. Defaulting to MEDIUM.');
+  return { size_tier: 'MEDIUM', confidence: 0.5 };
 };
 
 module.exports = {
