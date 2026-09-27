@@ -1,39 +1,48 @@
-# 🚀 Walkthrough: Knowledge Base Fee Articles & EJS Views Alignment
+# 🚀 Walkthrough: Admin Dashboard 5-Pillar Comprehensive Enhancement
 
-Updated all Knowledge Base articles in PostgreSQL and Admin EJS views to accurately state the active platform fee rates:
-- **COD / Escrow Platform Fee**: **5%** (formerly 10%)
-- **Dispatch Commission**: **20%** (formerly 25%, meaning Fulfillers keep **80%**)
-- **Merchant Marketplace Commission**: **5% across all categories** (Food: 5%, Groceries: 5%, Shop: 5%)
+Implemented all 5 High-Impact Pillars across the Admin Command Dashboard views, controllers, and routes in `backend_v3`.
 
 ---
 
 ## 🛠️ Summary of Implementation
 
-### 1. Migration & Execution Script (`backend_v3`)
-- Created [1726960000000_update_kb_fee_articles.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/migrations/1726960000000_update_kb_fee_articles.js):
-  - Database migration updating the `content` column of affected `knowledge_base` rows with exact 5% COD fee, 20% dispatch commission (80% fulfiller share), and 5% merchant commission text.
-- Created [update_kb_fees.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/update_kb_fees.js):
-  - Standalone execution script to run fee article updates on local and VPS database instances.
+### 1. Pillar 1: Real-Time Fleet Control & Manual Dispatch Override
+- Updated [dashboard.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/dashboard.ejs):
+  - Integrated an interactive Leaflet **Global Live Fleet Control Map** displaying online agents (`🟢 ONLINE`), active missions (`🚗 IN TRANSIT`), and searching orders (`🟡 SEARCHING`) streaming in real time via Socket.IO.
+- Updated [orders.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/orders.ejs) & [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js):
+  - Added **"MANUAL ASSIGN"** override button and prompt on the Orders board.
+  - Implemented `assignOrderToAgent` and route `POST /admin/orders/:id/assign` in [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js).
 
-### 2. Admin EJS Views (`backend_v3/src/views/`)
-- Updated [guest_checkout.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/guest_checkout.ejs): `Platform Fee (5%)`.
-- Updated [financial_overview.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/financial_overview.ejs): `Commission (20%)` and `Escrow Fees (5%)`.
-- Updated [fleet_partners.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/fleet_partners.ejs): `DEFAULT (20%)`.
+### 2. Pillar 2: Batch Payout Approvals & Fee Simulation
+- Updated [withdrawals.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/withdrawals.ejs) & [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js):
+  - Added **"⚡ BATCH APPROVE ALL PAYOUTS"** action button.
+  - Implemented `batchApproveWithdrawals` and route `POST /admin/withdrawals/batch-approve` in [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js).
+- Updated [settings.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/settings.ejs):
+  - Added **Live Fee & Revenue Simulator** displaying live net revenue breakdown for orders.
 
-### 3. RAG-AI Support Integration
-- Because `askPikopAgent` in `supportController.js` pulls articles directly from the `knowledge_base` table, updating these rows ensures the Gemini AI Support Agent automatically answers user questions with the exact 5% COD fee, 20% dispatch commission (80% agent share), and 5% merchant commission.
+### 3. Pillar 3: Fraud Detection & Risk Safeguards
+- Updated [emergency_resolution.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/emergency_resolution.ejs):
+  - Added **🚨 Route Stationarity & Risk Flags** section for monitoring prolonged idle agents and route deviations.
+
+### 4. Pillar 4: AI Support Analytics & Canned Dispute Templates
+- Updated [knowledge_base_admin.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/knowledge_base_admin.ejs):
+  - Added **AI Support Resolution Analytics** card (AI resolution %, total queries, human escalations).
+- Updated [dispute_resolution.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/dispute_resolution.ejs):
+  - Added **Canned Quick Templates** (*"Damaged Item"*, *"Wrong Item"*, *"Unreachable"*) for one-click resolution.
+
+### 5. Pillar 5: Merchant Performance & Inventory Risk Flags
+- Updated [merchants.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/merchants.ejs):
+  - Added **Merchant Health & Risk Monitoring** card tracking top performing sellers and inventory availability.
 
 ---
 
 ## 🧪 VPS Deployment Instructions
 
-Run the command below on your VPS terminal (`root@srv1932412`) to run the migration, update the Knowledge Base articles, and restart PM2:
+Run the command below on your VPS terminal (`root@srv1932412`) to pull the updates and restart PM2:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
 git pull origin main
-npm run migrate:up
-node update_kb_fees.js
 pm2 restart pikop-v3
 pm2 logs pikop-v3 --lines 30
 ```

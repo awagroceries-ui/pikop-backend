@@ -156,8 +156,9 @@
 
     // Initialize Global Fleet Map
     const fleetMap = L.map('fleetMap').setView([4.8156, 7.0498], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{y}/{x}.png', {
-        attribution: '&copy; OpenStreetMap'
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 19
     }).addTo(fleetMap);
 
     const onlineAgentIcon = L.icon({
