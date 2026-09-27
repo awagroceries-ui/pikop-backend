@@ -1,36 +1,32 @@
-# 🚀 Walkthrough: Restored Sample Design Proportions & Dual Light/Dark High Contrast
+# 🚀 Walkthrough: Admin Dashboard & Guest Real-Road Live Tracking Map Upgrade
 
-Restored the spacious, premium proportions and card heights matching the original design reference (`Design sample.png`), while optimizing all text (especially grey text) for 100% high-contrast legibility in both light and dark theme modes.
+Upgraded the Admin Dashboard Live Mission Tracking view (`admin_track.ejs`) and Guest Live Tracking view (`guest_tracking.ejs`) with real-road OSRM street network routes (following actual streets and turns), solid brand green route polylines (`#00E676`), and smooth live agent marker animation.
 
 ---
 
 ## 🛠️ Summary of Implementation
 
-### 1. Restored Original Sample Proportions (`UserTypeSelectionScreen.kt`)
-- Updated [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt):
-  - **Logo**: Restored to `90dp` height.
-  - **Heading & Subtitle**: `26sp` ExtraBold title ("How do you want to\nuse **Pikop?**") with `32sp` line height and `14sp` subtitle.
-  - **2-Column Cards (Send, Earn, Fleet Partner, Business Account)**: Restored height to `155dp` with large `80dp` transparent 3D PNG icons, `17sp` ExtraBold titles, and `28dp` circular arrow buttons.
-  - **Full-Width Card (Sell)**: Restored height to `90dp` with `72dp` PNG icon, `18sp` ExtraBold title, and `32dp` circular arrow button.
-  - **Divider & Footer**: `16dp` vertical margins for `"FOR ORGANIZATIONS"`, `"Already have an account? Log in →"` (`14sp`), and `"Your data is safe with us"` shield signal (`12sp`).
+### 1. Web Admin Live Tracking View (`admin_track.ejs`)
+- Updated [admin_track.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/admin_track.ejs):
+  - **OSRM Real-Road GeoJSON Engine**: Integrated `renderRealRoadRoute(start, end)` querying the OSRM street network routing API (`https://router.project-osrm.org/route/v1/driving/`).
+  - **Solid Brand Green Route**: Renders primary mission routes in **solid brand green** (`color: '#00E676'`, `weight: 5`, `opacity: 0.95`, `lineCap: 'round'`, `lineJoin: 'round'`).
+  - **Live Agent Route Segment**: Dynamically fetches and updates the real-road route segment from the agent's live position to the target destination (pickup or dropoff) in solid brand green.
+  - **Marker Gliding**: Smoothly glides `agentMarker` along the real-road polyline on Socket.IO `location_updated` events.
 
-### 2. Dual Light & Dark Theme High-Contrast Legibility
-- Updated [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt):
-  - **In Dark Mode**:
-    - Background: Deep dark (`#0D0E11`).
-    - Title Text: Crisp white (`#FFFFFF`) + green brand accent (`#00E676`).
-    - Subtitles, labels, and grey text: High-contrast light slate (`#CBD5E1`), delivering > 7:1 contrast ratio.
-  - **In Light Mode**:
-    - Background: Light theme surface (`#F8FAFC`).
-    - Title Text: Deep slate (`#0F172A`) + dark green brand accent (`#008751`).
-    - Subtitles, labels, and grey text: Dark slate grey (`#475569`), delivering > 7:1 contrast ratio against light backgrounds.
-    - Card Containers: Light tinted containers (`#ECFDF5`, `#FFFBEB`, `#FFF7ED`, `#F0F9FF`) with solid borders.
+### 2. Guest Public Live Tracking View (`guest_tracking.ejs`)
+- Updated [guest_tracking.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/guest_tracking.ejs):
+  - Integrated OSRM real-road GeoJSON routing to display public tracking routes in **solid brand green** (`#00E676`).
+  - Smoothly glides live agent marker along actual street turns on socket `location_updated` events.
 
 ---
 
-## 🧪 Build & Verification
+## 🧪 VPS Deployment Instructions
 
-- Built debug APK (`app:assembleDebug`) -> **`BUILD SUCCESSFUL`**.
-- Re-installed and launched live on connected Wireless ADB device (**Samsung Galaxy S23 Ultra**).
-- Analyzed `UserTypeSelectionScreen.kt` with **0 errors**.
-- Changes staged, committed (`f423b46e`), and pushed to GitHub `origin/main`.
+Run the command below on your VPS terminal (`root@srv1932412`) to pull the update and restart PM2:
+
+```bash
+cd /var/www/pikop-api/backend_v3/backend_v3
+git pull origin main
+pm2 restart pikop-v3
+pm2 logs pikop-v3 --lines 30
+```
