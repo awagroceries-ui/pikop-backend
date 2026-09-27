@@ -1,19 +1,16 @@
-# 📌 Task Checklist: Restore Original Sample Design Proportions & Dual Light/Dark High Contrast
+# 📌 Task Checklist: Admin Dashboard & Guest Real-Road Live Tracking Map Upgrade
 
-- `[/]` Task 1: Restore Sample Design Proportions in `UserTypeSelectionScreen.kt`
-  - `[ ]` Set logo size to `90dp` and heading to `26sp` ExtraBold title
-  - `[ ]` Set 2-column card heights to `155dp` and PNG icon sizes to `80dp`
-  - `[ ]` Set full-width card height to `90dp` and PNG icon size to `72dp`
-  - `[ ]` Set spacious vertical margins (`16dp - 24dp`) for divider and footer elements
+- `[/]` Task 1: Upgrade Admin Live Tracking View (`admin_track.ejs`)
+  - `[ ]` Integrate OSRM real-road GeoJSON route fetcher for pickup and delivery locations
+  - `[ ]` Render solid brand green route polyline (`color: '#00E676'`, `weight: 5`, `opacity: 0.95`, `lineCap: 'round'`, `lineJoin: 'round'`)
+  - `[ ]` Fetch and render agent active route segment to target destination in solid brand green
+  - `[ ]` Smoothly glide agent marker along the real-road polyline on socket `location_updated` events
 
-- `[ ]` Task 2: Dual Light & Dark Theme High-Contrast Legibility
-  - `[ ]` Implement `isSystemInDarkTheme()` color resolution for titles, subtitles, grey text, and card backgrounds
-  - `[ ]` Dark mode: Deep dark background `#0D0E11`, white title, `#CBD5E1` light slate grey text, green accent `#00E676`
-  - `[ ]` Light mode: Light background `#F8FAFC`, `#0F172A` title, `#475569` dark slate grey text, green accent `#008751`
+- `[ ]` Task 2: Upgrade Guest Live Tracking View (`guest_tracking.ejs`)
+  - `[ ]` Integrate OSRM real-road GeoJSON route fetcher for delivery tracking
+  - `[ ]` Render solid brand green route polyline (`color: '#00E676'`, `weight: 5`, `opacity: 0.95`)
+  - `[ ]` Smoothly glide agent marker on socket `location_updated` events
 
-- `[ ]` Task 3: Build & Deploy to Device
-  - `[ ]` Build debug APK (`app:assembleDebug`)
-  - `[ ]` Install and launch on device
-
-- `[ ]` Task 4: Git Automation
+- `[ ]` Task 3: Git Automation & VPS Deployment
   - `[ ]` Stage, commit, and push changes to GitHub `main`
+  - `[ ]` Provide VPS deployment command prompts

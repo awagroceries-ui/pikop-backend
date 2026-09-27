@@ -1,57 +1,47 @@
-# 📋 Implementation Plan: Restore Original Sample Design Proportions & Dual Light/Dark High Contrast
+# 📋 Implementation Plan: Admin Dashboard Real-Road Live Mission Tracking Upgrade
 
-Restore the spacious, premium proportions and card heights from the original design sample (`Design sample.png`), while ensuring all text (especially grey text) is optimized for 100% high-contrast legibility in both light and dark theme modes.
+Upgrade the Admin Dashboard Live Mission Tracking view (`admin_track.ejs`) and Guest Tracking view (`guest_tracking.ejs`) with real-road OSRM street network routes (following actual streets and turns), solid brand green route polylines (`#00E676`), and smooth live agent marker animation.
 
 ---
 
-## 🔍 Design Reference Proportions (Matching `Design sample.png`)
+## 🔍 Requirements & Technical Solution
 
-1. **Logo & Header**:
-   - Logo: Prominent `90dp` height.
-   - Heading: `26sp` ExtraBold title ("How do you want to\nuse **Pikop?**").
-   - Subtitle: `14sp` ("Choose your experience").
-   - Spacing: `16dp - 24dp` breathable vertical margins.
+1. **Real-Road OSRM Street Network Routing**:
+   - Query OSRM real-road driving routing engine (`https://router.project-osrm.org/route/v1/driving/`) using `pickup` and `delivery` coordinates.
+   - Parse GeoJSON geometry following actual streets, turns, intersections, and roundabouts.
 
-2. **Glow Cards (Role Cards)**:
-   - **2-Column Cards (Send, Earn, Fleet Partner, Business Account)**:
-     - Card height: `155dp` (spacious, rounded `20.dp` shape).
-     - PNG icon size: `80dp` large transparent 3D badge.
-     - Title `17sp` ExtraBold, Subtitle `11sp` / `12sp`.
-     - Bottom-right circular arrow button: `28dp` diameter.
-   - **Full-Width Card (Sell)**:
-     - Card height: `90dp`.
-     - PNG icon size: `72dp` transparent 3D badge.
-     - Title `18sp` ExtraBold, Subtitle `12sp`.
-     - Center-right circular arrow button: `32dp` diameter.
+2. **Solid Brand Green Route Lines**:
+   - Render the route with `L.geoJSON` as a solid, vibrant brand green line (`color: '#00E676'`, `weight: 5`, `opacity: 0.95`, `lineCap: 'round'`, `lineJoin: 'round'`).
+   - Remove any plain straight lines or dotted/dashed patterns.
 
-3. **Organizational Grouping Divider**:
-   - `"FOR ORGANIZATIONS"` with thin horizontal rules, padded `vertical = 16.dp`.
-
-4. **Footer & Trust Signal**:
-   - Log In Link: `"Already have an account? Log in →"` (`14sp`).
-   - Trust Signal: Shield icon + `"Your data is safe with us"` (`12sp`).
-
-5. **Dual Light/Dark Theme Contrast Optimization**:
-   - **Dark Mode**: Background `Color(0xFF0D0E11)`, titles `Color.White`, subtitles/grey text `Color(0xFFCBD5E1)` (light slate, 100% readable).
-   - **Light Mode**: Background `Color(0xFFF8FAFC)`, titles `Color(0xFF0F172A)`, subtitles/grey text `Color(0xFF475569)` (dark slate, 100% readable).
+3. **Live Agent Active Route & Smooth Marker Gliding**:
+   - When active agent coordinates (`agentPos`) are present or updated via Socket.IO (`location_updated`), fetch active road segment from agent position to target destination (pickup or delivery) in solid brand green.
+   - Smoothly glide the agent marker along the real-road street polyline.
 
 ---
 
 ## 🛠️ Proposed Changes
 
-### Component 1: Screen Composable (`UserTypeSelectionScreen.kt`)
+### Component 1: Web Admin & Tracking Views (`backend_v3`)
 
-#### [MODIFY] [UserTypeSelectionScreen.kt](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/app/src/main/java/com/ng/pikop/feature/auth/UserTypeSelectionScreen.kt)
-- Restore spacious sample proportions (card heights `155dp` / `90dp`, logo `90dp`, icon sizes `80dp` / `72dp`).
-- Apply theme-aware high-contrast color palette (`#CBD5E1` in dark mode, `#475569` in light mode).
+#### [MODIFY] [admin_track.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/admin_track.ejs)
+- Integrate OSRM real-road GeoJSON route fetcher for pickup and delivery locations.
+- Render solid brand green route polyline (`color: '#00E676'`, `weight: 5`).
+- Fetch and render agent active route segment to target destination in solid brand green.
+- Smoothly glide agent marker along the real-road polyline on socket `location_updated` events.
+
+#### [MODIFY] [guest_tracking.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/guest_tracking.ejs)
+- Integrate OSRM real-road GeoJSON route fetcher for delivery tracking.
+- Render solid brand green route polyline (`color: '#00E676'`, `weight: 5`).
+- Smoothly glide agent marker on socket `location_updated` events.
 
 ---
 
 ## 🧪 Verification Plan
 
-### Automated & Manual Verification
-1. Test on connected **Samsung Galaxy S23 Ultra** (`192.168.1.2:42447`).
-2. Compare with `Design sample.png` -> verify card proportions, icon sizes, and typography match the reference sample image.
-3. Test in Dark Theme & Light Theme -> verify all text (especially grey text) is crisp, bold, and 100% legible.
-4. Rebuild debug APK (`gradle_build("app:assembleDebug")`) and deploy to device.
-5. Stage, commit, and push changes to GitHub `main`.
+### Execution & Verification Steps
+1. Test `/admin/orders/:id/track` on local or production server.
+2. Verify route line follows actual streets and turns in solid brand green (`#00E676`).
+3. Verify agent marker glides smoothly along the green route line on live socket location updates.
+4. Stage, commit, and push changes to GitHub `main`.
+5. Deploy to production VPS server (`api.pikop.com.ng`) and restart PM2.

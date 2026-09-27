@@ -160,6 +160,61 @@
     ]);
     map.fitBounds(group.getBounds().pad(0.2));
 
+    // Real-Road OSRM Street Network Polyline Engine (Solid Brand Green Line)
+    let routeLine = null;
+    let agentRouteLine = null;
+
+    function renderRealRoadRoute(start, end, isAgentSegment = false) {
+        if (!start || !end || start[0] === 0 || end[0] === 0) return;
+
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+
+        fetch(osrmUrl)
+            .then(res => res.json())
+            .then(data => {
+                if (data.routes && data.routes.length > 0) {
+                    const routeGeoJSON = data.routes[0].geometry;
+                    const style = {
+                        color: '#00E676', // Solid Brand Green
+                        weight: 5,
+                        opacity: 0.95,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    };
+
+                    if (isAgentSegment) {
+                        if (agentRouteLine) map.removeLayer(agentRouteLine);
+                        agentRouteLine = L.geoJSON(routeGeoJSON, { style }).addTo(map);
+                    } else {
+                        if (routeLine) map.removeLayer(routeLine);
+                        routeLine = L.geoJSON(routeGeoJSON, { style }).addTo(map);
+                        map.fitBounds(routeLine.getBounds().pad(0.15));
+                    }
+                }
+            })
+            .catch(e => {
+                console.warn('[RouteEngine] OSRM fetch fallback:', e);
+                const poly = L.polyline([start, end], {
+                    color: '#00E676',
+                    weight: 5,
+                    opacity: 0.9,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }).addTo(map);
+                if (!isAgentSegment) map.fitBounds(poly.getBounds().pad(0.15));
+            });
+    }
+
+    // Render Primary Pickup -> Delivery Street Route in Solid Brand Green
+    renderRealRoadRoute(pickup, delivery, false);
+
+    // If initial agent position is present, render Agent -> Pickup/Delivery Route
+    if (initialAgent) {
+        const orderStatus = "<%= order.status %>".toUpperCase();
+        const targetPoint = (orderStatus === 'PICKED_UP' || orderStatus === 'IN_TRANSIT') ? delivery : pickup;
+        renderRealRoadRoute(initialAgent, targetPoint, true);
+    }
+
     // Live Socket Updates
     socket.emit('join_order', { orderId: "<%= order.id %>" });
 
@@ -173,12 +228,16 @@
             agentMarker.setLatLng(newPos);
         }
 
+        // Dynamically update active agent real-road route segment
+        const orderStatus = "<%= order.status %>".toUpperCase();
+        const targetPoint = (orderStatus === 'PICKED_UP' || orderStatus === 'IN_TRANSIT') ? delivery : pickup;
+        renderRealRoadRoute(newPos, targetPoint, true);
+
         document.getElementById('eta-box').innerText = "Signal Strong - Moving Live";
     });
 
     socket.on('status_updated', (data) => {
         console.log('[Live] Status change detected:', data.status);
-        // Reload for ANY status update to refresh agent info and sidebar data
         window.location.reload();
     });
 </script>
@@ -187,7 +246,7 @@
     .smaller { font-size: 11px; }
     .mono { font-family: 'JetBrains Mono', monospace; }
 
-    /* Premium Animated Tracking: Markers glide between pings */
+    /* Premium Animated Tracking: Markers glide smoothly between pings */
     .leaflet-marker-icon {
         transition: transform 5s linear !important;
     }
