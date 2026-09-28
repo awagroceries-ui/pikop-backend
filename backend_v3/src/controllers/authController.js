@@ -82,6 +82,26 @@ const signup = async (req, res) => {
             if (fleetRes.rows.length > 0) fleetPartnerId = fleetRes.rows[0].fleet_partner_id;
         }
 
+        // Normalize primary_class to match database CHECK constraint ('agent', 'rider', 'driver')
+        let normalizedClass = (primary_class || 'rider').toLowerCase();
+        if (normalizedClass.includes('foot') || normalizedClass.includes('cyclist') || normalizedClass.includes('agent')) {
+            normalizedClass = 'agent';
+        } else if (normalizedClass.includes('driver')) {
+            normalizedClass = 'driver';
+        } else {
+            normalizedClass = 'rider';
+        }
+
+        // Clean empty string optional fields to NULL for PostgreSQL column type compatibility
+        const cleanDob = (date_of_birth && date_of_birth.trim()) ? date_of_birth.trim() : null;
+        const cleanAddr = (home_address && home_address.trim()) ? home_address.trim() : null;
+        const cleanGender = (gender && gender.trim()) ? gender.trim() : null;
+        const cleanReg = (registration_number && registration_number.trim()) ? registration_number.trim() : null;
+        const cleanMake = (make && make.trim()) ? make.trim() : null;
+        const cleanModel = (model && model.trim()) ? model.trim() : null;
+        const cleanColor = (color && color.trim()) ? color.trim() : null;
+        const cleanState = (current_state && current_state.trim()) ? current_state.trim() : null;
+
         await client.query(
             `INSERT INTO fulfillers (
                 user_id, full_name, email, phone, password_hash, primary_class,
@@ -90,10 +110,10 @@ const signup = async (req, res) => {
                 fleet_partner_id, current_state
              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
             [
-                user.id, full_name, email, normalizedPhone, passwordHash, (primary_class || 'rider').toLowerCase(),
-                date_of_birth, home_address, gender,
-                registration_number, make, model, color,
-                fleetPartnerId, current_state || null
+                user.id, full_name, email, normalizedPhone, passwordHash, normalizedClass,
+                cleanDob, cleanAddr, cleanGender,
+                cleanReg, cleanMake, cleanModel, cleanColor,
+                fleetPartnerId, cleanState
             ]
         );
     }
@@ -147,9 +167,13 @@ const signup = async (req, res) => {
     console.error('[Auth] Signup FATAL Error:', error);
 
     if (error.code === '23505') {
-      return res.status(400).json({ success: false, message: 'Email or phone already registered' });
+      return res.status(400).json({ success: false, message: 'An account with this email or phone number is already registered.' });
     }
-    throw error;
+    if (error.code === '23514' || error.code === '22FF7' || error.code === '22007') {
+      return res.status(400).json({ success: false, message: 'Invalid profile details or date format provided. Please check your information and try again.' });
+    }
+
+    return res.status(400).json({ success: false, message: error.message || 'Signup failed. Please check your input and try again.' });
   } finally {
     client.release();
   }
