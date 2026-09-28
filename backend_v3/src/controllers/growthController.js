@@ -42,7 +42,8 @@ const validateCoupon = async (req, res) => {
             promo_id: coupon.id, // Return UUID instead of code
             discount_type: coupon.discount_type.toLowerCase(), // 'fixed' or 'percentage'
             value: parseFloat(coupon.discount_value),
-            message: `Coupon ${coupon.code} applied successfully.`
+            scope: coupon.applicability_scope || 'DELIVERY_ONLY',
+            message: `Coupon ${coupon.code} (${coupon.applicability_scope || 'DELIVERY_ONLY'}) applied successfully.`
         });
 
     } catch (error) {

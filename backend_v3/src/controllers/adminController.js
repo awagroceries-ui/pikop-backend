@@ -661,12 +661,12 @@ const getCoupons = async (req, res) => {
 };
 
 const createCoupon = async (req, res) => {
-    const { code, discount_type, discount_value, min_order_amount, usage_limit } = req.body;
+    const { code, discount_type, discount_value, min_order_amount, usage_limit, applicability_scope } = req.body;
     try {
         await db.query(
-            `INSERT INTO coupons (code, discount_type, discount_value, min_order_amount, usage_limit, is_active)
-             VALUES ($1, $2, $3, $4, $5, true)`,
-            [code.toUpperCase(), discount_type, discount_value, min_order_amount || 0, usage_limit || 100]
+            `INSERT INTO coupons (code, discount_type, discount_value, min_order_amount, usage_limit, applicability_scope, is_active)
+             VALUES ($1, $2, $3, $4, $5, $6, true)`,
+            [code.toUpperCase().trim(), discount_type, discount_value, min_order_amount || 0, usage_limit || 100, applicability_scope || 'DELIVERY_ONLY']
         );
         res.redirect('/admin/coupons');
     } catch (error) {

@@ -184,13 +184,53 @@ const activatePaidMission = async (client, metadata, reference, channel) => {
             const couponRes = await client.query("SELECT * FROM coupons WHERE (id::text = $1 OR code ILIKE $1) AND is_active = true", [m.promo_id]);
             if (couponRes.rows.length > 0) {
                 const c = couponRes.rows[0];
-                const calculatedDiscount = c.discount_type === 'FIXED' ? parseFloat(c.discount_value) : deliveryFee * (parseFloat(c.discount_value) / 100);
+                const scope = c.applicability_scope || 'DELIVERY_ONLY';
 
-                // Rule: Promo only discounts delivery fee, never item price or platform fee.
-                discount = Math.min(calculatedDiscount, deliveryFee);
-                deliveryFee = Math.max(0, deliveryFee - discount);
+                if (scope === 'TOTAL_BILL') {
+                    const baseAmount = itemPrice + deliveryFee + platformFee + smsCharge;
+                    const calculatedDiscount = c.discount_type === 'FIXED'
+                        ? parseFloat(c.discount_value)
+                        : baseAmount * (parseFloat(c.discount_value) / 100);
 
-                console.log(`[Activation] Applied Promo: ${c.code}. Discount: ${discount}. New Delivery Fee: ${deliveryFee}`);
+                    discount = Math.min(calculatedDiscount, baseAmount);
+                    if (parseFloat(c.discount_value) >= 100.00 && c.discount_type === 'PERCENTAGE') {
+                        deliveryFee = 0;
+                        itemPrice = 0;
+                        platformFee = 0;
+                        smsCharge = 0;
+                    } else {
+                        deliveryFee = Math.max(0, deliveryFee - discount);
+                    }
+                    console.log(`[Activation] Applied TOTAL_BILL Promo: ${c.code}. Discount: ${discount}`);
+                } else if (scope === 'MERCHANT_ONLY') {
+                    const baseAmount = itemPrice;
+                    const calculatedDiscount = c.discount_type === 'FIXED'
+                        ? parseFloat(c.discount_value)
+                        : baseAmount * (parseFloat(c.discount_value) / 100);
+
+                    discount = Math.min(calculatedDiscount, baseAmount);
+                    itemPrice = Math.max(0, itemPrice - discount);
+                    console.log(`[Activation] Applied MERCHANT_ONLY Promo: ${c.code}. Discount: ${discount}`);
+                } else if (scope === 'PLATFORM_ONLY') {
+                    const baseAmount = platformFee;
+                    const calculatedDiscount = c.discount_type === 'FIXED'
+                        ? parseFloat(c.discount_value)
+                        : baseAmount * (parseFloat(c.discount_value) / 100);
+
+                    discount = Math.min(calculatedDiscount, baseAmount);
+                    platformFee = Math.max(0, platformFee - discount);
+                    console.log(`[Activation] Applied PLATFORM_ONLY Promo: ${c.code}. Discount: ${discount}`);
+                } else {
+                    // DELIVERY_ONLY (Default, e.g. TEST100)
+                    const baseAmount = deliveryFee;
+                    const calculatedDiscount = c.discount_type === 'FIXED'
+                        ? parseFloat(c.discount_value)
+                        : baseAmount * (parseFloat(c.discount_value) / 100);
+
+                    discount = Math.min(calculatedDiscount, baseAmount);
+                    deliveryFee = Math.max(0, deliveryFee - discount);
+                    console.log(`[Activation] Applied DELIVERY_ONLY Promo: ${c.code}. Discount: ${discount}. New Delivery Fee: ${deliveryFee}`);
+                }
             }
         } catch (e) { console.error('[Activation] Promo check failed:', e.message); }
     }

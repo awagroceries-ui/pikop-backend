@@ -1,7 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-5">
     <div>
         <h3 class="fw-bold mb-1 text-black" style="letter-spacing: -0.5px;">COUPON ENGINE</h3>
-        <p class="text-muted small">Manage discount codes and promotional campaigns.</p>
+        <p class="text-muted small">Manage discount codes and promotional campaign scopes.</p>
     </div>
     <button class="btn-pikop-primary px-4" data-bs-toggle="modal" data-bs-target="#createCouponModal">GENERATE NEW COUPON</button>
 </div>
@@ -15,6 +15,7 @@
                         <tr>
                             <th class="p-4">CODE</th>
                             <th class="p-4">DISCOUNT</th>
+                            <th class="p-4">APPLICABILITY SCOPE</th>
                             <th class="p-4">MIN ORDER</th>
                             <th class="p-4">USAGE</th>
                             <th class="p-4">STATUS</th>
@@ -28,6 +29,17 @@
                                     <td class="p-4 fw-bold text-black"><%= coupon.code %></td>
                                     <td class="p-4 text-black">
                                         <%= coupon.discount_value %><%= coupon.discount_type === 'PERCENTAGE' ? '%' : ' ₦' %>
+                                    </td>
+                                    <td class="p-4">
+                                        <% if (coupon.applicability_scope === 'TOTAL_BILL') { %>
+                                            <span class="badge bg-primary text-white fw-bold">ENTIRE BILL</span>
+                                        <% } else if (coupon.applicability_scope === 'MERCHANT_ONLY') { %>
+                                            <span class="badge bg-warning text-dark fw-bold">MERCHANT ONLY</span>
+                                        <% } else if (coupon.applicability_scope === 'PLATFORM_ONLY') { %>
+                                            <span class="badge bg-info text-dark fw-bold">PLATFORM ONLY</span>
+                                        <% } else { %>
+                                            <span class="badge bg-secondary text-white fw-bold">DELIVERY ONLY</span>
+                                        <% } %>
                                     </td>
                                     <td class="p-4 text-black">₦<%= coupon.min_order_amount %></td>
                                     <td class="p-4 text-black"><%= coupon.usage_count %> / <%= coupon.usage_limit %></td>
@@ -46,7 +58,7 @@
                                 </tr>
                             <% }) %>
                         <% } else { %>
-                            <tr><td colspan="6" class="p-5 text-center text-muted">No coupons found. Click Generate to create one.</td></tr>
+                            <tr><td colspan="7" class="p-5 text-center text-muted">No coupons found. Click Generate to create one.</td></tr>
                         <% } %>
                     </tbody>
                 </table>
@@ -68,6 +80,15 @@
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-muted">COUPON CODE</label>
                         <input type="text" name="code" class="form-control form-control-lg bg-light border-0" placeholder="e.g. SAVE50" required style="border-radius: 12px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">APPLICABILITY SCOPE</label>
+                        <select name="applicability_scope" class="form-select form-select-lg bg-light border-0" required style="border-radius: 12px;">
+                            <option value="DELIVERY_ONLY">Delivery Fees Only (Default)</option>
+                            <option value="TOTAL_BILL">Entire Checkout Bill (Total)</option>
+                            <option value="MERCHANT_ONLY">Merchant Items / Food Only</option>
+                            <option value="PLATFORM_ONLY">Platform Service Fees Only</option>
+                        </select>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
