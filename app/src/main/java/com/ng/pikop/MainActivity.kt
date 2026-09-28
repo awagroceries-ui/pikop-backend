@@ -363,9 +363,12 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
         
         composable("fulfiller_category_selection") {
-            FulfillerCategorySelectionScreen(onCategorySelected = { category ->
-                navController.navigate("signup_fulfiller/$category")
-            })
+            FulfillerCategorySelectionScreen(
+                onCategorySelected = { category ->
+                    navController.navigate("signup_fulfiller/$category")
+                },
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable("login") {
