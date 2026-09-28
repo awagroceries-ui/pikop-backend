@@ -268,7 +268,13 @@ fun DiscoveryItemCard(item: DiscoveryItem, onClick: () -> Unit, onCartError: () 
         Column {
             Box {
                 AsyncImage(
-                    model = if (item.photo_url.isNullOrBlank()) "https://placehold.co/400x300?text=Pikop" else "https://api.pikop.com.ng${item.photo_url}",
+                    model = if (item.photo_url.isNullOrBlank()) {
+                        "https://placehold.co/400x300?text=Pikop"
+                    } else if (item.photo_url.startsWith("http")) {
+                        item.photo_url
+                    } else {
+                        "https://api.pikop.com.ng${item.photo_url}"
+                    },
                     contentDescription = null,
                     modifier = Modifier.fillMaxWidth().height(120.dp),
                     contentScale = ContentScale.Crop

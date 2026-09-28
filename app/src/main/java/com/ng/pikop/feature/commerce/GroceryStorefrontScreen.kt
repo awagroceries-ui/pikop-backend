@@ -156,7 +156,7 @@ fun GroceryStorefrontScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(items) { item ->
+                    items(items, key = { "${it.id}_${it.item_type}" }) { item ->
                         DiscoveryItemCard(item = item, onClick = { onItemClick(item) })
                     }
                 }

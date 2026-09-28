@@ -47,6 +47,7 @@ fun AccountScreen(
     onNavigateToMerchantRegistration: () -> Unit,
     onNavigateToTerms: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
+    onNavigateToKyc: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -305,6 +306,14 @@ fun AccountScreen(
                         label = "Corporate Accounts",
                         icon = Icons.Default.Business,
                         onClick = onNavigateToCorporate
+                    )
+                }
+
+                if (userRole == "FULFILLER") {
+                    AccountOption(
+                        label = "Verification Documents (KYC)",
+                        icon = Icons.Default.VerifiedUser,
+                        onClick = onNavigateToKyc
                     )
                 }
 

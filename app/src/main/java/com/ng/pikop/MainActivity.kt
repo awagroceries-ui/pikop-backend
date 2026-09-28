@@ -1019,6 +1019,7 @@ fun MainAppScaffold(
                     onNavigateToMerchantRegistration = { navController.navigate("merchant_business_setup") },
                     onNavigateToTerms = { navController.navigate("terms_viewer/false") },
                     onNavigateToPrivacy = { navController.navigate("privacy_policy") },
+                    onNavigateToKyc = { navController.navigate("kyc_upload") },
                     onLogout = {
                         scope.launch {
                             tokenManager.clearTokens()
