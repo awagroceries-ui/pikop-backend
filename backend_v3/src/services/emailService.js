@@ -294,10 +294,31 @@ const sendOrderCompletionEmail = async (to, name, orderId, totalFare) => {
     return await sendMail(to, subject, html);
 };
 
+/**
+ * Sends Password Reset OTP Email.
+ */
+const sendPasswordResetEmail = async (to, name, otpCode) => {
+    const subject = "Pikop: Password Reset Verification Code";
+    const html = `
+        <h1 class="greeting">Password Reset Code</h1>
+        <p class="text">Hello <strong>${name || 'User'}</strong>,</p>
+        <p class="text">We received a request to reset your password for your Pikop account. Use the 6-digit verification code below to complete your password reset:</p>
+
+        <div class="cta-container">
+            <div class="otp-code">${otpCode}</div>
+        </div>
+
+        <p class="text">This code is valid for 15 minutes. If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+    `;
+
+    return await sendMail(to, subject, html);
+};
+
 module.exports = {
   sendMail,
   sendWelcomeEmail,
   sendKycStatusEmail,
   sendPaymentReceiptEmail,
-  sendOrderCompletionEmail
+  sendOrderCompletionEmail,
+  sendPasswordResetEmail
 };

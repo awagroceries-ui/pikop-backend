@@ -570,6 +570,156 @@ const deleteAccount = async (req, res) => {
     }
 };
 
+/**
+ * Triggers a 6-digit OTP code to reset password via SMS & Email.
+ */
+const forgotPassword = async (req, res) => {
+    const { email_or_phone } = req.body;
+    const identifier = (email_or_phone || '').trim().toLowerCase();
+
+    if (!identifier) {
+        return res.status(400).json({ success: false, message: 'Please provide your email address or phone number.' });
+    }
+
+    try {
+        const { rows } = await db.query(
+            "SELECT id, email, phone, full_name FROM users WHERE LOWER(email) = $1 OR phone = $1 OR phone = $2",
+            [identifier, normalizePhone(identifier)]
+        );
+
+        if (rows.length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'If an account exists with that identifier, a reset code has been sent.'
+            });
+        }
+
+        const user = rows[0];
+
+        // COOLDOWN Check: 60 seconds
+        const lastOtp = await db.query(
+            "SELECT created_at FROM otp_verifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
+            [user.id]
+        );
+        if (lastOtp.rows.length > 0) {
+            const timeSinceLast = Date.now() - new Date(lastOtp.rows[0].created_at).getTime();
+            if (timeSinceLast < 60000) {
+                return res.status(429).json({
+                    success: false,
+                    message: `Please wait ${Math.ceil((60000 - timeSinceLast) / 1000)}s before requesting another reset code.`
+                });
+            }
+        }
+
+        // Generate 6-digit OTP
+        await db.query("DELETE FROM otp_verifications WHERE user_id = $1", [user.id]);
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 15 * 60000); // 15 mins
+
+        await db.query(
+            "INSERT INTO otp_verifications (user_id, otp_code, expires_at) VALUES ($1, $2, $3)",
+            [user.id, otpCode, expiresAt]
+        );
+
+        // Send OTP via Africa's Talking SMS & Email
+        if (user.phone) {
+            smsService.sendSms(user.phone, `Pikop: Your password reset code is ${otpCode}. Valid for 15 minutes.`, 'password_reset').catch(() => {});
+        }
+        if (user.email) {
+            emailService.sendPasswordResetEmail(user.email, user.full_name, otpCode).catch(() => {});
+        }
+
+        console.log(`[Auth] Password reset OTP triggered for User ${user.id} (${user.email}).`);
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset code sent to your email and phone number.',
+            email: user.email
+        });
+
+    } catch (error) {
+        console.error('[ForgotPassword] Error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to process password reset request.' });
+    }
+};
+
+/**
+ * Resets user password using verified OTP code.
+ */
+const resetPassword = async (req, res) => {
+    const { email_or_phone, otp, new_password } = req.body;
+    const identifier = (email_or_phone || '').trim().toLowerCase();
+    const cleanOtp = (otp || '').toString().trim();
+    const masterOtp = process.env.MASTER_OTP;
+
+    if (!identifier || !cleanOtp || !new_password) {
+        return res.status(400).json({ success: false, message: 'Please provide identifier, verification code, and new password.' });
+    }
+
+    if (new_password.length < 6) {
+        return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+    }
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const { rows } = await client.query(
+            "SELECT id, email, phone FROM users WHERE LOWER(email) = $1 OR phone = $1 OR phone = $2",
+            [identifier, normalizePhone(identifier)]
+        );
+
+        if (rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Account not found.' });
+        }
+
+        const user = rows[0];
+
+        // 1. Verify OTP
+        let isValid = false;
+        if (masterOtp && cleanOtp === masterOtp.toString().trim()) {
+            isValid = true;
+        } else {
+            const otpCheck = await client.query(
+                "SELECT id FROM otp_verifications WHERE user_id = $1 AND otp_code = $2 AND expires_at > CURRENT_TIMESTAMP",
+                [user.id, cleanOtp]
+            );
+            if (otpCheck.rows.length > 0) isValid = true;
+        }
+
+        if (!isValid) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Invalid or expired verification code.' });
+        }
+
+        // 2. Hash New Password and Update
+        const passwordHash = await authService.hashPassword(new_password);
+
+        await client.query("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, user.id]);
+        await client.query("UPDATE fulfillers SET password_hash = $1 WHERE user_id = $2", [passwordHash, user.id]);
+        await client.query("DELETE FROM otp_verifications WHERE user_id = $1", [user.id]);
+
+        // Revoke active sessions for security
+        await client.query("UPDATE user_sessions SET is_revoked = true WHERE user_id = $1", [user.id]);
+
+        await client.query('COMMIT');
+        console.log(`[Auth] Password reset successfully for User ${user.id}.`);
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset successfully. You can now log in with your new password.'
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[ResetPassword] Error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to reset password.' });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   signup,
   verifyOtp,
@@ -580,5 +730,7 @@ module.exports = {
   updateFCMToken,
   changePassword,
   confirmPassword,
-  deleteAccount
+  deleteAccount,
+  forgotPassword,
+  resetPassword
 };

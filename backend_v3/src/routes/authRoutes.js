@@ -8,6 +8,8 @@ router.post('/login', authController.login);
 router.post('/verify-otp', authController.verifyOtp);
 router.post('/resend-otp', authController.resendOtp);
 router.post('/request-email-otp', authController.requestEmailOtp);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
 router.post('/refresh', authController.refresh);
 router.post('/fcm-token', authenticateToken, authController.updateFCMToken);
 router.post('/change-password', authenticateToken, authController.changePassword);

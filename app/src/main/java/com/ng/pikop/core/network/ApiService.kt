@@ -60,6 +60,16 @@ data class LoginRequest(
     val password: String
 )
 
+data class ForgotPasswordRequest(
+    val email_or_phone: String
+)
+
+data class ResetPasswordRequest(
+    val email_or_phone: String,
+    val otp: String,
+    val new_password: String
+)
+
 data class VerifyEmailRequest(
     val email: String,
     val otp: String
@@ -1025,6 +1035,12 @@ interface ApiService {
 
     @POST("api/v1/auth/request-email-otp")
     suspend fun requestEmailOtp(@Body request: Map<String, String>): AuthResponse
+
+    @POST("api/v1/auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): AuthResponse
+
+    @POST("api/v1/auth/reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): AuthResponse
 
     @POST("api/v1/auth/fcm-token")
     suspend fun updateFCMToken(@Body request: Map<String, String>): AuthResponse

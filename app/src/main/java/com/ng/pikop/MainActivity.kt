@@ -379,7 +379,14 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 onUnverified = { email, role ->
                     navController.navigate("email_otp/$email/$role")
                 },
-                onGoToSignup = { navController.navigate("user_type_selection") }
+                onGoToSignup = { navController.navigate("user_type_selection") },
+                onForgotPassword = { navController.navigate("forgot_password") }
+            )
+        }
+
+        composable("forgot_password") {
+            ForgotPasswordScreen(
+                onBackToLogin = { navController.popBackStack() }
             )
         }
 

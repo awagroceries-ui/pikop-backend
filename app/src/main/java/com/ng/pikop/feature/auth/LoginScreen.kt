@@ -24,7 +24,8 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     onLoginSuccess: (String) -> Unit, 
     onUnverified: (String, String) -> Unit,
-    onGoToSignup: () -> Unit
+    onGoToSignup: () -> Unit,
+    onForgotPassword: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -90,6 +91,15 @@ fun LoginScreen(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 )
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onForgotPassword) {
+                    Text("Forgot Password?", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                }
+            }
 
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(8.dp))
