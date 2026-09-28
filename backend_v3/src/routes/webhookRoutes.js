@@ -4,6 +4,8 @@ const webhookController = require('../controllers/webhookController');
 
 router.post('/prembly', webhookController.handlePremblyWebhook);
 router.post('/termii', webhookController.handleTermiiWebhook);
+router.post('/africastalking/dlr', webhookController.handleAfricasTalkingDlrWebhook);
+router.post('/at-dlr', webhookController.handleAfricasTalkingDlrWebhook);
 router.get('/redirect', webhookController.handlePremblyRedirect);
 
 module.exports = router;

@@ -12,7 +12,6 @@ const handlePremblyWebhook = async (req, res) => {
     // 1. Verify Authenticity (using rawBody to ensure HMAC matches)
     if (!prembly.verifyWebhook(rawBody, signature)) {
         console.error('[Webhook] Prembly: Invalid signature received.');
-        // Optionally log rawBody for debugging if trusted
         return res.status(401).send('Unauthorized');
     }
 
@@ -33,7 +32,6 @@ const handlePremblyWebhook = async (req, res) => {
         const verifiedStatus = (status === 'success' || status === 'verified') ? 'approved' : 'declined';
 
         // 4. Update Database Idempotently
-        // We also update kyc_status to move it forward if approved.
         const updateRes = await db.query(
             `UPDATE fulfillers
              SET didit_verification_status = $1,
@@ -81,10 +79,38 @@ const handlePremblyRedirect = (req, res) => {
 };
 
 /**
- * Webhook for Termii SMS Delivery Reports.
+ * Webhook for Africa's Talking SMS Delivery Reports (DLR).
+ */
+const handleAfricasTalkingDlrWebhook = async (req, res) => {
+    // AT sends POST payload (form-urlencoded or JSON): id, status, phoneNumber, networkCode, failureReason
+    const { id, status, phoneNumber, networkCode, failureReason } = req.body;
+
+    console.log(`[Webhook] Africa's Talking DLR received: id=${id} | status=${status} | phone=${phoneNumber} | net=${networkCode} ${failureReason ? '| failure=' + failureReason : ''}`);
+
+    if (!id) {
+        return res.status(200).send('OK'); // Acknowledge AT ping
+    }
+
+    try {
+        const cleanStatus = (status || 'unknown').toLowerCase();
+        await db.query(
+            `UPDATE sms_logs
+             SET status = $1
+             WHERE provider_ref = $2 OR provider_ref LIKE $3`,
+            [cleanStatus, id, `%${id}%`]
+        );
+        console.log(`[Webhook] Updated sms_logs for Ref: ${id} -> Status: ${cleanStatus}`);
+        res.status(200).send('OK');
+    } catch (error) {
+        console.error('[Webhook] AfricaTalking DLR DB Error:', error.message);
+        res.status(500).send('Retry later');
+    }
+};
+
+/**
+ * Webhook for Termii SMS Delivery Reports (Legacy Support).
  */
 const handleTermiiWebhook = async (req, res) => {
-    // Authorized token for Termii (Signing Secret provided)
     const secretToken = process.env.TERMII_WEBHOOK_TOKEN || 'tsk_aMngGOk22bKBmOATkpceSlKtoG';
     const inboundToken = req.query.token || req.headers['x-termii-token'];
 
@@ -94,8 +120,6 @@ const handleTermiiWebhook = async (req, res) => {
     }
 
     const payload = req.body;
-    // Termii typically sends: { message_id: "...", status: "Delivered", recipient: "...", ... }
-
     const { message_id, status, recipient } = payload;
     console.log(`[Webhook] Termii delivery report: ref=${message_id} | status=${status} | to=${recipient}`);
 
@@ -114,5 +138,6 @@ const handleTermiiWebhook = async (req, res) => {
 module.exports = {
     handlePremblyWebhook,
     handlePremblyRedirect,
+    handleAfricasTalkingDlrWebhook,
     handleTermiiWebhook
 };

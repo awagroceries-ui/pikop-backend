@@ -10,9 +10,10 @@ async function testAfricaTalkingSms() {
     const apiKey = (process.env.AT_API_KEY || process.env.AFRICASTALKING_API_KEY || '').trim();
     const senderId = (process.env.AT_SENDER_ID || 'Pikop').trim();
 
-    console.log(`[Diagnostic] AT_USERNAME  : "${username}"`);
-    console.log(`[Diagnostic] AT_SENDER_ID : "${senderId}"`);
-    console.log(`[Diagnostic] AT_API_KEY   : ${apiKey ? `Present (${apiKey.length} chars, Prefix: ${apiKey.substring(0, 6)}...)` : '❌ MISSING IN .env'}`);
+    console.log(`[Diagnostic] AT_USERNAME     : "${username}"`);
+    console.log(`[Diagnostic] AT_SENDER_ID    : "${senderId}"`);
+    console.log(`[Diagnostic] AT_API_KEY      : ${apiKey ? `Present (${apiKey.length} chars, Prefix: ${apiKey.substring(0, 6)}...)` : '❌ MISSING IN .env'}`);
+    console.log(`[Diagnostic] DLR Callback URL: https://api.pikop.com.ng/api/v1/webhooks/africastalking/dlr`);
 
     const testPhone = process.argv[2] || '+2348101373077';
     console.log(`\n[SMS Test] Sending test message to: ${testPhone}`);
@@ -28,17 +29,13 @@ async function testAfricaTalkingSms() {
 
         if (result.success) {
             console.log("\n✅ AFRICA'S TALKING SMS TEST SUCCESSFUL!");
+            console.log("\n📡 TO RECEIVE HANDSET DELIVERY REPORTS (DLR) FROM TELCOS:");
+            console.log("1. Log into your Africa's Talking Dashboard (https://africastalking.com).");
+            console.log("2. Navigate to: SMS -> SMS Callback URLs -> Delivery Reports.");
+            console.log("3. Set Callback URL to: https://api.pikop.com.ng/api/v1/webhooks/africastalking/dlr");
+            console.log("4. Click Save! All telco delivery reports will automatically sync to sms_logs.");
         } else {
             console.error("\n❌ AFRICA'S TALKING SMS TEST FAILED:", result.error);
-            if (result.error && result.error.includes("supplied authentication is invalid")) {
-                console.log("\n👉 HOW TO FIX THIS:");
-                console.log("1. Log into your Africa's Talking Dashboard at https://africastalking.com");
-                console.log("2. Copy your App Username and API Key (from Settings -> API Key).");
-                console.log("3. Add them to /var/www/pikop-api/backend_v3/backend_v3/.env:");
-                console.log("   AT_USERNAME=your_username");
-                console.log("   AT_API_KEY=your_api_key");
-                console.log("   AT_SENDER_ID=Pikop");
-            }
         }
 
         process.exit(0);
