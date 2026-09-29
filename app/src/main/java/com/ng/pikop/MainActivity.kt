@@ -908,17 +908,17 @@ fun MainAppScaffold(
                 val mId = backStackEntry.arguments?.getString("merchantId")
                 com.ng.pikop.feature.commerce.FoodStorefrontScreen(
                     merchantId = mId,
-                    onViewCart = { navController.navigate("commerce_cart") },
+                    onViewCart = { nestedNavController.navigate("commerce_cart") },
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
-                        navController.navigate("commerce_checkout?itemId=${android.net.Uri.encode(item.id)}&itemType=${android.net.Uri.encode(item.item_type ?: "meal")}")
+                        nestedNavController.navigate("commerce_checkout?itemId=${android.net.Uri.encode(item.id)}&itemType=${android.net.Uri.encode(item.item_type ?: "meal")}")
                     }
                 )
             }
             composable("storefront_groceries") {
                 com.ng.pikop.feature.commerce.GroceryStorefrontScreen(
-                    onViewCart = { navController.navigate("commerce_cart") },
+                    onViewCart = { nestedNavController.navigate("commerce_cart") },
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
-                        navController.navigate("commerce_checkout?itemId=${android.net.Uri.encode(item.id)}&itemType=${android.net.Uri.encode(item.item_type ?: "groceries")}")
+                        nestedNavController.navigate("commerce_checkout?itemId=${android.net.Uri.encode(item.id)}&itemType=${android.net.Uri.encode(item.item_type ?: "groceries")}")
                     }
                 )
             }
@@ -926,18 +926,18 @@ fun MainAppScaffold(
                 val mId = backStackEntry.arguments?.getString("merchantId")
                 com.ng.pikop.feature.commerce.ShopStorefrontScreen(
                     merchantId = mId,
-                    onViewCart = { navController.navigate("commerce_cart") },
+                    onViewCart = { nestedNavController.navigate("commerce_cart") },
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
-                        navController.navigate("commerce_checkout?itemId=${android.net.Uri.encode(item.id)}&itemType=${android.net.Uri.encode(item.item_type ?: "product")}")
+                        nestedNavController.navigate("commerce_checkout?itemId=${android.net.Uri.encode(item.id)}&itemType=${android.net.Uri.encode(item.item_type ?: "product")}")
                     }
                 )
             }
             composable("commerce_cart") {
                 com.ng.pikop.feature.commerce.CartScreen(
                     onCheckout = {
-                        navController.navigate("commerce_checkout?useCart=true")
+                        nestedNavController.navigate("commerce_checkout?useCart=true")
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { nestedNavController.popBackStack() }
                 )
             }
             composable(
@@ -955,14 +955,14 @@ fun MainAppScaffold(
                 CommerceCheckoutScreen(
                     itemId = itemId,
                     itemType = itemType,
-                    navController = navController,
+                    navController = navController, // Keep root for map_address_search/track_order
                     useCart = useCart,
                     onSuccess = { 
                         CartManager.clear()
                         navController.navigate("main") { popUpTo(0) { inclusive = true } } 
                     },
                     onCelebration = onCelebration,
-                    onBack = { navController.popBackStack() }
+                    onBack = { nestedNavController.popBackStack() }
                 )
             }
             composable("history") {
