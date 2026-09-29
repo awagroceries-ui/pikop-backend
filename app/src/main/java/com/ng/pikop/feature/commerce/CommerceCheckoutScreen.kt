@@ -71,18 +71,19 @@ fun CommerceCheckoutScreen(
         ?.getLiveData<Double>("delivery_lng")
         ?.observeAsState(0.0) ?: remember { mutableStateOf(0.0) }
 
-    LaunchedEffect(itemId) {
+    LaunchedEffect(itemId, useCart) {
         try {
             isLoading = true
-            val response = apiService.getDiscovery() 
-            item = response.data.find { it.id == itemId && it.item_type == itemType }
-            
-            if (item == null && com.ng.pikop.core.cart.CartManager.items.isNotEmpty()) {
+            val cartMatch = com.ng.pikop.core.cart.CartManager.items.find { it.item.id == itemId }?.item
+            if (cartMatch != null) {
+                item = cartMatch
+            } else if (com.ng.pikop.core.cart.CartManager.items.isNotEmpty()) {
                 item = com.ng.pikop.core.cart.CartManager.items.first().item
+            } else {
+                val response = apiService.getDiscovery() 
+                item = response.data.find { it.id == itemId && (itemType.isBlank() || it.item_type == itemType) }
+                    ?: response.data.find { it.id == itemId }
             }
-
-            val walletRes = apiService.getWalletInfo()
-            walletBalance = walletRes.actualBalance
         } catch (_: Exception) {
             if (com.ng.pikop.core.cart.CartManager.items.isNotEmpty()) {
                 item = com.ng.pikop.core.cart.CartManager.items.first().item
@@ -91,6 +92,13 @@ fun CommerceCheckoutScreen(
             }
         } finally {
             isLoading = false
+        }
+
+        try {
+            val walletRes = apiService.getWalletInfo()
+            walletBalance = walletRes.actualBalance
+        } catch (_: Exception) {
+            walletBalance = 0.0
         }
     }
 
@@ -294,7 +302,8 @@ fun CommerceCheckoutScreen(
                         }
                     }
 
-                    if (item!!.accepts_cod) {
+                    val currentItem = item
+                    if (currentItem?.accepts_cod == true) {
                         item {
                             OutlinedCard(
                                 modifier = Modifier.width(150.dp),

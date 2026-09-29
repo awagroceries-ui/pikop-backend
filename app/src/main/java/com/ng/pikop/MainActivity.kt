@@ -910,7 +910,7 @@ fun MainAppScaffold(
                     merchantId = mId,
                     onViewCart = { navController.navigate("commerce_cart") },
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
-                        navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
+                        navController.navigate("commerce_checkout?itemId=${android.net.Uri.encode(item.id)}&itemType=${android.net.Uri.encode(item.item_type ?: "meal")}")
                     }
                 )
             }
@@ -918,7 +918,7 @@ fun MainAppScaffold(
                 com.ng.pikop.feature.commerce.GroceryStorefrontScreen(
                     onViewCart = { navController.navigate("commerce_cart") },
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
-                        navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
+                        navController.navigate("commerce_checkout?itemId=${android.net.Uri.encode(item.id)}&itemType=${android.net.Uri.encode(item.item_type ?: "groceries")}")
                     }
                 )
             }
@@ -928,26 +928,23 @@ fun MainAppScaffold(
                     merchantId = mId,
                     onViewCart = { navController.navigate("commerce_cart") },
                     onItemClick = { item: com.ng.pikop.core.network.DiscoveryItem ->
-                        navController.navigate("commerce_checkout/${item.id}/${item.item_type}")
+                        navController.navigate("commerce_checkout?itemId=${android.net.Uri.encode(item.id)}&itemType=${android.net.Uri.encode(item.item_type ?: "product")}")
                     }
                 )
             }
             composable("commerce_cart") {
                 com.ng.pikop.feature.commerce.CartScreen(
                     onCheckout = {
-                        val firstItem = CartManager.items.firstOrNull()
-                        if (firstItem != null) {
-                            navController.navigate("commerce_checkout/${firstItem.item.id}/${firstItem.item.item_type}?useCart=true")
-                        }
+                        navController.navigate("commerce_checkout?useCart=true")
                     },
                     onBack = { navController.popBackStack() }
                 )
             }
             composable(
-                route = "commerce_checkout/{itemId}/{itemType}?useCart={useCart}",
+                route = "commerce_checkout?itemId={itemId}&itemType={itemType}&useCart={useCart}",
                 arguments = listOf(
-                    navArgument("itemId") { type = NavType.StringType },
-                    navArgument("itemType") { type = NavType.StringType },
+                    navArgument("itemId") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("itemType") { type = NavType.StringType; defaultValue = "product" },
                     navArgument("useCart") { type = NavType.BoolType; defaultValue = false }
                 )
             ) { backStackEntry ->

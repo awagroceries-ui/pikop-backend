@@ -54,6 +54,18 @@ fun AddEditProductScreen(
     var category by remember { mutableStateOf("") }
     var photoUrl by remember { mutableStateOf<String?>(null) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val presetCategories = remember(merchantType) {
+        if (merchantType == "kitchen") {
+            listOf("Local", "Fast Food", "Continental", "Healthy", "Pastries", "Drinks", "Soups & Stews", "Grills & BBQ", "Custom / Other...")
+        } else {
+            listOf("Fresh Produce", "Dairy & Eggs", "Beverages", "Snacks", "Electronics", "Pharmacy", "Fashion", "Beauty", "Household", "Custom / Other...")
+        }
+    }
+
+    var expandedCategoryDropdown by remember { mutableStateOf(false) }
+    var isCustomCategory by remember { mutableStateOf(false) }
+    var customCategoryInput by remember { mutableStateOf("") }
     
     // Vendor Specific
     var stockQuantity by remember { mutableStateOf("") }
@@ -84,6 +96,10 @@ fun AddEditProductScreen(
                         price = prod.price.toString()
                         description = prod.description ?: ""
                         category = prod.category ?: ""
+                        if (category.isNotBlank() && !presetCategories.contains(category)) {
+                            isCustomCategory = true
+                            customCategoryInput = category
+                        }
                         photoUrl = prod.photo_url
                         stockQuantity = prod.stock_quantity.toString()
                         unit = prod.unit ?: "item"
@@ -97,6 +113,10 @@ fun AddEditProductScreen(
                         price = item.price.toString()
                         description = item.description ?: ""
                         category = item.category ?: ""
+                        if (category.isNotBlank() && !presetCategories.contains(category)) {
+                            isCustomCategory = true
+                            customCategoryInput = category
+                        }
                         photoUrl = item.photo_url
                         prepTime = item.prep_time_minutes.toString()
                         available = item.available
@@ -169,19 +189,61 @@ fun AddEditProductScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { price = it },
+                    label = { Text("Price (₦)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Category Dropdown Selection
+                ExposedDropdownMenuBox(
+                    expanded = expandedCategoryDropdown,
+                    onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     OutlinedTextField(
-                        value = price,
-                        onValueChange = { price = it },
-                        label = { Text("Price (₦)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = category,
-                        onValueChange = { category = it },
+                        value = if (isCustomCategory) "Custom / Other..." else category.ifBlank { "Select Category" },
+                        onValueChange = {},
+                        readOnly = true,
                         label = { Text("Category") },
-                        modifier = Modifier.weight(1f)
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedCategoryDropdown,
+                        onDismissRequest = { expandedCategoryDropdown = false }
+                    ) {
+                        presetCategories.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    if (option == "Custom / Other...") {
+                                        isCustomCategory = true
+                                        category = customCategoryInput
+                                    } else {
+                                        isCustomCategory = false
+                                        category = option
+                                    }
+                                    expandedCategoryDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                if (isCustomCategory) {
+                    OutlinedTextField(
+                        value = customCategoryInput,
+                        onValueChange = { 
+                            customCategoryInput = it
+                            category = it
+                        },
+                        label = { Text("Specify Custom Category") },
+                        placeholder = { Text("e.g. Seafood, Organic, etc.") },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 

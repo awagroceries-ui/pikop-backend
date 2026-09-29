@@ -117,7 +117,8 @@ fun KycUploadScreen(
     val cameraLauncher = rememberLauncherForActivityResult(TakeSelfieContract()) { success ->
         if (success) {
             try {
-                captureFile.inputStream().use { input ->
+                val compressed = ImageUtils.compressFile(context, captureFile)
+                compressed.inputStream().use { input ->
                     internalPhotoFile.outputStream().use { output ->
                         input.copyTo(output)
                     }

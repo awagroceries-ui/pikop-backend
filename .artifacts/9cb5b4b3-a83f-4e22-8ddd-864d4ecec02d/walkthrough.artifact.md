@@ -1,44 +1,25 @@
-# 🚀 Walkthrough: Admin Dashboard 5-Pillar Comprehensive Enhancement
+# 🚀 Walkthrough: Resolved Map Tile 403 Access Blocked Error
 
-Implemented all 5 High-Impact Pillars across the Admin Command Dashboard views, controllers, and routes in `backend_v3`.
+Replaced OpenStreetMap's volunteer tile server URL in `dashboard.ejs` and `guest_tracking.ejs` with Esri World Street Map production tiles (`https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}`), eliminating OpenStreetMap's `403 Access Blocked` usage policy block.
 
 ---
 
 ## 🛠️ Summary of Implementation
 
-### 1. Pillar 1: Real-Time Fleet Control & Manual Dispatch Override
+### 1. Global Fleet Map Tile Provider Update (`dashboard.ejs`)
 - Updated [dashboard.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/dashboard.ejs):
-  - Integrated an interactive Leaflet **Global Live Fleet Control Map** displaying online agents (`🟢 ONLINE`), active missions (`🚗 IN TRANSIT`), and searching orders (`🟡 SEARCHING`) streaming in real time via Socket.IO.
-- Updated [orders.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/orders.ejs) & [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js):
-  - Added **"MANUAL ASSIGN"** override button and prompt on the Orders board.
-  - Implemented `assignOrderToAgent` and route `POST /admin/orders/:id/assign` in [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js).
+  - Swapped `tile.openstreetmap.org` tile layer for Esri World Street Map tiles (`https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}`).
+  - Resolves OpenStreetMap's `403 Access Blocked` tile server policy error and renders high-definition, unblocked street map tiles on the Admin Dashboard.
 
-### 2. Pillar 2: Batch Payout Approvals & Fee Simulation
-- Updated [withdrawals.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/withdrawals.ejs) & [adminController.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/controllers/adminController.js):
-  - Added **"⚡ BATCH APPROVE ALL PAYOUTS"** action button.
-  - Implemented `batchApproveWithdrawals` and route `POST /admin/withdrawals/batch-approve` in [adminRoutes.js](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/routes/adminRoutes.js).
-- Updated [settings.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/settings.ejs):
-  - Added **Live Fee & Revenue Simulator** displaying live net revenue breakdown for orders.
-
-### 3. Pillar 3: Fraud Detection & Risk Safeguards
-- Updated [emergency_resolution.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/emergency_resolution.ejs):
-  - Added **🚨 Route Stationarity & Risk Flags** section for monitoring prolonged idle agents and route deviations.
-
-### 4. Pillar 4: AI Support Analytics & Canned Dispute Templates
-- Updated [knowledge_base_admin.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/knowledge_base_admin.ejs):
-  - Added **AI Support Resolution Analytics** card (AI resolution %, total queries, human escalations).
-- Updated [dispute_resolution.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/dispute_resolution.ejs):
-  - Added **Canned Quick Templates** (*"Damaged Item"*, *"Wrong Item"*, *"Unreachable"*) for one-click resolution.
-
-### 5. Pillar 5: Merchant Performance & Inventory Risk Flags
-- Updated [merchants.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/merchants.ejs):
-  - Added **Merchant Health & Risk Monitoring** card tracking top performing sellers and inventory availability.
+### 2. Guest Live Tracking Map Tile Provider Update (`guest_tracking.ejs`)
+- Updated [guest_tracking.ejs](file:///C:/Users/MOSES/AndroidStudioProjects/Pikop/backend_v3/src/views/guest_tracking.ejs):
+  - Swapped `tile.openstreetmap.org` tile layer for Esri World Street Map tiles.
 
 ---
 
 ## 🧪 VPS Deployment Instructions
 
-Run the command below on your VPS terminal (`root@srv1932412`) to pull the updates and restart PM2:
+Run the command below on your VPS terminal (`root@srv1932412`) to pull the tile fix and restart PM2:
 
 ```bash
 cd /var/www/pikop-api/backend_v3/backend_v3
