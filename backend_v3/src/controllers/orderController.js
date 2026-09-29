@@ -367,9 +367,9 @@ const acceptOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Order is no longer available' });
     }
 
-    // 3. Assign Fulfiller or Add to Queue
+    // 3. Assign Fulfiller or Add to Queue (Case-insensitive check for terminal statuses)
     const activeCheck = await client.query(
-        "SELECT id FROM orders WHERE fulfiller_id = $1 AND status NOT IN ('DELIVERED', 'CANCELLED')",
+        "SELECT id FROM orders WHERE fulfiller_id = $1 AND UPPER(status) NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'RECIPIENT_ABSENT', 'EXPIRED')",
         [fulfillerId]
     );
 
@@ -1399,7 +1399,7 @@ const promoteQueuedMission = async (fulfillerId) => {
     try {
         const { rows: queued } = await db.query(
             `SELECT id FROM orders
-             WHERE queued_for_fulfiller_id = $1 AND status = 'QUEUED'
+             WHERE queued_for_fulfiller_id = $1 AND UPPER(status) = 'QUEUED'
              ORDER BY created_at ASC LIMIT 1`,
             [fulfillerId]
         );
@@ -1407,7 +1407,7 @@ const promoteQueuedMission = async (fulfillerId) => {
             const nextOrderId = queued[0].id;
             await db.query(
                 `UPDATE orders
-                 SET fulfiller_id = $1, status = 'MATCHED', matched_at = CURRENT_TIMESTAMP
+                 SET fulfiller_id = $1, queued_for_fulfiller_id = NULL, status = 'MATCHED', matched_at = CURRENT_TIMESTAMP
                  WHERE id = $2`,
                 [fulfillerId, nextOrderId]
             );
@@ -1436,22 +1436,33 @@ const getFulfillerOrders = async (req, res) => {
 
         const fId = fulfiller[0].id;
 
+        // Auto-heal / Auto-promote: If fulfiller has NO active mission, promote any queued mission immediately
+        const activeCheck = await db.query(
+            "SELECT id FROM orders WHERE fulfiller_id = $1 AND UPPER(status) NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'RECIPIENT_ABSENT', 'EXPIRED', 'QUEUED')",
+            [fId]
+        );
+        if (activeCheck.rows.length === 0) {
+            await promoteQueuedMission(fId);
+        }
+
         // Prepare Status Filter
         let statusFilter = "";
         const f = filter.toLowerCase();
         if (f === 'active') {
-            statusFilter = "AND o.status NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'QUEUED')";
+            statusFilter = "AND UPPER(o.status) NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'RECIPIENT_ABSENT', 'EXPIRED', 'QUEUED')";
         } else if (f === 'queued') {
-            statusFilter = "AND (o.status = 'QUEUED' OR o.queued_for_fulfiller_id = $1)";
+            statusFilter = "AND (UPPER(o.status) = 'QUEUED' OR o.queued_for_fulfiller_id = $1)";
         } else if (f === 'completed') {
-            statusFilter = "AND o.status IN ('DELIVERED', 'RELEASED')";
+            statusFilter = "AND UPPER(o.status) IN ('DELIVERED', 'RELEASED')";
         }
 
         const { rows } = await db.query(
             `SELECT o.*,
-             ST_Y(o.pickup_location::geometry) as pickup_lat, ST_X(o.pickup_location::geometry) as pickup_lng,
-             ST_Y(o.delivery_location::geometry) as delivery_lat, ST_X(o.delivery_location::geometry) as delivery_lng,
-             ROUND(COALESCE(o.original_delivery_fee, o.delivery_fee, o.total_fare) * 0.75, 2) as earnings
+             CASE WHEN o.pickup_location IS NOT NULL THEN ST_Y(o.pickup_location::geometry) ELSE NULL END as pickup_lat,
+             CASE WHEN o.pickup_location IS NOT NULL THEN ST_X(o.pickup_location::geometry) ELSE NULL END as pickup_lng,
+             CASE WHEN o.delivery_location IS NOT NULL THEN ST_Y(o.delivery_location::geometry) ELSE NULL END as delivery_lat,
+             CASE WHEN o.delivery_location IS NOT NULL THEN ST_X(o.delivery_location::geometry) ELSE NULL END as delivery_lng,
+             ROUND(COALESCE(o.original_delivery_fee, o.delivery_fee, o.total_fare, 0) * 0.75, 2) as earnings
              FROM orders o
              WHERE (o.fulfiller_id = $1 OR o.queued_for_fulfiller_id = $1 OR o.fulfiller_id = $2::integer OR o.queued_for_fulfiller_id = $2::integer)
              ${statusFilter}

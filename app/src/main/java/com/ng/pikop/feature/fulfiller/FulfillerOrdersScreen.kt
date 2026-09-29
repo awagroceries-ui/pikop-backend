@@ -46,7 +46,9 @@ fun FulfillerOrdersScreen(onBack: () -> Unit, onNavigateToActiveOrder: (String) 
             isLoading = true
             try {
                 orders = apiService.getFulfillerOrders()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.e("FulfillerOrders", "Fetch error: ${e.message}")
+            }
             isLoading = false
         }
     }
