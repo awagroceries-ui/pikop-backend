@@ -22,15 +22,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.*
 import com.ng.pikop.ui.theme.PikopGold
 import com.ng.pikop.ui.theme.PikopNearBlack
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.livedata.observeAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MerchantPortalScreen(
+    navController: NavController,
     onAddItem: (String, String) -> Unit, // merchantType, merchantId
     onEditItem: (String, String, String) -> Unit, // merchantType, merchantId, productId
     onCreateBatch: () -> Unit,
@@ -205,14 +208,11 @@ fun MerchantPortalScreen(
                     6 -> PromotionsTabContent() 
                     5 -> SettingsTabContent(
                         profile = merchantProfile.value,
-                        onUpdateSettings = { acceptsCod, allowsReturns, windowDays ->
+                        navController = navController,
+                        onUpdateSettings = { profileData ->
                             scope.launch {
                                 try {
-                                    apiService.updateMerchantSettings(mapOf(
-                                        "accepts_cod" to (acceptsCod ?: merchantProfile.value?.accepts_cod ?: true),
-                                        "allows_returns" to (allowsReturns ?: merchantProfile.value?.allows_returns ?: false),
-                                        "return_window_days" to (windowDays ?: merchantProfile.value?.return_window_days ?: 7)
-                                    ))
+                                    apiService.updateMerchantSettings(profileData)
                                     fetchDashboard()
                                     Toast.makeText(context, "Settings updated", Toast.LENGTH_SHORT).show()
                                 } catch (_: Exception) {
@@ -461,10 +461,12 @@ fun BatchItem(batch: MerchantBatch) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsTabContent(
     profile: MerchantProfile?,
-    onUpdateSettings: (Boolean?, Boolean?, Int?) -> Unit,
+    navController: NavController,
+    onUpdateSettings: (Map<String, Any>) -> Unit,
     onSaveOperatingHours: (String, String) -> Unit,
     onShareStore: () -> Unit
 ) {
@@ -475,6 +477,38 @@ fun SettingsTabContent(
 
     var openTime by remember(profile.operating_hours) { mutableStateOf(currentOpen) }
     var closeTime by remember(profile.operating_hours) { mutableStateOf(currentClose) }
+
+    var businessName by remember(profile.business_name) { mutableStateOf(profile.business_name) }
+    val initialCategory = profile.category ?: ""
+    var category by remember(initialCategory) { mutableStateOf(initialCategory) }
+    
+    val presetCategories = remember(profile.type) {
+        if (profile.type == "kitchen") {
+            listOf("Local", "Fast Food", "Continental", "Healthy", "Pastries", "Drinks", "Soups & Stews", "Grills & BBQ", "Custom / Other...")
+        } else {
+            listOf("Fresh Produce", "Dairy & Eggs", "Beverages", "Snacks", "Electronics", "Pharmacy", "Fashion", "Beauty", "Household", "Custom / Other...")
+        }
+    }
+    
+    var expandedCategoryDropdown by remember { mutableStateOf(false) }
+    var isCustomCategory by remember(initialCategory) { mutableStateOf(!presetCategories.contains(initialCategory) && initialCategory.isNotBlank()) }
+    var customCategoryInput by remember(initialCategory) { mutableStateOf(if (isCustomCategory) initialCategory else "") }
+
+    // Delivery Location State
+    val storeAddress by navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getLiveData<String>("store_address")
+        ?.observeAsState("") ?: remember { mutableStateOf("") }
+    
+    val storeLat by navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getLiveData<Double>("store_lat")
+        ?.observeAsState(0.0) ?: remember { mutableStateOf(0.0) }
+        
+    val storeLng by navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getLiveData<Double>("store_lng")
+        ?.observeAsState(0.0) ?: remember { mutableStateOf(0.0) }
 
     Column(
         modifier = Modifier
@@ -566,7 +600,7 @@ fun SettingsTabContent(
                     }
                     Switch(
                         checked = profile.accepts_cod,
-                        onCheckedChange = { onUpdateSettings(it, null, null) }
+                        onCheckedChange = { onUpdateSettings(mapOf("accepts_cod" to it)) }
                     )
                 }
 
@@ -583,7 +617,7 @@ fun SettingsTabContent(
                     }
                     Switch(
                         checked = profile.allows_returns,
-                        onCheckedChange = { onUpdateSettings(null, it, null) }
+                        onCheckedChange = { onUpdateSettings(mapOf("allows_returns" to it)) }
                     )
                 }
 
@@ -593,7 +627,7 @@ fun SettingsTabContent(
                         value = windowText,
                         onValueChange = { 
                             windowText = it
-                            it.toIntOrNull()?.let { days -> onUpdateSettings(null, null, days) }
+                            it.toIntOrNull()?.let { days -> onUpdateSettings(mapOf("return_window_days" to days)) }
                         },
                         label = { Text("Return Window (Days)") },
                         modifier = Modifier.fillMaxWidth(),

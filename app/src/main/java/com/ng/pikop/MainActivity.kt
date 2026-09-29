@@ -690,6 +690,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
         composable("merchant_portal") {
             MerchantPortalScreen(
+                navController = navController,
                 onAddItem = { type, id -> navController.navigate("add_edit_product/$type/$id") },
                 onEditItem = { type, mId, pId -> navController.navigate("add_edit_product/$type/$mId?productId=$pId") },
                 onCreateBatch = { navController.navigate("bulk_dispatch") },

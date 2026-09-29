@@ -480,15 +480,47 @@ const updateMerchantSettings = async (req, res) => {
         return_policy_text,
         operating_hours,
         business_name,
-        category
+        category,
+        address,
+        lat,
+        lng
     } = req.body;
 
     const newSlug = business_name ? business_name.toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') : null;
     const operatingHoursStr = typeof operating_hours === 'string' ? operating_hours : (operating_hours ? JSON.stringify(operating_hours) : null);
 
+    const client = await db.pool.connect();
     try {
+        await client.query('BEGIN');
+
+        // Check current profile to potentially update addresses
+        const mRes = await client.query(
+            `SELECT pickup_address_id FROM vendors WHERE user_id = $1
+             UNION
+             SELECT pickup_address_id FROM kitchens WHERE user_id = $1`,
+            [userId]
+        );
+
+        let finalPickupAddressId = mRes.rows.length > 0 ? mRes.rows[0].pickup_address_id : null;
+
+        if (address && lat && lng) {
+            if (finalPickupAddressId) {
+                await client.query(
+                    `UPDATE addresses SET formatted_address = $1, location = ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography WHERE id = $4`,
+                    [address, lng, lat, finalPickupAddressId]
+                );
+            } else {
+                const addrResult = await client.query(
+                    `INSERT INTO addresses (user_id, label, formatted_address, location, landmark_description)
+                     VALUES ($1, 'Store Location', $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, '') RETURNING id`,
+                    [userId, address, lng, lat]
+                );
+                finalPickupAddressId = addrResult.rows[0].id;
+            }
+        }
+
         const queries = [
-            db.query(
+            client.query(
                 `UPDATE vendors
                  SET accepts_cod = COALESCE($1, accepts_cod),
                      allows_returns = COALESCE($2, allows_returns),
@@ -497,8 +529,9 @@ const updateMerchantSettings = async (req, res) => {
                      operating_hours = COALESCE($5, operating_hours),
                      business_name = COALESCE($6, business_name),
                      category = COALESCE($7, category),
-                     store_slug = COALESCE($8, store_slug)
-                 WHERE user_id = $9`,
+                     store_slug = COALESCE($8, store_slug),
+                     pickup_address_id = COALESCE($9, pickup_address_id)
+                 WHERE user_id = $10`,
                 [
                     accepts_cod !== undefined ? accepts_cod : null,
                     allows_returns !== undefined ? allows_returns : null,
@@ -508,10 +541,11 @@ const updateMerchantSettings = async (req, res) => {
                     business_name || null,
                     category || null,
                     newSlug,
+                    finalPickupAddressId,
                     userId
                 ]
             ),
-            db.query(
+            client.query(
                 `UPDATE kitchens
                  SET accepts_cod = COALESCE($1, accepts_cod),
                      allows_returns = COALESCE($2, allows_returns),
@@ -520,8 +554,9 @@ const updateMerchantSettings = async (req, res) => {
                      operating_hours = COALESCE($5, operating_hours),
                      business_name = COALESCE($6, business_name),
                      category = COALESCE($7, category),
-                     store_slug = COALESCE($8, store_slug)
-                 WHERE user_id = $9`,
+                     store_slug = COALESCE($8, store_slug),
+                     pickup_address_id = COALESCE($9, pickup_address_id)
+                 WHERE user_id = $10`,
                 [
                     accepts_cod !== undefined ? accepts_cod : null,
                     allows_returns !== undefined ? allows_returns : null,
@@ -531,15 +566,20 @@ const updateMerchantSettings = async (req, res) => {
                     business_name || null,
                     category || null,
                     newSlug,
+                    finalPickupAddressId,
                     userId
                 ]
             )
         ];
         await Promise.all(queries);
+        await client.query('COMMIT');
         res.status(200).json({ success: true, message: 'Settings updated successfully.' });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('[MerchantSettings] Update error:', error.message);
         res.status(500).json({ success: false, message: error.message });
+    } finally {
+        client.release();
     }
 };
 

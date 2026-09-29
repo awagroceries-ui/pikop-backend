@@ -782,6 +782,8 @@ data class MerchantProfile(
     val status: String = "pending",
     val type: String = "vendor", // vendor, kitchen
     val accepts_cod: Boolean = true,
+    val category: String? = null,
+    val pickup_address_id: Int? = null,
     val allows_returns: Boolean = false,
     val return_window_days: Int = 7,
     val return_policy_text: String? = null,
