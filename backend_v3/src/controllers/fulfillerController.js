@@ -6,6 +6,33 @@ const paystackService = require('../services/paystackService');
 const axios = require('axios');
 
 /**
+ * Helper: Resolves and auto-links a fulfiller profile for a given user ID.
+ */
+const resolveFulfiller = async (clientOrDb, userId) => {
+    let { rows } = await clientOrDb.query(
+        "SELECT * FROM fulfillers WHERE user_id = $1::integer",
+        [userId]
+    );
+
+    if (rows.length === 0) {
+        const userRes = await clientOrDb.query("SELECT email FROM users WHERE id = $1::integer", [userId]);
+        if (userRes.rows.length > 0 && userRes.rows[0].email) {
+            const userEmail = userRes.rows[0].email;
+            const matchRes = await clientOrDb.query(
+                "SELECT * FROM fulfillers WHERE email ILIKE $1",
+                [userEmail]
+            );
+            if (matchRes.rows.length > 0) {
+                rows = matchRes.rows;
+                await clientOrDb.query("UPDATE fulfillers SET user_id = $1::integer WHERE id = $2", [userId, rows[0].id]);
+                console.log(`[FulfillerHeal] Auto-linked user_id #${userId} to fulfiller #${rows[0].id} (${userEmail})`);
+            }
+        }
+    }
+    return rows.length > 0 ? rows[0] : null;
+};
+
+/**
  * Initializes a KYC session.
  */
 const startIdentityVerification = async (req, res) => {
@@ -323,12 +350,8 @@ const updateStatus = async (req, res) => {
 const getProfile = async (req, res) => {
   const userId = req.user.id;
   try {
-    const { rows: fRows } = await db.query(
-        "SELECT * FROM fulfillers WHERE user_id = $1",
-        [userId]
-    );
-    if (fRows.length === 0) return res.status(404).json({ success: false, message: 'Profile not found' });
-    const f = fRows[0];
+    const f = await resolveFulfiller(db, userId);
+    if (!f) return res.status(404).json({ success: false, message: 'Profile not found' });
 
     // 1. Calculate Performance Metrics
     const statsRes = await db.query(`
@@ -394,8 +417,17 @@ const getAvailableOffers = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const { rows: fulfiller } = await db.query(
-      "SELECT id, online_status, primary_class, current_state FROM fulfillers WHERE user_id = $1",
+    const f = await resolveFulfiller(db, userId);
+
+    if (!f) {
+      return res.status(200).json([]);
+    }
+
+    if (f.online_status !== 'ONLINE') {
+      return res.status(200).json([]);
+    }
+
+    const fulfillerId = f.id;
       [userId]
     );
 

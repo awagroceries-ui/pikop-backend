@@ -325,6 +325,34 @@ const getQuote = async (req, res) => {
 };
 
 /**
+ * Helper: Resolves and auto-links a fulfiller profile for a given user ID.
+ * Heals accounts where user_id was NULL or unlinked by matching email.
+ */
+const resolveFulfiller = async (clientOrDb, userId) => {
+    let { rows } = await clientOrDb.query(
+        "SELECT id, user_id, email, primary_class, status, kyc_status FROM fulfillers WHERE user_id = $1::integer",
+        [userId]
+    );
+
+    if (rows.length === 0) {
+        const userRes = await clientOrDb.query("SELECT email FROM users WHERE id = $1::integer", [userId]);
+        if (userRes.rows.length > 0 && userRes.rows[0].email) {
+            const userEmail = userRes.rows[0].email;
+            const matchRes = await clientOrDb.query(
+                "SELECT id, user_id, email, primary_class, status, kyc_status FROM fulfillers WHERE email ILIKE $1",
+                [userEmail]
+            );
+            if (matchRes.rows.length > 0) {
+                rows = matchRes.rows;
+                await clientOrDb.query("UPDATE fulfillers SET user_id = $1::integer WHERE id = $2", [userId, rows[0].id]);
+                console.log(`[FulfillerHeal] Auto-linked user_id #${userId} to fulfiller #${rows[0].id} (${userEmail})`);
+            }
+        }
+    }
+    return rows.length > 0 ? rows[0] : null;
+};
+
+/**
  * Atomically accepts an order.
  */
 const acceptOrder = async (req, res) => {
@@ -336,9 +364,12 @@ const acceptOrder = async (req, res) => {
     await client.query('BEGIN');
 
     // 1. Fetch and Lock fulfiller row (prevents race condition for double assignment)
-    const fRes = await client.query("SELECT id FROM fulfillers WHERE user_id = $1 FOR UPDATE", [userId]);
-    if (fRes.rows.length === 0) return res.status(403).json({ success: false, message: 'Fulfiller profile not found' });
-    const fulfillerId = fRes.rows[0].id;
+    const fulfiller = await resolveFulfiller(client, userId);
+    if (!fulfiller) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ success: false, message: 'Fulfiller profile not found' });
+    }
+    const fulfillerId = fulfiller.id;
 
     // 2. Atomic claim using SELECT FOR UPDATE
     const { rows } = await client.query(
@@ -1431,15 +1462,18 @@ const getFulfillerOrders = async (req, res) => {
     const { filter = 'all' } = req.query;
 
     try {
-        const { rows: fulfiller } = await db.query("SELECT id FROM fulfillers WHERE user_id = $1::integer", [userId]);
-        if (fulfiller.length === 0) return res.status(404).json({ success: false, message: 'Fulfiller profile not found' });
+        const fulfiller = await resolveFulfiller(db, userId);
+        if (!fulfiller) {
+            console.log(`[FulfillerOrders] User #${userId} has no fulfiller profile. Returning [].`);
+            return res.status(200).json([]);
+        }
 
-        const fId = fulfiller[0].id;
+        const fId = fulfiller.id;
 
         // Auto-heal / Auto-promote: If fulfiller has NO active mission, promote any queued mission immediately
         const activeCheck = await db.query(
-            "SELECT id FROM orders WHERE fulfiller_id = $1 AND UPPER(status) NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'RECIPIENT_ABSENT', 'EXPIRED', 'QUEUED')",
-            [fId]
+            "SELECT id FROM orders WHERE (fulfiller_id = $1 OR fulfiller_id = $2::integer) AND UPPER(status) NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'RECIPIENT_ABSENT', 'EXPIRED', 'QUEUED')",
+            [fId, userId]
         );
         if (activeCheck.rows.length === 0) {
             await promoteQueuedMission(fId);
@@ -1451,7 +1485,7 @@ const getFulfillerOrders = async (req, res) => {
         if (f === 'active') {
             statusFilter = "AND UPPER(o.status) NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'RECIPIENT_ABSENT', 'EXPIRED', 'QUEUED')";
         } else if (f === 'queued') {
-            statusFilter = "AND (UPPER(o.status) = 'QUEUED' OR o.queued_for_fulfiller_id = $1)";
+            statusFilter = "AND (UPPER(o.status) = 'QUEUED' OR o.queued_for_fulfiller_id = $1 OR o.queued_for_fulfiller_id = $2::integer)";
         } else if (f === 'completed') {
             statusFilter = "AND UPPER(o.status) IN ('DELIVERED', 'RELEASED')";
         }
