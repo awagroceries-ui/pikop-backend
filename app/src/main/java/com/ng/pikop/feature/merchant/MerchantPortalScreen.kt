@@ -557,9 +557,9 @@ fun SettingsTabContent(
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Accept Cash on Delivery", fontWeight = FontWeight.Bold)
+                        Text("Accept Pay on Delivery", fontWeight = FontWeight.Bold)
                         Text(
-                            "Allow customers to pay when they receive items. Funds are held in escrow.",
+                            "Allow customers to pay via Transfer or POS on delivery. Funds are held in escrow.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray
                         )

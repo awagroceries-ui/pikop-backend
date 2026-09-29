@@ -302,7 +302,6 @@ fun CommerceCheckoutScreen(
                         }
                     }
 
-                    val currentItem = item
                     if (currentItem?.accepts_cod == true) {
                         item {
                             OutlinedCard(
@@ -320,7 +319,7 @@ fun CommerceCheckoutScreen(
                                     Icon(Icons.Default.Payments, contentDescription = null, tint = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.Gray)
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text("Pay on Delivery", fontWeight = FontWeight.Bold)
-                                    Text("(Cash)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                    Text("(Transfer/POS)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                                 }
                             }
                         }

@@ -193,8 +193,13 @@ const initializeCommerceOrder = async (req, res) => {
         }
 
         // 2. Fetch Merchant Coordinates
-        const addrRes = await db.query("SELECT ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng FROM addresses WHERE id = $1", [merchantAddressId]);
-        const mLoc = addrRes.rows[0];
+        let mLoc = { lat: 4.8156, lng: 7.0498 }; // Fallback to Port Harcourt default if merchant address missing
+        if (merchantAddressId) {
+            const addrRes = await db.query("SELECT ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng FROM addresses WHERE id = $1", [merchantAddressId]);
+            if (addrRes.rows.length > 0) {
+                mLoc = addrRes.rows[0];
+            }
+        }
 
         // 3. Calculate Distance-based Delivery Fee
         const distRes = await db.query(
