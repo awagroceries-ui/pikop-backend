@@ -398,9 +398,9 @@ const acceptOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Order is no longer available' });
     }
 
-    // 3. Assign Fulfiller or Add to Queue (Case-insensitive check for terminal statuses)
+    // 3. Assign Fulfiller or Add to Queue (Excludes queued and terminal statuses)
     const activeCheck = await client.query(
-        "SELECT id FROM orders WHERE fulfiller_id = $1 AND UPPER(status) NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'RECIPIENT_ABSENT', 'EXPIRED')",
+        "SELECT id FROM orders WHERE fulfiller_id = $1 AND UPPER(status) NOT IN ('DELIVERED', 'CANCELLED', 'RELEASED', 'REFUNDED', 'RECIPIENT_ABSENT', 'EXPIRED', 'QUEUED')",
         [fulfillerId]
     );
 
@@ -1425,14 +1425,15 @@ const rateCustomer = async (req, res) => {
 /**
  * Returns missions assigned to or completed by a fulfiller.
  */
-const promoteQueuedMission = async (fulfillerId) => {
+const promoteQueuedMission = async (fulfillerId, userId = null) => {
     if (!fulfillerId) return;
     try {
+        const uId = userId || fulfillerId;
         const { rows: queued } = await db.query(
             `SELECT id FROM orders
-             WHERE queued_for_fulfiller_id = $1 AND UPPER(status) = 'QUEUED'
+             WHERE (queued_for_fulfiller_id = $1 OR fulfiller_id = $1 OR queued_for_fulfiller_id = $2::integer OR fulfiller_id = $2::integer) AND UPPER(status) = 'QUEUED'
              ORDER BY created_at ASC LIMIT 1`,
-            [fulfillerId]
+            [fulfillerId, uId]
         );
         if (queued.length > 0) {
             const nextOrderId = queued[0].id;
@@ -1476,7 +1477,7 @@ const getFulfillerOrders = async (req, res) => {
             [fId, userId]
         );
         if (activeCheck.rows.length === 0) {
-            await promoteQueuedMission(fId);
+            await promoteQueuedMission(fId, userId);
         }
 
         // Prepare Status Filter
