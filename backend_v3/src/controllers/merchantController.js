@@ -6,7 +6,7 @@ const crypto = require('crypto');
  */
 const setupMerchantProfile = async (req, res) => {
     const userId = req.user.id;
-    const { business_name, category, address, cac_number, nafdac_number, bank_name, account_number, bank_code, account_name, accepts_cod = true } = req.body;
+    const { business_name, category, address, lat, lng, cac_number, nafdac_number, bank_name, account_number, bank_code, account_name, accepts_cod = true } = req.body;
 
     // Slug generation (v4.7)
     const store_slug = (business_name || 'store').toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
@@ -16,6 +16,7 @@ const setupMerchantProfile = async (req, res) => {
         await client.query('BEGIN');
 
         let profileId;
+        let pickup_address_id = null;
         const initialStatus = 'pending_business_verification';
 
         // Check if profile already exists
@@ -29,19 +30,29 @@ const setupMerchantProfile = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Merchant profile already exists.' });
         }
 
+        // Insert Store Location into Addresses
+        if (address && lat && lng) {
+            const addrResult = await client.query(
+                `INSERT INTO addresses (user_id, label, formatted_address, location, landmark_description)
+                 VALUES ($1, 'Store Location', $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, '') RETURNING id`,
+                [userId, address, lng, lat]
+            );
+            pickup_address_id = addrResult.rows[0].id;
+        }
+
         // We assume category dictates table logic for simplicity
         if (category === 'Food') {
             const result = await client.query(
-                `INSERT INTO kitchens (user_id, business_name, status, accepts_cod, category, store_slug, contact_email)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-                [userId, business_name, initialStatus, accepts_cod, category, store_slug, req.user.email]
+                `INSERT INTO kitchens (user_id, business_name, status, accepts_cod, category, store_slug, contact_email, pickup_address_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+                [userId, business_name, initialStatus, accepts_cod, category, store_slug, req.user.email, pickup_address_id]
             );
             profileId = result.rows[0].id;
         } else {
             const result = await client.query(
-                `INSERT INTO vendors (user_id, business_name, status, accepts_cod, category, store_slug, contact_email)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-                [userId, business_name, initialStatus, accepts_cod, category, store_slug, req.user.email]
+                `INSERT INTO vendors (user_id, business_name, status, accepts_cod, category, store_slug, contact_email, pickup_address_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+                [userId, business_name, initialStatus, accepts_cod, category, store_slug, req.user.email, pickup_address_id]
             );
             profileId = result.rows[0].id;
         }

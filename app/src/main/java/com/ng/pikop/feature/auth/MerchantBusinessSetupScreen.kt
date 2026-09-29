@@ -15,6 +15,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.compose.material.icons.filled.LocationOn
 import com.ng.pikop.R
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
@@ -22,10 +24,12 @@ import com.ng.pikop.core.network.Bank
 import com.ng.pikop.core.network.ErrorUtils
 import com.ng.pikop.core.network.SetupMerchantRequest
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.livedata.observeAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MerchantBusinessSetupScreen(
+    navController: NavController,
     onSetupSuccess: () -> Unit
 ) {
     val context = LocalContext.current
@@ -33,9 +37,24 @@ fun MerchantBusinessSetupScreen(
     
     var businessName by remember { mutableStateOf("") }
     var businessCategory by remember { mutableStateOf("") }
-    var businessAddress by remember { mutableStateOf("") }
     var cacNumber by remember { mutableStateOf("") }
     var nafdacNumber by remember { mutableStateOf("") }
+
+    // Delivery Location State
+    val businessAddress by navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getLiveData<String>("store_address")
+        ?.observeAsState("") ?: remember { mutableStateOf("") }
+    
+    val storeLat by navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getLiveData<Double>("store_lat")
+        ?.observeAsState(0.0) ?: remember { mutableStateOf(0.0) }
+        
+    val storeLng by navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getLiveData<Double>("store_lng")
+        ?.observeAsState(0.0) ?: remember { mutableStateOf(0.0) }
     
     // Paystack Bank State
     var banksList by remember { mutableStateOf<List<Bank>>(emptyList()) }
@@ -163,12 +182,22 @@ fun MerchantBusinessSetupScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = businessAddress,
-                onValueChange = { businessAddress = it },
-                label = { Text("Business Address") },
+            OutlinedCard(
+                onClick = { navController.navigate("map_address_search/Store Location/store") },
                 modifier = Modifier.fillMaxWidth()
-            )
+            ) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(androidx.compose.material.icons.Icons.Filled.LocationOn, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = if (businessAddress.isBlank()) "Select Store Location" else businessAddress,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("Tap to pick exact location on map", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -309,6 +338,8 @@ fun MerchantBusinessSetupScreen(
                                 business_name = businessName,
                                 category = businessCategory,
                                 address = businessAddress,
+                                lat = if (storeLat != 0.0) storeLat else null,
+                                lng = if (storeLng != 0.0) storeLng else null,
                                 cac_number = cacNumber.ifBlank { null },
                                 nafdac_number = nafdacNumber.ifBlank { null },
                                 bank_name = selectedBank?.name ?: bankSearchText,

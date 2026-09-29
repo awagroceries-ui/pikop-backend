@@ -479,6 +479,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
 
         composable("merchant_business_setup") {
             com.ng.pikop.feature.auth.MerchantBusinessSetupScreen(
+                navController = navController,
                 onSetupSuccess = {
                     navController.navigate("main") {
                         popUpTo(0) { inclusive = true }

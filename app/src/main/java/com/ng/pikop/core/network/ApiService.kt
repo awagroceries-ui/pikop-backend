@@ -793,6 +793,8 @@ data class SetupMerchantRequest(
     val business_name: String,
     val category: String,
     val address: String,
+    val lat: Double? = null,
+    val lng: Double? = null,
     val cac_number: String? = null,
     val nafdac_number: String? = null,
     val bank_name: String,
