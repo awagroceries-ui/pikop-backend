@@ -323,11 +323,11 @@ const initializeCommerceOrder = async (req, res) => {
                         seller_id, product_id, menu_item_id, escrow_status, merchant_commission_amount,
                         dispatch_commission_amount, scheduled_at, coupon_id
                     ) VALUES (
-                        'pickup_delivery', $1, $18, $2,
+                        'pickup_delivery', $1, $13, $2,
                         $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography,
                         0, 0, 0, 0,
                         'PAID', 'promo_free', 'promo',
-                        $13, $14, $15, 'not_applicable', 0, $16, $17, $19
+                        $9, $10, $11, 'not_applicable', 0, $12, $14, $15
                     ) RETURNING id`,
                     [
                         userId, item.name,
