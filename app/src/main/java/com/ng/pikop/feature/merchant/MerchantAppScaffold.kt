@@ -79,6 +79,7 @@ fun MerchantAppScaffold(
             composable("dashboard") {
                 // For now, load MerchantPortalScreen (or a customized dashboard subset)
                 MerchantPortalScreen(
+                    navController = rootNavController,
                     onAddItem = { type, id -> rootNavController.navigate("add_edit_product/$type/$id") },
                     onEditItem = { type, mId, pId -> rootNavController.navigate("add_edit_product/$type/$mId?productId=$pId") },
                     onCreateBatch = { rootNavController.navigate("bulk_dispatch") },
@@ -90,6 +91,7 @@ fun MerchantAppScaffold(
                 // Usually an Inventory view. For simplicity, we can route back to Portal or build a specific view.
                 // Since Portal already has tabs, we just rely on Portal for now, but theoretically this would be the Products Tab.
                 MerchantPortalScreen(
+                    navController = rootNavController,
                     onAddItem = { type, id -> rootNavController.navigate("add_edit_product/$type/$id") },
                     onEditItem = { type, mId, pId -> rootNavController.navigate("add_edit_product/$type/$mId?productId=$pId") },
                     onCreateBatch = { rootNavController.navigate("bulk_dispatch") },
