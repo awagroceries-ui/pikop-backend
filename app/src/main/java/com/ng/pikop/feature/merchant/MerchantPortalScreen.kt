@@ -589,11 +589,111 @@ fun SettingsTabContent(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Store Details", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                
+                OutlinedTextField(
+                    value = businessName,
+                    onValueChange = { businessName = it },
+                    label = { Text("Business Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Category Dropdown
+                ExposedDropdownMenuBox(
+                    expanded = expandedCategoryDropdown,
+                    onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = if (isCustomCategory) "Custom / Other..." else category.ifBlank { "Select Category" },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true).fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedCategoryDropdown,
+                        onDismissRequest = { expandedCategoryDropdown = false }
+                    ) {
+                        presetCategories.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    if (option == "Custom / Other...") {
+                                        isCustomCategory = true
+                                        category = customCategoryInput
+                                    } else {
+                                        isCustomCategory = false
+                                        category = option
+                                    }
+                                    expandedCategoryDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                if (isCustomCategory) {
+                    OutlinedTextField(
+                        value = customCategoryInput,
+                        onValueChange = { 
+                            customCategoryInput = it
+                            category = it
+                        },
+                        label = { Text("Specify Custom Category") },
+                        placeholder = { Text("e.g. Seafood, Organic, etc.") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Map Address Picker
+                OutlinedCard(
+                    onClick = { navController.navigate("map_address_search/Store Location/store") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(androidx.compose.material.icons.Icons.Filled.LocationOn, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = if (storeAddress.isBlank()) "Update Store Location" else storeAddress,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text("Tap to pick exact location on map", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = { 
+                        onUpdateSettings(mapOf(
+                            "business_name" to businessName,
+                            "category" to category,
+                            "address" to storeAddress,
+                            "lat" to storeLat,
+                            "lng" to storeLng
+                        )) 
+                    },
+                    modifier = Modifier.align(Alignment.End),
+                    enabled = businessName.isNotBlank() && category.isNotBlank()
+                ) {
+                    Text("Save Profile")
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Accept Pay on Delivery", fontWeight = FontWeight.Bold)
+                        Text("Accept Cash on Delivery", fontWeight = FontWeight.Bold)
                         Text(
-                            "Allow customers to pay via Transfer or POS on delivery. Funds are held in escrow.",
+                            "Allow customers to pay in-app upfront (Escrow). Funds are released to you after delivery confirmation.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray
                         )

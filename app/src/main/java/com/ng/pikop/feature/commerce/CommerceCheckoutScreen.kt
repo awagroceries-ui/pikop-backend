@@ -318,8 +318,8 @@ fun CommerceCheckoutScreen(
                                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(Icons.Default.Payments, contentDescription = null, tint = if (selectedPaymentMethod == "COD") MaterialTheme.colorScheme.primary else Color.Gray)
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text("Pay on Delivery", fontWeight = FontWeight.Bold)
-                                    Text("(Transfer/POS)", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                    Text("Cash on Delivery (Escrow)", fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    Text("(Pay in-app upfront)", style = MaterialTheme.typography.bodySmall, color = Color.Gray, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                                 }
                             }
                         }
@@ -413,14 +413,14 @@ fun CommerceCheckoutScreen(
                                     promo_id = activePromo?.promo_id
                                 ))
 
-                                if (selectedPaymentMethod == "CARD" && totalAmount > 0.0 && !response.authorization_url.isNullOrBlank()) {
+                                if ((selectedPaymentMethod == "CARD" || selectedPaymentMethod == "COD") && totalAmount > 0.0 && !response.authorization_url.isNullOrBlank()) {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(response.authorization_url))
                                     context.startActivity(intent)
                                     onCelebration()
                                     onSuccess() // Navigates back to main. Real flow would verify via webhook/intent
-                                } else if ((selectedPaymentMethod == "COD" || selectedPaymentMethod == "WALLET" || totalAmount == 0.0) && !response.order_id.isNullOrBlank()) {
+                                } else if ((selectedPaymentMethod == "WALLET" || totalAmount == 0.0) && !response.order_id.isNullOrBlank()) {
                                     if (useCart) com.ng.pikop.core.cart.CartManager.clear()
-                                    Toast.makeText(context, if (totalAmount == 0.0) "100% Free Order Placed!" else if (selectedPaymentMethod == "WALLET") "Payment Successful!" else "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, if (totalAmount == 0.0) "100% Free Order Placed!" else "Payment Successful!", Toast.LENGTH_SHORT).show()
                                     onCelebration()
                                     navController.navigate("track_order/${response.order_id}") {
                                         popUpTo("main") { inclusive = false }

@@ -155,12 +155,19 @@ const initializeCommerceOrder = async (req, res) => {
             const idCol = (cartItem.type || item_type) === 'product' ? 'vendor_id' : 'kitchen_id';
 
             const res = await db.query(`
-                SELECT p.*, v.pickup_address_id, v.business_name, v.user_id as merchant_user_id, v.operating_hours
-                FROM ${table} p JOIN ${joinTable} v ON v.id = p.${idCol} WHERE p.id = $1
+                SELECT p.*, v.pickup_address_id, v.business_name, v.user_id as merchant_user_id, v.operating_hours,
+                       a.formatted_address as pickup_address
+                FROM ${table} p
+                JOIN ${joinTable} v ON v.id = p.${idCol}
+                LEFT JOIN addresses a ON a.id = v.pickup_address_id
+                WHERE p.id = $1
             `, [cartItem.id]);
 
             const item = res.rows[0];
             if (!item) continue;
+
+            // Fallback for missing pickup address
+            item.pickup_address = item.pickup_address || "Merchant Store (Address Pending)";
 
             if (!mainMerchantInfo) {
                 mainMerchantInfo = item;
