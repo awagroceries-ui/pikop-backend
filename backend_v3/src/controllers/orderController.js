@@ -1325,20 +1325,22 @@ const rateFulfiller = async (req, res) => {
         );
 
         // 3. Recalculate Fulfiller Avg Rating
-        await db.query(`
-            UPDATE fulfillers
-            SET rating_avg = (
-                SELECT COALESCE(AVG(customer_rating), 5.0)::decimal(3,2)
-                FROM orders
-                WHERE fulfiller_id = $1 AND customer_rating IS NOT NULL
-            ),
-            rating_count = (
-                SELECT COUNT(*)::integer
-                FROM orders
-                WHERE fulfiller_id = $1 AND customer_rating IS NOT NULL
-            )
-            WHERE id = $1
-        `, [order.fulfiller_id]);
+        if (order.fulfiller_id) {
+            await db.query(`
+                UPDATE fulfillers
+                SET rating_avg = (
+                    SELECT COALESCE(AVG(customer_rating), 5.0)::decimal(3,2)
+                    FROM orders
+                    WHERE (fulfiller_id = $1 OR fulfiller_id = (SELECT user_id FROM fulfillers WHERE id = $1)) AND customer_rating IS NOT NULL
+                ),
+                rating_count = (
+                    SELECT COUNT(*)::integer
+                    FROM orders
+                    WHERE (fulfiller_id = $1 OR fulfiller_id = (SELECT user_id FROM fulfillers WHERE id = $1)) AND customer_rating IS NOT NULL
+                )
+                WHERE id = $1 OR user_id = $1
+            `, [order.fulfiller_id]);
+        }
 
         res.status(200).json({ success: true, message: 'Thank you for your feedback!' });
     } catch (error) {

@@ -66,11 +66,15 @@ const processMissionSettlement = async (orderId, providedClient = null) => {
         `SELECT o.id, o.user_id, o.fulfiller_id, o.total_fare, o.delivery_fee, o.item_price,
                 o.original_delivery_fee, o.fee_payer, o.platform_fee_amount, o.sms_charge_amount,
                 o.dispatch_commission_amount,
-                f.user_id as fulfiller_user_id, f.fleet_partner_id,
-                fp.commission_override as fleet_commission_override
+                COALESCE(f1.user_id, f2.user_id, o.fulfiller_id) as fulfiller_user_id,
+                COALESCE(f1.id, f2.id) as fulfiller_primary_id,
+                COALESCE(f1.fleet_partner_id, f2.fleet_partner_id) as fleet_partner_id,
+                COALESCE(fp1.commission_override, fp2.commission_override) as fleet_commission_override
          FROM orders o
-         LEFT JOIN fulfillers f ON f.id = o.fulfiller_id
-         LEFT JOIN fleet_partners fp ON fp.id = f.fleet_partner_id
+         LEFT JOIN fulfillers f1 ON f1.id = o.fulfiller_id
+         LEFT JOIN fulfillers f2 ON f2.user_id = o.fulfiller_id
+         LEFT JOIN fleet_partners fp1 ON fp1.id = f1.fleet_partner_id
+         LEFT JOIN fleet_partners fp2 ON fp2.id = f2.fleet_partner_id
          WHERE o.id = $1`,
         [orderId]
     );

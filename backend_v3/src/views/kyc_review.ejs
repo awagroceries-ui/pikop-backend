@@ -43,7 +43,7 @@ function isDisplayableImage(url) {
                 </div>
                 <div class="col-md-4 text-end">
                     <% if (f.profile_photo_url) { %>
-                        <img src="<%= resolveMediaUrl(f.profile_photo_url) %>" class="rounded border" style="width: 80px; height: 80px; object-fit: cover;">
+                        <img src="<%= resolveMediaUrl(f.profile_photo_url) %>" class="rounded border" style="width: 80px; height: 80px; object-fit: cover; image-orientation: from-image;">
                     <% } else { %>
                         <div class="bg-light rounded border d-flex align-items-center justify-content-center ms-auto" style="width: 80px; height: 80px;">
                             <span class="text-muted smaller">No Photo</span>

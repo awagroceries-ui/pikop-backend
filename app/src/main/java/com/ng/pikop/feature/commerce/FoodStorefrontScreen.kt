@@ -1,6 +1,7 @@
 package com.ng.pikop.feature.commerce
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,8 +21,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.ng.pikop.core.cart.CartManager
 import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.DiscoveryItem
@@ -72,33 +76,34 @@ fun FoodStorefrontScreen(
         fetchFood()
     }
 
-    Scaffold(
-        floatingActionButton = {
-            if (com.ng.pikop.core.cart.CartManager.items.isNotEmpty()) {
-                FloatingActionButton(
-                    onClick = onViewCart,
-                    containerColor = MaterialTheme.colorScheme.tertiary,
-                    contentColor = Color.White
-                ) {
-                    BadgedBox(
-                        badge = { Badge { Text("${com.ng.pikop.core.cart.CartManager.items.size}") } }
-                    ) {
-                        Icon(Icons.Default.ShoppingCart, "View Cart")
-                    }
-                }
-            }
-        }
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Column(modifier = Modifier.fillMaxSize()) {
             // Header
             Surface(color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "Order Food",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Order Food",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        // Header Cart Icon Button
+                        if (CartManager.items.isNotEmpty()) {
+                            IconButton(onClick = onViewCart) {
+                                BadgedBox(
+                                    badge = { Badge { Text("${CartManager.items.sumOf { it.quantity }}") } }
+                                ) {
+                                    Icon(Icons.Default.ShoppingCart, "View Cart", tint = Color.White)
+                                }
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = searchQuery,
@@ -151,12 +156,59 @@ fun FoodStorefrontScreen(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 90.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(items, key = { "${it.id}_${it.item_type}" }) { item ->
-                        DiscoveryItemCard(item = item, onClick = { onItemClick(item) })
+                        DiscoveryItemCard(
+                            item = item, 
+                            onClick = { 
+                                CartManager.clear()
+                                CartManager.addItem(item)
+                                onItemClick(item) 
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Unobstructed Bottom Cart Banner Bar
+        if (CartManager.items.isNotEmpty()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+                    .clickable { onViewCart() },
+                color = MaterialTheme.colorScheme.tertiary,
+                shape = RoundedCornerShape(18.dp),
+                shadowElevation = 8.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        BadgedBox(
+                            badge = { Badge { Text("${CartManager.items.sumOf { it.quantity }}") } }
+                        ) {
+                            Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = Color.White)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text("View Cart", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
+                            Text("₦${"%,.2f".format(CartManager.totalAmount)}", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Checkout", fontWeight = FontWeight.Bold, color = Color.White)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
             }

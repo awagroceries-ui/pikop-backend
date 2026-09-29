@@ -77,10 +77,18 @@ fun CommerceCheckoutScreen(
             val response = apiService.getDiscovery() 
             item = response.data.find { it.id == itemId && it.item_type == itemType }
             
+            if (item == null && com.ng.pikop.core.cart.CartManager.items.isNotEmpty()) {
+                item = com.ng.pikop.core.cart.CartManager.items.first().item
+            }
+
             val walletRes = apiService.getWalletInfo()
             walletBalance = walletRes.actualBalance
         } catch (_: Exception) {
-            Toast.makeText(context, "Error loading item", Toast.LENGTH_SHORT).show()
+            if (com.ng.pikop.core.cart.CartManager.items.isNotEmpty()) {
+                item = com.ng.pikop.core.cart.CartManager.items.first().item
+            } else {
+                Toast.makeText(context, "Error loading item", Toast.LENGTH_SHORT).show()
+            }
         } finally {
             isLoading = false
         }
@@ -168,7 +176,13 @@ fun CommerceCheckoutScreen(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             AsyncImage(
-                                model = "https://api.pikop.com.ng${currentItem.photo_url}",
+                                model = if (currentItem.photo_url.isNullOrBlank()) {
+                                    "https://placehold.co/400x300?text=Pikop"
+                                } else if (currentItem.photo_url.startsWith("http")) {
+                                    currentItem.photo_url
+                                } else {
+                                    "https://api.pikop.com.ng${currentItem.photo_url}"
+                                },
                                 contentDescription = null,
                                 modifier = Modifier.size(80.dp),
                                 contentScale = ContentScale.Crop

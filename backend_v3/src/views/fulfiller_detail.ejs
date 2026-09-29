@@ -7,7 +7,7 @@
         <div class="card-pikop p-4 h-100 text-center">
             <div class="mb-3">
                 <% if (fulfiller.profile_photo_url) { %>
-                    <img src="<%= fulfiller.profile_photo_url %>" class="rounded-circle border border-3 border-primary" style="width: 120px; height: 120px; object-fit: cover;">
+                    <img src="<%= fulfiller.profile_photo_url %>" class="rounded-circle border border-3 border-primary" style="width: 120px; height: 120px; object-fit: cover; image-orientation: from-image;">
                 <% } else { %>
                     <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto border border-3 border-primary" style="width: 120px; height: 120px;">
                         <span class="fs-1 fw-bold text-primary"><%= fulfiller.user_name.charAt(0) %></span>
