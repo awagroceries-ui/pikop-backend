@@ -428,19 +428,7 @@ const getAvailableOffers = async (req, res) => {
     }
 
     const fulfillerId = f.id;
-      [userId]
-    );
-
-    if (fulfiller.length === 0) {
-      return res.status(404).json({ success: false, message: 'Fulfiller not found' });
-    }
-
-    if (fulfiller[0].online_status !== 'ONLINE') {
-      return res.status(200).json([]);
-    }
-
-    const fulfillerId = fulfiller[0].id;
-    const fulfillerStatePattern = `%${(fulfiller[0].current_state || '').split(' ')[0]}%`;
+    const fulfillerStatePattern = `%${(f.current_state || '').split(' ')[0]}%`;
 
     // Fetch active unassigned or queued orders for this fulfiller
     const { rows } = await db.query(
