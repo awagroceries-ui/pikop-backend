@@ -149,9 +149,24 @@ fun CommerceCheckoutScreen(
     val baseTotal = itemBasePrice + deliveryFee + platformFee
 
     val promoDiscount = if (activePromo == null) 0.0
-        else if ((activePromo?.value ?: 0.0) >= 100.0) baseTotal
-        else if (activePromo?.discount_type == "fixed") activePromo?.value ?: 0.0
-        else minOf(deliveryFee * ((activePromo?.value ?: 0.0) / 100.0), deliveryFee)
+        else {
+            val discountVal = activePromo?.value ?: 0.0
+            val dType = activePromo?.discount_type?.uppercase() ?: ""
+            val promoScope = activePromo?.scope?.uppercase() ?: "DELIVERY_ONLY"
+
+            if ((dType == "PERCENTAGE" && discountVal >= 100.0) || (promoScope == "TOTAL_BILL" && discountVal >= 100.0)) {
+                baseTotal
+            } else if (promoScope == "TOTAL_BILL") {
+                val calc = if (dType == "FIXED" || dType == "FIXED_AMOUNT") discountVal else baseTotal * (discountVal / 100.0)
+                minOf(calc, baseTotal)
+            } else if (promoScope == "MERCHANT_ONLY") {
+                val calc = if (dType == "FIXED" || dType == "FIXED_AMOUNT") discountVal else itemBasePrice * (discountVal / 100.0)
+                minOf(calc, itemBasePrice)
+            } else {
+                val calc = if (dType == "FIXED" || dType == "FIXED_AMOUNT") discountVal else deliveryFee * (discountVal / 100.0)
+                minOf(calc, deliveryFee)
+            }
+        }
 
     val totalAmount = maxOf(0.0, baseTotal - promoDiscount)
 

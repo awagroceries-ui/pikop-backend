@@ -28,7 +28,8 @@ const validateCoupon = async (req, res) => {
         }
 
         let discount = 0;
-        if (coupon.discount_type === 'FIXED') {
+        const dType = (coupon.discount_type || '').toUpperCase();
+        if (dType === 'FIXED' || dType === 'FIXED_AMOUNT') {
             discount = parseFloat(coupon.discount_value);
         } else {
             discount = numericAmount * (parseFloat(coupon.discount_value) / 100);

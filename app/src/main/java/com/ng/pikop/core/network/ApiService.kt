@@ -223,7 +223,7 @@ data class OrderDetailsResponse(
     @SerializedName("sms_charge_amount") val sms_charge_amount: Double? = null,
     @SerializedName("fee_payer") val fee_payer: String? = null,
     @SerializedName("escrow_status") val escrow_status: String? = null,
-    @SerializedName("seller_id") val seller_id: Int? = null,
+    @SerializedName("seller_id") val seller_id: String? = null,
     @SerializedName("merchant_commission_amount") val merchant_commission_amount: Double? = null,
     @SerializedName("grace_period_expires_at") val grace_period_expires_at: String? = null,
     @SerializedName("customer_rating") val customer_rating: Int? = null,
@@ -686,6 +686,7 @@ data class PromoValidationResponse(
     val promo_id: String? = null,
     val discount_type: String? = null, // fixed, percentage
     val value: Double? = null,
+    val scope: String? = null,
     val message: String? = null
 )
 

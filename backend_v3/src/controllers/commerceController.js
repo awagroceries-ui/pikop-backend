@@ -262,18 +262,35 @@ const initializeCommerceOrder = async (req, res) => {
 
                     if (isGlobal || isMerchantMatch || isKitchenMatch) {
                         const discountVal = parseFloat(c.discount_value || 0);
-                        if (c.discount_type === 'PERCENTAGE' && discountVal >= 100) {
-                            // 100% Tester Coupon (TESTER100): Entire order is free
+                        const dType = (c.discount_type || '').toUpperCase();
+                        const scope = (c.applicability_scope || 'DELIVERY_ONLY').toUpperCase();
+
+                        if ((dType === 'PERCENTAGE' && discountVal >= 100) || (scope === 'TOTAL_BILL' && discountVal >= 100)) {
+                            // 100% Coupon (e.g. TESTER100): Entire order is free
                             discount = totalItemPrice + deliveryFee + platformFee;
                             finalDeliveryFee = 0;
                             finalItemPrice = 0;
                             platformFee = 0;
-                            console.log(`[Commerce] Applied 100% Universal Coupon: ${c.code}. Full Order Waived!`);
+                            console.log(`[Commerce] Applied 100% Coupon: ${c.code}. Full Order Waived!`);
+                        } else if (scope === 'TOTAL_BILL') {
+                            const calculatedDiscount = (dType === 'FIXED' || dType === 'FIXED_AMOUNT') ? discountVal : (totalItemPrice + deliveryFee + platformFee) * (discountVal / 100);
+                            discount = Math.min(calculatedDiscount, totalItemPrice + deliveryFee + platformFee);
+                            const remaining = Math.max(0, (totalItemPrice + deliveryFee + platformFee) - discount);
+                            finalItemPrice = remaining;
+                            finalDeliveryFee = 0;
+                            platformFee = 0;
+                            console.log(`[Commerce] Applied TOTAL_BILL Promo: ${c.code}. Discount: ${discount}`);
+                        } else if (scope === 'MERCHANT_ONLY') {
+                            const calculatedDiscount = (dType === 'FIXED' || dType === 'FIXED_AMOUNT') ? discountVal : totalItemPrice * (discountVal / 100);
+                            discount = Math.min(calculatedDiscount, totalItemPrice);
+                            finalItemPrice = Math.max(0, totalItemPrice - discount);
+                            console.log(`[Commerce] Applied MERCHANT_ONLY Promo: ${c.code}. Discount: ${discount}`);
                         } else {
-                            const calculatedDiscount = c.discount_type === 'FIXED' ? discountVal : deliveryFee * (discountVal / 100);
+                            // DEFAULT: DELIVERY_ONLY
+                            const calculatedDiscount = (dType === 'FIXED' || dType === 'FIXED_AMOUNT') ? discountVal : deliveryFee * (discountVal / 100);
                             discount = Math.min(calculatedDiscount, deliveryFee);
                             finalDeliveryFee = Math.max(0, deliveryFee - discount);
-                            console.log(`[Commerce] Applied Promo: ${c.code}. Discount: ${discount}`);
+                            console.log(`[Commerce] Applied DELIVERY_ONLY Promo: ${c.code}. Discount: ${discount}`);
                         }
                     } else {
                         console.warn(`[Commerce] Promo ${c.code} rejected: Does not match merchant ${item.vendor_id || item.kitchen_id}`);
