@@ -74,6 +74,10 @@ router.post('/merchants/:type/:id/delete', adminController.deleteMerchant);
 router.get('/vendors', adminController.getVendors);
 router.get('/kitchens', adminController.getKitchens);
 router.get('/merchants', adminController.getMerchants);
+router.get('/merchants/:type/:id/items', adminController.getMerchantStoreItems);
+router.post('/merchants/:type/:id/items/:itemId/toggle', adminController.toggleMerchantItemStatus);
+router.post('/merchants/:type/:id/items/:itemId/edit', adminController.updateMerchantItem);
+router.post('/merchants/:type/:id/items/:itemId/delete', adminController.deleteMerchantItem);
 router.get('/fleet-partners', adminController.getFleetPartners);
 router.post('/fleet-partners/:id/status', adminController.updateFleetPartnerStatus);
 

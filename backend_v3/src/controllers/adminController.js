@@ -567,6 +567,101 @@ const getMerchants = async (req, res) => {
 };
 
 /**
+ * Store Contents & Regulation Management (v4.8)
+ */
+const getMerchantStoreItems = async (req, res) => {
+    const { type, id } = req.params;
+    try {
+        let merchant = null;
+        let items = [];
+
+        if (type === 'vendor') {
+            const mRes = await db.query(`
+                SELECT v.*, u.full_name as contact_person, u.email as contact_email
+                FROM vendors v
+                JOIN users u ON u.id = v.user_id
+                WHERE v.id = $1
+            `, [id]);
+            if (mRes.rows.length === 0) return res.status(404).send('Vendor store not found');
+            merchant = mRes.rows[0];
+
+            const pRes = await db.query('SELECT * FROM products WHERE vendor_id = $1 ORDER BY created_at DESC', [id]);
+            items = pRes.rows;
+        } else {
+            const mRes = await db.query(`
+                SELECT k.*, u.full_name as contact_person, u.email as contact_email
+                FROM kitchens k
+                JOIN users u ON u.id = k.user_id
+                WHERE k.id = $1
+            `, [id]);
+            if (mRes.rows.length === 0) return res.status(404).send('Kitchen store not found');
+            merchant = mRes.rows[0];
+
+            const mItemsRes = await db.query('SELECT * FROM menu_items WHERE kitchen_id = $1 ORDER BY created_at DESC', [id]);
+            items = mItemsRes.rows;
+        }
+
+        res.render('merchant_store_items', { merchant, items, type });
+    } catch (error) {
+        console.error('[AdminStoreItems] Error:', error.message);
+        res.status(500).send(error.message);
+    }
+};
+
+const toggleMerchantItemStatus = async (req, res) => {
+    const { type, id, itemId } = req.params;
+    try {
+        if (type === 'vendor') {
+            await db.query('UPDATE products SET active = NOT active WHERE id = $1 AND vendor_id = $2', [itemId, id]);
+        } else {
+            await db.query('UPDATE menu_items SET available = NOT available WHERE id = $1 AND kitchen_id = $2', [itemId, id]);
+        }
+        res.redirect(`/admin/merchants/${type}/${id}/items`);
+    } catch (error) {
+        console.error('[AdminToggleItem] Error:', error.message);
+        res.status(500).send(error.message);
+    }
+};
+
+const updateMerchantItem = async (req, res) => {
+    const { type, id, itemId } = req.params;
+    const { name, price, category, description } = req.body;
+    try {
+        const numPrice = parseFloat(price) || 0;
+        if (type === 'vendor') {
+            await db.query(
+                `UPDATE products SET name = $1, price = $2, category = $3, description = $4 WHERE id = $5 AND vendor_id = $6`,
+                [name, numPrice, category || null, description || null, itemId, id]
+            );
+        } else {
+            await db.query(
+                `UPDATE menu_items SET name = $1, price = $2, category = $3, description = $4 WHERE id = $5 AND kitchen_id = $6`,
+                [name, numPrice, category || null, description || null, itemId, id]
+            );
+        }
+        res.redirect(`/admin/merchants/${type}/${id}/items`);
+    } catch (error) {
+        console.error('[AdminUpdateItem] Error:', error.message);
+        res.status(500).send(error.message);
+    }
+};
+
+const deleteMerchantItem = async (req, res) => {
+    const { type, id, itemId } = req.params;
+    try {
+        if (type === 'vendor') {
+            await db.query('DELETE FROM products WHERE id = $1 AND vendor_id = $2', [itemId, id]);
+        } else {
+            await db.query('DELETE FROM menu_items WHERE id = $1 AND kitchen_id = $2', [itemId, id]);
+        }
+        res.redirect(`/admin/merchants/${type}/${id}/items`);
+    } catch (error) {
+        console.error('[AdminDeleteItem] Error:', error.message);
+        res.status(500).send(error.message);
+    }
+};
+
+/**
  * Fleet Partner Management (v4.1)
  */
 const getFleetPartners = async (req, res) => {
@@ -1545,6 +1640,10 @@ module.exports = {
   getVendors,
   getKitchens,
   getMerchants,
+  getMerchantStoreItems,
+  toggleMerchantItemStatus,
+  updateMerchantItem,
+  deleteMerchantItem,
   getFleetPartners,
   updateFleetPartnerStatus,
   getCities,

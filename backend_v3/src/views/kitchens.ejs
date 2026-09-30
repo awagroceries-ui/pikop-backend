@@ -42,6 +42,7 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-flex justify-content-end gap-2 align-items-center">
+                                    <a href="/admin/merchants/kitchen/<%= k.id %>/items" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 11px;">VIEW ITEMS</a>
                                     <% if (k.status !== 'active') { %>
                                         <form action="/admin/merchants/kitchen/<%= k.id %>/status" method="POST" class="d-inline">
                                             <input type="hidden" name="status" value="VERIFIED">
