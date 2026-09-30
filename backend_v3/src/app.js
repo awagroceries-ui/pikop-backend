@@ -100,9 +100,10 @@ app.use(express.urlencoded({ extended: true }));
 // 1.1 Rate Limiting (Brute Force Protection)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 100, // Limit each IP to 100 requests per `window`
+  limit: 1000, // Limit each IP to 1000 requests per window
   standardHeaders: 'draft-7',
   legacyHeaders: false,
+  skip: (req) => req.path === '/refresh' || req.path === '/fcm-token',
   message: { success: false, message: 'Too many requests, please try again later.' }
 });
 
