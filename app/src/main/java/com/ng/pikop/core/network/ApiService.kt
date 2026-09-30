@@ -784,7 +784,7 @@ data class MerchantProfile(
     val type: String = "vendor", // vendor, kitchen
     val accepts_cod: Boolean = true,
     val category: String? = null,
-    val pickup_address_id: Int? = null,
+    val pickup_address_id: String? = null,
     val allows_returns: Boolean = false,
     val return_window_days: Int = 7,
     val return_policy_text: String? = null,
@@ -899,7 +899,7 @@ data class BulkOrderRequest(
 
 data class Product(
     val id: String,
-    val vendor_id: Int? = null,
+    val vendor_id: String? = null,
     val kitchen_id: String? = null,
     val merchant_type: String? = "vendor", // vendor, kitchen
     val name: String,
