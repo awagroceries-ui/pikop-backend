@@ -233,8 +233,10 @@ fun FulfillerDashboardScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
+                                    // v4.5 fix: real branded "VERIFIED" badge instead of the
+                                    // generic app logomark, per the actual icon asset supplied.
                                     Image(
-                                        painter = painterResource(id = R.drawable.pikop_badge),
+                                        painter = painterResource(id = R.drawable.pikop_verified_badge),
                                         contentDescription = "Verified",
                                         modifier = Modifier.size(28.dp)
                                     )
@@ -413,8 +415,10 @@ fun FulfillerDashboardScreen(
                                     modifier = Modifier.padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    // v4.5 fix: real branded "VERIFIED" badge instead of the
+                                    // generic app logomark, per the actual icon asset supplied.
                                     Image(
-                                        painter = painterResource(id = R.drawable.pikop_badge),
+                                        painter = painterResource(id = R.drawable.pikop_verified_badge),
                                         contentDescription = "Verified Badge",
                                         modifier = Modifier.size(52.dp)
                                     )

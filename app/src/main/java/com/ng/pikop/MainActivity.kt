@@ -214,8 +214,18 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                     }
                 }
             }
+        // 1b. Handle the https://api.pikop.com.ng/track/{orderId} App Link
+        // (the SMS tracking link customers receive). "pikop" scheme is
+        // handled above; this is the ordinary https host+pathPrefix match
+        // declared in AndroidManifest.xml.
+        } else if (dataUri != null && dataUri.scheme == "https" && dataUri.host == "api.pikop.com.ng" &&
+                   dataUri.pathSegments.firstOrNull() == "track") {
+            val orderId = dataUri.lastPathSegment
+            if (!orderId.isNullOrBlank()) {
+                navController.navigate("track_order/$orderId")
+            }
         }
-        
+
         if (accessToken != null && navigateTo != null) {
             when (navigateTo) {
                 "SUPPORT_CHAT", "chat" -> {
@@ -509,6 +519,8 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
 
         composable("main") {
+            val mainCtx = androidx.compose.ui.platform.LocalContext.current
+            var personalMode by remember(userId) { mutableStateOf(isPersonalMode(mainCtx, userId)) }
             if (userRole == "MERCHANT") {
                 com.ng.pikop.feature.merchant.MerchantAppScaffold(
                     rootNavController = navController,
@@ -529,9 +541,16 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                         }
                     }
                 )
-            } else if (userRole == "CORPORATE") {
+            } else if (userRole == "CORPORATE" && !personalMode) {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val switchToPersonal = {
+                    setPersonalMode(ctx, userId, true)
+                    personalMode = true
+                }
                 CorporateDashboardScreen(
-                    onBack = {
+                    onBack = switchToPersonal,
+                    onSwitchToPersonal = switchToPersonal,
+                    onLogout = {
                         scope.launch {
                             tokenManager.clearTokens()
                             navController.navigate("user_type_selection") {
@@ -546,11 +565,13 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                     userEmail = userEmail ?: "",
                     userName = userName ?: "",
                     userPhone = userPhone ?: "",
-                    userRole = userRole ?: "CUSTOMER",
+                    userRole = if (userRole == "CORPORATE") "CUSTOMER" else (userRole ?: "CUSTOMER"),
                     referralCode = referralCode ?: "",
                     kycStatus = kycStatus,
                     tokenManager = tokenManager,
-                    onCelebration = { celebrationViewModel.trigger() }
+                    onCelebration = { celebrationViewModel.trigger() },
+                    isCorporateUser = userRole == "CORPORATE",
+                    accountKey = userId
                 )
             }
         }
@@ -631,10 +652,39 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                         notes = notes,
                         promoId = promoId
                     )
-                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                    context.startActivity(intent)
+                    // Use the in-app WebView (not an external browser Intent).
+                    // An external browser hands the whole checkout session off to
+                    // Chrome, which relies on a programmatic (non user-tap)
+                    // redirect to the pikop:// scheme succeeding to bring the
+                    // user back — Chrome frequently blocks or silently drops
+                    // that kind of redirect, which is why real (non-free)
+                    // payments appeared to "complete on Paystack but never
+                    // start the mission". The in-app WebView intercepts the
+                    // redirect itself via shouldOverrideUrlLoading, with no
+                    // hand-off and no dependency on an external app honoring
+                    // a custom-scheme redirect.
+                    navController.navigate("payment_webview")
                 }
             )
+        }
+        composable("payment_webview") {
+            val checkoutUrl = CheckoutHelper.activeQuote?.url
+            if (checkoutUrl.isNullOrBlank()) {
+                LaunchedEffect(Unit) {
+                    navController.navigate("main") { popUpTo(0) { inclusive = true } }
+                }
+            } else {
+                PaymentWebView(
+                    url = checkoutUrl,
+                    onSuccess = { reference, _ ->
+                        navController.navigate("confirm_payment/$reference") {
+                            popUpTo("order_quote") { inclusive = true }
+                        }
+                    },
+                    onCancel = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
         composable("kyc_upload") {
             KycUploadScreen(userEmail = userEmail ?: "", onBack = { navController.popBackStack() })
@@ -791,6 +841,17 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
 }
 }
 
+// Account mode for CORPORATE users: they can work in the Corporate Console or in a
+// normal personal (customer) account, and switch between the two at any time.
+private fun isPersonalMode(ctx: android.content.Context, key: String?): Boolean =
+    ctx.getSharedPreferences("pikop_account_mode", android.content.Context.MODE_PRIVATE)
+        .getBoolean("personal_" + (key ?: ""), false)
+
+private fun setPersonalMode(ctx: android.content.Context, key: String?, personal: Boolean) {
+    ctx.getSharedPreferences("pikop_account_mode", android.content.Context.MODE_PRIVATE)
+        .edit().putBoolean("personal_" + (key ?: ""), personal).apply()
+}
+
 @Composable
 fun MainAppScaffold(
     navController: NavHostController,
@@ -801,7 +862,9 @@ fun MainAppScaffold(
     referralCode: String,
     kycStatus: String? = null,
     tokenManager: TokenManager,
-    onCelebration: () -> Unit = {}
+    onCelebration: () -> Unit = {},
+    isCorporateUser: Boolean = false,
+    accountKey: String? = null
 ) {
     val nestedNavController = rememberNavController()
     val scope = rememberCoroutineScope()
@@ -902,7 +965,11 @@ fun MainAppScaffold(
                         onNavigateToWallet = { nestedNavController.navigate("wallet") },
                         onNavigateToAddresses = { nestedNavController.navigate("account") },
                         onNavigateToSupport = { navController.navigate("support_hub") },
-                        onNavigateToAccount = { nestedNavController.navigate("account") }
+                        onNavigateToAccount = { nestedNavController.navigate("account") },
+                        onNavigateToStore = { storeType, storeId ->
+                            if (storeType == "kitchen") nestedNavController.navigate("storefront_food?merchantId=${android.net.Uri.encode(storeId)}")
+                            else nestedNavController.navigate("storefront_shop")
+                        }
                     )
                 }
             }
@@ -987,15 +1054,23 @@ fun MainAppScaffold(
             }
             composable("wallet") {
                 WalletScreen(
-                    onBack = { nestedNavController.popBackStack() }, 
+                    onBack = { nestedNavController.popBackStack() },
                     isFulfiller = userRole == "FULFILLER",
-                    onNavigateToWithdrawal = { navController.navigate("withdrawal") }
+                    showStatement = userRole == "FULFILLER" || userRole == "MERCHANT",
+                    // v4.5 fix: this was calling navController.navigate("withdrawal") --
+                    // the OUTER nav controller -- but "withdrawal" is only registered
+                    // as a destination on THIS nested NavHost (nestedNavController,
+                    // startDestination "home"). Android throws
+                    // IllegalArgumentException("Navigation destination that matches
+                    // route withdrawal cannot be found") the instant an agent taps
+                    // Withdraw, crashing the app. Using the matching controller fixes it.
+                    onNavigateToWithdrawal = { nestedNavController.navigate("withdrawal") }
                 )
             }
             composable("withdrawal") {
                 WithdrawalScreen(
-                    onSuccess = { navController.popBackStack() },
-                    onBack = { navController.popBackStack() }
+                    onSuccess = { nestedNavController.popBackStack() },
+                    onBack = { nestedNavController.popBackStack() }
                 )
             }
             composable("account") {
@@ -1013,7 +1088,15 @@ fun MainAppScaffold(
                     onNavigateToNotifications = { navController.navigate("notifications_settings") },
                     onNavigateToRecipients = { navController.navigate("recipients_mgmt") },
                     onNavigateToSessions = { navController.navigate("session_mgmt") },
-                    onNavigateToCorporate = { navController.navigate("corporate_dashboard") },
+                    onNavigateToCorporate = {
+                        if (isCorporateUser) {
+                            // Corporate users switch back into their Corporate Console.
+                            setPersonalMode(context, accountKey, false)
+                            navController.navigate("main") { popUpTo(0) { inclusive = true } }
+                        } else {
+                            navController.navigate("corporate_dashboard")
+                        }
+                    },
                     onNavigateToGrowth = { navController.navigate("growth_rewards") },
                     onNavigateToMerchant = { 
                         if (userRole == "MERCHANT") {

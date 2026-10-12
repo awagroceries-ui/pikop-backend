@@ -55,6 +55,11 @@ fun CommerceCheckoutScreen(
     
     var selectedPaymentMethod by remember { mutableStateOf("CARD") } // "CARD", "COD", "WALLET"
 
+    // v4.5 fix (platform fees #1): this used to be hardcoded to 10% client-side,
+    // so it drifted out of sync whenever the admin changed the COD/escrow fee
+    // rate from the dashboard. Fetch the real, current rate instead.
+    var codFeeRate by remember { mutableStateOf(0.05) }
+
     // Delivery Location State
     val deliveryAddress by navController.currentBackStackEntry
         ?.savedStateHandle
@@ -99,6 +104,13 @@ fun CommerceCheckoutScreen(
             walletBalance = walletRes.actualBalance
         } catch (_: Exception) {
             walletBalance = 0.0
+        }
+
+        try {
+            val feeRes = apiService.getFeeRates()
+            feeRes.data?.cod_fee_rate?.let { codFeeRate = it }
+        } catch (_: Exception) {
+            // Keep the 0.05 fallback default above.
         }
     }
 
@@ -145,7 +157,7 @@ fun CommerceCheckoutScreen(
     // Dynamic Price Logic
     val itemBasePrice = if (useCart) com.ng.pikop.core.cart.CartManager.totalAmount else (item?.price ?: 0.0)
     val deliveryFee = if (deliveryAddress.isBlank()) 0.0 else 1200.0
-    val platformFee = if (selectedPaymentMethod == "COD") itemBasePrice * 0.10 else 0.0
+    val platformFee = if (selectedPaymentMethod == "COD") itemBasePrice * codFeeRate else 0.0
     val baseTotal = itemBasePrice + deliveryFee + platformFee
 
     val promoDiscount = if (activePromo == null) 0.0

@@ -51,7 +51,7 @@
                         </div>
                         <div class="col-md-4 text-end">
                             <a href="/admin/orders/<%= order.id %>/track" class="btn-pikop-outline py-1 px-3 me-1" style="font-size: 11px; text-decoration: none;">TRACK MISSION</a>
-                            <button class="btn btn-xs btn-outline-success py-1 px-2 fw-bold" style="font-size: 10px;" onclick="promptManualDispatch(<%= order.id %>)">MANUAL ASSIGN</button>
+                            <button class="btn btn-xs btn-outline-success py-1 px-2 fw-bold" style="font-size: 10px;" onclick="openManualDispatch(<%= order.id %>)">MANUAL ASSIGN</button>
                         </div>
                     </div>
                 </div>
@@ -60,22 +60,82 @@
     <% } %>
 </div>
 
+<div class="modal fade" id="manualDispatchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Assign Mission <span id="mdOrderLabel"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="mdLoading" class="text-muted small">Loading online agents…</div>
+                <div id="mdEmpty" class="text-muted small d-none">No agents are currently online and KYC-verified. Manual assignment needs at least one online agent.</div>
+                <select id="mdAgentSelect" class="form-select d-none"></select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="mdConfirmBtn" class="btn btn-sm btn-success d-none" onclick="confirmManualDispatch()">Assign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    function promptManualDispatch(orderId) {
-        const fulfillerId = prompt(`Enter Fulfiller/Agent Database ID to assign Mission #${orderId} directly:`);
-        if (fulfillerId && !isNaN(parseInt(fulfillerId))) {
-            fetch(`/admin/orders/${orderId}/assign`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fulfiller_id: parseInt(fulfillerId) })
-            })
+    let mdCurrentOrderId = null;
+    let mdModalInstance = null;
+
+    function openManualDispatch(orderId) {
+        mdCurrentOrderId = orderId;
+        document.getElementById('mdOrderLabel').textContent = '#' + orderId;
+        document.getElementById('mdLoading').classList.remove('d-none');
+        document.getElementById('mdEmpty').classList.add('d-none');
+        const select = document.getElementById('mdAgentSelect');
+        select.classList.add('d-none');
+        select.innerHTML = '';
+        document.getElementById('mdConfirmBtn').classList.add('d-none');
+
+        mdModalInstance = mdModalInstance || new bootstrap.Modal(document.getElementById('manualDispatchModal'));
+        mdModalInstance.show();
+
+        fetch('/admin/agents/online.json')
             .then(res => res.json())
             .then(data => {
-                alert(data.message || 'Mission Assigned Successfully!');
-                window.location.reload();
+                document.getElementById('mdLoading').classList.add('d-none');
+                const agents = data.agents || [];
+                if (agents.length === 0) {
+                    document.getElementById('mdEmpty').classList.remove('d-none');
+                    return;
+                }
+                agents.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = `${a.full_name} — ${a.primary_class || a.mobility_type || 'Agent'} — #${a.id}`;
+                    select.appendChild(opt);
+                });
+                select.classList.remove('d-none');
+                document.getElementById('mdConfirmBtn').classList.remove('d-none');
             })
-            .catch(e => alert('Dispatch failed: ' + e.message));
-        }
+            .catch(e => {
+                document.getElementById('mdLoading').textContent = 'Failed to load agents: ' + e.message;
+            });
+    }
+
+    function confirmManualDispatch() {
+        const select = document.getElementById('mdAgentSelect');
+        const fulfillerId = parseInt(select.value);
+        if (!fulfillerId) return;
+
+        fetch(`/admin/orders/${mdCurrentOrderId}/assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fulfiller_id: fulfillerId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message || 'Mission Assigned Successfully!');
+            window.location.reload();
+        })
+        .catch(e => alert('Dispatch failed: ' + e.message));
     }
 </script>
 

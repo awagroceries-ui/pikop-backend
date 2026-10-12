@@ -44,7 +44,14 @@ class PikopMessagingService : FirebaseMessagingService() {
         val channelName = if (type == "MISSION_OFFER") "Mission Alerts" else "Pikop Updates"
         
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.pikop_badge)
+            // v4.5 fix (#9): pikop_badge is a full-color image, but Android's
+            // status bar strips all RGB and renders a notification icon using
+            // only its alpha channel -- so this was showing as a solid white
+            // blob, not the actual badge mark. pikop_notification_icon is a
+            // white-silhouette derivative of the same badge (same shape, same
+            // alpha channel, forced-white RGB) which is what the status bar
+            // is actually designed to render correctly.
+            .setSmallIcon(R.drawable.pikop_notification_icon)
             .setContentTitle(title)
             .setContentText(messageBody)
             .setAutoCancel(true)

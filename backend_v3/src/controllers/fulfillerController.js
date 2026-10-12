@@ -353,6 +353,17 @@ const getProfile = async (req, res) => {
     const f = await resolveFulfiller(db, userId);
     if (!f) return res.status(404).json({ success: false, message: 'Profile not found' });
 
+    // 0. Derive document-upload flags (v4.5 fix: the Android KYC wizard's
+    // step-sync logic needs a reliable signal for whether the Government ID
+    // document has actually been uploaded, so it can't skip straight from
+    // facial verification to the bank-details step for non-driver roles).
+    const docsRes = await db.query(
+        "SELECT doc_type FROM kyc_documents WHERE fulfiller_id = $1",
+        [f.id]
+    );
+    const uploadedDocTypes = docsRes.rows.map(r => r.doc_type);
+    const hasGovernmentId = uploadedDocTypes.includes('GOVERNMENT_ID');
+
     // 1. Calculate Performance Metrics
     const statsRes = await db.query(`
         SELECT
@@ -393,6 +404,8 @@ const getProfile = async (req, res) => {
             success: true,
             data: {
                 ...f,
+                has_government_id: hasGovernmentId,
+                uploaded_doc_types: uploadedDocTypes,
                 stats: {
                     lifetime_earnings: parseFloat(stats.lifetime_earnings),
                     mtd_earnings: parseFloat(stats.mtd_earnings),

@@ -373,7 +373,7 @@ const acceptOrder = async (req, res) => {
 
     // 2. Atomic claim using SELECT FOR UPDATE
     const { rows } = await client.query(
-        "SELECT id, status, fulfiller_id FROM orders WHERE id = $1 FOR UPDATE",
+        "SELECT id, status, fulfiller_id, user_id FROM orders WHERE id = $1 FOR UPDATE",
         [orderId]
     );
 
@@ -430,6 +430,17 @@ const acceptOrder = async (req, res) => {
     io.to(`order_${orderId}`).emit("status_updated", { orderId, status: resStatus });
     io.to(`user_${userId}`).emit("order_status_updated", { orderId, status: resStatus });
     io.to(`fulfiller_${fulfillerId}`).emit("order_status_updated", { orderId, status: resStatus });
+
+    // v4.5 fix (#4): Push notify the customer even if their app is backgrounded/killed.
+    // Socket events alone only reach a customer with the tracking screen open.
+    if (resStatus === 'MATCHED' && rows[0].user_id) {
+        fcmService.sendNotification(
+            rows[0].user_id,
+            "Agent On The Way! 🚴",
+            "An agent has accepted your delivery and is heading to pickup.",
+            { type: "ORDER_UPDATE", order_id: orderId.toString(), status: resStatus }
+        ).catch(e => console.error('[FCM] Accept notify error:', e.message));
+    }
 
     res.status(200).json({
       success: true,
@@ -524,7 +535,7 @@ const updateStatus = async (req, res) => {
     }
 
     const { rows } = await db.query(
-        "UPDATE orders SET status = $1 WHERE id = $2 RETURNING id, status",
+        "UPDATE orders SET status = $1 WHERE id = $2 RETURNING id, status, user_id",
         [status, orderId]
     );
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Mission not found' });
@@ -532,6 +543,23 @@ const updateStatus = async (req, res) => {
     // Sync participants
     const socketService = require('../services/socketService');
     socketService.getIO().to(`order_${orderId}`).emit("status_updated", { orderId, status });
+
+    // v4.5 fix (#4): Push notify the customer for the in-transit status updates
+    // that only ever flowed through this generic endpoint (DELIVERED/PICKED_UP
+    // already get their own notifications from their dedicated OTP endpoints).
+    const CUSTOMER_STATUS_MESSAGES = {
+        'ARRIVED_AT_PICKUP': 'Your agent has arrived at the pickup location.',
+        'IN_TRANSIT': 'Your delivery is on its way to you.',
+        'ARRIVED_AT_DELIVERY': 'Your agent has arrived at your location.'
+    };
+    if (CUSTOMER_STATUS_MESSAGES[status] && rows[0].user_id) {
+        fcmService.sendNotification(
+            rows[0].user_id,
+            "Mission Update",
+            CUSTOMER_STATUS_MESSAGES[status],
+            { type: "ORDER_UPDATE", order_id: orderId.toString(), status }
+        ).catch(e => console.error('[FCM] Status notify error:', e.message));
+    }
 
     // 2. Trigger Settlement on Delivery (v3)
     if (status === 'DELIVERED') {
@@ -950,8 +978,17 @@ const createOrder = async (req, res) => {
                 initiator_role || 'PAYER', // $32
                 (parseFloat(item_price || 0) > 0) ? 'held' : 'not_applicable', // $33
                 payer_id || null, // $34
-                parseFloat(q.delivery_fee), // $35
-                parseFloat(q.total_fare), // $36
+                // v4.5 fix (#11): q.delivery_fee is undefined for recipient-pays
+                // quotes (confirmed live: orders 33/34/35 all had original_delivery_fee
+                // = the literal string 'NaN' in Postgres, with fee_payer = 'PAYER').
+                // parseFloat(undefined) = NaN, with no fallback here unlike every
+                // other field in this INSERT -- and once NaN lands in a NUMERIC
+                // column, every future wallet credit computed from it (and every
+                // later addition to that same wallet, since NaN + x = NaN forever)
+                // stays NaN permanently. This is the root cause of wallets stuck
+                // at zero/NaN for any agent who ever delivered one of these orders.
+                parseFloat(q.delivery_fee || 0), // $35
+                parseFloat(q.total_fare || 0), // $36
                 pickup_state || q.pickup_state, // $37
                 parseFloat(sms_charge_amount || q.sms_charge_amount || 0), // $38
                 q.required_fulfiller_classes, // $39
@@ -1065,7 +1102,7 @@ const verifyPickup = async (req, res) => {
 
     try {
         const { rows } = await db.query(
-            "SELECT id, status, pickup_code_hash FROM orders WHERE id = $1",
+            "SELECT id, status, pickup_code_hash, user_id FROM orders WHERE id = $1",
             [id]
         );
 
@@ -1100,6 +1137,16 @@ const verifyPickup = async (req, res) => {
             const socketService = require('../services/socketService');
             socketService.getIO().to(`order_${id}`).emit("status_updated", { orderId: id, status: 'PICKED_UP' });
         } catch (e) {}
+
+        // v4.5 fix (#4): Push notify the customer.
+        if (order.user_id) {
+            fcmService.sendNotification(
+                order.user_id,
+                "Picked Up! 📦",
+                "Your agent has picked up your item and is heading to the destination.",
+                { type: "ORDER_UPDATE", order_id: id.toString(), status: "PICKED_UP" }
+            ).catch(e => console.error('[FCM] Pickup notify error:', e.message));
+        }
 
         console.log(`[Order] Pickup verified for Mission #${id} using code: ${code}`);
 
@@ -1219,6 +1266,20 @@ const verifyDelivery = async (req, res) => {
                     .catch(err => console.error('[CompletionEmail] Error:', err.message));
             }
         } catch (e) {}
+
+        // v4.5 fix (#4/#5b): Push notify the customer that delivery is complete.
+        // This is also what reliably brings a backgrounded customer back into the
+        // app and onto the tracking screen, where the rate-agent popup auto-shows.
+        if (order.user_id) {
+            fcmService.sendNotification(
+                order.user_id,
+                "Delivered! ✅",
+                isEscrow
+                    ? "Your item has arrived. Please confirm receipt in the app."
+                    : "Your delivery is complete. Tap to rate your agent.",
+                { type: "ORDER_UPDATE", order_id: id.toString(), status: nextStatus }
+            ).catch(e => console.error('[FCM] Delivery notify error:', e.message));
+        }
 
         // Socket notify
         try {
@@ -1628,7 +1689,7 @@ const requestConsent = async (req, res) => {
         const order = rows[0];
 
         // Send SMS to recipient with consent link
-        const consentUrl = `https://track.pikop.com.ng/api/v1/orders/consent/${order.id}`;
+        const consentUrl = `https://api.pikop.com.ng/api/v1/orders/consent/${order.id}`;
         const message = `Pikop: Our agent requested your consent to complete delivery (${note}). Approve here: ${consentUrl}`;
 
         await smsService.sendSms(order.recipient_phone, message, 'delivery_consent', order.id);
@@ -1950,8 +2011,16 @@ const triggerSOS = async (req, res) => {
 
         // 4. Outreach to Trusted Contact (Optional)
         if (f.emergency_contact_phone) {
-            const trackingLink = orderId ? `https://track.pikop.com.ng/guest/${orderId}` : `https://track.pikop.com.ng/fleet/${f.id}`;
-            const message = `EMERGENCY: Pikop Agent ${f.full_name} triggered an SOS. Live tracking: ${trackingLink}`;
+            // NOTE: the orderId branch now points at a real page (see
+            // app.js '/track/:orderId'). The no-active-order branch has no
+            // real destination yet — there is no public "fleet/:id" page
+            // anywhere in this backend, so it would be a dead link too.
+            // Until a public agent-location page exists, fall back to a
+            // message with no broken link rather than ship another one.
+            const trackingLink = orderId ? `https://api.pikop.com.ng/track/${orderId}` : null;
+            const message = trackingLink
+                ? `EMERGENCY: Pikop Agent ${f.full_name} triggered an SOS. Live tracking: ${trackingLink}`
+                : `EMERGENCY: Pikop Agent ${f.full_name} triggered an SOS while not on an active mission. Contact Pikop support for their last known location.`;
 
             // Standard SMS outreach
             await smsService.sendSms(f.emergency_contact_phone, message, 'EMERGENCY_ALERT', orderId);

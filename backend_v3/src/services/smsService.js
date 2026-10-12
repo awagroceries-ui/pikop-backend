@@ -116,7 +116,9 @@ const verifyOtpToken = async (userId, pin) => {
  * Sends a Secure Pay payment link to a guest recipient.
  */
 const sendSecurePaySms = async (phone, amount, orderId) => {
-    const paymentLink = `https://pay.pikop.com.ng/guest/checkout/${orderId}`;
+    // Real, working path on the main API domain (pay.pikop.com.ng was never
+    // provisioned — this was a dead link). See app.js '/pay/:orderId'.
+    const paymentLink = `https://api.pikop.com.ng/pay/${orderId}`;
     const message = `Pikop: You have a Protected Delivery request for ₦${amount}. Pay securely here to activate: ${paymentLink}`;
 
     return await sendSms(phone, message, 'payment_link', orderId);
@@ -126,7 +128,12 @@ const sendSecurePaySms = async (phone, amount, orderId) => {
  * Sends a Live Tracking link to a guest recipient.
  */
 const sendTrackingLinkSms = async (phone, orderId) => {
-    const trackingLink = `https://track.pikop.com.ng/guest/${orderId}`;
+    // Real, working path on the main API domain (track.pikop.com.ng was
+    // never provisioned — this was a dead link). See app.js '/track/:orderId'.
+    // This same path is also registered as an Android App Link, so tapping
+    // it on a device with the Pikop app installed opens the native tracking
+    // screen directly instead of a browser.
+    const trackingLink = `https://api.pikop.com.ng/track/${orderId}`;
     const message = `Pikop: Your delivery is on the way! Track the agent live at: ${trackingLink}`;
 
     return await sendSms(phone, message, 'tracking_link', orderId);
@@ -136,7 +143,7 @@ const sendTrackingLinkSms = async (phone, orderId) => {
  * Sends an immediate alert to a guest receiver when a mission is created.
  */
 const sendNewDeliveryAlert = async (phone, senderName, orderId) => {
-    const trackingLink = `https://track.pikop.com.ng/guest/${orderId}`;
+    const trackingLink = `https://api.pikop.com.ng/track/${orderId}`;
     const message = `Pikop: ${senderName} sent you a package! Track it live here: ${trackingLink}`;
 
     return await sendSms(phone, message, 'incoming_delivery', orderId);

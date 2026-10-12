@@ -177,13 +177,16 @@ fun ActiveOrderScreen(
     DisposableEffect(userId) {
         SocketManager.connect(userId)
         onDispose {
-            SocketManager.disconnect()
+            // v4.5 fix (#6): don't tear down the shared app-wide socket on leaving
+            // this screen -- MainActivity owns its lifecycle, and other screens
+            // (dashboard, tracking, chat) depend on it staying connected. See the
+            // matching fix in TrackOrderScreen.kt for the full rationale.
         }
     }
 
     LaunchedEffect(orderStatus) {
         val normStatus = orderStatus.uppercase()
-        val trackableStatuses = listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY", "PAYMENT_CAPTURED")
+        val trackableStatuses = listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "ARRIVED_AT_PICKUP", "PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY", "PAYMENT_CAPTURED")
         
         if (normStatus in trackableStatuses) {
             while (true) {
@@ -223,8 +226,8 @@ fun ActiveOrderScreen(
 
         if (details != null) {
             val normStatus = orderStatus.uppercase()
-            val targetLat = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) details.pickup_lat ?: 0.0 else details.delivery_lat ?: 0.0
-            val targetLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) details.pickup_lng ?: 0.0 else details.delivery_lng ?: 0.0
+            val targetLat = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "ARRIVED_AT_PICKUP")) details.pickup_lat ?: 0.0 else details.delivery_lat ?: 0.0
+            val targetLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "ARRIVED_AT_PICKUP")) details.pickup_lng ?: 0.0 else details.delivery_lng ?: 0.0
             
             val validTarget = if (targetLat != 0.0 && targetLng != 0.0) LatLng(targetLat, targetLng) else null
             val validFulfiller = if (fLoc != null && fLoc.latitude != 0.0) fLoc else null
@@ -367,7 +370,7 @@ fun ActiveOrderScreen(
                         
                         if (orderDetails != null) {
                             val normStatus = orderStatus.uppercase()
-                            val targetLatLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PAYMENT_CAPTURED", "PAYMENT_PENDING")) {
+                            val targetLatLng = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "ARRIVED_AT_PICKUP", "PAYMENT_CAPTURED", "PAYMENT_PENDING")) {
                                 LatLng(orderDetails?.pickup_lat ?: 0.0, orderDetails?.pickup_lng ?: 0.0)
                             } else {
                                 LatLng(orderDetails?.delivery_lat ?: 0.0, orderDetails?.delivery_lng ?: 0.0)
@@ -375,9 +378,9 @@ fun ActiveOrderScreen(
                             
                             Marker(
                                 state = MarkerState(position = targetLatLng),
-                                title = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) "Pickup" else "Delivery",
+                                title = if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "ARRIVED_AT_PICKUP")) "Pickup" else "Delivery",
                                 icon = BitmapDescriptorFactory.defaultMarker(
-                                    if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED")) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
+                                    if (normStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "ARRIVED_AT_PICKUP")) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
                                 )
                             )
                             
@@ -467,7 +470,7 @@ fun ActiveOrderScreen(
                     } else {
                         val normalizedStatus = orderStatus.uppercase()
                         
-                        val isPickupPhase = normalizedStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "PENDING", "PAID", "PAYMENT_CAPTURED", "PAYMENT_PENDING")
+                        val isPickupPhase = normalizedStatus in listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "ARRIVED_AT_PICKUP", "PENDING", "PAID", "PAYMENT_CAPTURED", "PAYMENT_PENDING")
                         val isDeliveryPhase = normalizedStatus in listOf("PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY")
                         val isAwaitingRelease = normalizedStatus == "DELIVERED_PENDING_CONFIRMATION"
                         val isQueued = normalizedStatus == "QUEUED"
@@ -493,6 +496,29 @@ fun ActiveOrderScreen(
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
+
+                            if (normalizedStatus != "ARRIVED_AT_PICKUP") {
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            isLoading = true
+                                            try {
+                                                apiService.updateOrderStatus(orderId, mapOf("status" to "ARRIVED_AT_PICKUP"))
+                                                orderStatus = "ARRIVED_AT_PICKUP"
+                                                Toast.makeText(context, "Arrival confirmed. Enter the pickup code below.", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_SHORT).show()
+                                            } finally { isLoading = false }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isLoading
+                                ) {
+                                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                    else Text("Confirm Arrival at Pickup")
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
 
                             OutlinedTextField(
                                 value = pickupCode,

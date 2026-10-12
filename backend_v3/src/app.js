@@ -135,6 +135,17 @@ console.log(`[System] Views directory set to: ${viewsPath}`);
 // 4. Static Files
 app.use('/public', express.static(path.join(__dirname, '../public')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Android App Links verification file. MUST be served at exactly
+// /.well-known/assetlinks.json at the domain root (no /public prefix) —
+// that's a fixed requirement of Android's Digital Asset Links protocol,
+// not something that can be configured on the app side.
+// IMPORTANT: the checked-in file has a placeholder fingerprint — replace
+// sha256_cert_fingerprints in public/.well-known/assetlinks.json with your
+// actual release-signing SHA256 (Play Console → Setup → App signing, or
+// `./gradlew signingReport` for a locally-signed build) or the App Link
+// in AndroidManifest.xml will silently fail verification and links will
+// open in the browser instead of the app.
+app.use('/.well-known', express.static(path.join(__dirname, '../public/.well-known')));
 
 // 5. Routes
 app.use('/admin', require('./routes/adminRoutes'));
@@ -162,6 +173,19 @@ app.use('/api/v1/webhooks', require('./routes/webhookRoutes'));
 app.use('/api/v1/legal', require('./routes/legalRoutes'));
 app.use('/legal', require('./routes/legalRoutes')); // Web-friendly fallback
 app.use('/terms', require('./routes/legalRoutes')); // Root-level terms fallback
+
+// Short, stable public tracking link used in SMS/WhatsApp messages.
+// The real handler lives under /api/v1/orders/guest/:orderId; tracking
+// links sent to customers were pointing at a never-provisioned
+// track.pikop.com.ng domain (dead link). This alias serves the same
+// page at a real, working path on the main API domain, and is also the
+// path registered as an Android App Link (see AndroidManifest.xml) so
+// tapping the link opens the native tracking screen instead of a browser.
+app.get('/track/:orderId', require('./controllers/orderController').getGuestTracking);
+
+// Same fix as above, for the Secure Pay guest checkout link (was pointing at
+// a never-provisioned pay.pikop.com.ng domain).
+app.get('/pay/:orderId', require('./controllers/orderController').getGuestCheckout);
 app.get('/terms/fulfiller', require('./controllers/legalController').getFulfillerTerms);
 app.get('/terms-fulfiller', require('./controllers/legalController').getFulfillerTerms);
 

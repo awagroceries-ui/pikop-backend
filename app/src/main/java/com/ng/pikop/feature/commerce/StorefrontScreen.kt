@@ -35,6 +35,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.ng.pikop.core.location.quickLocation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,9 +62,7 @@ fun StorefrontScreen(
 
     suspend fun fetchDiscovery() {
         try {
-            val location = try {
-                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-            } catch (e: SecurityException) { null }
+            val location = fusedLocationClient.quickLocation()
 
             val response = apiService.getDiscovery(
                 lat = location?.latitude,
@@ -94,6 +93,7 @@ fun StorefrontScreen(
     }
 
     LaunchedEffect(selectedCategory, searchQuery) {
+        if (searchQuery.isNotBlank()) kotlinx.coroutines.delay(350) // wait for typing to pause
         isLoading = true
         fetchDiscovery()
     }

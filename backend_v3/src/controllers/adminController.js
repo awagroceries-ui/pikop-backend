@@ -1553,6 +1553,27 @@ const restoreAllMissions = async (req, res) => {
 };
 
 /**
+ * JSON list of online agents, for the Manual Assign dropdown in the
+ * Mission Board. Previously the admin had to know and type a raw
+ * fulfillers.id from memory via a blind prompt() box — with no visibility
+ * into which ID belonged to which agent, or whether that agent was even
+ * online — which is why Manual Assign appeared broken in practice.
+ */
+const getOnlineAgentsJson = async (req, res) => {
+    try {
+        const { rows } = await db.query(`
+            SELECT id, full_name, phone, mobility_type, primary_class, online_status
+            FROM fulfillers
+            WHERE online_status = 'ONLINE' AND kyc_status = 'VERIFIED'
+            ORDER BY full_name ASC
+        `);
+        res.status(200).json({ success: true, agents: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
  * Admin Manual Dispatch Override: Assigns order directly to an online agent.
  */
 const assignOrderToAgent = async (req, res) => {
@@ -1627,6 +1648,7 @@ module.exports = {
   getDashboard,
   getOrders,
   trackOrder,
+  getOnlineAgentsJson,
   assignOrderToAgent,
   batchApproveWithdrawals,
   getSettings,

@@ -83,6 +83,24 @@ const requestWithdrawal = async (req, res) => {
             bankCode = bankCode || f.bank_code;
             accountName = accountName || f.account_name;
         } else {
+            // v4.5 fix: no fulfiller row (this is a merchant, or a customer) --
+            // check their vendor/kitchen business profile for bank details on
+            // file before falling back and rejecting the request.
+            const mRes = await client.query(
+                `SELECT bank_name, account_number, bank_code, account_name FROM vendors WHERE user_id = $1
+                 UNION ALL
+                 SELECT bank_name, account_number, bank_code, account_name FROM kitchens WHERE user_id = $1
+                 LIMIT 1`,
+                [userId]
+            );
+            if (mRes.rows.length > 0) {
+                const m = mRes.rows[0];
+                bankName = bankName || m.bank_name;
+                accountNumber = accountNumber || m.account_number;
+                bankCode = bankCode || m.bank_code;
+                accountName = accountName || m.account_name;
+            }
+
             const uRes = await client.query("SELECT full_name FROM users WHERE id = $1", [userId]);
             accountName = accountName || (uRes.rows[0]?.full_name || 'Valued User');
         }

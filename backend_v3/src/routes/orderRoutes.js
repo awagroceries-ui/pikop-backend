@@ -40,6 +40,12 @@ router.post('/:orderId/fail', authenticateToken, orderController.failDelivery);
 router.post('/:orderId/confirm-receipt', authenticateToken, orderController.confirmReceipt);
 router.post('/:orderId/dispute', authenticateToken, orderController.reportProblem);
 router.post('/:orderId/rate-fulfiller', authenticateToken, orderController.rateFulfiller);
+// v4.5 fix: the Android app's agent-side RatingDialog (ActiveOrderScreen.kt)
+// posts to POST /api/v1/orders/:id/rate to let the agent rate the customer
+// after completing a delivery, and orderController.rateCustomer already
+// implements this -- but no route ever pointed to it, so every submission
+// 404'd ("Rating failed: ..." toast). Wiring it up here.
+router.post('/:orderId/rate', authenticateToken, orderController.rateCustomer);
 router.post('/:orderId/incident', authenticateToken, orderController.fileIncident);
 router.post('/:orderId/return', authenticateToken, orderController.initiateReturn);
 router.patch('/:orderId/reschedule', authenticateToken, orderController.rescheduleOrder);

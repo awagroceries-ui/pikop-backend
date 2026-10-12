@@ -790,7 +790,8 @@ fun OrderQuoteScreen(
                                         scheduledAt = scheduledAt,
                                         insuranceFee = result?.insurance_fee,
                                         isInsured = isInsured,
-                                        surgeMultiplier = result?.surge_multiplier
+                                        surgeMultiplier = result?.surge_multiplier,
+                                        paymentMethod = "wallet"
                                     )
                                     if (success) {
                                         onCelebration()
@@ -1131,7 +1132,8 @@ suspend fun finalizeOrderAfterPayment(
     pLat: Double, pLng: Double, dLat: Double, dLng: Double, itemPhotoUrl: String, 
     pSummary: String, dSummary: String, quoteResult: QuoteResponse? = null,
     sellerPhone: String? = null, pickupState: String? = null, scheduledAt: String? = null,
-    insuranceFee: Double? = null, isInsured: Boolean = false, surgeMultiplier: Double? = null
+    insuranceFee: Double? = null, isInsured: Boolean = false, surgeMultiplier: Double? = null,
+    paymentMethod: String? = null
 ): Boolean {
     return try {
         // ... (existing webhook check logic)
@@ -1141,7 +1143,7 @@ suspend fun finalizeOrderAfterPayment(
             quote_id = quoteId, 
             corporate_account_id = corporateAccountId, 
             promo_id = promoId, 
-            payment_method = if (corporateAccountId != null) "corporate" else "card", 
+            payment_method = paymentMethod ?: (if (corporateAccountId != null) "corporate" else "card"), 
             recipient_name = recipientName, 
             recipient_phone = recipientPhone, 
             notes = notes, 

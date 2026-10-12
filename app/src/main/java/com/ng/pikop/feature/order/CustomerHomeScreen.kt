@@ -39,12 +39,15 @@ fun CustomerHomeScreen(
     onNavigateToWallet: () -> Unit,
     onNavigateToAddresses: () -> Unit,
     onNavigateToSupport: () -> Unit,
-    onNavigateToAccount: () -> Unit
+    onNavigateToAccount: () -> Unit,
+    onNavigateToStore: (storeType: String, storeId: String) -> Unit = { _, _ -> }
 ) {
     var activeOrders by remember { mutableStateOf<List<OrderDetailsResponse>>(emptyList()) }
     var incomingOrders by remember { mutableStateOf<List<OrderDetailsResponse>>(emptyList()) }
     var walletBalance by remember { mutableStateOf(0.0) }
     var isLoading by remember { mutableStateOf(false) }
+    var offers by remember { mutableStateOf<List<com.ng.pikop.core.network.OfferItem>>(emptyList()) }
+    var selectedOffer by remember { mutableStateOf<com.ng.pikop.core.network.OfferItem?>(null) }
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -67,14 +70,60 @@ fun CustomerHomeScreen(
                 walletBalance = wallet.actualBalance
             } catch (e: Exception) {
                 android.util.Log.e("CustomerHome", "Home fetch error: ${e.message}", e)
-            } finally {
-                isLoading = false
             }
+            try {
+                offers = apiService.getPromoOffers().data
+            } catch (e: Exception) {
+                offers = emptyList()
+                android.util.Log.e("CustomerHome", "Offers fetch error: ${e.message}", e)
+            }
+            isLoading = false
         }
     }
 
     LaunchedEffect(Unit) {
         fetchDashboard()
+    }
+
+
+    selectedOffer?.let { offer ->
+        val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+        AlertDialog(
+            onDismissRequest = { selectedOffer = null },
+            title = { Text(offer.title, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(offer.store_name, fontWeight = FontWeight.SemiBold, color = com.ng.pikop.ui.theme.PikopGreen)
+                    offer.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                    if (offer.min_order_amount > 0) {
+                        Text("Minimum order: ₦${"%,.0f".format(offer.min_order_amount)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
+                    offer.expires_at?.let { Text("Ends ${it.take(10)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray) }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = com.ng.pikop.ui.theme.PikopGold.copy(alpha = 0.2f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, com.ng.pikop.ui.theme.PikopGold)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(offer.code, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, letterSpacing = 2.sp)
+                            TextButton(onClick = {
+                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(offer.code))
+                                android.widget.Toast.makeText(context, "Code copied", android.widget.Toast.LENGTH_SHORT).show()
+                            }) { Text("COPY") }
+                        }
+                    }
+                    Text("Paste this code at checkout to get the discount.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
+            },
+            confirmButton = {
+                Button(onClick = { selectedOffer = null; onNavigateToStore(offer.store_type, offer.store_id) }) { Text("Go to store") }
+            },
+            dismissButton = { TextButton(onClick = { selectedOffer = null }) { Text("Close") } }
+        )
     }
 
     Scaffold(
@@ -229,6 +278,28 @@ fun CustomerHomeScreen(
                 )
             }
 
+            // Offers from merchants
+            if (offers.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    "Offers",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    "Deals from stores on Pikop",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(offers.size) { i ->
+                        OfferCard(offer = offers[i], onClick = { selectedOffer = offers[i] })
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             // Secondary Grid Actions
@@ -381,6 +452,51 @@ fun PrimaryModuleCard(
                     .offset(x = 12.dp, y = 12.dp)
                     .graphicsLayer(alpha = 0.25f),
                 tint = iconTint
+            )
+        }
+    }
+}
+
+@Composable
+fun OfferCard(offer: com.ng.pikop.core.network.OfferItem, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.width(240.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        border = androidx.compose.foundation.BorderStroke(1.dp, com.ng.pikop.ui.theme.PikopGold.copy(alpha = 0.6f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Surface(shape = RoundedCornerShape(8.dp), color = com.ng.pikop.ui.theme.PikopGold) {
+                Text(
+                    offer.badge,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 12.sp,
+                    color = com.ng.pikop.ui.theme.PikopNearBlack
+                )
+            }
+            Text(
+                offer.title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                offer.store_name,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            Text(
+                "Code: ${offer.code}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = com.ng.pikop.ui.theme.PikopLemonGreen
             )
         }
     }

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
@@ -37,7 +38,12 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CorporateDashboardScreen(onBack: () -> Unit) {
+fun CorporateDashboardScreen(
+    onBack: () -> Unit,
+    onSwitchToPersonal: (() -> Unit)? = null,
+    onLogout: (() -> Unit)? = null
+) {
+    var showMenu by remember { mutableStateOf(false) }
     var dashboardData by remember { mutableStateOf<CorporateDashboardData?>(null) }
     var staffList by remember { mutableStateOf<List<CorporateStaff>>(emptyList()) }
     var corporateOrders by remember { mutableStateOf<List<CorporateOrder>>(emptyList()) }
@@ -90,6 +96,27 @@ fun CorporateDashboardScreen(onBack: () -> Unit) {
                 actions = {
                     IconButton(onClick = { refreshData() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    if (onSwitchToPersonal != null || onLogout != null) {
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                            }
+                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                                if (onSwitchToPersonal != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("Switch to personal account") },
+                                        onClick = { showMenu = false; onSwitchToPersonal() }
+                                    )
+                                }
+                                if (onLogout != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("Log out") },
+                                        onClick = { showMenu = false; onLogout() }
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

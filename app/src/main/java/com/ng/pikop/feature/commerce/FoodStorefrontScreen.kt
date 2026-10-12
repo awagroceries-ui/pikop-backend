@@ -29,6 +29,7 @@ import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.DiscoveryItem
 import kotlinx.coroutines.tasks.await
+import com.ng.pikop.core.location.quickLocation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,9 +52,7 @@ fun FoodStorefrontScreen(
 
     suspend fun fetchFood() {
         try {
-            val location = try {
-                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-            } catch (e: SecurityException) { null }
+            val location = fusedLocationClient.quickLocation()
 
             val response = apiService.getDiscovery(
                 lat = location?.latitude,
@@ -72,6 +71,7 @@ fun FoodStorefrontScreen(
     }
 
     LaunchedEffect(selectedCuisine, searchQuery) {
+        if (searchQuery.isNotBlank()) kotlinx.coroutines.delay(350) // wait for typing to pause
         isLoading = true
         fetchFood()
     }

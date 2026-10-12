@@ -37,14 +37,22 @@ import java.util.Locale
 fun WalletScreen(
     onBack: () -> Unit, 
     isFulfiller: Boolean = false,
+    // Agents and merchants can email themselves a PDF financial statement.
+    showStatement: Boolean = false,
     onNavigateToWithdrawal: () -> Unit = {}
 ) {
     var balance by remember { mutableStateOf(0.0) }
     var pendingBalance by remember { mutableStateOf(0.0) }
+    // v4.5 fix (#5): non-withdrawable loyalty/store credit, shown
+    // separately from `balance` (which IS withdrawable) so it's clear this
+    // can only be spent on a purchase, not cashed out.
+    var storeCredit by remember { mutableStateOf(0.0) }
     var transactions by remember { mutableStateOf<List<WalletTransaction>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var showTopupDialog by remember { mutableStateOf(false) }
     var showWithdrawDialog by remember { mutableStateOf(false) }
+    var showStatementDialog by remember { mutableStateOf(false) }
+    var isSendingStatement by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -58,6 +66,7 @@ fun WalletScreen(
                 val response = apiService.getWalletInfo()
                 balance = response.actualBalance
                 pendingBalance = response.actualPendingBalance
+                storeCredit = response.actualStoreCredit
                 transactions = response.actualTransactions
             } catch (e: Exception) {
                 android.util.Log.e("WalletScreen", "Fetch wallet error: ${e.message}", e)
@@ -120,6 +129,19 @@ fun WalletScreen(
                                 }
                             }
 
+                            if (storeCredit > 0) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.2f))
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Loyalty Credit (not withdrawable)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+                                        Text("₦${"%,.2f".format(storeCredit)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                        Text("Applied automatically on your next order", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
+                                    }
+                                }
+                            }
+
                             Spacer(modifier = Modifier.height(16.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
@@ -144,6 +166,14 @@ fun WalletScreen(
                                     Text("Withdraw")
                                 }
                             }
+                        }
+                    }
+                    if (showStatement) {
+                        TextButton(
+                            onClick = { showStatementDialog = true },
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        ) {
+                            Text("Email me my statement (PDF)")
                         }
                     }
                     Text(text = "Recent Activity", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
@@ -172,6 +202,51 @@ fun WalletScreen(
                         showTopupDialog = false
                     } catch (_: Exception) {}
                 }
+            }
+        )
+    }
+
+    if (showStatementDialog) {
+        val options = listOf(
+            "This month so far" to "this_month",
+            "Last month" to "last_month",
+            "Last 3 months" to "last_3_months",
+            "Last 12 months (1 year)" to "last_12_months"
+        )
+        AlertDialog(
+            onDismissRequest = { if (!isSendingStatement) showStatementDialog = false },
+            title = { Text("Email my statement") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("A PDF statement will be sent to the email address on your account.", style = MaterialTheme.typography.bodySmall)
+                    options.forEach { (label, period) ->
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    isSendingStatement = true
+                                    try {
+                                        val res = apiService.requestStatement(mapOf("period" to period))
+                                        Toast.makeText(context, res.message ?: "Statement sent", Toast.LENGTH_LONG).show()
+                                        showStatementDialog = false
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, ErrorUtils.parseError(e), Toast.LENGTH_LONG).show()
+                                    } finally {
+                                        isSendingStatement = false
+                                    }
+                                }
+                            },
+                            enabled = !isSendingStatement,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(label) }
+                    }
+                    if (isSendingStatement) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showStatementDialog = false }, enabled = !isSendingStatement) { Text("Close") }
             }
         )
     }
@@ -252,7 +327,18 @@ fun UserWithdrawalDialog(
                     onValueChange = { if (it.all { c -> c.isDigit() }) amountText = it },
                     label = { Text("Withdrawal Amount (₦)") },
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    // v4.5 fix: make the ₦1,000 minimum visible at all times,
+                    // not just as a placeholder that vanishes once typing
+                    // starts -- otherwise a below-minimum amount just looks
+                    // like a stuck "Request Withdrawal" button.
+                    supportingText = {
+                        if (amountText.isNotBlank() && amountDouble < 1000.0) {
+                            Text("Minimum withdrawal is ₦1,000", color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("Minimum withdrawal is ₦1,000")
+                        }
+                    }
                 )
             }
         },

@@ -44,6 +44,7 @@ router.get('/dashboard', adminController.getDashboard);
 router.get('/orders', adminController.getOrders);
 router.get('/orders/:id/track', adminController.trackOrder);
 router.post('/orders/:id/update', adminController.updateOrderStatus);
+router.get('/agents/online.json', adminController.getOnlineAgentsJson);
 router.post('/orders/:id/assign', adminController.assignOrderToAgent);
 router.post('/orders/restore-all', adminController.restoreAllMissions);
 

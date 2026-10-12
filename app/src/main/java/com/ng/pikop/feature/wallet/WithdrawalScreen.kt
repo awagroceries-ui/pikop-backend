@@ -48,7 +48,13 @@ fun WithdrawalScreen(
             val wallet = apiService.getWalletInfo()
             walletBalance = wallet.actualBalance
             
-            val profile = apiService.getFulfillerProfile()
+            // v4.5 fix: the backend wraps this response in a "data" object
+            // (like every other fulfiller-profile endpoint), but this screen
+            // was reading bank_name/account_number off the un-unwrapped top
+            // level, which is always empty -- so it always showed "No Bank
+            // Linked" even when the agent had already saved bank details.
+            val profileRes = apiService.getFulfillerProfile()
+            val profile = profileRes.data ?: profileRes
             bankName = profile.bank_name ?: "No Bank Linked"
             accountNumber = profile.account_number ?: ""
         } catch (e: Exception) {
@@ -99,7 +105,19 @@ fun WithdrawalScreen(
                     placeholder = { Text("Min. ₦1,000") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    prefix = { Text("₦") }
+                    prefix = { Text("₦") },
+                    // v4.5 fix: the "Min. ₦1,000" placeholder disappears the
+                    // moment the user starts typing, so a below-minimum
+                    // amount just looked like a stuck/broken button with no
+                    // explanation. This stays visible under the field instead.
+                    supportingText = {
+                        val entered = amount.toDoubleOrNull() ?: 0.0
+                        if (amount.isNotBlank() && entered < 1000.0) {
+                            Text("Minimum withdrawal is ₦1,000", color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("Minimum withdrawal is ₦1,000")
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))

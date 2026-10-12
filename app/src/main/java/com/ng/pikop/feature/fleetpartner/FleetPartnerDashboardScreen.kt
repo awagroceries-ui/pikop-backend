@@ -43,9 +43,14 @@ fun FleetPartnerDashboardScreen(
             try {
                 val res = apiService.getFleetDashboard()
                 dashboardData = res.data
-                
-                val inviteRes = apiService.getFleetInviteCode()
-                inviteCode = inviteRes["invite_code"]
+
+                // Only verified partners may recruit drivers (the server enforces this too).
+                if (res.data?.profile?.status == "VERIFIED") {
+                    val inviteRes = apiService.getFleetInviteCode()
+                    inviteCode = inviteRes["invite_code"]
+                } else {
+                    inviteCode = null
+                }
             } catch (e: Exception) {
                 Toast.makeText(context, "Failed to load dashboard: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
@@ -85,6 +90,35 @@ fun FleetPartnerDashboardScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
+                    // Verification status banner
+                    val status = dashboardData?.profile?.status ?: "PENDING_VERIFICATION"
+                    if (status != "VERIFIED") {
+                        // Dark-theme banner: tinted dark surface + coloured border, explicit light text
+                        val isSuspended = status == "SUSPENDED"
+                        val accent = if (isSuspended) Color(0xFFFF6900) else Color(0xFFFFC618)
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = accent.copy(alpha = 0.14f)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.7f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    if (isSuspended) "Account suspended" else "Verification in progress",
+                                    fontWeight = FontWeight.Bold,
+                                    color = accent
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    if (isSuspended) "Your fleet account is suspended. Please contact Pikop support."
+                                    else "Pikop is reviewing your business details. You can invite drivers as soon as your account is verified.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
                     // Header Stats
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)) {
                         Column(modifier = Modifier.padding(20.dp)) {
@@ -92,19 +126,30 @@ fun FleetPartnerDashboardScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Column {
-                                    Text("Active Missions", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                                    Text("${dashboardData?.stats?.total_active_missions}", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                                    Text("Missions", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                                    Text("${dashboardData?.stats?.total_active_missions ?: 0}", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("Total Volume", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                                    Text("₦${"%,.0f".format(dashboardData?.stats?.total_fleet_volume)}", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                                    Text("Delivery Volume", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                                    Text("₦${"%,.0f".format(dashboardData?.stats?.total_fleet_volume ?: 0.0)}", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column {
+                                    Text("Delivered", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                                    Text("${dashboardData?.stats?.delivered_missions ?: 0}", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("Drivers' Earnings", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                                    Text("₦${"%,.0f".format(dashboardData?.stats?.fleet_earnings ?: 0.0)}", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
                     }
                 }
 
-                item {
+                if (dashboardData?.profile?.status == "VERIFIED") item {
                     // Invite Section
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

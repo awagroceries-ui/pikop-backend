@@ -172,7 +172,11 @@ fun MerchantPortalScreen(
                             Text("Business Setup Incomplete", fontWeight = FontWeight.Bold)
                             Text("Please complete your business registration to start selling.", style = MaterialTheme.typography.bodySmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { /* This case is handled in AccountScreen, but we could add a CTA here */ }) {
+                            // v4.5 fix (#2): this button had no onClick handler at all --
+                            // it did nothing when tapped, which is exactly what a merchant
+                            // would see as "inactive". Wires it to the same business
+                            // registration screen AccountScreen already navigates to.
+                            Button(onClick = { navController.navigate("merchant_business_setup") }) {
                                 Text("Complete Setup")
                             }
                         }
@@ -941,6 +945,8 @@ fun PromotionsTabContent() {
         var code by remember { mutableStateOf("") }
         var value by remember { mutableStateOf("") }
         var type by remember { mutableStateOf("FIXED") } // FIXED, PERCENTAGE
+        var offerTitle by remember { mutableStateOf("") }
+        var offerDescription by remember { mutableStateOf("") }
 
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
@@ -948,6 +954,8 @@ fun PromotionsTabContent() {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(value = code, onValueChange = { code = it.uppercase() }, label = { Text("Coupon Code (e.g. SAVE500)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = offerTitle, onValueChange = { if (it.length <= 60) offerTitle = it }, label = { Text("Offer headline (shown to customers)") }, placeholder = { Text("e.g. Weekend special") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = offerDescription, onValueChange = { if (it.length <= 200) offerDescription = it }, label = { Text("Short description (optional)") }, modifier = Modifier.fillMaxWidth())
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(selected = type == "FIXED", onClick = { type = "FIXED" }, label = { Text("₦ Naira") })
@@ -971,7 +979,9 @@ fun PromotionsTabContent() {
                                 apiService.createMerchantCoupon(CreateMerchantCouponRequest(
                                     code = code,
                                     discount_type = type,
-                                    discount_value = value.toDoubleOrNull() ?: 0.0
+                                    discount_value = value.toDoubleOrNull() ?: 0.0,
+                                    title = offerTitle.ifBlank { null },
+                                    description = offerDescription.ifBlank { null }
                                 ))
                                 fetch()
                                 showCreateDialog = false

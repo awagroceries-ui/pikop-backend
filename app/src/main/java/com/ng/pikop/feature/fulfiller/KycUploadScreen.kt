@@ -201,6 +201,14 @@ fun KycUploadScreen(
             if (3 > currentStep) currentStep = 3
         } else if (res.primary_class?.lowercase() == "driver" && res.registration_number == null) {
             if (4 > currentStep) currentStep = 4
+        } else if (!res.has_government_id) {
+            // v4.5 fix: previously this gate didn't exist, so non-driver
+            // roles (foot agents, cyclists) could be synced straight past
+            // the document-upload step (5) into BankStep (6) the moment
+            // facial verification approved, skipping Government ID upload
+            // entirely. Every role must upload a Government ID before
+            // advancing, regardless of vehicle-specific fields.
+            if (5 > currentStep) currentStep = 5
         } else if (res.account_number == null) {
             if (6 > currentStep) currentStep = 6
         } else {
@@ -265,6 +273,7 @@ fun KycUploadScreen(
                 4 -> VehicleStep(tokenManager = remember { TokenManager(context) }, onComplete = { currentStep = 5 })
                 5 -> OperationalDocumentsStep(
                     role = profile?.primary_class ?: "agent",
+                    uploadedDocTypes = profile?.uploaded_doc_types ?: emptyList(),
                     onUploadRequest = { type: String ->
                         docTypeToUpload = type
                         filePickerLauncher.launch("image/*")
@@ -352,7 +361,7 @@ fun KycUploadScreen(
                         (currentStep == 2 && profilePhotoUri != null) ||
                         (currentStep == 3) ||
                         (currentStep == 4) ||
-                        (currentStep == 5) ||
+                        (currentStep == 5 && profile?.has_government_id == true) ||
                         (currentStep == 6)
                     )
                 ) {
@@ -622,7 +631,9 @@ fun IdentityStep(status: String, role: String, isLaunching: Boolean, onVerifyCli
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(32.dp))
+                    // v4.5 fix: real branded "VERIFIED" badge instead of the
+                    // generic Material checkmark, per the actual icon asset supplied.
+                    Image(painter = painterResource(id = R.drawable.pikop_verified_badge), contentDescription = null, modifier = Modifier.size(32.dp))
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text("Identity Verified", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
@@ -747,7 +758,9 @@ fun BankStep(tokenManager: TokenManager, onComplete: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Verified, null, tint = MaterialTheme.colorScheme.primary)
+                    // v4.5 fix: real branded "VERIFIED" badge instead of the
+                    // generic Material checkmark, per the actual icon asset supplied.
+                    Image(painter = painterResource(id = R.drawable.pikop_verified_badge), contentDescription = null, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text("Verified Name", style = MaterialTheme.typography.labelSmall)
@@ -845,19 +858,21 @@ fun VehicleStep(tokenManager: TokenManager, onComplete: () -> Unit) {
 }
 
 @Composable
-fun OperationalDocumentsStep(role: String, onUploadRequest: (String) -> Unit) {
+fun OperationalDocumentsStep(role: String, uploadedDocTypes: List<String> = emptyList(), onUploadRequest: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Operational Documents", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text("Upload clear photos of your official documents for verification.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
 
         DocumentUploadCard(
             label = "Government ID (NIN/Voter/Passport)",
+            uploaded = uploadedDocTypes.contains("GOVERNMENT_ID"),
             onUpload = { onUploadRequest("GOVERNMENT_ID") }
         )
 
         if (role.lowercase() == "rider" || role.lowercase() == "driver") {
             DocumentUploadCard(
                 label = "Driver's License",
+                uploaded = uploadedDocTypes.contains("DRIVERS_LICENSE"),
                 onUpload = { onUploadRequest("DRIVERS_LICENSE") }
             )
         }
@@ -865,14 +880,23 @@ fun OperationalDocumentsStep(role: String, onUploadRequest: (String) -> Unit) {
         if (role.lowercase() == "driver") {
             DocumentUploadCard(
                 label = "Vehicle Registration (Logbook)",
+                uploaded = uploadedDocTypes.contains("VEHICLE_REGISTRATION"),
                 onUpload = { onUploadRequest("VEHICLE_REGISTRATION") }
+            )
+        }
+
+        if (!uploadedDocTypes.contains("GOVERNMENT_ID")) {
+            Text(
+                "Government ID is required to continue.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error
             )
         }
     }
 }
 
 @Composable
-fun DocumentUploadCard(label: String, onUpload: () -> Unit) {
+fun DocumentUploadCard(label: String, uploaded: Boolean = false, onUpload: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onUpload,
@@ -885,9 +909,17 @@ fun DocumentUploadCard(label: String, onUpload: () -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                Text("Tap to upload photo", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text(
+                    if (uploaded) "Uploaded — tap to replace" else "Tap to upload photo",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (uploaded) MaterialTheme.colorScheme.primary else Color.Gray
+                )
             }
-            Icon(Icons.Default.CloudUpload, null, tint = MaterialTheme.colorScheme.primary)
+            Icon(
+                if (uploaded) Icons.Default.CheckCircle else Icons.Default.CloudUpload,
+                null,
+                tint = if (uploaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -897,7 +929,9 @@ fun SubmissionStep(isLoading: Boolean, status: String, onComplete: () -> Unit, o
     val isSubmitted = status == "PENDING_REVIEW" || status == "VERIFIED"
     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (isSubmitted) {
-            Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+            // v4.5 fix: real branded "VERIFIED" badge instead of the
+            // generic Material checkmark, per the actual icon asset supplied.
+            Image(painter = painterResource(id = R.drawable.pikop_verified_badge), contentDescription = null, modifier = Modifier.size(80.dp))
             Text("Verification Completed!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Card(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),

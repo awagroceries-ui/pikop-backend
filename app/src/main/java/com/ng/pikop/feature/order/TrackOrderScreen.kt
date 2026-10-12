@@ -65,6 +65,11 @@ fun TrackOrderScreen(
 
     var realRoadDestinationRoute by remember { mutableStateOf<List<LatLng>>(emptyList()) }
     var realRoadActiveRoute by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+    // Route progress: the part behind the agent turns grey as the marker moves along the line
+    var routeTravelled by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+    var routeRemaining by remember { mutableStateOf<List<LatLng>>(emptyList()) }
+    var routeSegmentIndex by remember { mutableStateOf(0) }
+    var agentOffRoute by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
@@ -177,7 +182,14 @@ fun TrackOrderScreen(
             SocketManager.off("location_updated")
             SocketManager.off("location_changed")
             SocketManager.off("status_updated")
-            SocketManager.disconnect()
+            // v4.5 fix (#6): SocketManager is a single app-wide socket, already
+            // owned and connected for the whole session by MainActivity. Tearing
+            // it down here killed that shared connection for every other screen
+            // (dashboard, active mission, chat) the moment this screen closed,
+            // which is a likely cause of the live agent marker silently going
+            // stale after navigating away from and back to tracking. Screens
+            // should only register/unregister their own listeners, never the
+            // shared connection itself.
         }
     }
 
@@ -296,21 +308,56 @@ fun TrackOrderScreen(
                             }
                         }
 
-                        LaunchedEffect(animatedFulfillerLoc, pickupLoc, deliveryLoc) {
+                        val pickedUp = history.any { it.status == "PICKED_UP" || it.status == "IN_TRANSIT" || it.status == "ARRIVED_AT_DELIVERY" }
+
+                        // Snap the agent onto the pickup -> delivery route and split it there
+                        LaunchedEffect(animatedFulfillerLoc, realRoadDestinationRoute, pickedUp) {
+                            val route = realRoadDestinationRoute
+                            val ful = animatedFulfillerLoc
+                            if (pickedUp && route.size >= 2 && ful != null) {
+                                val split = RoadRouteService.splitRouteAtPosition(route, ful, routeSegmentIndex)
+                                if (split.distanceToRouteMeters <= 250.0) {
+                                    routeSegmentIndex = split.segmentIndex
+                                    routeTravelled = split.travelled
+                                    routeRemaining = split.remaining
+                                    agentOffRoute = false
+                                } else {
+                                    routeTravelled = emptyList()
+                                    routeRemaining = route
+                                    agentOffRoute = true
+                                }
+                            } else {
+                                routeSegmentIndex = 0
+                                routeTravelled = emptyList()
+                                routeRemaining = route
+                                agentOffRoute = false
+                            }
+                        }
+
+                        // Live leg from the agent to the next stop: needed before pickup, or if the agent leaves the route
+                        LaunchedEffect(animatedFulfillerLoc, pickupLoc, deliveryLoc, pickedUp, agentOffRoute) {
                             val ful = animatedFulfillerLoc ?: pickupLoc
-                            val target = if (history.any { it.status == "PICKED_UP" || it.status == "IN_TRANSIT" }) deliveryLoc else pickupLoc
-                            if (ful != null && target != null) {
-                                realRoadActiveRoute = RoadRouteService.fetchRoadRoute(ful, target, com.ng.pikop.BuildConfig.GOOGLE_MAPS_API_KEY)
+                            val target = if (pickedUp) deliveryLoc else pickupLoc
+                            if (!pickedUp || agentOffRoute) {
+                                if (ful != null && target != null) {
+                                    realRoadActiveRoute = RoadRouteService.fetchRoadRoute(ful, target, com.ng.pikop.BuildConfig.GOOGLE_MAPS_API_KEY)
+                                }
+                            } else {
+                                realRoadActiveRoute = emptyList()
                             }
                         }
 
                         val brandGreen = Color(0xFF00E676)
+                        val travelledGrey = Color(0xFF9E9E9E).copy(alpha = 0.55f)
+                        val upcomingGreen = brandGreen.copy(alpha = 0.35f)
+                        val showProgress = pickedUp && !agentOffRoute && routeTravelled.isNotEmpty()
 
-                        if (realRoadDestinationRoute.isNotEmpty()) {
+                        // 1) Whole trip line: faded preview, or the bright "remaining" part once the agent is moving along it
+                        if (routeRemaining.isNotEmpty()) {
                             Polyline(
-                                points = realRoadDestinationRoute,
-                                color = brandGreen,
-                                width = 14f,
+                                points = routeRemaining,
+                                color = if (showProgress) brandGreen else upcomingGreen,
+                                width = if (showProgress) 14f else 10f,
                                 jointType = JointType.ROUND,
                                 startCap = RoundCap(),
                                 endCap = RoundCap()
@@ -318,14 +365,27 @@ fun TrackOrderScreen(
                         } else if (pickupLoc != null && deliveryLoc != null) {
                             Polyline(
                                 points = listOf(pickupLoc!!, deliveryLoc!!),
-                                color = brandGreen,
-                                width = 14f,
+                                color = upcomingGreen,
+                                width = 10f,
                                 jointType = JointType.ROUND,
                                 startCap = RoundCap(),
                                 endCap = RoundCap()
                             )
                         }
 
+                        // 2) Distance already covered: grey, behind the marker
+                        if (showProgress) {
+                            Polyline(
+                                points = routeTravelled,
+                                color = travelledGrey,
+                                width = 10f,
+                                jointType = JointType.ROUND,
+                                startCap = RoundCap(),
+                                endCap = RoundCap()
+                            )
+                        }
+
+                        // 3) Agent -> next stop (to pickup, or back on course): bright
                         if (realRoadActiveRoute.isNotEmpty()) {
                             Polyline(
                                 points = realRoadActiveRoute,
@@ -386,7 +446,17 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
     var showFulfillerProfile by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(orderId, refreshKey) {
+    // v4.5 fix (#5b): this effect was only keyed on orderId/refreshKey, and
+    // refreshKey is never incremented anywhere, so the DELIVERED/unrated
+    // check below only ran once, on first composition. If the delivery
+    // completed in real time while the customer was already sitting on this
+    // screen (the normal case -- the parent TrackOrderScreen DOES get a live
+    // "status_updated" socket event and refreshes its `history` state), this
+    // effect never re-ran, so the review popup silently never appeared.
+    // Keying on `history` (passed down from the parent, refreshed on every
+    // socket status update) makes this re-check fire every time the mission
+    // status changes, including on delivery completion.
+    LaunchedEffect(orderId, refreshKey, history) {
         try {
             val prevStatus = orderDetails?.status
             val res = apiService.getOrderDetails(orderId)
@@ -486,6 +556,9 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                     Icon(imageVector = Icons.AutoMirrored.Filled.DirectionsBike, contentDescription = null, modifier = Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            MissionProgressBar(currentStatus)
 
             if (isPendingConfirmation) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -788,8 +861,11 @@ fun FulfillerCard(profile: FulfillerPublicProfile) {
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
+                                // v4.5 fix: this was pikop_badge (the general
+                                // app logomark, not a verification symbol) --
+                                // using the real branded "VERIFIED" badge here instead.
                                 Image(
-                                    painter = painterResource(id = com.ng.pikop.R.drawable.pikop_badge),
+                                    painter = painterResource(id = com.ng.pikop.R.drawable.pikop_verified_badge),
                                     contentDescription = "Verified Agent",
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -839,6 +915,52 @@ fun FulfillerCard(profile: FulfillerPublicProfile) {
                 Text(text = "${profile.rating_count ?: 0} reviews", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             }
         }
+    }
+}
+
+// v4.5 fix (#5): Visual progress bar for the customer tracking screen, driven by
+// the mission status machine. ETA already existed as text; this adds the bar.
+private val MISSION_PROGRESS_STAGES = listOf(
+    listOf("SEARCHING", "PAYMENT_PENDING", "PAYMENT_CAPTURED", "PENDING", "PENDING_ACKNOWLEDGMENT", "PROCESSING", "SCHEDULED"),
+    listOf("MATCHED", "QUEUED"),
+    listOf("ARRIVED_AT_PICKUP"),
+    listOf("PICKED_UP", "IN_TRANSIT"),
+    listOf("ARRIVED_AT_DELIVERY"),
+    listOf("DELIVERED", "DELIVERED_PENDING_CONFIRMATION", "RELEASED", "CONFIRMED")
+)
+private val MISSION_PROGRESS_LABELS = listOf(
+    "Order Placed", "Agent Assigned", "At Pickup", "In Transit", "At Destination", "Delivered"
+)
+
+@Composable
+fun MissionProgressBar(currentStatus: String) {
+    val stageIndex = MISSION_PROGRESS_STAGES.indexOfFirst { currentStatus in it }
+    if (stageIndex < 0) return // Unknown/terminal (CANCELLED etc.) status: nothing meaningful to show.
+
+    val totalStages = MISSION_PROGRESS_STAGES.size
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            MISSION_PROGRESS_LABELS.forEachIndexed { i, _ ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(5.dp)
+                        .padding(horizontal = 2.dp)
+                        .background(
+                            color = if (i <= stageIndex) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(3.dp)
+                        )
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = MISSION_PROGRESS_LABELS.getOrElse(stageIndex) { "" },
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
 

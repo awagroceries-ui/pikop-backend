@@ -89,12 +89,25 @@ fun FulfillerProfileDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = profile.full_name ?: "Agent",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = profile.full_name ?: "Agent",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    // v4.5 fix: the full profile dialog (opened by tapping the
+                    // customer-facing FulfillerCard) had no verified indicator
+                    // at all, even though the card it's opened from does.
+                    if (profile.kyc_status == "VERIFIED") {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Image(
+                            painter = painterResource(id = R.drawable.pikop_verified_badge),
+                            contentDescription = "Verified Agent",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+
                 val roleLabel = when(profile.primary_class?.lowercase()) {
                     "rider" -> "Professional Rider"
                     "driver" -> "Professional Driver"

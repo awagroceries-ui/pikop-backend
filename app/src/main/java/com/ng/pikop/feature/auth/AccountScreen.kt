@@ -210,8 +210,10 @@ fun AccountScreen(
                 )
                 if (kycStatus == "VERIFIED") {
                     Spacer(modifier = Modifier.width(8.dp))
+                    // v4.5 fix: real branded "VERIFIED" badge instead of the
+                    // generic app logomark, per the actual icon asset supplied.
                     Image(
-                        painter = painterResource(id = R.drawable.pikop_badge),
+                        painter = painterResource(id = R.drawable.pikop_verified_badge),
                         contentDescription = "Verified",
                         modifier = Modifier.size(24.dp)
                     )
@@ -310,9 +312,11 @@ fun AccountScreen(
                 }
 
                 if (userRole == "FULFILLER") {
+                    // v4.5 fix: real branded "VERIFIED" badge instead of the
+                    // generic Material icon, per the actual icon asset supplied.
                     AccountOption(
                         label = "Verification Documents (KYC)",
-                        icon = Icons.Default.VerifiedUser,
+                        iconRes = R.drawable.pikop_verified_badge,
                         onClick = onNavigateToKyc
                     )
                 }
@@ -396,6 +400,24 @@ fun AccountScreen(
 
 @Composable
 fun AccountOption(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    AccountOptionShell(label = label, onClick = onClick) {
+        Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+    }
+}
+
+// v4.5 fix: overload for options whose icon is a real branded raster asset
+// (e.g. the "VERIFIED" badge) rather than a tintable Material ImageVector --
+// the badge is already full-color art, so it's drawn with Image(), not
+// Icon()/tint, to avoid flattening it to a single color.
+@Composable
+fun AccountOption(label: String, iconRes: Int, onClick: () -> Unit) {
+    AccountOptionShell(label = label, onClick = onClick) {
+        Image(painter = painterResource(id = iconRes), contentDescription = null, modifier = Modifier.size(24.dp))
+    }
+}
+
+@Composable
+private fun AccountOptionShell(label: String, onClick: () -> Unit, icon: @Composable () -> Unit) {
     OutlinedCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -412,7 +434,7 @@ fun AccountOption(label: String, icon: androidx.compose.ui.graphics.vector.Image
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                icon()
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(text = label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)

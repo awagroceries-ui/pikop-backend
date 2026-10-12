@@ -160,6 +160,52 @@ object RoadRouteService {
         return points.last()
     }
 
+
+    /** Result of snapping a position onto a route. */
+    data class RouteSplit(
+        val travelled: List<LatLng>,
+        val remaining: List<LatLng>,
+        val segmentIndex: Int,
+        val distanceToRouteMeters: Double
+    )
+
+    /**
+     * Snaps [position] onto [route] and splits the line there: everything behind the
+     * position is "travelled", everything ahead is "remaining". [minSegment] stops the split
+     * point from ever jumping backwards when GPS jitters.
+     */
+    fun splitRouteAtPosition(route: List<LatLng>, position: LatLng, minSegment: Int = 0): RouteSplit {
+        if (route.size < 2) return RouteSplit(emptyList(), route, 0, Double.MAX_VALUE)
+        val refLat = Math.toRadians(position.latitude)
+        val mPerDegLat = 111_320.0
+        val mPerDegLng = 111_320.0 * cos(refLat)
+        fun toXY(p: LatLng) = Pair((p.longitude - position.longitude) * mPerDegLng, (p.latitude - position.latitude) * mPerDegLat)
+
+        var bestSeg = minSegment.coerceIn(0, route.size - 2)
+        var bestDist = Double.MAX_VALUE
+        var bestT = 0.0
+        for (i in bestSeg until route.size - 1) {
+            val (ax, ay) = toXY(route[i])
+            val (bx, by) = toXY(route[i + 1])
+            val dx = bx - ax
+            val dy = by - ay
+            val len2 = dx * dx + dy * dy
+            // position is the origin (0,0)
+            val t = if (len2 == 0.0) 0.0 else ((-ax) * dx + (-ay) * dy) / len2
+            val tc = t.coerceIn(0.0, 1.0)
+            val px = ax + dx * tc
+            val py = ay + dy * tc
+            val d = sqrt(px * px + py * py)
+            if (d < bestDist) { bestDist = d; bestSeg = i; bestT = tc }
+        }
+        val a = route[bestSeg]
+        val b = route[bestSeg + 1]
+        val snapped = LatLng(a.latitude + (b.latitude - a.latitude) * bestT, a.longitude + (b.longitude - a.longitude) * bestT)
+        val travelled = route.subList(0, bestSeg + 1) + snapped
+        val remaining = listOf(snapped) + route.subList(bestSeg + 1, route.size)
+        return RouteSplit(travelled, remaining, bestSeg, bestDist)
+    }
+
     private fun calculateDistanceMeters(p1: LatLng, p2: LatLng): Double {
         val r = 6371000.0
         val lat1 = Math.toRadians(p1.latitude)

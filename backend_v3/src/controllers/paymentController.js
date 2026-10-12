@@ -13,6 +13,23 @@ const smsService = require('../services/smsService');
 const { triggerInitialGuestCommunications } = require('./orderController');
 
 /**
+ * Idempotency guard for wallet top-ups.
+ * The webhook (Paystack server callback) and verifyPayment (Android client
+ * fallback after returning from the payment WebView) can BOTH fire for the
+ * same Paystack reference. Every other credit path in this file already
+ * de-dupes on payment_reference via the `orders` table; top-ups have no
+ * order row, so this checks the ledger directly by reference before
+ * crediting. Must be called inside the same transaction as the credit.
+ */
+const isTopupAlreadyCredited = async (client, purpose, description) => {
+    const { rows } = await client.query(
+        "SELECT 1 FROM wallet_ledger_entries WHERE purpose = $1 AND description = $2",
+        [purpose, description]
+    );
+    return rows.length > 0;
+};
+
+/**
  * Initializes a Paystack transaction.
  */
 const initializePayment = async (req, res) => {
@@ -485,9 +502,14 @@ const handleWebhook = async (req, res) => {
         const client = await db.pool.connect();
         try {
             await client.query('BEGIN');
-            const targetUserId = m.user_id || m.userId;
-            const walletId = await walletService.ensureWalletExists(client, 'USER', targetUserId);
-            await walletService.recordEntry(client, walletId, 'CREDIT', data.amount/100, 'TOPUP', `Top-up Ref: ${reference}`);
+            const description = `Top-up Ref: ${reference}`;
+            if (await isTopupAlreadyCredited(client, 'TOPUP', description)) {
+                console.log(`[Webhook] Top-up ${reference} already credited. Skipping duplicate.`);
+            } else {
+                const targetUserId = m.user_id || m.userId;
+                const walletId = await walletService.ensureWalletExists(client, 'USER', targetUserId);
+                await walletService.recordEntry(client, walletId, 'CREDIT', data.amount/100, 'TOPUP', description);
+            }
             await client.query('COMMIT');
         } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
         return res.sendStatus(200);
@@ -497,8 +519,13 @@ const handleWebhook = async (req, res) => {
         const client = await db.pool.connect();
         try {
             await client.query('BEGIN');
-            const walletId = await walletService.ensureWalletExists(client, 'CORPORATE', m.corporate_account_id);
-            await walletService.recordEntry(client, walletId, 'CREDIT', data.amount/100, 'CORPORATE_TOPUP', `Corporate Top-up Ref: ${reference}`);
+            const description = `Corporate Top-up Ref: ${reference}`;
+            if (await isTopupAlreadyCredited(client, 'CORPORATE_TOPUP', description)) {
+                console.log(`[Webhook] Corporate top-up ${reference} already credited. Skipping duplicate.`);
+            } else {
+                const walletId = await walletService.ensureWalletExists(client, 'CORPORATE', m.corporate_account_id);
+                await walletService.recordEntry(client, walletId, 'CREDIT', data.amount/100, 'CORPORATE_TOPUP', description);
+            }
             await client.query('COMMIT');
         } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
         return res.sendStatus(200);
@@ -660,9 +687,14 @@ const verifyPayment = async (req, res) => {
                 const client = await db.pool.connect();
                 try {
                     await client.query('BEGIN');
-                    const targetUserId = m.user_id || m.userId;
-                    const walletId = await walletService.ensureWalletExists(client, 'USER', targetUserId);
-                    await walletService.recordEntry(client, walletId, 'CREDIT', tx.amount / 100, 'TOPUP', `Top-up Ref: ${reference}`);
+                    const description = `Top-up Ref: ${reference}`;
+                    if (await isTopupAlreadyCredited(client, 'TOPUP', description)) {
+                        console.log(`[VerifyPayment] Top-up ${reference} already credited. Skipping duplicate.`);
+                    } else {
+                        const targetUserId = m.user_id || m.userId;
+                        const walletId = await walletService.ensureWalletExists(client, 'USER', targetUserId);
+                        await walletService.recordEntry(client, walletId, 'CREDIT', tx.amount / 100, 'TOPUP', description);
+                    }
                     await client.query('COMMIT');
                 } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
                 return res.status(200).json({ success: true, status: 'PAID', type: 'TOPUP' });
@@ -672,8 +704,13 @@ const verifyPayment = async (req, res) => {
                 const client = await db.pool.connect();
                 try {
                     await client.query('BEGIN');
-                    const walletId = await walletService.ensureWalletExists(client, 'CORPORATE', m.corporate_account_id);
-                    await walletService.recordEntry(client, walletId, 'CREDIT', tx.amount / 100, 'CORPORATE_TOPUP', `Corporate Top-up Ref: ${reference}`);
+                    const description = `Corporate Top-up Ref: ${reference}`;
+                    if (await isTopupAlreadyCredited(client, 'CORPORATE_TOPUP', description)) {
+                        console.log(`[VerifyPayment] Corporate top-up ${reference} already credited. Skipping duplicate.`);
+                    } else {
+                        const walletId = await walletService.ensureWalletExists(client, 'CORPORATE', m.corporate_account_id);
+                        await walletService.recordEntry(client, walletId, 'CREDIT', tx.amount / 100, 'CORPORATE_TOPUP', description);
+                    }
                     await client.query('COMMIT');
                 } catch (e) { await client.query('ROLLBACK'); } finally { client.release(); }
                 return res.status(200).json({ success: true, status: 'PAID', type: 'CORPORATE_TOPUP' });

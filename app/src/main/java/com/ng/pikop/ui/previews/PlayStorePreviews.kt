@@ -493,7 +493,9 @@ fun Screenshot4_SecureCheckout() {
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.VerifiedUser, null, tint = PikopGold, modifier = Modifier.size(36.dp))
+                        // v4.5 fix: real branded "VERIFIED" badge instead of the
+                        // generic Material icon, per the actual icon asset supplied.
+                        Image(painter = painterResource(id = R.drawable.pikop_verified_badge), contentDescription = null, modifier = Modifier.size(36.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text("100% Escrow Protection", color = Color.White, fontWeight = FontWeight.ExtraBold)
@@ -779,10 +781,11 @@ fun FeatureGraphicPreview() {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            Icons.Default.VerifiedUser,
+                        // v4.5 fix: real branded "VERIFIED" badge instead of the
+                        // generic Material icon, per the actual icon asset supplied.
+                        Image(
+                            painter = painterResource(id = R.drawable.pikop_verified_badge),
                             contentDescription = null,
-                            tint = PikopGold,
                             modifier = Modifier.size(32.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))

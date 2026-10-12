@@ -309,6 +309,8 @@ data class FulfillerProfileResponse(
     val emergency_contact_name: String? = null,
     val emergency_contact_phone: String? = null,
     val current_streak_days: Int = 0,
+    val has_government_id: Boolean = false,
+    val uploaded_doc_types: List<String>? = null,
     val stats: FulfillerStats? = null,
     @SerializedName("data") val data: FulfillerProfileResponse? = null
 )
@@ -350,6 +352,27 @@ data class ProfileUpdateRequest(
     val account_name: String? = null,
     val emergency_contact_name: String? = null,
     val emergency_contact_phone: String? = null
+)
+
+// v4.5 fix (platform fees #1): real, admin-configured fee rates (0.05 = 5%).
+data class MarketingConsentResponse(val success: Boolean = false, val marketing_consent: Boolean = false, val message: String? = null)
+
+data class StatementResponse(
+    val success: Boolean = false,
+    val message: String? = null
+)
+
+data class FeeRatesData(
+    val cod_fee_rate: Double = 0.05,
+    val food_commission: Double = 0.05,
+    val groceries_commission: Double = 0.05,
+    val shop_commission: Double = 0.05,
+    val platform_commission: Double = 0.20
+)
+
+data class FeeRatesResponse(
+    val success: Boolean = false,
+    val data: FeeRatesData? = null
 )
 
 data class UserProfileResponse(
@@ -491,6 +514,7 @@ data class WalletTransaction(
 data class WalletData(
     val balance: Double? = null,
     val pending_balance: Double? = null,
+    val store_credit_balance: Double? = null,
     val currency: String? = null,
     val transactions: List<WalletTransaction>? = null
 )
@@ -498,12 +522,17 @@ data class WalletData(
 data class WalletResponse(
     val balance: Double? = null,
     val pending_balance: Double? = null,
+    val store_credit_balance: Double? = null,
     val currency: String? = null,
     val transactions: List<WalletTransaction>? = null,
     @SerializedName("data") val data: WalletData? = null
 ) {
     val actualBalance: Double get() = data?.balance ?: balance ?: 0.0
     val actualPendingBalance: Double get() = data?.pending_balance ?: pending_balance ?: 0.0
+    // v4.5 fix (#5): non-withdrawable loyalty/store credit, kept separate
+    // from actualBalance (which IS withdrawable) so the Wallet screen can
+    // show it distinctly rather than mixing it into the cash balance.
+    val actualStoreCredit: Double get() = data?.store_credit_balance ?: store_credit_balance ?: 0.0
     val actualTransactions: List<WalletTransaction> get() = data?.transactions ?: transactions ?: emptyList()
 }
 
@@ -607,7 +636,29 @@ data class CreateMerchantCouponRequest(
     val min_order_amount: Double? = 0.0,
     val max_discount_amount: Double? = null,
     val usage_limit: Int? = null,
-    val expiry_date: String? = null
+    val expiry_date: String? = null,
+    val title: String? = null,
+    val description: String? = null
+)
+
+/** One promotion shown in the "Offers" section of the customer home screen. */
+data class OfferItem(
+    val id: String,
+    val code: String,
+    val title: String,
+    val description: String? = null,
+    val badge: String,
+    val min_order_amount: Double = 0.0,
+    val expires_at: String? = null,
+    val store_id: String,
+    val store_type: String, // vendor | kitchen
+    val store_name: String,
+    val store_logo: String? = null
+)
+
+data class OffersResponse(
+    val success: Boolean = true,
+    val data: List<OfferItem> = emptyList()
 )
 
 data class CorporateStaff(
@@ -842,7 +893,9 @@ data class FleetProfile(
 
 data class FleetStats(
     val total_active_missions: Int = 0,
-    val total_fleet_volume: Double = 0.0
+    val delivered_missions: Int = 0,
+    val total_fleet_volume: Double = 0.0,
+    val fleet_earnings: Double = 0.0
 )
 
 data class MerchantProfileResponse(
@@ -931,6 +984,9 @@ data class VendorDetails(
     val status: String,
     val city: String,
     val description: String?,
+    // v4.5 fix (#7): the vendor's own registered store type ("Food",
+    // "Groceries" or "Shop"), set once at onboarding.
+    val category: String? = null,
     val products: List<Product> = emptyList()
 )
 
@@ -958,6 +1014,9 @@ data class KitchenDetails(
     val city: String,
     val cuisine_type: String?,
     val description: String?,
+    // v4.5 fix (#7): the kitchen's own registered store type (normally
+    // "Food"), set once at onboarding.
+    val category: String? = null,
     val menu: List<MenuItem> = emptyList()
 )
 
@@ -1052,6 +1111,12 @@ interface ApiService {
 
     @GET("api/v1/legal/config")
     suspend fun getLegalConfig(): Map<String, String>
+
+    @GET("api/v1/settings/marketing-consent")
+    suspend fun getMarketingConsent(): MarketingConsentResponse
+
+    @PUT("api/v1/settings/marketing-consent")
+    suspend fun setMarketingConsent(@Body request: Map<String, Boolean>): MarketingConsentResponse
 
     @PATCH("api/v1/settings/notifications")
     suspend fun updateNotificationPrefs(@Body request: Map<String, Boolean>): AuthResponse
@@ -1244,6 +1309,9 @@ interface ApiService {
     @POST("api/v1/wallets/topup")
     suspend fun initializeTopup(@Body request: Map<String, Double>): PaymentInitializationResponse
 
+    @GET("api/v1/growth/offers")
+    suspend fun getPromoOffers(): OffersResponse
+
     @GET("api/v1/growth/stats")
     suspend fun getGrowthStats(): GrowthStatsResponse
 
@@ -1253,8 +1321,17 @@ interface ApiService {
     @GET("api/v1/growth/referrals")
     suspend fun getReferralHistory(): ReferralHistoryResponse
 
-    @POST("api/v1/withdrawals")
+    // v4.5 fix: this pointed at "api/v1/withdrawals", a route that doesn't
+    // exist on the server at all (always a 404). The real withdrawal
+    // endpoint lives alongside getWalletInfo/initializeTopup above, at
+    // "api/v1/wallets/withdraw".
+    @POST("api/v1/wallets/withdraw")
     suspend fun requestWithdrawal(@Body request: WithdrawalRequest): AuthResponse
+
+    // Emails the agent/merchant a PDF financial statement for the chosen
+    // period: "this_month", "last_month" or "YYYY-MM".
+    @POST("api/v1/wallets/statement")
+    suspend fun requestStatement(@Body request: Map<String, String>): StatementResponse
 
     @POST("api/v1/fulfillers/kyc/start")
     suspend fun startKycSession(@Body request: Map<String, String> = mapOf("provider" to "prembly")): KycSessionResponse
@@ -1383,6 +1460,10 @@ interface ApiService {
         @Query("lat") lat: Double? = null,
         @Query("lng") lng: Double? = null,
         @Query("category") category: String? = null,
+        // v4.5 fix (#6): filters by the merchant's own store type ("Food",
+        // "Groceries" or "Shop", set once at onboarding), not the item's
+        // free-text sub-category. The Groceries and Shop screens use this.
+        @Query("store_category") store_category: String? = null,
         @Query("query") query: String? = null,
         @Query("item_type") item_type: String? = null,
         @Query("vendor_id") vendor_id: String? = null
@@ -1393,6 +1474,12 @@ interface ApiService {
 
     @GET("api/v1/settings/profile")
     suspend fun getUserProfile(): UserProfileResponse
+
+    // v4.5 fix (platform fees #1): the checkout screen previously showed a
+    // hardcoded 10% escrow/COD fee regardless of what's set in the admin
+    // dashboard. This fetches the real, current rates.
+    @GET("api/v1/settings/fees")
+    suspend fun getFeeRates(): FeeRatesResponse
 
     @PATCH("api/v1/settings/profile")
     suspend fun updateUserProfile(@Body request: ProfileUpdateRequest): AuthResponse

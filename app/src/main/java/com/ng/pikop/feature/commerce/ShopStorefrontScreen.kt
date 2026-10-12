@@ -29,6 +29,7 @@ import com.ng.pikop.core.datastore.TokenManager
 import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.DiscoveryItem
 import kotlinx.coroutines.tasks.await
+import com.ng.pikop.core.location.quickLocation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,14 +52,18 @@ fun ShopStorefrontScreen(
 
     suspend fun fetchShops() {
         try {
-            val location = try {
-                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-            } catch (e: SecurityException) { null }
+            val location = fusedLocationClient.quickLocation()
 
             val response = apiService.getDiscovery(
                 lat = location?.latitude,
                 lng = location?.longitude,
                 item_type = "product",
+                // v4.5 fix (#6): item_type="product" alone matches every
+                // vendor's products, including Groceries stores -- there was
+                // no store-type scoping at all, which is why Groceries items
+                // wrongly showed up here. store_category restricts this
+                // screen to merchants actually registered as "Shop".
+                store_category = "Shop",
                 vendor_id = merchantId,
                 category = if (selectedCategory == "All") null else selectedCategory,
                 query = if (searchQuery.isBlank()) null else searchQuery
@@ -72,6 +77,7 @@ fun ShopStorefrontScreen(
     }
 
     LaunchedEffect(selectedCategory, searchQuery) {
+        if (searchQuery.isNotBlank()) kotlinx.coroutines.delay(350) // wait for typing to pause
         isLoading = true
         fetchShops()
     }

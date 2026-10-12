@@ -55,13 +55,28 @@ fun AddEditProductScreen(
     var photoUrl by remember { mutableStateOf<String?>(null) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
-    val presetCategories = remember(merchantType) {
-        if (merchantType == "kitchen") {
+    // v4.5 fix (#7): previously every non-kitchen merchant (Groceries, Shop,
+    // Pharmacy, etc.) got the exact same mashed-together list of categories,
+    // which made no sense for a Shop merchant trying to list groceries-style
+    // items or vice versa. This now also checks the merchant's own
+    // registered store type (storeCategory, fetched below) so Groceries and
+    // Shop merchants each see categories appropriate to their store.
+    var storeCategory by remember { mutableStateOf<String?>(null) }
+
+    fun categoriesFor(storeCat: String?): List<String> = when {
+        merchantType == "kitchen" ->
             listOf("Local", "Fast Food", "Continental", "Healthy", "Pastries", "Drinks", "Soups & Stews", "Grills & BBQ", "Custom / Other...")
-        } else {
+        storeCat.equals("Groceries", ignoreCase = true) ->
+            listOf("Fresh Produce", "Dairy & Eggs", "Beverages", "Snacks", "Frozen Foods", "Bakery", "Grains & Staples", "Household", "Custom / Other...")
+        storeCat.equals("Shop", ignoreCase = true) ->
+            listOf("Electronics", "Phones & Accessories", "Pharmacy", "Fashion", "Beauty", "Household", "Custom / Other...")
+        else ->
+            // Fallback while the store's category is still loading, or
+            // for a store type with no dedicated list yet.
             listOf("Fresh Produce", "Dairy & Eggs", "Beverages", "Snacks", "Electronics", "Pharmacy", "Fashion", "Beauty", "Household", "Custom / Other...")
-        }
     }
+
+    val presetCategories = remember(merchantType, storeCategory) { categoriesFor(storeCategory) }
 
     var expandedCategoryDropdown by remember { mutableStateOf(false) }
     var isCustomCategory by remember { mutableStateOf(false) }
@@ -85,48 +100,58 @@ fun AddEditProductScreen(
         selectedImageUri = uri
     }
 
-    LaunchedEffect(productId) {
-        if (productId != null) {
-            try {
-                if (merchantType == "vendor") {
-                    val res = apiService.getVendorDetails(merchantId)
+    LaunchedEffect(merchantId, productId) {
+        // v4.5 fix (#7): fetch the merchant's own store details (for its
+        // registered category) every time -- not just when editing an
+        // existing item -- so the category dropdown is correct from the
+        // very first "Add Item" too.
+        try {
+            if (merchantType == "vendor") {
+                val res = apiService.getVendorDetails(merchantId)
+                storeCategory = res.data?.category
+                if (productId != null) {
                     val p = res.data?.products?.find { it.id == productId }
                     p?.let { prod ->
                         name = prod.name
                         price = prod.price.toString()
                         description = prod.description ?: ""
                         category = prod.category ?: ""
-                        if (category.isNotBlank() && !presetCategories.contains(category)) {
-                            isCustomCategory = true
-                            customCategoryInput = category
-                        }
                         photoUrl = prod.photo_url
                         stockQuantity = prod.stock_quantity.toString()
                         unit = prod.unit ?: "item"
                         nafdacNumber = prod.nafdac_number ?: ""
                     }
-                } else {
-                    val res = apiService.getKitchenDetails(merchantId)
+                }
+            } else {
+                val res = apiService.getKitchenDetails(merchantId)
+                storeCategory = res.data?.category
+                if (productId != null) {
                     val m = res.data?.menu?.find { it.id == productId }
                     m?.let { item ->
                         name = item.name
                         price = item.price.toString()
                         description = item.description ?: ""
                         category = item.category ?: ""
-                        if (category.isNotBlank() && !presetCategories.contains(category)) {
-                            isCustomCategory = true
-                            customCategoryInput = category
-                        }
                         photoUrl = item.photo_url
                         prepTime = item.prep_time_minutes.toString()
                         available = item.available
                     }
                 }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Error loading item: ${e.message}", Toast.LENGTH_SHORT).show()
-            } finally {
-                isFetching = false
             }
+            // Decide custom-category state using the store-type-aware list
+            // computed directly (not the `presetCategories` remember value,
+            // which may not have recomposed with the freshly-set
+            // storeCategory yet at this point in the coroutine).
+            if (category.isNotBlank() && !categoriesFor(storeCategory).contains(category)) {
+                isCustomCategory = true
+                customCategoryInput = category
+            }
+        } catch (e: Exception) {
+            if (productId != null) {
+                Toast.makeText(context, "Error loading item: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        } finally {
+            isFetching = false
         }
     }
 

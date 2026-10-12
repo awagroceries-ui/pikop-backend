@@ -94,7 +94,11 @@ fun ProfileEditScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (role.uppercase() == "FULFILLER") {
+            // v4.5 fix: merchants need a way to enter/manage payout bank details
+            // too -- this used to be fulfiller-only, so merchant withdrawals had
+            // nowhere to save bank info and always failed.
+            val showBankSection = role.uppercase() == "FULFILLER" || role.uppercase() == "MERCHANT"
+            if (showBankSection) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text("Payout Bank Account", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(12.dp))
@@ -154,7 +158,11 @@ fun ProfileEditScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
                     ) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Verified, null, tint = MaterialTheme.colorScheme.primary)
+                            // v4.5 fix: real branded "VERIFIED" badge instead of the
+                            // generic Material checkmark, per the actual icon asset supplied.
+                            // Fully-qualified (not relying on this file's own imports) after
+                            // a build showed Image/painterResource/R unresolved here.
+                            androidx.compose.foundation.Image(painter = androidx.compose.ui.res.painterResource(id = com.ng.pikop.R.drawable.pikop_verified_badge), contentDescription = null, modifier = Modifier.size(24.dp))
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text("Verified Name", style = MaterialTheme.typography.labelSmall)
@@ -220,13 +228,14 @@ fun ProfileEditScreen(onBack: () -> Unit) {
                     scope.launch {
                         isLoading = true
                         try {
+                            val canSaveBank = role.uppercase() == "FULFILLER" || role.uppercase() == "MERCHANT"
                             apiService.updateUserProfile(ProfileUpdateRequest(
                                 full_name = name,
                                 phone = phone,
-                                bank_name = if (role == "FULFILLER") selectedBank?.name else null,
-                                account_number = if (role == "FULFILLER") accountNumber else null,
-                                bank_code = if (role == "FULFILLER") selectedBank?.code else null,
-                                account_name = if (role == "FULFILLER") accountName else null,
+                                bank_name = if (canSaveBank) selectedBank?.name else null,
+                                account_number = if (canSaveBank) accountNumber else null,
+                                bank_code = if (canSaveBank) selectedBank?.code else null,
+                                account_name = if (canSaveBank) accountName else null,
                                 emergency_contact_name = emergencyName.ifBlank { null },
                                 emergency_contact_phone = emergencyPhone.ifBlank { null }
                             ))

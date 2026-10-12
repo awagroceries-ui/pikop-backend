@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v4.5 fix (#9): same change as ic_launcher.xml, real Pikop brand
+     background + padded, safe-zone-fit logo mark instead of the unused
+     Android Studio template layers, and no monochrome layer (see
+     ic_launcher.xml for why). -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
-    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+    <foreground android:drawable="@drawable/pikop_launcher_foreground" />
 </adaptive-icon>

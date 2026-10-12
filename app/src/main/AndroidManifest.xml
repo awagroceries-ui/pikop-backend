@@ -12,6 +12,20 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
+    <!-- v4.5 fix (#9), updated: the first pass here pointed straight at
+         pikop_badge.png (a 500x500 drawable, single density) to escape
+         the original 2172x724 wordmark banner that Android was badly
+         cropping. The real branded icon tiles have since been supplied
+         at proper per-density sizes (48/72/96/144/192 = mdpi/hdpi/
+         xhdpi/xxhdpi/xxxhdpi), so this now points back at the standard
+         @mipmap/ic_launcher, which also drives the real adaptive
+         icon (mipmap-anydpi/ic_launcher.xml) on Android 8+, previously
+         still showing Android Studio's unreplaced placeholder.
+         NOTE: this comment also fixes an invalid-XML bug from the prior
+         pass, it had been placed INSIDE the <application> tag's own
+         attribute list, which is not legal XML (a comment can only sit
+         between elements, never inside a start tag), likely breaking
+         the build. -->
     <application
         android:name=".PikopApp"
         android:allowBackup="true"
@@ -19,9 +33,9 @@
         tools:ignore="UnusedAttribute"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/pikop_app_icon"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/pikop_app_icon"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Pikop">
 
@@ -65,6 +79,21 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="pikop" android:host="payment" android:path="/success" />
+            </intent-filter>
+
+            <!-- Live Tracking Link (Android App Link).
+                 autoVerify requires https://api.pikop.com.ng/.well-known/assetlinks.json
+                 to be published with this app's release-signing SHA256 fingerprint,
+                 or Android will fall back to opening the link as an ordinary web
+                 page instead of in this app. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="api.pikop.com.ng"
+                    android:pathPrefix="/track" />
             </intent-filter>
 
             <!-- Merchant Store Deep Link (v4.7) -->

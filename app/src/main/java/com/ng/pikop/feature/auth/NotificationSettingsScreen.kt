@@ -24,6 +24,15 @@ fun NotificationSettingsScreen(onBack: () -> Unit) {
     var pushEnabled by remember { mutableStateOf(true) }
     var emailEnabled by remember { mutableStateOf(true) }
     var smsEnabled by remember { mutableStateOf(false) }
+    var promoEnabled by remember { mutableStateOf(true) }
+    var promoLoaded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        try {
+            promoEnabled = apiService.getMarketingConsent().marketing_consent
+        } catch (ex: Exception) {}
+        promoLoaded = true
+    }
     
     val updatePrefs = { p: Boolean, e: Boolean, s: Boolean ->
         scope.launch {
@@ -58,6 +67,26 @@ fun NotificationSettingsScreen(onBack: () -> Unit) {
                 smsEnabled = it
                 updatePrefs(pushEnabled, emailEnabled, it)
             }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            NotificationToggle("Offers & promotions (email/SMS)", promoEnabled) { wanted ->
+                if (!promoLoaded) return@NotificationToggle
+                promoEnabled = wanted
+                scope.launch {
+                    try {
+                        val res = apiService.setMarketingConsent(mapOf("marketing_consent" to wanted))
+                        promoEnabled = res.marketing_consent
+                        android.widget.Toast.makeText(context, res.message ?: "Saved", android.widget.Toast.LENGTH_SHORT).show()
+                    } catch (ex: Exception) {
+                        promoEnabled = !wanted
+                        android.widget.Toast.makeText(context, "Could not save. Please try again.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            Text(
+                "You receive Pikop offers and promotions by default. Turn this off anytime and we will stop. You will still get important account and order messages.",
+                style = MaterialTheme.typography.bodySmall,
+                color = androidx.compose.ui.graphics.Color.Gray
+            )
         }
     }
 }
