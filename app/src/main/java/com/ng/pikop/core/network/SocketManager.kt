@@ -8,9 +8,23 @@ object SocketManager {
     private var socket: Socket? = null
     private var currentUserId: String? = null
     private const val SOCKET_URL = "https://api.pikop.com.ng"
+    private var authToken: String? = null
+
+    /**
+     * Gives the socket the user's login token. The server uses it to know who
+     * is connected. An already-open connection stays open when the token is
+     * refreshed; the next new connection uses the fresh token.
+     */
+    fun setToken(token: String?) {
+        authToken = token
+    }
 
     fun connect(userId: String? = null) {
         val safeUserId = userId ?: currentUserId
+        if (authToken.isNullOrBlank()) {
+            android.util.Log.w("PikopSocket", "Connection aborted: no login token yet")
+            return
+        }
         if (safeUserId == null || safeUserId == "null" || safeUserId == "0") {
             android.util.Log.w("PikopSocket", "Connection aborted: Invalid userId")
             return
@@ -28,7 +42,7 @@ object SocketManager {
                 reconnection = true
                 
                 // MILSTONE: Multi-Handshake Pattern for VPS Reliability
-                auth = mapOf("userId" to safeUserId)
+                auth = mapOf("token" to authToken!!, "userId" to safeUserId)
                 query = "userId=$safeUserId"
             }
             socket = IO.socket(SOCKET_URL, options)
@@ -51,6 +65,8 @@ object SocketManager {
 
     fun disconnect() {
         socket?.disconnect()
+        socket = null
+        authToken = null
     }
 
     fun emit(event: String, data: Any) {

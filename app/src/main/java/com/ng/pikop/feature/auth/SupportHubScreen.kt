@@ -37,7 +37,8 @@ fun SupportHubScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
-    var activeGroup by remember { mutableStateOf(if (userRole == "MERCHANT") "MERCHANT" else if (userRole == "FULFILLER") "FULFILLER" else "CUSTOMER") }
+    val roleGroups = listOf("MERCHANT", "FULFILLER", "FLEET_PARTNER", "CORPORATE")
+    var activeGroup by remember { mutableStateOf(if (userRole in roleGroups) userRole else "CUSTOMER") }
     
     // AI Assistant State
     var showAiChat by remember { mutableStateOf(false) }
@@ -94,7 +95,7 @@ fun SupportHubScreen(
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             // Role Switcher (Multi-role support)
             // Note: In Pikop V3, users often have one primary role, but we support switching if they are a MERCHANT/FULFILLER too.
-            if (userRole == "MERCHANT" || userRole == "FULFILLER") {
+            if (userRole in roleGroups) {
                 TabRow(
                     selectedTabIndex = if (activeGroup == "CUSTOMER") 0 else 1,
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -108,7 +109,7 @@ fun SupportHubScreen(
                     Tab(
                         selected = activeGroup == userRole,
                         onClick = { activeGroup = userRole },
-                        text = { Text(if (userRole == "MERCHANT") "Seller Help" else "Agent Help") }
+                        text = { Text(when (userRole) { "MERCHANT" -> "Seller Help"; "FLEET_PARTNER" -> "Fleet Help"; "CORPORATE" -> "Company Help"; else -> "Agent Help" }) }
                     )
                 }
             }
@@ -276,7 +277,7 @@ fun SupportHubScreen(
                                         scope.launch {
                                             isAiThinking = true
                                             try {
-                                                val res = apiService.askAiAssistant(mapOf("question" to aiQuestion))
+                                                val res = apiService.askAiAssistant(mapOf("question" to aiQuestion, "group" to activeGroup))
                                                 aiAnswer = res["answer"]?.toString() ?: "I couldn't find an answer. Try rephrasing or chat with support."
                                             } catch (e: Exception) {
                                                 aiAnswer = ErrorUtils.parseError(e).takeIf { it.isNotBlank() } ?: "Error connecting to AI. Please try again later."

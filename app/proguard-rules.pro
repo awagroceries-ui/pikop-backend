@@ -50,3 +50,8 @@
 -keep class **.R$* {
     <fields>;
 }
+
+# Encrypted token storage (Tink) references optional annotation classes
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn com.google.crypto.tink.**

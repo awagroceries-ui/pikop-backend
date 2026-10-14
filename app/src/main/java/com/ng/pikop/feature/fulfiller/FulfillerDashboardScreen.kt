@@ -178,6 +178,17 @@ fun FulfillerDashboardScreen(
         resolveAgentLocation()
     }
 
+    // While online and on this screen, refresh the agent's position every minute so Mission Control
+    // (and dispatch) see a fresh signal instead of marking an idle agent as "weak signal".
+    LaunchedEffect(isOnline) {
+        if (isOnline) {
+            while (true) {
+                kotlinx.coroutines.delay(60_000L)
+                resolveAgentLocation()
+            }
+        }
+    }
+
     // Socket Connection & Real-Time Event Listener
     DisposableEffect(userId) {
         val userIdStr = userId?.toString() ?: ""

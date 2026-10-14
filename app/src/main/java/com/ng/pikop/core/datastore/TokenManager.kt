@@ -1,6 +1,10 @@
 package com.ng.pikop.core.datastore
 
 import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -17,7 +21,9 @@ private val Context.dataStore by preferencesDataStore(name = "pikop_preferences"
 
 class TokenManager(private val context: Context) {
 
-    private val sharedPrefs = context.getSharedPreferences("pikop_sync_prefs", Context.MODE_PRIVATE)
+    // Sign-in tokens live ONLY in encrypted storage (Android Keystore). They are mirrored in two
+    // process-wide flows so every TokenManager instance sees the same value instantly.
+    private val sharedPrefs: SharedPreferences = securePrefs(context.applicationContext)
 
     private val _sessionEvents = MutableSharedFlow<SessionEvent>()
     val sessionEvents: SharedFlow<SessionEvent> = _sessionEvents.asSharedFlow()
@@ -29,6 +35,49 @@ class TokenManager(private val context: Context) {
     }
 
     companion object {
+        private const val SECURE_FILE = "pikop_secure_prefs"
+        private const val LEGACY_FILE = "pikop_sync_prefs"
+        @Volatile private var secure: SharedPreferences? = null
+        private val accessFlow = MutableStateFlow<String?>(null)
+        private val refreshFlow = MutableStateFlow<String?>(null)
+
+        private fun openEncrypted(ctx: Context): SharedPreferences {
+            val key = MasterKey.Builder(ctx).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
+            return EncryptedSharedPreferences.create(
+                ctx, SECURE_FILE, key,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
+
+        @Synchronized
+        private fun securePrefs(ctx: Context): SharedPreferences {
+            secure?.let { return it }
+            val prefs = try {
+                openEncrypted(ctx)
+            } catch (e: Exception) {
+                // Keystore key lost or file unreadable (can happen after a restore or OS reset).
+                // Start clean: the person simply signs in again.
+                try { ctx.deleteSharedPreferences(SECURE_FILE) } catch (_: Exception) { }
+                openEncrypted(ctx)
+            }
+            // One-time move of tokens saved by older app versions in plain text.
+            val legacy = ctx.getSharedPreferences(LEGACY_FILE, Context.MODE_PRIVATE)
+            if (legacy.contains("access_token")) {
+                if (!prefs.contains("access_token")) {
+                    prefs.edit()
+                        .putString("access_token", legacy.getString("access_token", null))
+                        .putString("refresh_token", legacy.getString("refresh_token", null))
+                        .apply()
+                }
+                legacy.edit().clear().apply()
+            }
+            accessFlow.value = prefs.getString("access_token", null)
+            refreshFlow.value = prefs.getString("refresh_token", null)
+            secure = prefs
+            return prefs
+        }
+
         private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
         private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         private val USER_ID_KEY = stringPreferencesKey("user_id")
@@ -41,8 +90,8 @@ class TokenManager(private val context: Context) {
         private val KYC_STATUS_KEY = stringPreferencesKey("kyc_status")
     }
 
-    val accessToken: Flow<String?> = context.dataStore.data.map { it[ACCESS_TOKEN_KEY] }
-    val refreshToken: Flow<String?> = context.dataStore.data.map { it[REFRESH_TOKEN_KEY] }
+    val accessToken: Flow<String?> = accessFlow
+    val refreshToken: Flow<String?> = refreshFlow
     val userId: Flow<String?> = context.dataStore.data.map { it[USER_ID_KEY] }
     val userEmail: Flow<String?> = context.dataStore.data.map { it[USER_EMAIL_KEY] }
     val userName: Flow<String?> = context.dataStore.data.map { it[USER_NAME_KEY] }
@@ -55,8 +104,8 @@ class TokenManager(private val context: Context) {
     /**
      * Synchronous access for Network Interceptors to avoid DataStore async race conditions.
      */
-    fun getAccessTokenSync(): String? = sharedPrefs.getString("access_token", null)
-    fun getRefreshTokenSync(): String? = sharedPrefs.getString("refresh_token", null)
+    fun getAccessTokenSync(): String? = accessFlow.value
+    fun getRefreshTokenSync(): String? = refreshFlow.value
 
     suspend fun saveTokens(
         accessToken: String, 
@@ -70,16 +119,18 @@ class TokenManager(private val context: Context) {
         referralCode: String? = null,
         kycStatus: String? = null
     ) {
-        // Parallel Sync save to SharedPrefs
+        // Tokens go to encrypted storage only (never to the plain DataStore).
         sharedPrefs.edit().apply {
             putString("access_token", accessToken)
             putString("refresh_token", refreshToken)
             apply()
         }
+        accessFlow.value = accessToken
+        refreshFlow.value = refreshToken
 
         context.dataStore.edit { preferences ->
-            preferences[ACCESS_TOKEN_KEY] = accessToken
-            preferences[REFRESH_TOKEN_KEY] = refreshToken
+            preferences.remove(ACCESS_TOKEN_KEY) // clear any plain-text copy left by older versions
+            preferences.remove(REFRESH_TOKEN_KEY)
             if (userId != null) preferences[USER_ID_KEY] = userId
             preferences[USER_EMAIL_KEY] = email
             preferences[USER_ROLE_KEY] = role
@@ -93,6 +144,8 @@ class TokenManager(private val context: Context) {
 
     suspend fun clearTokens() {
         sharedPrefs.edit().clear().apply()
+        accessFlow.value = null
+        refreshFlow.value = null
         context.dataStore.edit { it.clear() }
     }
 }

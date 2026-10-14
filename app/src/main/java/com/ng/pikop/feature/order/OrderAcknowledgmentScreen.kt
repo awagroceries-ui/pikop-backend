@@ -17,6 +17,10 @@ import com.ng.pikop.core.network.ApiService
 import com.ng.pikop.core.network.ErrorUtils
 import com.ng.pikop.core.network.OrderDetailsResponse
 import kotlinx.coroutines.launch
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +38,48 @@ fun OrderAcknowledgmentScreen(
     val tokenManager = remember { TokenManager(context) }
     val scope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
+
+    // Set when we sent the person to the secure payment page; on return we check if it was paid.
+    var awaitingPayment by remember { mutableStateOf(false) }
+
+    // The server answers 402 until a sender-initiated delivery is paid. Opens the secure Paystack page.
+    fun handlePaymentRequired(e: Exception): Boolean {
+        if (e !is HttpException || e.code() != 402) return false
+        val body = try { e.response()?.errorBody()?.string() } catch (_: Exception) { null }
+        val json = try { com.google.gson.JsonParser.parseString(body ?: "").asJsonObject } catch (_: Exception) { null }
+        val url = json?.get("pay_url")?.takeIf { !it.isJsonNull }?.asString
+        val msg = json?.get("message")?.takeIf { !it.isJsonNull }?.asString ?: "Payment is required before delivery starts."
+        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+        if (!url.isNullOrBlank() && url.startsWith("https://")) {
+            try {
+                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                awaitingPayment = true
+            } catch (_: Exception) { }
+        }
+        return true
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, awaitingPayment) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && awaitingPayment) {
+                scope.launch {
+                    try {
+                        val r = apiService.getOrderDetails(orderId)
+                        val o = r.data ?: r
+                        val st = o.status ?: ""
+                        if (st.isNotEmpty() && st != "PENDING_ACKNOWLEDGMENT" && st != "AWAITING_PAYMENT") {
+                            awaitingPayment = false
+                            android.widget.Toast.makeText(context, "Payment received. Your delivery is starting.", android.widget.Toast.LENGTH_LONG).show()
+                            onSuccess()
+                        }
+                    } catch (_: Exception) { }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(orderId) {
         try {
@@ -134,7 +180,7 @@ fun OrderAcknowledgmentScreen(
                                 android.widget.Toast.makeText(context, "Delivery Confirmed!", android.widget.Toast.LENGTH_SHORT).show()
                                 onSuccess()
                             } catch (e: Exception) {
-                                android.widget.Toast.makeText(context, ErrorUtils.parseError(e), android.widget.Toast.LENGTH_LONG).show()
+                                if (!handlePaymentRequired(e)) android.widget.Toast.makeText(context, ErrorUtils.parseError(e), android.widget.Toast.LENGTH_LONG).show()
                             } finally { isActionLoading = false }
                         }
                     },
@@ -142,7 +188,7 @@ fun OrderAcknowledgmentScreen(
                     enabled = !isActionLoading
                 ) {
                     if (isActionLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                    else Text("Confirm & Verify Address")
+                    else Text(if (awaitingPayment) "Continue to payment" else "Confirm & Verify Address")
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

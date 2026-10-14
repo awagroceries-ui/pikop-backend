@@ -181,10 +181,15 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
     }
 
     // Handle Intent Deep-linking
-    LaunchedEffect(incomingIntent) {
+    // Re-runs when the sign-in token becomes available too, so a notification tapped while the app was
+    // closed still opens the right screen once the person is known. Each intent is acted on only once.
+    LaunchedEffect(incomingIntent, accessToken) {
         val intent = incomingIntent ?: return@LaunchedEffect
+        if (intent.getBooleanExtra("pikop_handled", false)) return@LaunchedEffect
         val dataUri = intent.data
-        val navigateTo = intent.getStringExtra("navigate_to")
+        // Notifications drawn by the system (app closed / in background) carry the server's "type" key;
+        // ones drawn by the app itself carry "navigate_to". Accept both.
+        val navigateTo = intent.getStringExtra("navigate_to") ?: intent.getStringExtra("type")
         val orderId = intent.getStringExtra("order_id")
         val conversationId = intent.getStringExtra("conversation_id")
 
@@ -227,6 +232,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
         }
 
         if (accessToken != null && navigateTo != null) {
+            kotlinx.coroutines.delay(350) // let the first screen finish loading before jumping
             when (navigateTo) {
                 "SUPPORT_CHAT", "chat" -> {
                     if (conversationId != null) {
@@ -265,12 +271,17 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
                 else -> navController.navigate("main")
             }
         }
+
+        if (dataUri != null || (navigateTo != null && accessToken != null)) {
+            intent.putExtra("pikop_handled", true)
+        }
     }
 
     // Profile Auto-Sync & Push Token Registration
     LaunchedEffect(accessToken) {
         val currentToken = accessToken ?: return@LaunchedEffect
         // Socket Connectivity
+        com.ng.pikop.core.network.SocketManager.setToken(currentToken)
         userId?.let { com.ng.pikop.core.network.SocketManager.connect(it) }
 
         // 1. Sync Profile Data and Start Background Approval Monitoring
@@ -581,7 +592,7 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
             ActiveOrderScreen(
                 orderId = orderId, 
-                onOrderCompleted = { navController.popBackStack() },
+                onOrderCompleted = { navController.navigate("main") { popUpTo(0) { inclusive = true } } },
                 onBack = { navController.popBackStack() },
                 onNavigateToChat = { id -> navController.navigate("order_chat/$id") }
             )
@@ -598,7 +609,8 @@ fun PikopAppNavigation(intentFlow: kotlinx.coroutines.flow.StateFlow<Intent?>) {
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
             TrackOrderScreen(
                 orderId = orderId,
-                onCelebration = { celebrationViewModel.trigger() }
+                onCelebration = { celebrationViewModel.trigger() },
+                onLeave = { navController.navigate("main") { popUpTo(0) { inclusive = true } } }
             )
         }
         composable("confirm_payment/{reference}") { backStackEntry ->

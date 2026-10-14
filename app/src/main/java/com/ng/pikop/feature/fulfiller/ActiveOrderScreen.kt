@@ -188,6 +188,15 @@ fun ActiveOrderScreen(
         val normStatus = orderStatus.uppercase()
         val trackableStatuses = listOf("MATCHED", "SEARCHING", "ASSIGNED", "ACCEPTED", "ARRIVED_AT_PICKUP", "PICKED_UP", "IN_TRANSIT", "ARRIVED_AT_DELIVERY", "PAYMENT_CAPTURED")
         
+        // Background service keeps the live location flowing when the agent
+        // leaves the app or locks the phone. It stops when the order ends.
+        val serviceRunning = if (normStatus in trackableStatuses) {
+            com.ng.pikop.core.location.MissionLocationService.start(context, orderId)
+        } else {
+            com.ng.pikop.core.location.MissionLocationService.stop(context)
+            false
+        }
+
         if (normStatus in trackableStatuses) {
             while (true) {
                 try {
@@ -202,8 +211,8 @@ fun ActiveOrderScreen(
                                     put("lat", location.latitude)
                                     put("lng", location.longitude)
                                 }
-                                SocketManager.emit("update_mission_location", data)
-                                android.util.Log.d("ActiveOrder", "Location PING sent for Mission #$orderId")
+                                // The background service sends pings; only send from here as a fallback.
+                                if (!serviceRunning) SocketManager.emit("update_mission_location", data)
                             }
                         }
                 } catch (e: SecurityException) {

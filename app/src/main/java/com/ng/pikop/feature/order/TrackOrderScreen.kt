@@ -50,7 +50,8 @@ fun TrackOrderScreen(
     orderId: String, 
     pickup: LatLng? = null, 
     delivery: LatLng? = null,
-    onCelebration: () -> Unit = {}
+    onCelebration: () -> Unit = {},
+    onLeave: () -> Unit = {}
 ) {
     var pickupLoc by remember { mutableStateOf(pickup) }
     var deliveryLoc by remember { mutableStateOf(delivery) }
@@ -59,6 +60,10 @@ fun TrackOrderScreen(
     var history by remember { mutableStateOf<List<OrderStatusStep>>(emptyList()) }
     var fulfillerProfile by remember { mutableStateOf<FulfillerPublicProfile?>(null) }
     var trackingUrl by remember { mutableStateOf<String?>(null) }
+    // Last time the live connection delivered something; the 3-second backup refresh stays quiet while live events flow.
+    var lastLiveEventAt by remember { mutableStateOf(0L) }
+    // Bumped on every live status change so the bottom sheet reloads immediately.
+    var liveTick by remember { mutableIntStateOf(0) }
     
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -144,6 +149,50 @@ fun TrackOrderScreen(
         fetchHistory()
     }
 
+    // Safety net: if live events stop arriving, check every 3 seconds so the agent's
+    // position and the mission status never go stale. The screen no longer needs to
+    // be closed and reopened to see changes.
+    LaunchedEffect(orderId) {
+        while (true) {
+            kotlinx.coroutines.delay(3000)
+            if (System.currentTimeMillis() - lastLiveEventAt < 8000L) continue
+            try {
+                val response = apiService.getOrderDetails(orderId)
+                val d = response.data ?: response
+                val fLat = d.fulfiller_lat
+                val fLng = d.fulfiller_lng
+                if (fLat != null && fLng != null && fLat != 0.0 && fLng != 0.0) {
+                    val current = fulfillerLocation
+                    if (current == null || current.latitude != fLat || current.longitude != fLng) {
+                        if (interpolatedLat.value == 0f) {
+                            interpolatedLat.snapTo(fLat.toFloat())
+                            interpolatedLng.snapTo(fLng.toFloat())
+                        } else {
+                            launch { interpolatedLat.animateTo(fLat.toFloat(), tween(2000)) }
+                            launch { interpolatedLng.animateTo(fLng.toFloat(), tween(2000)) }
+                        }
+                        fulfillerLocation = LatLng(fLat, fLng)
+                    }
+                }
+                d.fulfiller_profile?.let { fulfillerProfile = it }
+                d.history?.let { list ->
+                    history = list.map { item ->
+                        OrderStatusStep(
+                            status = item.status ?: "UNKNOWN",
+                            description = item.description ?: "",
+                            time = formatTime(item.time ?: ""),
+                            isCompleted = true
+                        )
+                    }
+                }
+                val st = d.status?.uppercase()
+                if (st == "DELIVERED" || st == "CANCELLED" || st == "RELEASED") break
+            } catch (e: Exception) {
+                // offline for a moment: try again next round
+            }
+        }
+    }
+
     DisposableEffect(orderId, userId) {
         if (userId != null) {
             SocketManager.connect(userId)
@@ -151,6 +200,7 @@ fun TrackOrderScreen(
         }
         
         val handleLocationUpdate: (JSONObject) -> Unit = { data ->
+            lastLiveEventAt = System.currentTimeMillis()
             val lat = data.optDouble("lat", 0.0)
             val lng = data.optDouble("lng", 0.0)
             if (lat != 0.0 && lng != 0.0) {
@@ -176,7 +226,11 @@ fun TrackOrderScreen(
 
         SocketManager.on("location_updated", handleLocationUpdate)
         SocketManager.on("location_changed", handleLocationUpdate)
-        SocketManager.on("status_updated") { _ -> fetchHistory() }
+        SocketManager.on("status_updated") { _ ->
+            lastLiveEventAt = System.currentTimeMillis()
+            liveTick++
+            fetchHistory()
+        }
 
         onDispose {
             SocketManager.off("location_updated")
@@ -248,7 +302,7 @@ fun TrackOrderScreen(
         sheetContainerColor = MaterialTheme.colorScheme.surface,
         sheetContentColor = MaterialTheme.colorScheme.primary,
         sheetContent = {
-            TrackingBottomSheetContent(orderId, etaMinutes, history, fulfillerProfile, tokenManager, onCelebration, fetchHistory)
+            TrackingBottomSheetContent(orderId, etaMinutes, history, fulfillerProfile, tokenManager, onCelebration, fetchHistory, liveTick, onLeave)
         }
     ) { padding ->
         Surface(
@@ -290,13 +344,15 @@ fun TrackOrderScreen(
                             }
                             
                             val scaledIcon: BitmapDescriptor = remember(iconRes) {
-                                getScaledMarkerIcon(context, iconRes, sizeDp = 38)
+                                getScaledMarkerIcon(context, iconRes, sizeDp = 56)
                             }
                             
                             Marker(
                                 state = MarkerState(position = it), 
                                 title = "Agent", 
-                                icon = scaledIcon
+                                icon = scaledIcon,
+                                anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.5f),
+                                zIndex = 10f
                             ) 
                         }
                         
@@ -416,24 +472,62 @@ fun createRoadPolyline(start: LatLng, end: LatLng): List<LatLng> {
     return points
 }
 
-fun getScaledMarkerIcon(context: android.content.Context, resId: Int, sizeDp: Int = 38): BitmapDescriptor {
+fun getScaledMarkerIcon(context: android.content.Context, resId: Int, sizeDp: Int = 56): BitmapDescriptor {
     return try {
         val density = context.resources.displayMetrics.density
         val sizePx = (sizeDp * density).toInt()
-        val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, resId)
-        if (bitmap != null) {
-            val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(bitmap, sizePx, sizePx, true)
-            BitmapDescriptorFactory.fromBitmap(scaledBitmap)
-        } else {
-            BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+        val src = android.graphics.BitmapFactory.decodeResource(context.resources, resId)
+            ?: return BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+
+        // The artwork has a lot of transparent padding, which made the agent look tiny/invisible.
+        // Crop to the visible part, then draw it inside a white disc with a green ring and shadow.
+        var minX = src.width; var minY = src.height; var maxX = -1; var maxY = -1
+        val row = IntArray(src.width)
+        for (y in 0 until src.height) {
+            src.getPixels(row, 0, src.width, 0, y, src.width, 1)
+            for (x in 0 until src.width) {
+                if ((row[x] ushr 24) > 20) {
+                    if (x < minX) minX = x; if (x > maxX) maxX = x
+                    if (y < minY) minY = y; if (y > maxY) maxY = y
+                }
+            }
         }
+        val cropped = if (maxX > minX && maxY > minY)
+            android.graphics.Bitmap.createBitmap(src, minX, minY, maxX - minX + 1, maxY - minY + 1) else src
+
+        val out = android.graphics.Bitmap.createBitmap(sizePx, sizePx, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(out)
+        val c = sizePx / 2f
+        val ring = 3f * density
+        val radius = c - 4f * density
+
+        val shadow = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.argb(90, 0, 0, 0)
+        }
+        canvas.drawCircle(c, c + 1.5f * density, radius, shadow)
+        val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
+        canvas.drawCircle(c, c, radius, fill)
+        val stroke = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.parseColor("#008751")
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = ring
+        }
+        canvas.drawCircle(c, c, radius - ring / 2f, stroke)
+
+        val inner = (radius - ring) * 1.55f
+        val scale = minOf(inner / cropped.width, inner / cropped.height)
+        val w = (cropped.width * scale).toInt().coerceAtLeast(1)
+        val h = (cropped.height * scale).toInt().coerceAtLeast(1)
+        val scaled = android.graphics.Bitmap.createScaledBitmap(cropped, w, h, true)
+        canvas.drawBitmap(scaled, c - w / 2f, c - h / 2f, null)
+        BitmapDescriptorFactory.fromBitmap(out)
     } catch (_: Exception) {
         BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
     }
 }
 
 @Composable
-fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>, profile: FulfillerPublicProfile?, tokenManager: TokenManager, onCelebration: () -> Unit = {}, onRefresh: () -> Unit) {
+fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderStatusStep>, profile: FulfillerPublicProfile?, tokenManager: TokenManager, onCelebration: () -> Unit = {}, onRefresh: () -> Unit, liveTick: Int = 0, onLeave: () -> Unit = {}) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val apiService = remember { ApiService.create(tokenManager) }
@@ -456,7 +550,17 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
     // Keying on `history` (passed down from the parent, refreshed on every
     // socket status update) makes this re-check fire every time the mission
     // status changes, including on delivery completion.
-    LaunchedEffect(orderId, refreshKey, history) {
+    // Keeps the status bar, codes and buttons current without leaving the screen.
+    LaunchedEffect(orderId) {
+        while (true) {
+            kotlinx.coroutines.delay(4000)
+            val st = orderDetails?.status?.uppercase()
+            if (st == "DELIVERED" || st == "RELEASED" || st == "CANCELLED") break
+            refreshKey++
+        }
+    }
+
+    LaunchedEffect(orderId, refreshKey, history, liveTick) {
         try {
             val prevStatus = orderDetails?.status
             val res = apiService.getOrderDetails(orderId)
@@ -523,6 +627,7 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                                             apiService.resolveTimeout(orderId, mapOf("choice" to "cancel"))
                                             android.widget.Toast.makeText(context, "Mission Aborted", android.widget.Toast.LENGTH_SHORT).show()
                                             onRefresh()
+                                            onLeave()
                                         } catch (e: Exception) {
                                             android.widget.Toast.makeText(context, ErrorUtils.parseError(e), android.widget.Toast.LENGTH_LONG).show()
                                         }
@@ -696,6 +801,7 @@ fun TrackingBottomSheetContent(orderId: String, eta: Int?, history: List<OrderSt
                                             android.widget.Toast.makeText(context, response.message ?: "Mission Aborted", android.widget.Toast.LENGTH_LONG).show()
                                             onRefresh() 
                                             showCancelConfirm = false 
+                                            onLeave()
                                         } catch (e: Exception) {
                                             val errorMsg = com.ng.pikop.core.network.ErrorUtils.parseError(e)
                                             android.util.Log.e("TrackOrder", "Cancel failed: $errorMsg", e)

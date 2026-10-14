@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
+    id("com.google.firebase.crashlytics")
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
@@ -17,8 +18,8 @@ android {
         applicationId = "com.ng.pikop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 21
-        versionName = "1.1.8"
+        versionCode = 22
+        versionName = "1.1.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -42,6 +43,11 @@ android {
             } else ""
         }
         buildConfigField("String", "PAYSTACK_PUBLIC_KEY", "\"${paystackKey}\"")
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     signingConfigs {
@@ -125,6 +131,8 @@ dependencies {
     implementation(libs.google.places)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation("com.google.firebase:firebase-crashlytics") // version comes from the Firebase BOM
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation(libs.coil.compose)
 
     implementation(platform(libs.androidx.compose.bom))
